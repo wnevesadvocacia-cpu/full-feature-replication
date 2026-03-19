@@ -54,11 +54,11 @@ export function AppSidebar() {
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <span className="text-primary-foreground font-bold text-sm">A</span>
+            <span className="text-primary-foreground font-bold text-sm">W</span>
           </div>
           {!collapsed && (
             <span className="font-display font-bold text-sidebar-accent-foreground text-lg tracking-tight">
-              ADVBOX
+              WnevesBox
             </span>
           )}
         </div>
