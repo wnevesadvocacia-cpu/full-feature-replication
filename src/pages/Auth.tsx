@@ -57,10 +57,10 @@ export default function Auth() {
       <div className="hidden lg:flex lg:w-1/2 bg-sidebar flex-col justify-between p-12">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">A</span>
+            <span className="text-primary-foreground font-bold text-lg">W</span>
           </div>
           <span className="text-sidebar-accent-foreground font-display font-bold text-xl tracking-tight">
-            ADVBOX
+            WnevesBox
           </span>
         </div>
 
@@ -74,7 +74,7 @@ export default function Auth() {
         </div>
 
         <p className="text-sidebar-muted text-sm">
-          © 2024 ADVBOX. Todos os direitos reservados.
+          © 2024 WnevesBox. Todos os direitos reservados.
         </p>
       </div>
 
@@ -83,9 +83,9 @@ export default function Auth() {
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex items-center gap-3 justify-center mb-8">
             <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">A</span>
+              <span className="text-primary-foreground font-bold text-lg">W</span>
             </div>
-            <span className="font-display font-bold text-xl tracking-tight">ADVBOX</span>
+            <span className="font-display font-bold text-xl tracking-tight">WnevesBox</span>
           </div>
 
           <div className="space-y-2 text-center">
