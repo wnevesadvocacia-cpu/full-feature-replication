@@ -74,7 +74,7 @@ export default function Auth() {
         </div>
 
         <p className="text-sidebar-muted text-sm">
-          © 2024 ADVBOX. Todos os direitos reservados.
+          © 2024 WnevesBox. Todos os direitos reservados.
         </p>
       </div>
 
