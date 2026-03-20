@@ -50,10 +50,12 @@ export default function Clientes() {
           <h1 className="text-2xl font-display font-bold">Clientes</h1>
           <p className="text-muted-foreground text-sm mt-1">{clients.length} clientes cadastrados</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4" />Novo Cliente</Button>
-          </DialogTrigger>
+        <div className="flex gap-2">
+          <CsvImportDialog />
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button><Plus className="h-4 w-4" />Novo Cliente</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
             <div className="space-y-4">
