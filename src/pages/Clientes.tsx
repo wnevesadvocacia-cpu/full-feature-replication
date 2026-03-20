@@ -90,6 +90,7 @@ export default function Clientes() {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
