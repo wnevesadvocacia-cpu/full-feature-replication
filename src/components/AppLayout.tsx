@@ -32,11 +32,8 @@ export default function AppLayout() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="relative">
+              <Button variant="ghost" size="icon">
                 <Bell className="h-4 w-4" />
-                <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-primary rounded-full text-[10px] text-primary-foreground flex items-center justify-center font-medium">
-                  3
-                </span>
               </Button>
 
               <div className="flex items-center gap-3 ml-2 pl-2 border-l">
