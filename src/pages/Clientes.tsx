@@ -130,6 +130,24 @@ export default function Clientes() {
                 {client.email && <div className="flex items-center gap-2"><Mail className="h-3.5 w-3.5" /><span>{client.email}</span></div>}
                 {client.phone && <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /><span>{client.phone}</span></div>}
               </div>
+              {(() => {
+                const clientProcesses = (processes as any[]).filter(p => p.client_id === client.id);
+                return clientProcesses.length > 0 ? (
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Scale className="h-3 w-3" />
+                      <span>Processos ({clientProcesses.length})</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {clientProcesses.map((p: any) => (
+                        <Badge key={p.id} variant="outline" className="text-xs font-mono">
+                          #{p.number}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
               <div className="mt-4 pt-3 border-t flex items-center justify-between text-sm">
                 <Badge variant="outline" className={client.status === 'ativo' ? 'bg-success/10 text-success border-success/20' : 'bg-muted text-muted-foreground'}>{client.status}</Badge>
                 {client.document && <span className="text-xs text-muted-foreground font-mono">{client.document}</span>}
