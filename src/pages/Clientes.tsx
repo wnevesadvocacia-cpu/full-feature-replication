@@ -18,6 +18,7 @@ export default function Clientes() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', type: 'PF' as 'PF' | 'PJ', document: '' });
   const { data: clients = [], isLoading } = useClients();
+  const { data: processes = [] } = useProcesses();
   const createClient = useCreateClient();
   const { toast } = useToast();
 
