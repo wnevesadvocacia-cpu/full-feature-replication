@@ -34,3 +34,20 @@ export function useCreateClient() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
   });
 }
+
+export function useImportClients() {
+  const qc = useQueryClient();
+  const { user } = useAuth();
+  return useMutation({
+    mutationFn: async (clients: { name: string; email?: string; phone?: string; type?: string; document?: string }[]) => {
+      const rows = clients.map(c => ({ ...c, type: c.type || 'PF', user_id: user!.id }));
+      const { data, error } = await supabase
+        .from('clients')
+        .insert(rows)
+        .select();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clients'] }),
+  });
+}
