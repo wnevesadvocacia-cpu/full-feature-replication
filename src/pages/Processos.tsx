@@ -113,10 +113,10 @@ function useProcesses(search: string, status: string, page: number) {
     queryFn: async () => {
       let q = supabase
         .from('processes')
-        .select('id,number,title,status,type,client_name,comarca,vara,tribunal,opponent,phase,stage,responsible,lawyer,honorarios_valor,honorarios_percent,cause_value,contingency,last_update,observations,created_at,updated_at,request_date,closing_date,result,client_id', { count: 'exact' })
+        .select('id,number,title,status,type,client_id,lawyer,created_at,updated_at', { count: 'exact' })
         .order('updated_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%,opponent.ilike.%${search}%`);
+      if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%`);
       if (status) q = q.eq('status', status);
       const { data, error, count } = await q;
       if (error) throw error;
