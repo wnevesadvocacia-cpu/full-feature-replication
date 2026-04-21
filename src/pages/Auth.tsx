@@ -24,18 +24,17 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  // OTP 2FA state
   const [otpStep, setOtpStep] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpEmail, setOtpEmail] = useState('');
-  const [countdown, setCountdown] = useState(600);
+  const [countdown, setCountdown] = useState(300);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     if (otpStep) {
-      setCountdown(600);
+      setCountdown(300);
       countdownRef.current = setInterval(() => {
         setCountdown(prev => {
           if (prev <= 1) {
@@ -69,14 +68,11 @@ export default function Auth() {
     setLoading(true);
     try {
       if (isLogin) {
-        // Step 1: verify password credentials
         const { error: pwError } = await supabase.auth.signInWithPassword({ email, password });
         if (pwError) throw pwError;
 
-        // Step 2: sign out the temporary session
         await supabase.auth.signOut();
 
-        // Step 3: send OTP to email as second factor
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
           options: {
@@ -144,7 +140,6 @@ export default function Auth() {
     }
   };
 
-  // OTP verification screen
   if (otpStep) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
@@ -160,7 +155,7 @@ export default function Auth() {
               Código enviado para <span className="text-blue-400 font-medium">{otpEmail}</span>
             </p>
             <p className="text-slate-500 text-xs mt-1">
-              Digite o código de 6 dígitos do email (não o botão — o número mesmo)
+              Digite o código de 6 dígitos recebido no email
             </p>
           </div>
           <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
@@ -213,7 +208,6 @@ export default function Auth() {
     );
   }
 
-  // Normal login / register screen
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -338,4 +332,4 @@ export default function Auth() {
       </Dialog>
     </div>
   );
-          }
+        }
