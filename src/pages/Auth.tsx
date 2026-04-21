@@ -1,27 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, ArrowRight, Mail, Lock, Shield, Loader2 } from 'lucide-react';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
+import { Scale, Mail, Shield, Loader2, ArrowRight, RotateCcw } from 'lucide-react';
 
-const SITE_URL = 'https://wnevesadvocacia-cpu.github.io/full-feature-replication';
+type Step = 'email' | 'otp';
 
 export default function Auth() {
-  const [isLogin, setIsLogin]     = useState(true);
-  const [email, setEmail]         = useState('');
-  const [password, setPassword]   = useState('');
-  const [loading, setLoading]     = useState(false);
-  const [resetOpen, setResetOpen] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
+  const [step, setStep] = useState<Step>('email');
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -30,44 +26,100 @@ export default function Auth() {
     });
   }, [navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Cooldown timer for resend
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
+  const sendOtp = async (emailAddr: string) => {
     setLoading(true);
     try {
-      if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate('/');
-      } else {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        toast({
-          title: 'Conta criada!',
-          description: 'Verifique seu email para confirmar o cadastro.',
-        });
-      }
+      const { error } = await supabase.auth.signInWithOtp({
+        email: emailAddr,
+        options: { shouldCreateUser: true },
+      });
+      if (error) throw error;
+      setStep('otp');
+      setResendCooldown(60);
+      toast({
+        title: 'Codigo enviado!',
+        description: `Verifique o email ${emailAddr} e insira o codigo de 6 digitos.`,
+      });
+      // Focus first OTP input after a short delay
+      setTimeout(() => inputRefs.current[0]?.focus(), 100);
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao enviar codigo', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleReset = async () => {
-    if (!resetEmail) return;
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    await sendOtp(email.trim());
+  };
+
+  const handleOtpChange = (idx: number, value: string) => {
+    // Accept only digits; handle paste of full 6-digit code
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 6) {
+      const arr = digits.split('');
+      setOtp(arr);
+      inputRefs.current[5]?.focus();
+      return;
+    }
+    const single = digits.slice(-1);
+    const next = [...otp];
+    next[idx] = single;
+    setOtp(next);
+    if (single && idx < 5) {
+      inputRefs.current[idx + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (idx: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[idx] && idx > 0) {
+      inputRefs.current[idx - 1]?.focus();
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const token = otp.join('');
+    if (token.length !== 6) {
+      toast({ title: 'Insira o codigo completo de 6 digitos.', variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${SITE_URL}/#/reset-password`,
+      const { error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'email',
       });
       if (error) throw error;
-      toast({ title: 'Email enviado!', description: 'Verifique seu email para redefinir a senha.' });
-      setResetOpen(false);
+      navigate('/');
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: 'Codigo invalido ou expirado', description: err.message, variant: 'destructive' });
+      // Clear OTP fields on error
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    await sendOtp(email);
+  };
+
+  const handleBack = () => {
+    setStep('email');
+    setOtp(['', '', '', '', '', '']);
   };
 
   return (
@@ -81,122 +133,133 @@ export default function Auth() {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-1">WnevesBox</h1>
-          <p className="text-slate-400 text-sm">Gestão Jurídica Inteligente</p>
+          <p className="text-blue-200 text-sm">Gestao Juridica Inteligente</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
-          {/* Tabs */}
-          <div className="flex bg-slate-700/50 rounded-lg p-1 mb-6">
-            <button
-              onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'}`}>
-              Entrar
-            </button>
-            <button
-              onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${!isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'}`}>
-              Criar conta
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
-            <div className="space-y-2">
-              <Label className="text-slate-300 text-sm font-medium">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500"
-                />
+        <div className="bg-white rounded-2xl shadow-2xl p-8">
+          {step === 'email' ? (
+            <>
+              <div className="mb-6 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
+                  <Mail className="h-6 w-6 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Entrar</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Enviaremos um codigo de acesso para seu email.
+                </p>
               </div>
-            </div>
 
-            {/* Password */}
-            <div className="space-y-2">
-              <Label className="text-slate-300 text-sm font-medium">Senha</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500"
-                />
+              <form onSubmit={handleEmailSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                    Email
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="seu@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    autoFocus
+                    className="mt-1"
+                  />
+                </div>
+
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
+                  {loading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</>
+                  ) : (
+                    <><ArrowRight className="h-4 w-4 mr-2" />Enviar codigo OTP</>
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-400">
+                <Shield className="h-3.5 w-3.5 shrink-0" />
+                <span>Acesso seguro via codigo de uso unico. Sem senha necessaria.</span>
               </div>
-            </div>
+            </>
+          ) : (
+            <>
+              <div className="mb-6 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
+                  <Shield className="h-6 w-6 text-green-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Verificar codigo</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Codigo enviado para <strong className="text-gray-700">{email}</strong>
+                </p>
+              </div>
 
-            {/* Forgot password */}
-            {isLogin && (
-              <div className="text-right">
+              <form onSubmit={handleVerify} className="space-y-6">
+                {/* 6-digit OTP inputs */}
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-3 block text-center">
+                    Codigo de 6 digitos
+                  </Label>
+                  <div className="flex gap-2 justify-center">
+                    {otp.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={(el) => { inputRefs.current[idx] = el; }}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(idx, e.target.value)}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                        className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={loading || otp.join('').length !== 6}
+                >
+                  {loading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando...</>
+                  ) : (
+                    <><Shield className="h-4 w-4 mr-2" />Verificar e entrar</>
+                  )}
+                </Button>
+              </form>
+
+              <div className="mt-4 flex items-center justify-between text-sm">
                 <button
                   type="button"
-                  onClick={() => setResetOpen(true)}
-                  className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
-                  Esqueceu a senha?
+                  onClick={handleBack}
+                  className="text-gray-400 hover:text-gray-600 flex items-center gap-1"
+                >
+                  <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+                  Trocar email
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0}
+                  className={`flex items-center gap-1 ${
+                    resendCooldown > 0
+                      ? 'text-gray-300 cursor-not-allowed'
+                      : 'text-blue-600 hover:text-blue-800'
+                  }`}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar codigo'}
                 </button>
               </div>
-            )}
-
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 mt-2">
-              {loading
-                ? <><Loader2 className="h-4 w-4 animate-spin" /> {isLogin ? 'Entrando...' : 'Criando...'}</>
-                : <>{isLogin ? 'Entrar' : 'Criar conta'} <ArrowRight className="h-4 w-4" /></>}
-            </Button>
-
-            {isLogin && (
-              <p className="text-center text-xs text-slate-500 mt-3">
-                <Shield className="inline h-3 w-3 mr-1" />
-                Acesso seguro com email e senha
-              </p>
-            )}
-          </form>
+            </>
+          )}
         </div>
-      </div>
 
-      {/* Reset Password Dialog */}
-      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
-        <DialogContent className="bg-slate-800 border-slate-700 text-white">
-          <DialogHeader>
-            <DialogTitle>Redefinir senha</DialogTitle>
-            <DialogDescription className="text-slate-400">
-              Digite seu email para receber o link de redefinição.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <Label className="text-slate-300 text-sm">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                type="email"
-                placeholder="seu@email.com"
-                value={resetEmail}
-                onChange={e => setResetEmail(e.target.value)}
-                className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResetOpen(false)}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700">
-              Cancelar
-            </Button>
-            <Button onClick={handleReset} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
-              {loading ? 'Enviando...' : 'Enviar email'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <p className="text-center text-blue-300 text-xs mt-6">
+          WnevesBox &copy; {new Date().getFullYear()} &mdash; Todos os direitos reservados
+        </p>
+      </div>
     </div>
   );
-    }
+}
