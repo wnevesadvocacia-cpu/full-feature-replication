@@ -68,7 +68,6 @@ CREATE TABLE IF NOT EXISTS documents (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS for documents
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can manage documents" ON documents;
 CREATE POLICY "Authenticated users can manage documents" ON documents
@@ -97,7 +96,23 @@ DROP POLICY IF EXISTS "Authenticated users can manage conversations" ON conversa
 CREATE POLICY "Authenticated users can manage conversations" ON conversations
   FOR ALL TO authenticated USING (true) WITH CHECK (true);
 
--- 6. Updated_at triggers
+-- 6. Create movimentacoes table
+CREATE TABLE IF NOT EXISTS movimentacoes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  process_id UUID REFERENCES processes(id) ON DELETE SET NULL,
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  description TEXT NOT NULL,
+  type TEXT DEFAULT 'outros',
+  created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE movimentacoes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Authenticated users can manage movimentacoes" ON movimentacoes;
+CREATE POLICY "Authenticated users can manage movimentacoes" ON movimentacoes
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+
+-- 7. Updated_at triggers
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
@@ -113,6 +128,6 @@ CREATE TRIGGER update_conversations_updated_at
   BEFORE UPDATE ON conversations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- 7. Storage bucket for documents (run separately if needed)
+-- 8. Storage bucket for documents (run separately if needed)
 -- INSERT INTO storage.buckets (id, name, public) VALUES ('documents', 'documents', true)
 -- ON CONFLICT (id) DO NOTHING;
