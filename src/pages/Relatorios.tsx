@@ -1,22 +1,59 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { BarChart3, TrendingUp, Users, Briefcase, DollarSign, Download, Loader2, Scale } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useTasks } from '@/hooks/useTasks';
-import { useInvoices } from '@/hooks/useInvoices';
+import {
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import {
+  FileBarChart, Users, CheckCircle2, Clock, TrendingUp,
+  AlertCircle, Scale, Calendar,
+} from 'lucide-react';
 
-const STATUS_LABELS: Record<string, string> = { novo: 'Novo', em_andamento: 'Em Andamento', ativo: 'Ativo', aguardando: 'Aguardando', concluido: 'Concluído', arquivado: 'Arquivado', recursal: 'Recursal', sobrestamento: 'Sobrestamento' };
-const STATUS_COLORS: Record<string, string> = { novo: '#3B82F6', em_andamento: '#22C55E', ativo: '#22C55E', aguardando: '#F59E0B', concluido: '#6B7280', arquivado: '#9CA3AF', recursal: '#8B5CF6', sobrestamento: '#F97316' };
+// ââ helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+const STATUS_LABELS: Record<string, string> = {
+  novo: 'Novo', em_andamento: 'Em Andamento', aguardando: 'Aguardando',
+  concluido: 'ConcluÃ­do', ativo: 'Ativo', arquivado: 'Arquivado',
+  recursal: 'Recursal', sobrestamento: 'Sobrestamento',
+  active: 'Ativo', archived: 'Arquivado', pending: 'Aguardando', closed: 'ConcluÃ­do',
+};
 
-function useAllProcessStats() {
+const STATUS_COLORS: Record<string, string> = {
+  novo: '#6366f1', em_andamento: '#3b82f6', aguardando: '#f59e0b',
+  concluido: '#10b981', ativo: '#22c55e', arquivado: '#64748b',
+  recursal: '#8b5cf6', sobrestamento: '#f97316',
+  active: '#22c55e', archived: '#64748b', pending: '#f59e0b', closed: '#10b981',
+};
+
+const CHART_COLORS = [
+  '#6366f1', '#3b82f6', '#10b981', '#f59e0b',
+  '#ef4444', '#8b5cf6', '#f97316', '#06b6d4',
+];
+
+function groupCount(arr: string[]): { name: string; value: number }[] {
+  const counts: Record<string, number> = {};
+  for (const v of arr) { counts[v] = (counts[v] ?? 0) + 1; }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, value]) => ({ name, value }));
+}
+
+const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+// ââ hooks ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+function useProcessStats() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ['all-process-stats'],
+    queryKey: ['report-processes', user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from('processes').select('status,type,comarca,responsible,lawyer,created_at');
+      const { data, error } = await supabase
+        .from('processes')
+        .select('status, type, created_at, lawyer')
+        .eq('user_id', user!.id);
       if (error) throw error;
       return data ?? [];
     },
@@ -26,117 +63,389 @@ function useAllProcessStats() {
 function useClientStats() {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ['client-stats-report'],
+    queryKey: ['report-clients', user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await supabase.from('clients').select('status,type,created_at');
+      const { data, error } = await supabase
+        .from('clients')
+        .select('type, status, created_at')
+        .eq('user_id', user!.id);
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
-function countBy<T>(arr: T[], key: keyof T): Record<string, number> {
-  return arr.reduce((acc, item) => { const k = String(item[key] ?? 'N/A'); acc[k] = (acc[k] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+function useTaskStats() {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['report-tasks', user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('status, priority, completed, due_date')
+        .eq('user_id', user!.id);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 }
 
-function topN(obj: Record<string, number>, n = 8) {
-  return Object.entries(obj).sort((a, b) => b[1] - a[1]).slice(0, n);
-}
-
-function MiniBar({ label, value, max, color = '#3B82F6' }: { label: string; value: number; max: number; color?: string }) {
-  const pct = max > 0 ? (value / max) * 100 : 0;
+// ââ KPI Card âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+function KpiCard({
+  title, value, sub, icon: Icon, color,
+}: {
+  title: string; value: string | number; sub?: string;
+  icon: React.ElementType; color: string;
+}) {
   return (
-    <div className="flex items-center gap-3 text-sm">
-      <span className="w-36 truncate text-gray-600 text-xs flex-shrink-0">{label}</span>
-      <div className="flex-1 bg-gray-100 rounded-full h-2">
-        <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
-      </div>
-      <span className="w-8 text-right text-xs font-medium text-gray-700">{value}</span>
-    </div>
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{title}</p>
+            <p className="text-3xl font-bold mt-1">{value}</p>
+            {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
+          </div>
+          <div className={`p-3 rounded-lg ${color}`}>
+            <Icon className="h-5 w-5 text-white" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
+// ââ Main page ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 export default function Relatorios() {
-  const { data: processes = [], isLoading: lp } = useAllProcessStats();
-  const { data: clients = [], isLoading: lc } = useClientStats();
-  const { data: tasks = [], isLoading: lt } = useTasks();
-  const { data: invoices = [], isLoading: li } = useInvoices();
-  if (lp || lc || lt || li) return <div className="p-6 flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>;
+  const processes = useProcessStats();
+  const clients = useClientStats();
+  const tasks = useTaskStats();
 
-  const proc = processes as any[], cli = clients as any[], tsk = tasks as any[], inv = invoices as any[];
-  const statusDist = countBy(proc, 'status');
-  const typeDist = topN(countBy(proc, 'type'), 10);
-  const comarcaDist = topN(countBy(proc, 'comarca'), 8);
-  const respDist = topN(countBy(proc.map((p: any) => ({ ...p, resp: p.responsible || p.lawyer || 'N/A' })), 'resp'), 8);
-  const activeProc = proc.filter((p: any) => !['concluido','arquivado'].includes(p.status ?? '')).length;
-  const activeClients = cli.filter((c: any) => c.status === 'ativo').length;
-  const pfClients = cli.filter((c: any) => c.type === 'PF').length;
-  const pjClients = cli.filter((c: any) => c.type === 'PJ').length;
-  const pendingTasks = tsk.filter((t: any) => !t.completed).length;
-  const completedTasks = tsk.filter((t: any) => t.completed).length;
-  const totalBilled = inv.filter((i: any) => i.status === 'pago').reduce((s: number, i: any) => s + Number(i.amount), 0);
-  const totalPending = inv.filter((i: any) => i.status === 'pendente').reduce((s: number, i: any) => s + Number(i.amount), 0);
-  const fmt = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
+  const procs = processes.data ?? [];
+  const cls = clients.data ?? [];
+  const tks = tasks.data ?? [];
+
+  // ââ KPIs ââ
+  const total = procs.length;
+  const active = procs.filter(p =>
+    !['concluido', 'arquivado', 'closed', 'archived'].includes(p.status)
+  ).length;
+  const concluded = procs.filter(p =>
+    ['concluido', 'closed'].includes(p.status)
+  ).length;
+  const conclusionRate = total > 0 ? ((concluded / total) * 100).toFixed(1) : '0';
+  const pendingTasks = tks.filter(t => !t.completed).length;
+  const overdueTasks = tks.filter(t => {
+    if (t.completed || !t.due_date) return false;
+    return new Date(t.due_date) < new Date();
+  }).length;
+
+  // ââ Status chart ââ
+  const statusData = groupCount(procs.map(p => p.status)).map(d => ({
+    name: STATUS_LABELS[d.name] ?? d.name,
+    value: d.value,
+    fill: STATUS_COLORS[d.name] ?? '#64748b',
+  }));
+
+  // ââ Type chart ââ
+  const typeData = groupCount(
+    procs.map(p => p.type ?? 'NÃ£o informado')
+  ).slice(0, 8);
+
+  // ââ Monthly trend (last 12 months) ââ
+  const now = new Date();
+  const monthlyMap: Record<string, number> = {};
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthlyMap[`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`] = 0;
+  }
+  for (const p of procs) {
+    const d = new Date(p.created_at);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (key in monthlyMap) monthlyMap[key]++;
+  }
+  const monthlyData = Object.entries(monthlyMap).map(([k, v]) => ({
+    name: MONTHS_PT[parseInt(k.split('-')[1]) - 1],
+    processos: v,
+  }));
+
+  // ââ Client type chart ââ
+  const clientTypeData = groupCount(cls.map(c => c.type)).map(d => ({
+    name: d.name === 'individual' ? 'Pessoa FÃ­sica' :
+          d.name === 'company' ? 'Pessoa JurÃ­dica' : d.name,
+    value: d.value,
+  }));
+
+  // ââ Task priority chart ââ
+  const taskPriorityData = groupCount(
+    tks.filter(t => !t.completed).map(t => t.priority)
+  ).map(d => ({
+    name: d.name === 'high' ? 'Alta' : d.name === 'medium' ? 'MÃ©dia' :
+          d.name === 'low' ? 'Baixa' : d.name,
+    value: d.value,
+  }));
+
+  // ââ Lawyer distribution ââ
+  const lawyerData = groupCount(
+    procs.map(p => (p as any).lawyer ?? p.lawyer ?? 'NÃ£o atribuÃ­do')
+  ).slice(0, 6);
+
+  const isLoading = processes.isLoading || clients.isLoading || tasks.isLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div><h1 className="text-2xl font-bold text-gray-900">Relatórios</h1><p className="text-sm text-gray-500">Análise completa do escritório</p></div>
-        <Button variant="outline" onClick={() => window.print()}><Download className="w-4 h-4 mr-2" /> Exportar</Button>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <FileBarChart className="h-7 w-7" />
+          RelatÃ³rios
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          VisÃ£o geral e estatÃ­sticas do escritÃ³rio
+        </p>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Total de Processos', value: proc.length.toLocaleString('pt-BR'), sub: `${activeProc} ativos`, icon: Scale, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Clientes', value: cli.length.toLocaleString('pt-BR'), sub: `${activeClients} ativos`, icon: Users, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Tarefas Concluídas', value: completedTasks.toLocaleString('pt-BR'), sub: `${pendingTasks} pendentes`, icon: BarChart3, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Faturamento', value: fmt(totalBilled), sub: `${fmt(totalPending)} pendente`, icon: DollarSign, color: 'text-orange-600', bg: 'bg-orange-50' },
-        ].map(({ label, value, sub, icon: Icon, color, bg }) => (
-          <div key={label} className="bg-white rounded-xl border shadow-sm p-4">
-            <div className="flex items-start justify-between">
-              <div><p className="text-xs text-gray-500 font-medium">{label}</p><p className="text-2xl font-bold text-gray-900 mt-1">{value}</p><p className="text-xs text-gray-400 mt-1">{sub}</p></div>
-              <div className={`p-2 rounded-lg ${bg}`}><Icon className={`w-5 h-5 ${color}`} /></div>
-            </div>
-          </div>
-        ))}
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <KpiCard title="Total Processos" value={total} icon={Scale} color="bg-blue-500" />
+        <KpiCard title="Ativos" value={active} icon={TrendingUp} color="bg-green-500" />
+        <KpiCard title="ConcluÃ­dos" value={concluded} icon={CheckCircle2} color="bg-emerald-500" />
+        <KpiCard title="Taxa ConclusÃ£o" value={`${conclusionRate}%`} icon={TrendingUp} color="bg-indigo-500" />
+        <KpiCard title="Tarefas Pendentes" value={pendingTasks} icon={Clock} color="bg-amber-500" />
+        <KpiCard title="Clientes" value={cls.length} icon={Users} color="bg-purple-500" />
       </div>
+
+      {/* Charts row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-blue-500" />Processos por Status</h3>
-          <div className="space-y-3">{Object.entries(statusDist).sort((a, b) => b[1] - a[1]).map(([s, c]) => <MiniBar key={s} label={STATUS_LABELS[s] ?? s} value={c} max={proc.length} color={STATUS_COLORS[s] ?? '#6B7280'} />)}</div>
-        </div>
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><Briefcase className="w-4 h-4 text-purple-500" />Tipos de Ação (Top 10)</h3>
-          <div className="space-y-3">{typeDist.map(([t, c]) => <MiniBar key={t} label={t} value={c} max={typeDist[0]?.[1] ?? 1} color="#8B5CF6" />)}</div>
-        </div>
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><Scale className="w-4 h-4 text-green-500" />Por Comarca (Top 8)</h3>
-          <div className="space-y-3">{comarcaDist.length > 0 ? comarcaDist.map(([c, n]) => <MiniBar key={c} label={c} value={n} max={comarcaDist[0]?.[1] ?? 1} color="#22C55E" />) : <p className="text-sm text-gray-400 text-center py-4">Dados não disponíveis</p>}</div>
-        </div>
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-orange-500" />Por Responsável</h3>
-          <div className="space-y-3">{respDist.map(([r, n]) => <MiniBar key={r} label={r} value={n} max={respDist[0]?.[1] ?? 1} color="#F97316" />)}</div>
-        </div>
+        {/* Status distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Processos por Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={statusData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="value" name="Processos" radius={[4, 4, 0, 0]}>
+                  {statusData.map((entry, i) => (
+                    <Cell key={i} fill={entry.fill} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Monthly trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Processos Abertos â Ãltimos 12 Meses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={monthlyData} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Bar dataKey="processos" name="Processos" fill="#6366f1" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">Clientes por Tipo</h3>
-          <div className="space-y-3"><MiniBar label="Pessoa Física (PF)" value={pfClients} max={cli.length || 1} color="#3B82F6" /><MiniBar label="Pessoa Jurídica (PJ)" value={pjClients} max={cli.length || 1} color="#8B5CF6" /></div>
-          <p className="text-xs text-gray-400 mt-3 pt-3 border-t text-center">{cli.length} clientes · {activeClients} ativos</p>
-        </div>
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">Tarefas</h3>
-          <div className="space-y-3"><MiniBar label="Concluídas" value={completedTasks} max={tsk.length || 1} color="#22C55E" /><MiniBar label="Pendentes" value={pendingTasks} max={tsk.length || 1} color="#F59E0B" /></div>
-          <p className="text-xs text-gray-400 mt-3 pt-3 border-t text-center">Taxa: {tsk.length > 0 ? Math.round((completedTasks/tsk.length)*100) : 0}%</p>
-        </div>
-        <div className="bg-white rounded-xl border shadow-sm p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">Financeiro</h3>
-          <div className="space-y-3">
-            {[{label:'Pago',v:inv.filter((i:any)=>i.status==='pago').length,c:'#22C55E'},{label:'Pendente',v:inv.filter((i:any)=>i.status==='pendente').length,c:'#F59E0B'},{label:'Atrasado',v:inv.filter((i:any)=>i.status==='atrasado').length,c:'#EF4444'}].map(({label,v,c})=><MiniBar key={label} label={label} value={v} max={Math.max(inv.length,1)} color={c}/>)}
+
+      {/* Charts row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Type distribution */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-base">Processos por Tipo (Top 8)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={typeData} layout="vertical" margin={{ top: 5, right: 10, left: 60, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={80} />
+                <Tooltip />
+                <Bar dataKey="value" name="Processos" fill="#3b82f6" radius={[0, 4, 4, 0]}>
+                  {typeData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Client types pie */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Clientes por Tipo</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={220}>
+              <PieChart>
+                <Pie
+                  data={clientTypeData}
+                  cx="50%" cy="50%"
+                  innerRadius={50} outerRadius={80}
+                  paddingAngle={4}
+                  dataKey="value"
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {clientTypeData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts row 3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Task priorities */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              Tarefas Pendentes por Prioridade
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {taskPriorityData.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                Nenhuma tarefa pendente
+              </div>
+            ) : (
+              <div className="space-y-3 pt-2">
+                {taskPriorityData.map((d, i) => {
+                  const pct = pendingTasks > 0 ? (d.value / pendingTasks) * 100 : 0;
+                  const color = d.name === 'Alta' ? 'bg-red-500' :
+                                d.name === 'MÃ©dia' ? 'bg-amber-500' : 'bg-green-500';
+                  return (
+                    <div key={i}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span>{d.name}</span>
+                        <span className="font-medium">{d.value}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${color}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                {overdueTasks > 0 && (
+                  <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800">
+                    <p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      {overdueTasks} tarefa{overdueTasks !== 1 ? 's' : ''} atrasada{overdueTasks !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Lawyer distribution */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Processos por Advogado (Top 6)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {lawyerData.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                Sem dados de advogados
+              </div>
+            ) : (
+              <div className="space-y-3 pt-2">
+                {lawyerData.map((d, i) => {
+                  const pct = total > 0 ? (d.value / total) * 100 : 0;
+                  return (
+                    <div key={i}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="truncate max-w-[200px]" title={d.name}>{d.name}</span>
+                        <span className="font-medium shrink-0 ml-2">{d.value}</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full bg-indigo-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Summary table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Resumo por Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b">
+                  <th className="text-left py-2 px-3 font-medium text-muted-foreground">Status</th>
+                  <th className="text-right py-2 px-3 font-medium text-muted-foreground">Processos</th>
+                  <th className="text-right py-2 px-3 font-medium text-muted-foreground">% do Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {statusData.map((s, i) => (
+                  <tr key={i} className="border-b last:border-0 hover:bg-muted/50">
+                    <td className="py-2 px-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ background: s.fill }} />
+                        {s.name}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 text-right font-medium">{s.value}</td>
+                    <td className="py-2 px-3 text-right text-muted-foreground">
+                      {total > 0 ? ((s.value / total) * 100).toFixed(1) : 0}%
+                    </td>
+                  </tr>
+                ))}
+                <tr className="font-semibold bg-muted/30">
+                  <td className="py-2 px-3">Total</td>
+                  <td className="py-2 px-3 text-right">{total}</td>
+                  <td className="py-2 px-3 text-right">100%</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <p className="text-xs text-gray-400 mt-3 pt-3 border-t text-center">{fmt(totalBilled)} recebido</p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
