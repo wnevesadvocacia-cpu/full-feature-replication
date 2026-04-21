@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+const SITE_URL = 'https://wnevesadvocacia-cpu.github.io/full-feature-replication';
+
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -22,14 +24,12 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-
   // OTP 2FA state
   const [otpStep, setOtpStep] = useState(false);
   const [otpCode, setOtpCode] = useState('');
   const [otpEmail, setOtpEmail] = useState('');
   const [countdown, setCountdown] = useState(600);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -79,7 +79,10 @@ export default function Auth() {
         // Step 3: send OTP to email as second factor
         const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
-          options: { shouldCreateUser: false },
+          options: {
+            shouldCreateUser: false,
+            emailRedirectTo: `${SITE_URL}/#/dashboard`,
+          },
         });
         if (otpError) throw otpError;
 
@@ -129,7 +132,7 @@ export default function Auth() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${SITE_URL}/#/reset-password`,
       });
       if (error) throw error;
       toast({ title: 'Email enviado!', description: 'Verifique seu email para redefinir a senha.' });
@@ -155,6 +158,9 @@ export default function Auth() {
             <h1 className="text-2xl font-bold text-white mb-1">Verificação em 2 etapas</h1>
             <p className="text-slate-400 text-sm">
               Código enviado para <span className="text-blue-400 font-medium">{otpEmail}</span>
+            </p>
+            <p className="text-slate-500 text-xs mt-1">
+              Digite o código de 6 dígitos do email (não o botão — o número mesmo)
             </p>
           </div>
           <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
@@ -298,6 +304,7 @@ export default function Auth() {
           </form>
         </div>
       </div>
+
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent className="bg-slate-800 border-slate-700 text-white">
           <DialogHeader>
@@ -320,11 +327,7 @@ export default function Auth() {
             </div>
           </div>
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setResetOpen(false)}
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            >
+            <Button variant="outline" onClick={() => setResetOpen(false)} className="border-slate-600 text-slate-300 hover:bg-slate-700">
               Cancelar
             </Button>
             <Button onClick={handleReset} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
@@ -335,4 +338,4 @@ export default function Auth() {
       </Dialog>
     </div>
   );
-}
+          }
