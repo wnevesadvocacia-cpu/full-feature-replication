@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, MoreHorizontal, Calendar, User, Loader2 } from 'lucide-react';
-import { useProcesses, useCreateProcess } from '@/hooks/useProcesses';
+import { Plus, Search, Filter, MoreHorizontal, Calendar, User, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useProcesses, useCreateProcess, PROCESSES_PAGE_SIZE } from '@/hooks/useProcesses';
 import { useClients } from '@/hooks/useClients';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
@@ -27,17 +27,25 @@ export default function Processos() {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ViewMode>('kanban');
   const [open, setOpen] = useState(false);
+  const [page, setPage] = useState(0);
   const [form, setForm] = useState({ number: '', title: '', type: '', lawyer: '', value: '', client_id: '', due_date: '' });
-  const { data: processes = [], isLoading } = useProcesses();
+  const { data, isLoading, isFetching } = useProcesses(page);
+  const processes = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PROCESSES_PAGE_SIZE));
   const { data: clients = [] } = useClients();
   const createProcess = useCreateProcess();
   const { toast } = useToast();
 
-  const filtered = (processes as any[]).filter(
-    (p) =>
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      (p.clients?.name || '').toLowerCase().includes(search.toLowerCase()) ||
-      p.number.includes(search)
+  const filtered = useMemo(
+    () =>
+      (processes as any[]).filter(
+        (p) =>
+          p.title.toLowerCase().includes(search.toLowerCase()) ||
+          (p.clients?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+          p.number.includes(search)
+      ),
+    [processes, search]
   );
 
   const columns: ProcessStatus[] = ['novo', 'em_andamento', 'aguardando', 'concluido'];
@@ -66,12 +74,15 @@ export default function Processos() {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  const rangeStart = total === 0 ? 0 : page * PROCESSES_PAGE_SIZE + 1;
+  const rangeEnd = Math.min((page + 1) * PROCESSES_PAGE_SIZE, total);
+
   return (
     <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold">Processos</h1>
-          <p className="text-muted-foreground text-sm mt-1">{processes.length} processos no total</p>
+          <p className="text-muted-foreground text-sm mt-1">{total} processos no total</p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -218,6 +229,28 @@ export default function Processos() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {total > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted-foreground tabular-nums">
+            Mostrando {rangeStart}–{rangeEnd} de {total}
+            {isFetching && <Loader2 className="inline h-3 w-3 ml-2 animate-spin" />}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
+              <ChevronLeft className="h-4 w-4" />
+              Anterior
+            </Button>
+            <span className="text-sm tabular-nums px-2">
+              Página {page + 1} de {totalPages}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
+              Próxima
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
     </div>
