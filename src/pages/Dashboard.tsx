@@ -18,7 +18,6 @@ interface RecentProcess {
   number: string;
   title: string;
   status: string;
-  client_name: string;
   updated_at: string;
 }
 
@@ -82,7 +81,7 @@ export default function Dashboard() {
         ] = await Promise.all([
           supabase.from('processes').select('*', { count: 'exact', head: true }),
           supabase.from('processes').select('*', { count: 'exact', head: true })
-            .not('status', 'in', '(concluido,arquivado,closed,archived)'),
+            .in('status', ['ativo','em_andamento','active','novo','recursal','aguardando','pending','sobrestamento']),
           supabase.from('processes').select('*', { count: 'exact', head: true })
             .in('status', ['concluido', 'closed']),
           supabase.from('processes').select('*', { count: 'exact', head: true })
@@ -103,7 +102,7 @@ export default function Dashboard() {
         // Recent processes
         const { data: recent } = await supabase
           .from('processes')
-          .select('id, number, title, status, client_name, updated_at')
+          .select('id, number, title, status, updated_at')
           .order('updated_at', { ascending: false })
           .limit(5);
         setRecentProcesses(recent ?? []);
@@ -208,7 +207,7 @@ export default function Dashboard() {
               <div key={p.id} className="flex items-start justify-between gap-2 py-1 border-b last:border-0">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{p.number || p.title || 'â'}</p>
-                  <p className="text-xs text-gray-500 truncate">{p.client_name ?? 'â'}</p>
+                  <p className="text-xs text-gray-500 truncate">{p.title ?? 'â'}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <Badge className={`text-xs ${STATUS_COLORS[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
