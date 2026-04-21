@@ -18,11 +18,13 @@ export default function Clientes() {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', phone: '', type: 'PF' as 'PF' | 'PJ', document: '' });
   const { data: clients = [], isLoading } = useClients();
-  const { data: processes = [] } = useProcesses();
+  // useProcesses returns { rows, total } — extract array safely
+  const { data: processesData } = useProcesses();
+  const processes = processesData?.rows ?? [];
   const createClient = useCreateClient();
   const { toast } = useToast();
 
-  const filtered = clients.filter(
+  const filtered = (clients as any[]).filter(
     (c: any) =>
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -50,7 +52,7 @@ export default function Clientes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold">Clientes</h1>
-          <p className="text-muted-foreground text-sm mt-1">{clients.length} clientes cadastrados</p>
+          <p className="text-muted-foreground text-sm mt-1">{(clients as any[]).length} clientes cadastrados</p>
         </div>
         <div className="flex gap-2">
           <CsvImportDialog />
@@ -131,7 +133,7 @@ export default function Clientes() {
                 {client.phone && <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /><span>{client.phone}</span></div>}
               </div>
               {(() => {
-                const clientProcesses = (processes as any[]).filter(p => p.client_id === client.id);
+                const clientProcesses = processes.filter((p: any) => p.client_id === client.id);
                 return clientProcesses.length > 0 ? (
                   <div className="mt-3 space-y-1">
                     <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -158,4 +160,4 @@ export default function Clientes() {
       )}
     </div>
   );
-}
+                }
