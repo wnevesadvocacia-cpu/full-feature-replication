@@ -1,0 +1,150 @@
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+
+type Tab = 'perfil' | 'escritorio' | 'notificacoes' | 'seguranca';
+
+export default function Configuracoes() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [tab, setTab] = useState<Tab>('perfil');
+  const [saving, setSaving] = useState(false);
+  const [perfil, setPerfil] = useState({ nome: '', email: user?.email ?? '', oab: '', telefone: '' });
+  const [escritorio, setEscritorio] = useState({ nome: 'Neves Advocacia', cnpj: '', endereco: '', cidade: '', estado: '', telefone: '', email: '', site: '' });
+  const [notifs, setNotifs] = useState({ vencimento_processo: true, nova_tarefa: true, tarefa_concluida: false, novo_cliente: false, fatura_vencida: true });
+  const [senhaForm, setSenhaForm] = useState({ nova: '', confirmar: '' });
+
+  useEffect(() => { if (user?.email) setPerfil(p => ({ ...p, email: user.email! })); }, [user]);
+
+  async function savePerfil() {
+    setSaving(true);
+    try {
+      if (perfil.email !== user?.email) {
+        const { error } = await supabase.auth.updateUser({ email: perfil.email });
+        if (error) throw error;
+        toast({ title: 'Email atualizado! Verifique sua caixa de entrada.' });
+      } else { toast({ title: 'Perfil salvo!' }); }
+    } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
+    finally { setSaving(false); }
+  }
+
+  async function changeSenha() {
+    if (senhaForm.nova !== senhaForm.confirmar) { toast({ title: 'Senhas não conferem', variant: 'destructive' }); return; }
+    if (senhaForm.nova.length < 6) { toast({ title: 'Senha deve ter ao menos 6 caracteres', variant: 'destructive' }); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: senhaForm.nova });
+      if (error) throw error;
+      setSenhaForm({ nova: '', confirmar: '' });
+      toast({ title: 'Senha alterada com sucesso!' });
+    } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
+    finally { setSaving(false); }
+  }
+
+  const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
+    { id: 'perfil', label: 'Meu Perfil', icon: User },
+    { id: 'escritorio', label: 'Escritório', icon: Building2 },
+    { id: 'notificacoes', label: 'Notificações', icon: Bell },
+    { id: 'seguranca', label: 'Segurança', icon: Shield },
+  ];
+
+  return (
+    <div className="p-6 space-y-6">
+      <div><h1 className="text-2xl font-bold text-gray-900">Configurações</h1><p className="text-sm text-gray-500">Gerencie seu perfil e preferências</p></div>
+      <div className="flex gap-6">
+        <aside className="w-52 flex-shrink-0">
+          <nav className="space-y-1">
+            {tabs.map(({ id, label, icon: Icon }) => (
+              <button key={id} onClick={() => setTab(id)} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${tab === id ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}>
+                <Icon className="w-4 h-4" />{label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+        <div className="flex-1 bg-white rounded-xl border shadow-sm p-6">
+          {tab === 'perfil' && (
+            <div className="space-y-6">
+              <div><h2 className="text-lg font-semibold">Meu Perfil</h2><p className="text-sm text-gray-400">Informações pessoais do advogado</p></div>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
+                  <span className="text-blue-600 font-bold text-xl">{(perfil.nome || user?.email || 'U').charAt(0).toUpperCase()}</span>
+                </div>
+                <div><p className="font-medium">{perfil.nome || user?.email}</p><Badge variant="outline" className="text-xs mt-1">Administrador</Badge></div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div><Label>Nome completo</Label><Input className="mt-1" placeholder="Dr. William Neves" value={perfil.nome} onChange={e => setPerfil(p => ({ ...p, nome: e.target.value }))} /></div>
+                <div><Label>OAB</Label><Input className="mt-1" placeholder="OAB/XX 000000" value={perfil.oab} onChange={e => setPerfil(p => ({ ...p, oab: e.target.value }))} /></div>
+                <div className="col-span-2"><Label>Email</Label><div className="relative mt-1"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input className="pl-9" value={perfil.email} onChange={e => setPerfil(p => ({ ...p, email: e.target.value }))} /></div></div>
+                <div><Label>Telefone</Label><div className="relative mt-1"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input className="pl-9" placeholder="(45) 99999-9999" value={perfil.telefone} onChange={e => setPerfil(p => ({ ...p, telefone: e.target.value }))} /></div></div>
+              </div>
+              <Button onClick={savePerfil} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Salvar Perfil</Button>
+            </div>
+          )}
+          {tab === 'escritorio' && (
+            <div className="space-y-6">
+              <div><h2 className="text-lg font-semibold">Dados do Escritório</h2><p className="text-sm text-gray-400">Informações do escritório de advocacia</p></div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2"><Label>Nome do escritório</Label><div className="relative mt-1"><Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input className="pl-9" value={escritorio.nome} onChange={e => setEscritorio(s => ({ ...s, nome: e.target.value }))} /></div></div>
+                <div><Label>CNPJ</Label><Input className="mt-1" placeholder="00.000.000/0001-00" value={escritorio.cnpj} onChange={e => setEscritorio(s => ({ ...s, cnpj: e.target.value }))} /></div>
+                <div><Label>Telefone</Label><div className="relative mt-1"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input className="pl-9" value={escritorio.telefone} onChange={e => setEscritorio(s => ({ ...s, telefone: e.target.value }))} /></div></div>
+                <div className="col-span-2"><Label>Endereço</Label><div className="relative mt-1"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input className="pl-9" value={escritorio.endereco} onChange={e => setEscritorio(s => ({ ...s, endereco: e.target.value }))} /></div></div>
+                <div><Label>Cidade</Label><Input className="mt-1" value={escritorio.cidade} onChange={e => setEscritorio(s => ({ ...s, cidade: e.target.value }))} /></div>
+                <div><Label>Estado</Label><Input className="mt-1" value={escritorio.estado} onChange={e => setEscritorio(s => ({ ...s, estado: e.target.value }))} /></div>
+                <div><Label>Email</Label><div className="relative mt-1"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input className="pl-9" value={escritorio.email} onChange={e => setEscritorio(s => ({ ...s, email: e.target.value }))} /></div></div>
+                <div><Label>Site</Label><div className="relative mt-1"><Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" /><Input className="pl-9" value={escritorio.site} onChange={e => setEscritorio(s => ({ ...s, site: e.target.value }))} /></div></div>
+              </div>
+              <Button onClick={() => toast({ title: 'Escritório salvo!' })}><Save className="w-4 h-4 mr-2" />Salvar Escritório</Button>
+            </div>
+          )}
+          {tab === 'notificacoes' && (
+            <div className="space-y-6">
+              <div><h2 className="text-lg font-semibold">Notificações</h2><p className="text-sm text-gray-400">Configure quais alertas deseja receber</p></div>
+              <div className="space-y-4">
+                {[
+                  { key: 'vencimento_processo', label: 'Vencimento de prazo processual', desc: 'Alerta quando um processo tem prazo próximo' },
+                  { key: 'nova_tarefa', label: 'Nova tarefa atribuída', desc: 'Alerta quando uma nova tarefa é criada' },
+                  { key: 'tarefa_concluida', label: 'Tarefa concluída', desc: 'Notificação quando tarefa é marcada como concluída' },
+                  { key: 'novo_cliente', label: 'Novo cliente cadastrado', desc: 'Alerta quando novo cliente é adicionado' },
+                  { key: 'fatura_vencida', label: 'Fatura em atraso', desc: 'Alerta sobre faturas com vencimento ultrapassado' },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50">
+                    <div><p className="font-medium text-sm">{label}</p><p className="text-xs text-gray-400 mt-0.5">{desc}</p></div>
+                    <button onClick={() => setNotifs(n => ({ ...n, [key]: !n[key as keyof typeof notifs] }))} className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${notifs[key as keyof typeof notifs] ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${notifs[key as keyof typeof notifs] ? 'translate-x-4' : 'translate-x-0'}`} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <Button onClick={() => toast({ title: 'Preferências salvas!' })}><Save className="w-4 h-4 mr-2" />Salvar Preferências</Button>
+            </div>
+          )}
+          {tab === 'seguranca' && (
+            <div className="space-y-6">
+              <div><h2 className="text-lg font-semibold">Segurança</h2><p className="text-sm text-gray-400">Gerencie sua senha e segurança da conta</p></div>
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-gray-400" /><span className="text-gray-600">Email:</span><span className="font-medium">{user?.email}</span></div>
+                <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-gray-400" /><span className="text-gray-600">Método:</span><Badge variant="outline" className="text-xs">Email + Senha</Badge></div>
+              </div>
+              <div className="space-y-4">
+                <h3 className="font-medium text-gray-700 flex items-center gap-2"><Lock className="w-4 h-4" />Alterar Senha</h3>
+                <div className="grid gap-3">
+                  <div><Label>Nova senha</Label><Input type="password" className="mt-1" placeholder="Mínimo 6 caracteres" value={senhaForm.nova} onChange={e => setSenhaForm(f => ({ ...f, nova: e.target.value }))} /></div>
+                  <div><Label>Confirmar nova senha</Label><Input type="password" className="mt-1" value={senhaForm.confirmar} onChange={e => setSenhaForm(f => ({ ...f, confirmar: e.target.value }))} /></div>
+                </div>
+                <Button onClick={changeSenha} disabled={saving || !senhaForm.nova || !senhaForm.confirmar} variant="outline">
+                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Lock className="w-4 h-4 mr-2" />}Alterar Senha
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
