@@ -2,257 +2,373 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, MoreHorizontal, Calendar, User, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Calendar, User, Loader2, ChevronLeft, ChevronRight, FileText, CheckCircle2, Circle, X } from 'lucide-react';
 import { useProcesses, useCreateProcess, PROCESSES_PAGE_SIZE } from '@/hooks/useProcesses';
-import { useClients } from '@/hooks/useClients';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
+} from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/use-toast';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-type ProcessStatus = 'novo' | 'em_andamento' | 'aguardando' | 'concluido';
-
-const statusConfig: Record<ProcessStatus, { label: string; className: string }> = {
-  novo: { label: 'Novo', className: 'bg-info/10 text-info border-info/20' },
-  em_andamento: { label: 'Em Andamento', className: 'bg-primary/10 text-primary border-primary/20' },
-  aguardando: { label: 'Aguardando', className: 'bg-warning/10 text-warning border-warning/20' },
-  concluido: { label: 'Concluído', className: 'bg-success/10 text-success border-success/20' },
+const STATUS_COLORS: Record<string, string> = {
+  active: 'bg-green-100 text-green-700',
+  archived: 'bg-gray-100 text-gray-600',
+  pending: 'bg-yellow-100 text-yellow-700',
+  closed: 'bg-red-100 text-red-700',
 };
 
-const formatCurrency = (value: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+const PRIORITY_COLORS: Record<string, string> = {
+  alta: 'bg-red-100 text-red-700',
+  media: 'bg-yellow-100 text-yellow-700',
+  baixa: 'bg-green-100 text-green-700',
+};
 
-type ViewMode = 'kanban' | 'list';
+interface Process {
+  id: string;
+  number: string;
+  title: string;
+  type?: string;
+  status?: string;
+  due_date?: string;
+  lawyer?: string;
+  value?: number;
+  clients?: { name: string };
+  created_at: string;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+  priority?: string;
+  completed: boolean;
+  created_at: string;
+}
+
+function useProcessTasks(processId: string | null) {
+  return useQuery({
+    queryKey: ['process-tasks', processId],
+    enabled: !!processId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('process_id', processId)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Task[];
+    },
+  });
+}
 
 export default function Processos() {
-  const [search, setSearch] = useState('');
-  const [view, setView] = useState<ViewMode>('kanban');
-  const [open, setOpen] = useState(false);
   const [page, setPage] = useState(0);
-  const [form, setForm] = useState({ number: '', title: '', type: '', lawyer: '', value: '', client_id: '', due_date: '' });
-  const { data, isLoading, isFetching } = useProcesses(page);
-  const processes = data?.rows ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / PROCESSES_PAGE_SIZE));
-  const { data: clients = [] } = useClients();
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [newOpen, setNewOpen] = useState(false);
+  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
+  const [newForm, setNewForm] = useState({
+    number: '', title: '', type: '', status: 'active', lawyer: '', value: '',
+  });
+
+  const { data, isLoading } = useProcesses(page);
+  const processes: Process[] = data?.data ?? data ?? [];
+  const totalCount: number = data?.count ?? processes.length;
+  const totalPages = Math.ceil(totalCount / PROCESSES_PAGE_SIZE);
+
   const createProcess = useCreateProcess();
-  const { toast } = useToast();
+  const { data: processTasks = [], isLoading: tasksLoading } = useProcessTasks(selectedProcess?.id ?? null);
 
-  const filtered = useMemo(
-    () =>
-      (processes as any[]).filter(
-        (p) =>
-          p.title.toLowerCase().includes(search.toLowerCase()) ||
-          (p.clients?.name || '').toLowerCase().includes(search.toLowerCase()) ||
-          p.number.includes(search)
-      ),
-    [processes, search]
-  );
-
-  const columns: ProcessStatus[] = ['novo', 'em_andamento', 'aguardando', 'concluido'];
-
-  const handleCreate = async () => {
-    if (!form.number || !form.title) return;
-    try {
-      await createProcess.mutateAsync({
-        number: form.number,
-        title: form.title,
-        type: form.type || undefined,
-        lawyer: form.lawyer || undefined,
-        value: form.value ? parseFloat(form.value) : undefined,
-        client_id: form.client_id || undefined,
-        due_date: form.due_date || undefined,
-      });
-      setForm({ number: '', title: '', type: '', lawyer: '', value: '', client_id: '', due_date: '' });
-      setOpen(false);
-      toast({ title: 'Processo criado com sucesso!' });
-    } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+  const filtered = useMemo(() => {
+    let list = processes;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(p =>
+        p.number?.toLowerCase().includes(q) ||
+        p.title?.toLowerCase().includes(q) ||
+        p.clients?.name?.toLowerCase().includes(q)
+      );
     }
-  };
+    if (statusFilter !== 'all') {
+      list = list.filter(p => p.status === statusFilter);
+    }
+    return list;
+  }, [processes, search, statusFilter]);
 
-  if (isLoading) {
-    return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+  async function handleCreate() {
+    await createProcess.mutateAsync({
+      number: newForm.number,
+      title: newForm.title,
+      type: newForm.type || null,
+      status: newForm.status,
+      lawyer: newForm.lawyer || null,
+      value: newForm.value ? parseFloat(newForm.value) : null,
+    });
+    setNewOpen(false);
+    setNewForm({ number: '', title: '', type: '', status: 'active', lawyer: '', value: '' });
   }
 
-  const rangeStart = total === 0 ? 0 : page * PROCESSES_PAGE_SIZE + 1;
-  const rangeEnd = Math.min((page + 1) * PROCESSES_PAGE_SIZE, total);
-
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-6 space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-display font-bold">Processos</h1>
-          <p className="text-muted-foreground text-sm mt-1">{total} processos no total</p>
+          <h1 className="text-2xl font-bold text-gray-900">Processos</h1>
+          <p className="text-sm text-gray-500">{totalCount.toLocaleString('pt-BR')} processos cadastrados</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4" />Novo Processo</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Novo Processo</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Número *</Label>
-                  <Input value={form.number} onChange={e => setForm(f => ({ ...f, number: e.target.value }))} placeholder="2024-0001" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Tipo</Label>
-                  <Input value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} placeholder="Trabalhista" />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Título *</Label>
-                <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Descrição do processo" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Cliente</Label>
-                  <select className="w-full rounded-md border bg-background px-3 py-2 text-sm" value={form.client_id} onChange={e => setForm(f => ({ ...f, client_id: e.target.value }))}>
-                    <option value="">Selecionar...</option>
-                    {(clients as any[]).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Responsável</Label>
-                  <Input value={form.lawyer} onChange={e => setForm(f => ({ ...f, lawyer: e.target.value }))} placeholder="Dr. Nome" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Valor (R$)</Label>
-                  <Input type="number" value={form.value} onChange={e => setForm(f => ({ ...f, value: e.target.value }))} placeholder="0.00" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Prazo</Label>
-                  <Input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
-                </div>
-              </div>
-              <Button className="w-full" onClick={handleCreate} disabled={createProcess.isPending}>
-                {createProcess.isPending ? 'Salvando...' : 'Criar Processo'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setNewOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" /> Novo processo
+        </Button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar processo..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+      {/* Filters */}
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            className="pl-9"
+            placeholder="Buscar por número, título ou cliente..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
         </div>
-        <Button variant="outline" size="sm"><Filter className="h-4 w-4" />Filtros</Button>
-        <div className="flex items-center border rounded-md overflow-hidden ml-auto">
-          <button onClick={() => setView('kanban')} className={`px-3 py-1.5 text-sm transition-colors ${view === 'kanban' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted'}`}>Kanban</button>
-          <button onClick={() => setView('list')} className={`px-3 py-1.5 text-sm transition-colors ${view === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card text-muted-foreground hover:bg-muted'}`}>Lista</button>
-        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[160px]">
+            <Filter className="w-4 h-4 mr-2" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="active">Ativo</SelectItem>
+            <SelectItem value="pending">Pendente</SelectItem>
+            <SelectItem value="archived">Arquivado</SelectItem>
+            <SelectItem value="closed">Encerrado</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium">Nenhum processo encontrado</p>
-          <p className="text-sm mt-1">Crie seu primeiro processo clicando em "Novo Processo"</p>
-        </div>
-      ) : view === 'kanban' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          {columns.map((status) => {
-            const col = filtered.filter((p: any) => p.status === status);
-            const config = statusConfig[status];
-            return (
-              <div key={status} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold">{config.label}</h3>
-                    <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5 tabular-nums">{col.length}</span>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {col.map((process: any) => (
-                    <div key={process.id} className="bg-card rounded-lg p-4 shadow-card hover:shadow-card-hover transition-shadow duration-200 cursor-pointer group">
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="text-xs text-muted-foreground font-mono">#{process.number}</span>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
-                      </div>
-                      <h4 className="text-sm font-medium leading-snug mb-2">{process.title}</h4>
-                      {process.type && <Badge variant="outline" className={`text-xs ${config.className} mb-3`}>{process.type}</Badge>}
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          <span>{process.clients?.name || '—'}</span>
-                        </div>
-                        {process.due_date && (
-                          <div className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            <span>{new Date(process.due_date).toLocaleDateString('pt-BR')}</span>
-                          </div>
-                        )}
-                      </div>
-                      {process.value && <p className="text-sm font-semibold mt-2 tabular-nums">{formatCurrency(Number(process.value))}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="bg-card rounded-lg shadow-card overflow-hidden">
+      {/* Table */}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">Nenhum processo encontrado.</div>
+        ) : (
           <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/30">
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Nº</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Título</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Cliente</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Tipo</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Status</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Valor</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Prazo</th>
-                <th className="text-left py-3 px-4 font-medium text-muted-foreground">Responsável</th>
+            <thead className="bg-gray-50 border-b">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Número</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Título</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Cliente</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Prazo</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Advogado</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
-            <tbody>
-              {filtered.map((process: any) => (
-                <tr key={process.id} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors duration-150 cursor-pointer">
-                  <td className="py-2 px-4 font-mono text-muted-foreground">#{process.number}</td>
-                  <td className="py-2 px-4 font-medium">{process.title}</td>
-                  <td className="py-2 px-4">{process.clients?.name || '—'}</td>
-                  <td className="py-2 px-4"><Badge variant="outline" className="text-xs">{process.type || '—'}</Badge></td>
-                  <td className="py-2 px-4">
-                    <Badge variant="outline" className={`text-xs ${statusConfig[process.status as ProcessStatus]?.className}`}>
-                      {statusConfig[process.status as ProcessStatus]?.label || process.status}
-                    </Badge>
+            <tbody className="divide-y">
+              {filtered.map(p => (
+                <tr
+                  key={p.id}
+                  className="hover:bg-blue-50/40 cursor-pointer transition-colors"
+                  onClick={() => setSelectedProcess(p)}
+                >
+                  <td className="px-4 py-3 font-mono text-xs text-blue-600">{p.number}</td>
+                  <td className="px-4 py-3 font-medium text-gray-800 max-w-xs truncate">{p.title}</td>
+                  <td className="px-4 py-3 text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <User className="w-3 h-3" />
+                      {p.clients?.name ?? '—'}
+                    </div>
                   </td>
-                  <td className="py-2 px-4 tabular-nums font-medium">{process.value ? formatCurrency(Number(process.value)) : '—'}</td>
-                  <td className="py-2 px-4 tabular-nums">{process.due_date ? new Date(process.due_date).toLocaleDateString('pt-BR') : '—'}</td>
-                  <td className="py-2 px-4">{process.lawyer || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status ?? 'active'] ?? 'bg-gray-100 text-gray-600'}`}>
+                      {p.status ?? 'active'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">
+                    {p.due_date ? (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(p.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      </div>
+                    ) : '—'}
+                  </td>
+                  <td className="px-4 py-3 text-gray-500">{p.lawyer ?? '—'}</td>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setSelectedProcess(p)}>
+                          Ver andamentos
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-      )}
+        )}
+      </div>
 
-      {total > 0 && (
-        <div className="flex items-center justify-between pt-2">
-          <p className="text-sm text-muted-foreground tabular-nums">
-            Mostrando {rangeStart}–{rangeEnd} de {total}
-            {isFetching && <Loader2 className="inline h-3 w-3 ml-2 animate-spin" />}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
-              <ChevronLeft className="h-4 w-4" />
-              Anterior
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>Página {page + 1} de {totalPages}</span>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
+              <ChevronLeft className="w-4 h-4" />
             </Button>
-            <span className="text-sm tabular-nums px-2">
-              Página {page + 1} de {totalPages}
-            </span>
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
-              Próxima
-              <ChevronRight className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
+              <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
         </div>
       )}
+
+      {/* Andamentos Sheet */}
+      <Sheet open={!!selectedProcess} onOpenChange={open => { if (!open) setSelectedProcess(null); }}>
+        <SheetContent className="w-[480px] sm:max-w-[480px] overflow-y-auto">
+          {selectedProcess && (
+            <>
+              <SheetHeader className="pb-4 border-b">
+                <SheetTitle className="font-mono text-blue-600 text-sm">{selectedProcess.number}</SheetTitle>
+                <SheetDescription className="font-semibold text-gray-800 text-base leading-snug">
+                  {selectedProcess.title}
+                </SheetDescription>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[selectedProcess.status ?? 'active'] ?? 'bg-gray-100'}`}>
+                    {selectedProcess.status ?? 'active'}
+                  </span>
+                  {selectedProcess.clients?.name && (
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <User className="w-3 h-3" /> {selectedProcess.clients.name}
+                    </span>
+                  )}
+                  {selectedProcess.lawyer && (
+                    <span className="text-xs text-gray-500">{selectedProcess.lawyer}</span>
+                  )}
+                </div>
+              </SheetHeader>
+
+              <div className="pt-4">
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-500" />
+                  Andamentos / Movimentações
+                  <Badge variant="secondary">{processTasks.length}</Badge>
+                </h3>
+
+                {tasksLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                  </div>
+                ) : processTasks.length === 0 ? (
+                  <div className="text-center py-10 text-gray-400 text-sm">
+                    Nenhum andamento registrado para este processo.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {processTasks.map((t, idx) => (
+                      <div key={t.id} className="relative pl-6">
+                        {idx < processTasks.length - 1 && (
+                          <div className="absolute left-2 top-5 bottom-0 w-px bg-gray-200" />
+                        )}
+                        <div className="absolute left-0 top-1">
+                          {t.completed
+                            ? <CheckCircle2 className="w-4 h-4 text-green-500" />
+                            : <Circle className="w-4 h-4 text-gray-300" />}
+                        </div>
+                        <div className={`p-3 rounded-lg border ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className={`font-medium text-sm ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                              {t.title}
+                            </p>
+                            {t.priority && (
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${PRIORITY_COLORS[t.priority] ?? 'bg-gray-100 text-gray-600'}`}>
+                                {t.priority}
+                              </span>
+                            )}
+                          </div>
+                          {t.description && (
+                            <p className="text-xs text-gray-500 mt-1">{t.description}</p>
+                          )}
+                          <p className="text-xs text-gray-400 mt-1.5">
+                            {new Date(t.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                            {t.due_date && ` · Prazo: ${new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}`}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* New Process Dialog */}
+      <Dialog open={newOpen} onOpenChange={setNewOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Novo processo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            {[
+              { label: 'Número *', key: 'number', placeholder: 'Ex: 0001234-56.2024.8.16.0001' },
+              { label: 'Título *', key: 'title', placeholder: 'Descrição resumida' },
+              { label: 'Tipo', key: 'type', placeholder: 'Ex: Cível, Criminal...' },
+              { label: 'Advogado', key: 'lawyer', placeholder: 'Nome do advogado' },
+              { label: 'Valor (R$)', key: 'value', placeholder: '0.00' },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key}>
+                <Label>{label}</Label>
+                <Input
+                  placeholder={placeholder}
+                  value={newForm[key as keyof typeof newForm]}
+                  onChange={e => setNewForm(f => ({ ...f, [key]: e.target.value }))}
+                />
+              </div>
+            ))}
+            <div>
+              <Label>Status</Label>
+              <Select value={newForm.status} onValueChange={v => setNewForm(f => ({ ...f, status: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Ativo</SelectItem>
+                  <SelectItem value="pending">Pendente</SelectItem>
+                  <SelectItem value="archived">Arquivado</SelectItem>
+                  <SelectItem value="closed">Encerrado</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNewOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={!newForm.number || !newForm.title || createProcess.isPending}>
+              {createProcess.isPending ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
+        }
