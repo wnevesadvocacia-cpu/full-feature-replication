@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, MoreHorizontal, Calendar, User, Loader2, ChevronLeft, ChevronRight, FileText, CheckCircle2, Circle, X } from 'lucide-react';
+import { Plus, Search, Filter, MoreHorizontal, Calendar, User, Loader2, ChevronLeft, ChevronRight, FileText, CheckCircle2, Circle } from 'lucide-react';
 import { useProcesses, useCreateProcess, PROCESSES_PAGE_SIZE } from '@/hooks/useProcesses';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -83,8 +83,9 @@ export default function Processos() {
   });
 
   const { data, isLoading } = useProcesses(page);
-  const processes: Process[] = data?.data ?? data ?? [];
-  const totalCount: number = data?.count ?? processes.length;
+  // useProcesses returns { rows, total } for pagination
+  const processes: Process[] = data?.rows ?? [];
+  const totalCount: number = data?.total ?? processes.length;
   const totalPages = Math.ceil(totalCount / PROCESSES_PAGE_SIZE);
 
   const createProcess = useCreateProcess();
@@ -110,10 +111,10 @@ export default function Processos() {
     await createProcess.mutateAsync({
       number: newForm.number,
       title: newForm.title,
-      type: newForm.type || null,
+      type: newForm.type || undefined,
       status: newForm.status,
-      lawyer: newForm.lawyer || null,
-      value: newForm.value ? parseFloat(newForm.value) : null,
+      lawyer: newForm.lawyer || undefined,
+      value: newForm.value ? parseFloat(newForm.value) : undefined,
     });
     setNewOpen(false);
     setNewForm({ number: '', title: '', type: '', status: 'active', lawyer: '', value: '' });
@@ -371,4 +372,4 @@ export default function Processos() {
       </Dialog>
     </div>
   );
-        }
+      }
