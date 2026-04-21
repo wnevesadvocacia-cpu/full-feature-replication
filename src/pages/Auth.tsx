@@ -1,18 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, ArrowRight, Mail, Lock, KeyRound, Shield, Clock } from 'lucide-react';
+import { Scale, ArrowRight, Mail, Lock, Shield, CheckCircle, Loader2 } from 'lucide-react';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription,
+  DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 
 const SITE_URL = 'https://wnevesadvocacia-cpu.github.io/full-feature-replication';
@@ -24,69 +20,48 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [otpStep, setOtpStep] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpEmail, setOtpEmail] = useState('');
-  const [countdown, setCountdown] = useState(300);
-  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [linkSent, setLinkSent] = useState(false);
+  const [linkEmail, setLinkEmail] = useState('');
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Listen for auth state — fires when user clicks magic link in email
   useEffect(() => {
-    if (otpStep) {
-      setCountdown(300);
-      countdownRef.current = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownRef.current!);
-            setOtpStep(false);
-            setOtpCode('');
-            toast({
-              title: 'Código expirado',
-              description: 'Faça login novamente para receber um novo código.',
-              variant: 'destructive',
-            });
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => {
-      if (countdownRef.current) clearInterval(countdownRef.current);
-    };
-  }, [otpStep]);
-
-  const formatCountdown = (seconds: number) => {
-    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-    const s = (seconds % 60).toString().padStart(2, '0');
-    return `${m}:${s}`;
-  };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        navigate('/');
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
       if (isLogin) {
+        // Step 1: verify password
         const { error: pwError } = await supabase.auth.signInWithPassword({ email, password });
         if (pwError) throw pwError;
 
+        // Step 2: sign out temp session
         await supabase.auth.signOut();
 
-        const { error: otpError } = await supabase.auth.signInWithOtp({
+        // Step 3: send magic link (2nd factor)
+        const { error: linkError } = await supabase.auth.signInWithOtp({
           email,
           options: {
             shouldCreateUser: false,
-            emailRedirectTo: `${SITE_URL}/#/dashboard`,
+            emailRedirectTo: `${SITE_URL}/#/`,
           },
         });
-        if (otpError) throw otpError;
+        if (linkError) throw linkError;
 
-        setOtpEmail(email);
-        setOtpStep(true);
+        setLinkEmail(email);
+        setLinkSent(true);
         toast({
-          title: 'Código enviado!',
-          description: `Um código de 6 dígitos foi enviado para ${email}`,
+          title: 'Link enviado!',
+          description: `Verifique ${email} e clique no link do email.`,
         });
       } else {
         const { error } = await supabase.auth.signUp({ email, password });
@@ -100,29 +75,6 @@ export default function Auth() {
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (otpCode.length !== 6) {
-      toast({ title: 'Código inválido', description: 'Digite o código de 6 dígitos.', variant: 'destructive' });
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email: otpEmail,
-        token: otpCode,
-        type: 'email',
-      });
-      if (error) throw error;
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      navigate('/');
-    } catch (err: any) {
-      toast({ title: 'Código inválido', description: err.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleReset = async () => {
     if (!resetEmail) return;
     setLoading(true);
@@ -131,7 +83,7 @@ export default function Auth() {
         redirectTo: `${SITE_URL}/#/reset-password`,
       });
       if (error) throw error;
-      toast({ title: 'Email enviado!', description: 'Verifique seu email para redefinir a senha.' });
+      toast({ title: 'Email enviado!', description: 'Verifique seu email.' });
       setResetOpen(false);
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -140,74 +92,50 @@ export default function Auth() {
     }
   };
 
-  if (otpStep) {
+  // "Check your email" screen
+  if (linkSent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-4">
-              <div className="bg-blue-600 p-3 rounded-full">
-                <Shield className="h-8 w-8 text-white" />
+              <div className="bg-green-600 p-3 rounded-full">
+                <CheckCircle className="h-8 w-8 text-white" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-1">Verificação em 2 etapas</h1>
+            <h1 className="text-2xl font-bold text-white mb-2">Verifique seu email</h1>
             <p className="text-slate-400 text-sm">
-              Código enviado para <span className="text-blue-400 font-medium">{otpEmail}</span>
+              Um link de acesso seguro foi enviado para
             </p>
-            <p className="text-slate-500 text-xs mt-1">
-              Digite o código de 6 dígitos recebido no email
-            </p>
+            <p className="text-blue-400 font-medium mt-1">{linkEmail}</p>
           </div>
-          <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
-            <form onSubmit={handleOtpSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <Label className="text-slate-300 text-sm font-medium">Código de verificação</Label>
-                <div className="relative">
-                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    type="text"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    maxLength={6}
-                    placeholder="000000"
-                    value={otpCode}
-                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 text-center text-2xl tracking-[0.5em] font-mono h-14 focus:border-blue-500"
-                    autoFocus
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
-                <Clock className="h-4 w-4" />
-                <span>
-                  Expira em{' '}
-                  <span className={`font-mono font-bold ${countdown < 60 ? 'text-red-400' : 'text-blue-400'}`}>
-                    {formatCountdown(countdown)}
-                  </span>
-                </span>
-              </div>
-              <Button
-                type="submit"
-                disabled={loading || otpCode.length !== 6}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
-              >
-                {loading ? 'Verificando...' : 'Confirmar acesso'}
-                {!loading && <ArrowRight className="h-4 w-4" />}
-              </Button>
-              <button
-                type="button"
-                onClick={() => { setOtpStep(false); setOtpCode(''); }}
-                className="w-full text-slate-400 hover:text-slate-300 text-sm transition-colors"
-              >
-                Voltar ao login
-              </button>
-            </form>
+          <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl space-y-5">
+            <div className="bg-blue-950/50 border border-blue-800 rounded-xl p-4 text-sm text-blue-200 space-y-2">
+              <p className="font-semibold text-blue-300">📧 Como acessar:</p>
+              <ol className="list-decimal list-inside space-y-1 text-slate-300">
+                <li>Abra o email de <span className="text-blue-400">noreply@mail.app.supabase.io</span></li>
+                <li>Clique no botão <span className="font-semibold">"Log In"</span></li>
+                <li>Você será redirecionado automaticamente</li>
+              </ol>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-slate-500 text-xs">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              <span>Aguardando confirmação...</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setLinkSent(false); setLinkEmail(''); }}
+              className="w-full text-slate-400 hover:text-slate-300 text-sm transition-colors text-center"
+            >
+              Voltar ao login
+            </button>
           </div>
         </div>
       </div>
     );
   }
 
+  // Login / register screen
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -222,20 +150,12 @@ export default function Auth() {
         </div>
         <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
           <div className="flex bg-slate-700/50 rounded-lg p-1 mb-6">
-            <button
-              onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
+            <button onClick={() => setIsLogin(true)}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'}`}>
               Entrar
             </button>
-            <button
-              onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
-                !isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
+            <button onClick={() => setIsLogin(false)}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${!isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'}`}>
               Criar conta
             </button>
           </div>
@@ -244,55 +164,38 @@ export default function Auth() {
               <Label className="text-slate-300 text-sm font-medium">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  required
-                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500"
-                />
+                <Input type="email" placeholder="seu@email.com" value={email}
+                  onChange={e => setEmail(e.target.value)} required
+                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500" />
               </div>
             </div>
             <div className="space-y-2">
               <Label className="text-slate-300 text-sm font-medium">Senha</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <Input
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  required
-                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500"
-                />
+                <Input type="password" placeholder="••••••••" value={password}
+                  onChange={e => setPassword(e.target.value)} required
+                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500" />
               </div>
             </div>
             {isLogin && (
               <div className="text-right">
-                <button
-                  type="button"
-                  onClick={() => setResetOpen(true)}
-                  className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
-                >
+                <button type="button" onClick={() => setResetOpen(true)}
+                  className="text-blue-400 hover:text-blue-300 text-sm transition-colors">
                   Esqueceu a senha?
                 </button>
               </div>
             )}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 mt-2"
-            >
+            <Button type="submit" disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 mt-2">
               {loading
-                ? isLogin ? 'Verificando credenciais...' : 'Criando conta...'
-                : isLogin ? 'Entrar' : 'Criar conta'}
-              {!loading && <ArrowRight className="h-4 w-4" />}
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> {isLogin ? 'Verificando...' : 'Criando...'}</>
+                : <>{isLogin ? 'Entrar' : 'Criar conta'} <ArrowRight className="h-4 w-4" /></>}
             </Button>
             {isLogin && (
               <p className="text-center text-xs text-slate-500 mt-3">
                 <Shield className="inline h-3 w-3 mr-1" />
-                Login protegido com verificação em 2 etapas
+                Login com verificação por email (2 etapas)
               </p>
             )}
           </form>
@@ -311,19 +214,14 @@ export default function Auth() {
             <Label className="text-slate-300 text-sm">Email</Label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                type="email"
-                placeholder="seu@email.com"
-                value={resetEmail}
+              <Input type="email" placeholder="seu@email.com" value={resetEmail}
                 onChange={e => setResetEmail(e.target.value)}
-                className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
-              />
+                className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500" />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResetOpen(false)} className="border-slate-600 text-slate-300 hover:bg-slate-700">
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => setResetOpen(false)}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700">Cancelar</Button>
             <Button onClick={handleReset} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
               {loading ? 'Enviando...' : 'Enviar email'}
             </Button>
@@ -332,4 +230,4 @@ export default function Auth() {
       </Dialog>
     </div>
   );
-        }
+    }
