@@ -1,20 +1,26 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export function useProcesses() {
+export const PROCESSES_PAGE_SIZE = 50;
+
+export function useProcesses(page: number = 0, pageSize: number = PROCESSES_PAGE_SIZE) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ['processes'],
+    queryKey: ['processes', page, pageSize],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      const { data, error, count } = await supabase
         .from('processes')
-        .select('*, clients(name)')
-        .order('created_at', { ascending: false });
+        .select('*, clients(name)', { count: 'exact' })
+        .order('created_at', { ascending: false })
+        .range(from, to);
       if (error) throw error;
-      return data;
+      return { rows: data ?? [], total: count ?? 0 };
     },
     enabled: !!user,
+    placeholderData: keepPreviousData,
   });
 }
 
