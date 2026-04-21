@@ -10,9 +10,7 @@ import {
   FileText,
   BarChart3,
   Settings,
-  Search,
-  Bell,
-  ChevronLeft,
+  Activity,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -39,7 +37,8 @@ const mainNav = [
 const secondaryNav = [
   { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Documentos', url: '/documentos', icon: FileText },
-  { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
+  { title: 'MovimentaÃ§Ãµes', url: '/movimentacoes', icon: Activity },
+  { title: 'RelatÃ³rios', url: '/relatorios', icon: BarChart3 },
 ];
 
 export function AppSidebar() {
@@ -127,7 +126,7 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isActive('/configuracoes')} tooltip="Configurações">
+            <SidebarMenuButton asChild isActive={isActive('/configuracoes')} tooltip="ConfiguraÃ§Ãµes">
               <NavLink
                 to="/configuracoes"
                 end
@@ -135,7 +134,7 @@ export function AppSidebar() {
                 activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
               >
                 <Settings className="h-4 w-4 shrink-0" />
-                {!collapsed && <span className="text-sm">Configurações</span>}
+                {!collapsed && <span className="text-sm">ConfiguraÃ§Ãµes</span>}
               </NavLink>
             </SidebarMenuButton>
           </SidebarMenuItem>
