@@ -41,7 +41,7 @@ export function useUpdateTask() {
     mutationFn: async ({ id, ...updates }: { id: string; completed?: boolean; status?: string; [key: string]: any }) => {
       const { data, error } = await supabase
         .from('tasks')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();

@@ -41,7 +41,7 @@ export function useUpdateProcess() {
     mutationFn: async ({ id, ...updates }: { id: string; status?: string; title?: string; [key: string]: any }) => {
       const { data, error } = await supabase
         .from('processes')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id)
         .select()
         .single();
