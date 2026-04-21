@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, ArrowRight, Mail, Lock, User, KeyRound } from 'lucide-react';
+import { Scale, ArrowRight, Mail, Lock, KeyRound, Shield, Clock } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -19,239 +19,318 @@ export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
-  const [resetLoading, setResetLoading] = useState(false);
+
+  // OTP 2FA state
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpEmail, setOtpEmail] = useState('');
+  const [countdown, setCountdown] = useState(600);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const handlePasswordReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setResetLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) throw error;
-      toast({
-        title: 'Email enviado!',
-        description: 'Verifique sua caixa de entrada para redefinir sua senha.',
-      });
-      setResetOpen(false);
-      setResetEmail('');
-    } catch (error: any) {
-      const msg = error.message?.toLowerCase() || '';
-      let description = error.message;
-      if (msg.includes('invalid') && msg.includes('email')) description = 'Email inválido.';
-      else if (msg.includes('rate limit')) description = 'Muitas tentativas. Aguarde um momento.';
-      toast({ title: 'Erro', description, variant: 'destructive' });
-    } finally {
-      setResetLoading(false);
+  useEffect(() => {
+    if (otpStep) {
+      setCountdown(600);
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current!);
+            setOtpStep(false);
+            setOtpCode('');
+            toast({
+              title: 'Código expirado',
+              description: 'Faça login novamente para receber um novo código.',
+              variant: 'destructive',
+            });
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     }
+    return () => {
+      if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+  }, [otpStep]);
+
+  const formatCountdown = (seconds: number) => {
+    const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const s = (seconds % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        navigate('/dashboard');
-      } else {
-        const { error } = await supabase.auth.signUp({
+        // Step 1: verify password credentials
+        const { error: pwError } = await supabase.auth.signInWithPassword({ email, password });
+        if (pwError) throw pwError;
+
+        // Step 2: sign out the temporary session
+        await supabase.auth.signOut();
+
+        // Step 3: send OTP to email as second factor
+        const { error: otpError } = await supabase.auth.signInWithOtp({
           email,
-          password,
-          options: {
-            data: { full_name: fullName },
-            emailRedirectTo: window.location.origin,
-          },
+          options: { shouldCreateUser: false },
         });
-        if (error) throw error;
+        if (otpError) throw otpError;
+
+        setOtpEmail(email);
+        setOtpStep(true);
         toast({
-          title: 'Conta criada!',
-          description: 'Verifique seu email para confirmar o cadastro.',
+          title: 'Código enviado!',
+          description: `Um código de 6 dígitos foi enviado para ${email}`,
         });
+      } else {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        toast({ title: 'Conta criada!', description: 'Verifique seu email para confirmar.' });
       }
-    } catch (error: any) {
-      toast({
-        title: 'Erro',
-        description: error.message,
-        variant: 'destructive',
-      });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen flex">
-      {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-sidebar flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-lg">W</span>
-          </div>
-          <span className="text-sidebar-accent-foreground font-display font-bold text-xl tracking-tight">
-            WnevesBox
-          </span>
-        </div>
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpCode.length !== 6) {
+      toast({ title: 'Código inválido', description: 'Digite o código de 6 dígitos.', variant: 'destructive' });
+      return;
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: otpEmail,
+        token: otpCode,
+        type: 'email',
+      });
+      if (error) throw error;
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      navigate('/');
+    } catch (err: any) {
+      toast({ title: 'Código inválido', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        <div className="space-y-6">
-          <h1 className="text-4xl font-display font-bold text-sidebar-accent-foreground leading-tight">
-            Gestão jurídica<br />inteligente e eficiente.
-          </h1>
-          <p className="text-sidebar-foreground text-lg max-w-md">
-            Automatize processos, aumente a produtividade do seu escritório e tenha controle total do seu negócio jurídico.
-          </p>
-        </div>
+  const handleReset = async () => {
+    if (!resetEmail) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: 'Email enviado!', description: 'Verifique seu email para redefinir a senha.' });
+      setResetOpen(false);
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        <p className="text-sidebar-muted text-sm">
-          © 2024 WnevesBox. Todos os direitos reservados.
-        </p>
-      </div>
-
-      {/* Right panel - Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-8">
-          <div className="lg:hidden flex items-center gap-3 justify-center mb-8">
-            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-lg">W</span>
+  // OTP verification screen
+  if (otpStep) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <div className="bg-blue-600 p-3 rounded-full">
+                <Shield className="h-8 w-8 text-white" />
+              </div>
             </div>
-            <span className="font-display font-bold text-xl tracking-tight">WnevesBox</span>
-          </div>
-
-          <div className="space-y-2 text-center">
-            <h2 className="text-2xl font-display font-bold">
-              {isLogin ? 'Entrar na sua conta' : 'Criar nova conta'}
-            </h2>
-            <p className="text-muted-foreground">
-              {isLogin
-                ? 'Insira suas credenciais para acessar o sistema'
-                : 'Preencha os dados para criar sua conta'}
+            <h1 className="text-2xl font-bold text-white mb-1">Verificação em 2 etapas</h1>
+            <p className="text-slate-400 text-sm">
+              Código enviado para <span className="text-blue-400 font-medium">{otpEmail}</span>
             </p>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && (
+          <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
+            <form onSubmit={handleOtpSubmit} className="space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="fullName">Nome completo</Label>
+                <Label className="text-slate-300 text-sm font-medium">Código de verificação</Label>
                 <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   <Input
-                    id="fullName"
-                    placeholder="Seu nome completo"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="pl-10"
-                    required
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 text-center text-2xl tracking-[0.5em] font-mono h-14 focus:border-blue-500"
+                    autoFocus
                   />
                 </div>
               </div>
-            )}
+              <div className="flex items-center justify-center gap-2 text-sm text-slate-400">
+                <Clock className="h-4 w-4" />
+                <span>
+                  Expira em{' '}
+                  <span className={`font-mono font-bold ${countdown < 60 ? 'text-red-400' : 'text-blue-400'}`}>
+                    {formatCountdown(countdown)}
+                  </span>
+                </span>
+              </div>
+              <Button
+                type="submit"
+                disabled={loading || otpCode.length !== 6}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {loading ? 'Verificando...' : 'Confirmar acesso'}
+                {!loading && <ArrowRight className="h-4 w-4" />}
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setOtpStep(false); setOtpCode(''); }}
+                className="w-full text-slate-400 hover:text-slate-300 text-sm transition-colors"
+              >
+                Voltar ao login
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
+  // Normal login / register screen
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center mb-4">
+            <div className="bg-blue-600 p-3 rounded-full">
+              <Scale className="h-8 w-8 text-white" />
+            </div>
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-1">WnevesBox</h1>
+          <p className="text-slate-400 text-sm">Gestão Jurídica Inteligente</p>
+        </div>
+        <div className="bg-slate-800/60 backdrop-blur-sm border border-slate-700 rounded-2xl p-8 shadow-2xl">
+          <div className="flex bg-slate-700/50 rounded-lg p-1 mb-6">
+            <button
+              onClick={() => setIsLogin(true)}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+                isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              Entrar
+            </button>
+            <button
+              onClick={() => setIsLogin(false)}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+                !isLogin ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              Criar conta
+            </button>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label className="text-slate-300 text-sm font-medium">Email</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  id="email"
                   type="email"
                   placeholder="seu@email.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
+                  onChange={e => setEmail(e.target.value)}
                   required
+                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500"
                 />
               </div>
             </div>
-
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password">Senha</Label>
-                {isLogin && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setResetEmail(email);
-                      setResetOpen(true);
-                    }}
-                    className="text-xs text-primary font-medium hover:underline inline-flex items-center gap-1"
-                  >
-                    <KeyRound className="h-3 w-3" />
-                    Esqueceu a senha?
-                  </button>
-                )}
-              </div>
+              <Label className="text-slate-300 text-sm font-medium">Senha</Label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
-                  id="password"
                   type="password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
+                  onChange={e => setPassword(e.target.value)}
                   required
-                  minLength={6}
+                  className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-500 focus:border-blue-500"
                 />
               </div>
             </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Carregando...' : isLogin ? 'Entrar' : 'Criar conta'}
+            {isLogin && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setResetOpen(true)}
+                  className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
+                >
+                  Esqueceu a senha?
+                </button>
+              </div>
+            )}
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 mt-2"
+            >
+              {loading
+                ? isLogin ? 'Verificando credenciais...' : 'Criando conta...'
+                : isLogin ? 'Entrar' : 'Criar conta'}
               {!loading && <ArrowRight className="h-4 w-4" />}
             </Button>
+            {isLogin && (
+              <p className="text-center text-xs text-slate-500 mt-3">
+                <Shield className="inline h-3 w-3 mr-1" />
+                Login protegido com verificação em 2 etapas
+              </p>
+            )}
           </form>
-
-          <p className="text-center text-sm text-muted-foreground">
-            {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}{' '}
-            <button
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-primary font-medium hover:underline"
-            >
-              {isLogin ? 'Criar conta' : 'Entrar'}
-            </button>
-          </p>
         </div>
       </div>
-
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
-        <DialogContent>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle>Recuperar senha</DialogTitle>
-            <DialogDescription>
-              Digite seu email cadastrado e enviaremos um link para você redefinir sua senha.
+            <DialogTitle>Redefinir senha</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Digite seu email para receber o link de redefinição.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handlePasswordReset} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="resetEmail">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="resetEmail"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+          <div className="space-y-3 py-2">
+            <Label className="text-slate-300 text-sm">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                type="email"
+                placeholder="seu@email.com"
+                value={resetEmail}
+                onChange={e => setResetEmail(e.target.value)}
+                className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-500"
+              />
             </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setResetOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit" disabled={resetLoading}>
-                {resetLoading ? 'Enviando...' : 'Enviar link de recuperação'}
-              </Button>
-            </DialogFooter>
-          </form>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setResetOpen(false)}
+              className="border-slate-600 text-slate-300 hover:bg-slate-700"
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleReset} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
+              {loading ? 'Enviando...' : 'Enviar email'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
