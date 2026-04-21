@@ -13,6 +13,8 @@ import Processos from "./pages/Processos";
 import Tarefas from "./pages/Tarefas";
 import Financeiro from "./pages/Financeiro";
 import Clientes from "./pages/Clientes";
+import Agenda from "./pages/Agenda";
+import Documentos from "./pages/Documentos";
 import PlaceholderPage from "@/components/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -61,8 +63,8 @@ const App = () => (
               <Route path="/tarefas" element={<Tarefas />} />
               <Route path="/financeiro" element={<Financeiro />} />
               <Route path="/clientes" element={<Clientes />} />
-              <Route path="/agenda" element={<PlaceholderPage title="Agenda" description="Gerencie compromissos, audiências e prazos processuais do seu escritório." />} />
-              <Route path="/documentos" element={<PlaceholderPage title="Documentos" description="Crie, edite e gerencie petições, contratos e documentos jurídicos." />} />
+              <Route path="/agenda" element={<Agenda />} />
+              <Route path="/documentos" element={<Documentos />} />
               <Route path="/relatorios" element={<PlaceholderPage title="Relatórios" description="Analise a produtividade e o desempenho do seu escritório com relatórios detalhados." />} />
               <Route path="/configuracoes" element={<PlaceholderPage title="Configurações" description="Gerencie usuários, permissões e configurações do sistema." />} />
             </Route>
