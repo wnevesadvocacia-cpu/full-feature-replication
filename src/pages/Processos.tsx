@@ -1,64 +1,134 @@
-import { useState, useMemo } from 'react';
+import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Filter, MoreHorizontal, Calendar, User, Loader2, ChevronLeft, ChevronRight, FileText, CheckCircle2, Circle } from 'lucide-react';
-import { useProcesses, useCreateProcess, PROCESSES_PAGE_SIZE } from '@/hooks/useProcesses';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
-} from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-
-const STATUS_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  archived: 'bg-gray-100 text-gray-600',
-  pending: 'bg-yellow-100 text-yellow-700',
-  closed: 'bg-red-100 text-red-700',
-};
-
-const PRIORITY_COLORS: Record<string, string> = {
-  alta: 'bg-red-100 text-red-700',
-  media: 'bg-yellow-100 text-yellow-700',
-  baixa: 'bg-green-100 text-green-700',
-};
+  Search, Filter, ChevronLeft, ChevronRight, Plus,
+  FileText, User, MapPin, Gavel, Calendar, DollarSign,
+  MessageSquare, X
+} from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 
 interface Process {
   id: string;
   number: string;
   title: string;
-  type?: string;
-  status?: string;
-  due_date?: string;
-  lawyer?: string;
-  value?: number;
-  clients?: { name: string };
+  status: string;
+  type: string | null;
+  client_name: string | null;
+  client_id: string | null;
+  comarca: string | null;
+  vara: string | null;
+  tribunal: string | null;
+  opponent: string | null;
+  phase: string | null;
+  stage: string | null;
+  responsible: string | null;
+  lawyer: string | null;
+  honorarios_valor: number | null;
+  honorarios_percent: number | null;
+  cause_value: number | null;
+  contingency: number | null;
+  last_update: string | null;
+  observations: string | null;
   created_at: string;
+  updated_at: string;
+  request_date: string | null;
+  closing_date: string | null;
+  result: string | null;
 }
 
 interface Task {
   id: string;
   title: string;
-  description?: string;
-  due_date?: string;
-  priority?: string;
+  description: string | null;
+  due_date: string | null;
   completed: boolean;
   created_at: string;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  novo: 'Novo',
+  em_andamento: 'Em Andamento',
+  aguardando: 'Aguardando',
+  concluido: 'ConcluÃ­do',
+  ativo: 'Ativo',
+  arquivado: 'Arquivado',
+  recursal: 'Recursal',
+  sobrestamento: 'Sobrestamento',
+  active: 'Ativo',
+  archived: 'Arquivado',
+  pending: 'Aguardando',
+  closed: 'ConcluÃ­do',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  novo: 'bg-blue-100 text-blue-800',
+  em_andamento: 'bg-green-100 text-green-800',
+  aguardando: 'bg-yellow-100 text-yellow-800',
+  concluido: 'bg-gray-100 text-gray-700',
+  ativo: 'bg-green-100 text-green-800',
+  arquivado: 'bg-gray-100 text-gray-700',
+  recursal: 'bg-purple-100 text-purple-800',
+  sobrestamento: 'bg-orange-100 text-orange-800',
+  active: 'bg-green-100 text-green-800',
+  archived: 'bg-gray-100 text-gray-700',
+  pending: 'bg-yellow-100 text-yellow-800',
+  closed: 'bg-gray-100 text-gray-700',
+};
+
+const PAGE_SIZE = 50;
+
+const ALL_STATUSES = [
+  { value: '', label: 'Todos os status' },
+  { value: 'novo', label: 'Novo' },
+  { value: 'em_andamento', label: 'Em Andamento' },
+  { value: 'aguardando', label: 'Aguardando' },
+  { value: 'ativo', label: 'Ativo' },
+  { value: 'recursal', label: 'Recursal' },
+  { value: 'sobrestamento', label: 'Sobrestamento' },
+  { value: 'concluido', label: 'ConcluÃ­do' },
+  { value: 'arquivado', label: 'Arquivado' },
+];
+
+function formatCurrency(v: number | null) {
+  if (v == null) return 'â';
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function formatDate(s: string | null) {
+  if (!s) return 'â';
+  return new Date(s).toLocaleDateString('pt-BR');
+}
+
+function useProcesses(search: string, status: string, page: number) {
+  return useQuery({
+    queryKey: ['processes', search, status, page],
+    queryFn: async () => {
+      let q = supabase
+        .from('processes')
+        .select('id,number,title,status,type,client_name,comarca,vara,tribunal,opponent,phase,stage,responsible,lawyer,honorarios_valor,honorarios_percent,cause_value,contingency,last_update,observations,created_at,updated_at,request_date,closing_date,result,client_id', { count: 'exact' })
+        .order('updated_at', { ascending: false })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%,opponent.ilike.%${search}%`);
+      if (status) q = q.eq('status', status);
+      const { data, error, count } = await q;
+      if (error) throw error;
+      return { rows: (data ?? []) as Process[], total: count ?? 0 };
+    },
+    placeholderData: (prev) => prev,
+  });
+}
+
 function useProcessTasks(processId: string | null) {
   return useQuery({
-    queryKey: ['process-tasks', processId],
+    queryKey: ['tasks', processId],
     enabled: !!processId,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -67,309 +137,334 @@ function useProcessTasks(processId: string | null) {
         .eq('process_id', processId)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as Task[];
+      return (data ?? []) as Task[];
     },
   });
 }
 
-export default function Processos() {
-  const [page, setPage] = useState(0);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [newOpen, setNewOpen] = useState(false);
-  const [selectedProcess, setSelectedProcess] = useState<Process | null>(null);
-  const [newForm, setNewForm] = useState({
-    number: '', title: '', type: '', status: 'active', lawyer: '', value: '',
+function useAddTask(processId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: { title: string; description: string; due_date: string }) => {
+      const { error } = await supabase.from('tasks').insert({
+        ...payload,
+        process_id: processId,
+        completed: false,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks', processId] });
+      toast({ title: 'Andamento adicionado.' });
+    },
+    onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
+}
 
-  const { data, isLoading } = useProcesses(page);
-  // useProcesses returns { rows, total } for pagination
-  const processes: Process[] = data?.rows ?? [];
-  const totalCount: number = data?.total ?? processes.length;
-  const totalPages = Math.ceil(totalCount / PROCESSES_PAGE_SIZE);
+export default function Processos() {
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Process | null>(null);
+  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
+  const [showTaskForm, setShowTaskForm] = useState(false);
 
-  const createProcess = useCreateProcess();
-  const { data: processTasks = [], isLoading: tasksLoading } = useProcessTasks(selectedProcess?.id ?? null);
+  const { data, isLoading } = useProcesses(search, status, page);
+  const rows = data?.rows ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const filtered = useMemo(() => {
-    let list = processes;
-    if (search) {
-      const q = search.toLowerCase();
-      list = list.filter(p =>
-        p.number?.toLowerCase().includes(q) ||
-        p.title?.toLowerCase().includes(q) ||
-        p.clients?.name?.toLowerCase().includes(q)
-      );
-    }
-    if (statusFilter !== 'all') {
-      list = list.filter(p => p.status === statusFilter);
-    }
-    return list;
-  }, [processes, search, statusFilter]);
+  const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
+  const addTask = useAddTask(selected?.id ?? null);
 
-  async function handleCreate() {
-    await createProcess.mutateAsync({
-      number: newForm.number,
-      title: newForm.title,
-      type: newForm.type || undefined,
-      status: newForm.status,
-      lawyer: newForm.lawyer || undefined,
-      value: newForm.value ? parseFloat(newForm.value) : undefined,
-    });
-    setNewOpen(false);
-    setNewForm({ number: '', title: '', type: '', status: 'active', lawyer: '', value: '' });
-  }
+  const handleSearch = useCallback((v: string) => {
+    setSearch(v);
+    setPage(0);
+  }, []);
+
+  const handleStatus = useCallback((v: string) => {
+    setStatus(v);
+    setPage(0);
+  }, []);
+
+  const submitTask = () => {
+    if (!newTask.title.trim()) return;
+    addTask.mutate(newTask);
+    setNewTask({ title: '', description: '', due_date: '' });
+    setShowTaskForm(false);
+  };
 
   return (
     <div className="p-6 space-y-5">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Processos</h1>
-          <p className="text-sm text-gray-500">{totalCount.toLocaleString('pt-BR')} processos cadastrados</p>
-        </div>
-        <Button onClick={() => setNewOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Novo processo
-        </Button>
+        <h1 className="text-2xl font-bold text-gray-900">
+          Processos {!isLoading && <span className="text-base font-normal text-gray-500">({total.toLocaleString('pt-BR')})</span>}
+        </h1>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            className="pl-9"
-            placeholder="Buscar por número, título ou cliente..."
+            placeholder="Buscar por nÃºmero, tÃ­tulo, cliente, rÃ©uâ¦"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-9"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
-            <Filter className="w-4 h-4 mr-2" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="active">Ativo</SelectItem>
-            <SelectItem value="pending">Pendente</SelectItem>
-            <SelectItem value="archived">Arquivado</SelectItem>
-            <SelectItem value="closed">Encerrado</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-gray-400" />
+          <select
+            value={status}
+            onChange={(e) => handleStatus(e.target.value)}
+            className="text-sm border border-gray-200 rounded-md px-3 py-2 bg-white"
+          >
+            {ALL_STATUSES.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">Nenhum processo encontrado.</div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b">
-              <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Número</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Título</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Cliente</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Prazo</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Advogado</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {filtered.map(p => (
-                <tr
-                  key={p.id}
-                  className="hover:bg-blue-50/40 cursor-pointer transition-colors"
-                  onClick={() => setSelectedProcess(p)}
-                >
-                  <td className="px-4 py-3 font-mono text-xs text-blue-600">{p.number}</td>
-                  <td className="px-4 py-3 font-medium text-gray-800 max-w-xs truncate">{p.title}</td>
-                  <td className="px-4 py-3 text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <User className="w-3 h-3" />
-                      {p.clients?.name ?? '—'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[p.status ?? 'active'] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {p.status ?? 'active'}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {p.due_date ? (
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(p.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                      </div>
-                    ) : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{p.lawyer ?? '—'}</td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7">
-                          <MoreHorizontal className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setSelectedProcess(p)}>
-                          Ver andamentos
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Card>
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center text-gray-400">Carregando processosâ¦</div>
+          ) : rows.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">Nenhum processo encontrado.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
+                    <th className="px-4 py-3">NÃºmero</th>
+                    <th className="px-4 py-3">Cliente</th>
+                    <th className="px-4 py-3">Comarca</th>
+                    <th className="px-4 py-3">Tipo</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3">Atualizado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((p) => (
+                    <tr
+                      key={p.id}
+                      className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => setSelected(p)}
+                    >
+                      <td className="px-4 py-3 font-mono font-medium text-blue-700">{p.number || 'â'}</td>
+                      <td className="px-4 py-3 max-w-[180px] truncate">{p.client_name ?? 'â'}</td>
+                      <td className="px-4 py-3 text-gray-600">{p.comarca ?? 'â'}</td>
+                      <td className="px-4 py-3 text-gray-600">{p.type ?? 'â'}</td>
+                      <td className="px-4 py-3">
+                        <Badge className={`text-xs ${STATUS_COLORS[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                          {STATUS_LABELS[p.status] ?? p.status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-gray-500">{formatDate(p.updated_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-gray-500">
-          <span>Página {page + 1} de {totalPages}</span>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}>
-              <ChevronLeft className="w-4 h-4" />
+          <span>
+            {page * PAGE_SIZE + 1}â{Math.min((page + 1) * PAGE_SIZE, total)} de {total.toLocaleString('pt-BR')}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage((p) => p - 1)} disabled={page === 0}>
+              <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
-              <ChevronRight className="w-4 h-4" />
+            <span>PÃ¡gina {page + 1} / {totalPages}</span>
+            <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)} disabled={page >= totalPages - 1}>
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>
       )}
 
-      {/* Andamentos Sheet */}
-      <Sheet open={!!selectedProcess} onOpenChange={open => { if (!open) setSelectedProcess(null); }}>
-        <SheetContent className="w-[480px] sm:max-w-[480px] overflow-y-auto">
-          {selectedProcess && (
+      {/* Detail Sheet */}
+      <Sheet open={!!selected} onOpenChange={(open) => { if (!open) setSelected(null); }}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          {selected && (
             <>
-              <SheetHeader className="pb-4 border-b">
-                <SheetTitle className="font-mono text-blue-600 text-sm">{selectedProcess.number}</SheetTitle>
-                <SheetDescription className="font-semibold text-gray-800 text-base leading-snug">
-                  {selectedProcess.title}
-                </SheetDescription>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[selectedProcess.status ?? 'active'] ?? 'bg-gray-100'}`}>
-                    {selectedProcess.status ?? 'active'}
-                  </span>
-                  {selectedProcess.clients?.name && (
-                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                      <User className="w-3 h-3" /> {selectedProcess.clients.name}
-                    </span>
-                  )}
-                  {selectedProcess.lawyer && (
-                    <span className="text-xs text-gray-500">{selectedProcess.lawyer}</span>
-                  )}
-                </div>
+              <SheetHeader>
+                <SheetTitle className="font-mono text-base">{selected.number || selected.title}</SheetTitle>
+                <Badge className={`w-fit text-xs ${STATUS_COLORS[selected.status] ?? 'bg-gray-100 text-gray-600'}`}>
+                  {STATUS_LABELS[selected.status] ?? selected.status}
+                </Badge>
               </SheetHeader>
 
-              <div className="pt-4">
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-blue-500" />
-                  Andamentos / Movimentações
-                  <Badge variant="secondary">{processTasks.length}</Badge>
-                </h3>
+              <div className="mt-4 space-y-5">
+                {/* Client & Opponent */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><User className="h-3 w-3" /> Cliente</p>
+                    <p className="text-sm font-medium mt-0.5">{selected.client_name ?? 'â'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Parte ContrÃ¡ria</p>
+                    <p className="text-sm font-medium mt-0.5">{selected.opponent ?? 'â'}</p>
+                  </div>
+                </div>
 
-                {tasksLoading ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                {/* Location */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><MapPin className="h-3 w-3" /> Comarca</p>
+                    <p className="text-sm mt-0.5">{selected.comarca ?? 'â'}</p>
                   </div>
-                ) : processTasks.length === 0 ? (
-                  <div className="text-center py-10 text-gray-400 text-sm">
-                    Nenhum andamento registrado para este processo.
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Vara</p>
+                    <p className="text-sm mt-0.5">{selected.vara ?? 'â'}</p>
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {processTasks.map((t, idx) => (
-                      <div key={t.id} className="relative pl-6">
-                        {idx < processTasks.length - 1 && (
-                          <div className="absolute left-2 top-5 bottom-0 w-px bg-gray-200" />
-                        )}
-                        <div className="absolute left-0 top-1">
-                          {t.completed
-                            ? <CheckCircle2 className="w-4 h-4 text-green-500" />
-                            : <Circle className="w-4 h-4 text-gray-300" />}
-                        </div>
-                        <div className={`p-3 rounded-lg border ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
-                          <div className="flex items-start justify-between gap-2">
-                            <p className={`font-medium text-sm ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
-                              {t.title}
-                            </p>
-                            {t.priority && (
-                              <span className={`px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${PRIORITY_COLORS[t.priority] ?? 'bg-gray-100 text-gray-600'}`}>
-                                {t.priority}
-                              </span>
-                            )}
-                          </div>
-                          {t.description && (
-                            <p className="text-xs text-gray-500 mt-1">{t.description}</p>
-                          )}
-                          <p className="text-xs text-gray-400 mt-1.5">
-                            {new Date(t.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-                            {t.due_date && ` · Prazo: ${new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}`}
-                          </p>
-                        </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Tribunal</p>
+                    <p className="text-sm mt-0.5">{selected.tribunal ?? 'â'}</p>
+                  </div>
+                </div>
+
+                {/* Phase & Stage */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><Gavel className="h-3 w-3" /> Fase</p>
+                    <p className="text-sm mt-0.5">{selected.phase ?? 'â'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Etapa</p>
+                    <p className="text-sm mt-0.5">{selected.stage ?? 'â'}</p>
+                  </div>
+                </div>
+
+                {/* Responsible */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">ResponsÃ¡vel</p>
+                    <p className="text-sm mt-0.5">{selected.responsible ?? selected.lawyer ?? 'â'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Tipo</p>
+                    <p className="text-sm mt-0.5">{selected.type ?? 'â'}</p>
+                  </div>
+                </div>
+
+                {/* Financial */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><DollarSign className="h-3 w-3" /> Valor Causa</p>
+                    <p className="text-sm font-medium mt-0.5">{formatCurrency(selected.cause_value)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">HonorÃ¡rios</p>
+                    <p className="text-sm font-medium mt-0.5">
+                      {selected.honorarios_valor != null
+                        ? formatCurrency(selected.honorarios_valor)
+                        : selected.honorarios_percent != null
+                        ? `${selected.honorarios_percent}%`
+                        : 'â'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">ContingÃªncia</p>
+                    <p className="text-sm font-medium mt-0.5">
+                      {selected.contingency != null ? `${selected.contingency}%` : 'â'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><Calendar className="h-3 w-3" /> Data Entrada</p>
+                    <p className="text-sm mt-0.5">{formatDate(selected.request_date ?? selected.created_at)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Ãltima Atualiz.</p>
+                    <p className="text-sm mt-0.5">{formatDate(selected.last_update ?? selected.updated_at)}</p>
+                  </div>
+                </div>
+
+                {/* Result */}
+                {selected.result && (
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">Resultado</p>
+                    <p className="text-sm mt-0.5">{selected.result}</p>
+                  </div>
+                )}
+
+                {/* Observations */}
+                {selected.observations && (
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide">ObservaÃ§Ãµes</p>
+                    <p className="text-sm mt-0.5 text-gray-700 whitespace-pre-wrap">{selected.observations}</p>
+                  </div>
+                )}
+
+                {/* Andamentos */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-semibold flex items-center gap-1">
+                      <MessageSquare className="h-4 w-4" /> Andamentos ({tasks.length})
+                    </p>
+                    <Button size="sm" variant="outline" onClick={() => setShowTaskForm((v) => !v)}>
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar
+                    </Button>
+                  </div>
+
+                  {showTaskForm && (
+                    <div className="border rounded-md p-3 space-y-2 mb-3 bg-gray-50">
+                      <Input
+                        placeholder="TÃ­tulo do andamento"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))}
+                      />
+                      <Textarea
+                        placeholder="DescriÃ§Ã£o (opcional)"
+                        value={newTask.description}
+                        onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))}
+                        rows={2}
+                      />
+                      <Input
+                        type="date"
+                        value={newTask.due_date}
+                        onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))}
+                      />
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={submitTask} disabled={addTask.isPending}>
+                          {addTask.isPending ? 'Salvandoâ¦' : 'Salvar'}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setShowTaskForm(false)}>
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {tasks.length === 0 ? (
+                      <p className="text-xs text-gray-400">Sem andamentos registrados.</p>
+                    ) : tasks.map((t) => (
+                      <div key={t.id} className="text-sm border rounded-md p-2 bg-white">
+                        <p className="font-medium">{t.title}</p>
+                        {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
+                        {t.due_date && <p className="text-xs text-gray-400 mt-1">{formatDate(t.due_date)}</p>}
                       </div>
                     ))}
                   </div>
-                )}
+                </div>
               </div>
             </>
           )}
         </SheetContent>
       </Sheet>
-
-      {/* New Process Dialog */}
-      <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Novo processo</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            {[
-              { label: 'Número *', key: 'number', placeholder: 'Ex: 0001234-56.2024.8.16.0001' },
-              { label: 'Título *', key: 'title', placeholder: 'Descrição resumida' },
-              { label: 'Tipo', key: 'type', placeholder: 'Ex: Cível, Criminal...' },
-              { label: 'Advogado', key: 'lawyer', placeholder: 'Nome do advogado' },
-              { label: 'Valor (R$)', key: 'value', placeholder: '0.00' },
-            ].map(({ label, key, placeholder }) => (
-              <div key={key}>
-                <Label>{label}</Label>
-                <Input
-                  placeholder={placeholder}
-                  value={newForm[key as keyof typeof newForm]}
-                  onChange={e => setNewForm(f => ({ ...f, [key]: e.target.value }))}
-                />
-              </div>
-            ))}
-            <div>
-              <Label>Status</Label>
-              <Select value={newForm.status} onValueChange={v => setNewForm(f => ({ ...f, status: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="pending">Pendente</SelectItem>
-                  <SelectItem value="archived">Arquivado</SelectItem>
-                  <SelectItem value="closed">Encerrado</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNewOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!newForm.number || !newForm.title || createProcess.isPending}>
-              {createProcess.isPending ? 'Salvando...' : 'Salvar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
-      }
+}
