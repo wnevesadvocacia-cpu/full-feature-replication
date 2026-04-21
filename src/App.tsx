@@ -15,14 +15,14 @@ import Financeiro from "./pages/Financeiro";
 import Clientes from "./pages/Clientes";
 import Agenda from "./pages/Agenda";
 import Documentos from "./pages/Documentos";
-import PlaceholderPage from "@/components/PlaceholderPage";
+import Relatorios from "./pages/Relatorios";
+import Configuracoes from "./pages/Configuracoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -30,11 +30,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
+  if (!user) return <Navigate to="/auth" replace />;
   return <>{children}</>;
 }
 
@@ -49,8 +45,6 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-
-            {/* Protected app routes */}
             <Route
               element={
                 <ProtectedRoute>
@@ -65,10 +59,9 @@ const App = () => (
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/agenda" element={<Agenda />} />
               <Route path="/documentos" element={<Documentos />} />
-              <Route path="/relatorios" element={<PlaceholderPage title="Relatórios" description="Analise a produtividade e o desempenho do seu escritório com relatórios detalhados." />} />
-              <Route path="/configuracoes" element={<PlaceholderPage title="Configurações" description="Gerencie usuários, permissões e configurações do sistema." />} />
+              <Route path="/relatorios" element={<Relatorios />} />
+              <Route path="/configuracoes" element={<Configuracoes />} />
             </Route>
-
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
