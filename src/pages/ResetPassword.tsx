@@ -27,17 +27,47 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
+    const hash = window.location.hash;
+    console.log('[ResetPassword] hash detected:', hash);
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('[ResetPassword] auth event:', event, !!session);
       if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         setHasRecoverySession(true);
         setChecking(false);
       }
     });
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const processHash = async () => {
+      if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.replace(/^#/, ''));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        const type = params.get('type');
+        console.log('[ResetPassword] hash params:', { type, hasAccess: !!accessToken, hasRefresh: !!refreshToken });
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          console.log('[ResetPassword] setSession result:', error);
+          if (!error) {
+            setHasRecoverySession(true);
+            window.history.replaceState(null, '', window.location.pathname);
+            setChecking(false);
+            return;
+          }
+        }
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[ResetPassword] fallback getSession:', !!session);
       if (session) setHasRecoverySession(true);
       setChecking(false);
-    });
+    };
+
+    processHash();
 
     return () => subscription.unsubscribe();
   }, []);
