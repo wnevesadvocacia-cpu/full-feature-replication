@@ -18,6 +18,7 @@ import {
   FileText,
   BarChart3,
   Settings,
+  Activity,
 } from 'lucide-react';
 
 const commands = [
@@ -28,6 +29,7 @@ const commands = [
   { title: 'Clientes', icon: Users, url: '/clientes', group: 'Navegação' },
   { title: 'Agenda', icon: Calendar, url: '/agenda', group: 'Navegação' },
   { title: 'Documentos', icon: FileText, url: '/documentos', group: 'Navegação' },
+  { title: 'Movimentações', icon: Activity, url: '/movimentacoes', group: 'Navegação' },
   { title: 'Relatórios', icon: BarChart3, url: '/relatorios', group: 'Navegação' },
   { title: 'Configurações', icon: Settings, url: '/configuracoes', group: 'Navegação' },
 ];

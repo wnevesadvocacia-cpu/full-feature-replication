@@ -659,7 +659,7 @@ export default function Processos() {
                       { id: 'docs',    label: `Documentos (${procDocs.length})` },
                       { id: 'tasks',   label: `Andamentos (${tasks.length})` },
                     ] as { id: typeof detailTab; label: string }[]).map(({ id, label }) => (
-                      <button key={id} onClick={() => setDetailTab(id)}
+                      <button key={id} onClick={() => { setDetailTab(id); setShowTaskForm(false); }}
                         className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
                           detailTab === id
                             ? 'bg-primary text-primary-foreground'
