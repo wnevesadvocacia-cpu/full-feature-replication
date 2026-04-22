@@ -1,23 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, Mail, Shield, Loader2, ArrowRight, RotateCcw } from 'lucide-react';
+import { Scale, Mail, Shield, Loader2, ArrowRight, RotateCcw, CheckCircle2 } from 'lucide-react';
 
-type Step = 'email' | 'otp';
+type Step = 'email' | 'link-sent';
+
+const SITE_URL = 'https://wnevesadvocacia-cpu.github.io/full-feature-replication/';
 
 export default function Auth() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -33,24 +33,25 @@ export default function Auth() {
     return () => clearInterval(t);
   }, [resendCooldown]);
 
-  const sendOtp = async (emailAddr: string) => {
+  const sendMagicLink = async (emailAddr: string) => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: emailAddr,
-        options: { shouldCreateUser: true },
+        options: {
+          shouldCreateUser: true,
+          emailRedirectTo: SITE_URL,
+        },
       });
       if (error) throw error;
-      setStep('otp');
+      setStep('link-sent');
       setResendCooldown(60);
       toast({
-        title: 'Codigo enviado!',
-        description: `Verifique o email ${emailAddr} e insira o codigo de 6 digitos.`,
+        title: 'Link enviado!',
+        description: `Verifique o email ${emailAddr} e clique no link de acesso.`,
       });
-      // Focus first OTP input after a short delay
-      setTimeout(() => inputRefs.current[0]?.focus(), 100);
     } catch (err: any) {
-      toast({ title: 'Erro ao enviar codigo', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro ao enviar link', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -59,67 +60,16 @@ export default function Auth() {
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
-    await sendOtp(email.trim());
-  };
-
-  const handleOtpChange = (idx: number, value: string) => {
-    // Accept only digits; handle paste of full 6-digit code
-    const digits = value.replace(/\D/g, '');
-    if (digits.length === 6) {
-      const arr = digits.split('');
-      setOtp(arr);
-      inputRefs.current[5]?.focus();
-      return;
-    }
-    const single = digits.slice(-1);
-    const next = [...otp];
-    next[idx] = single;
-    setOtp(next);
-    if (single && idx < 5) {
-      inputRefs.current[idx + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (idx: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !otp[idx] && idx > 0) {
-      inputRefs.current[idx - 1]?.focus();
-    }
-  };
-
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const token = otp.join('');
-    if (token.length !== 6) {
-      toast({ title: 'Insira o codigo completo de 6 digitos.', variant: 'destructive' });
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.verifyOtp({
-        email,
-        token,
-        type: 'email',
-      });
-      if (error) throw error;
-      navigate('/');
-    } catch (err: any) {
-      toast({ title: 'Codigo invalido ou expirado', description: err.message, variant: 'destructive' });
-      // Clear OTP fields on error
-      setOtp(['', '', '', '', '', '']);
-      inputRefs.current[0]?.focus();
-    } finally {
-      setLoading(false);
-    }
+    await sendMagicLink(email.trim());
   };
 
   const handleResend = async () => {
     if (resendCooldown > 0) return;
-    await sendOtp(email);
+    await sendMagicLink(email);
   };
 
   const handleBack = () => {
     setStep('email');
-    setOtp(['', '', '', '', '', '']);
   };
 
   return (
@@ -145,7 +95,7 @@ export default function Auth() {
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Entrar</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Enviaremos um codigo de acesso para seu email.
+                  Enviaremos um link de acesso para seu email.
                 </p>
               </div>
 
@@ -170,65 +120,40 @@ export default function Auth() {
                   {loading ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</>
                   ) : (
-                    <><ArrowRight className="h-4 w-4 mr-2" />Enviar codigo OTP</>
+                    <><ArrowRight className="h-4 w-4 mr-2" />Enviar link de acesso</>
                   )}
                 </Button>
               </form>
 
               <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-400">
                 <Shield className="h-3.5 w-3.5 shrink-0" />
-                <span>Acesso seguro via codigo de uso unico. Sem senha necessaria.</span>
+                <span>Acesso seguro via link de uso unico. Sem senha necessaria.</span>
               </div>
             </>
           ) : (
             <>
               <div className="mb-6 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
-                  <Shield className="h-6 w-6 text-green-600" />
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Verificar codigo</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Codigo enviado para <strong className="text-gray-700">{email}</strong>
+                <h2 className="text-xl font-bold text-gray-900">Verifique seu email</h2>
+                <p className="text-sm text-gray-500 mt-2">
+                  Enviamos um link de acesso para:
+                </p>
+                <p className="text-sm font-semibold text-gray-800 mt-1">{email}</p>
+              </div>
+
+              <div className="bg-blue-50 rounded-xl p-4 mb-6 text-center">
+                <Mail className="h-8 w-8 text-blue-500 mx-auto mb-2" />
+                <p className="text-sm text-blue-700 font-medium">
+                  Abra seu email e clique em <strong>"Log In"</strong>
+                </p>
+                <p className="text-xs text-blue-500 mt-1">
+                  O link abrira o WnevesBox automaticamente.
                 </p>
               </div>
 
-              <form onSubmit={handleVerify} className="space-y-6">
-                {/* 6-digit OTP inputs */}
-                <div>
-                  <Label className="text-sm font-medium text-gray-700 mb-3 block text-center">
-                    Codigo de 6 digitos
-                  </Label>
-                  <div className="flex gap-2 justify-center">
-                    {otp.map((digit, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => { inputRefs.current[idx] = el; }}
-                        type="text"
-                        inputMode="numeric"
-                        maxLength={6}
-                        value={digit}
-                        onChange={(e) => handleOtpChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={loading || otp.join('').length !== 6}
-                >
-                  {loading ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando...</>
-                  ) : (
-                    <><Shield className="h-4 w-4 mr-2" />Verificar e entrar</>
-                  )}
-                </Button>
-              </form>
-
-              <div className="mt-4 flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-sm">
                 <button
                   type="button"
                   onClick={handleBack}
@@ -249,8 +174,12 @@ export default function Auth() {
                   }`}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar codigo'}
+                  {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar link'}
                 </button>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400 text-center">
+                Nao encontrou? Verifique a pasta de spam.
               </div>
             </>
           )}
