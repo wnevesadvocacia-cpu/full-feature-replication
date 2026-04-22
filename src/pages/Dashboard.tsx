@@ -33,7 +33,7 @@ const STATUS_LABELS: Record<string, string> = {
   novo: 'Novo',
   em_andamento: 'Em Andamento',
   aguardando: 'Aguardando',
-  concluido: 'ConcluÃ­do',
+  concluido: 'Concluído',
   ativo: 'Ativo',
   arquivado: 'Arquivado',
   recursal: 'Recursal',
@@ -41,7 +41,7 @@ const STATUS_LABELS: Record<string, string> = {
   active: 'Ativo',
   archived: 'Arquivado',
   pending: 'Aguardando',
-  closed: 'ConcluÃ­do',
+  closed: 'Concluído',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -207,7 +207,7 @@ export default function Dashboard() {
               <div key={p.id} className="flex items-start justify-between gap-2 py-1 border-b last:border-0">
                 <div className="min-w-0">
                   <p className="text-sm font-medium truncate">{p.number || p.title || 'â'}</p>
-                  <p className="text-xs text-gray-500 truncate">{p.title ?? 'â'}</p>
+                  <p className="text-xs text-gray-500 truncate">{p.title ?? '—'}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
                   <Badge className={`text-xs ${STATUS_COLORS[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
@@ -224,7 +224,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base font-semibold flex items-center justify-between">
-              <span className="flex items-center gap-2"><Clock className="h-4 w-4" /> PrÃ³ximas Tarefas</span>
+              <span className="flex items-center gap-2"><Clock className="h-4 w-4" /> Próximas Tarefas</span>
               <Link to="/tarefas" className="text-sm font-normal text-blue-600 hover:underline">Ver todas</Link>
             </CardTitle>
           </CardHeader>
@@ -250,7 +250,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-gray-50">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">ConcluÃ­dos</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Concluídos</p>
             <p className="text-2xl font-bold text-gray-700">{loading ? 'â¦' : stats.concluded.toLocaleString('pt-BR')}</p>
           </CardContent>
         </Card>
@@ -262,7 +262,7 @@ export default function Dashboard() {
         </Card>
         <Card className="bg-gray-50">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">Taxa ConclusÃ£o</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Taxa Conclusão</p>
             <p className="text-2xl font-bold text-gray-700">
               {loading || stats.total === 0 ? 'â¦' : `${Math.round((stats.concluded / stats.total) * 100)}%`}
             </p>
@@ -270,7 +270,7 @@ export default function Dashboard() {
         </Card>
         <Card className="bg-gray-50">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-gray-500 uppercase tracking-wide">MÃ©dia p/ Cliente</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide">Média p/ Cliente</p>
             <p className="text-2xl font-bold text-gray-700">
               {loading || clientCount === 0 ? 'â¦' : (stats.total / clientCount).toFixed(1)}
             </p>

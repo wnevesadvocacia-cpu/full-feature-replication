@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ChevronLeft, ChevronRight, Plus,
-  User, MapPin, Gavel, Calendar, DollarSign, MessageSquare, X
+  User, MapPin, Gavel, Calendar, DollarSign, MessageSquare, X,
+  Pencil, Trash2, Check, AlertTriangle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -81,20 +84,18 @@ const STATUS_COLORS: Record<string, string> = {
   closed: 'bg-gray-100 text-gray-700',
 };
 
-const PAGE_SIZE = 50;
-
 const ALL_STATUSES = [
-  { value: '', label: 'Todos os status' },
   { value: 'novo', label: 'Novo' },
   { value: 'em_andamento', label: 'Em Andamento' },
-  { value: 'aguardando', label: 'Aguardando' },
   { value: 'ativo', label: 'Ativo' },
+  { value: 'aguardando', label: 'Aguardando' },
   { value: 'recursal', label: 'Recursal' },
   { value: 'sobrestamento', label: 'Sobrestamento' },
   { value: 'concluido', label: 'Concluído' },
   { value: 'arquivado', label: 'Arquivado' },
 ];
 
+const PAGE_SIZE = 50;
 const EMPTY = '—';
 
 function formatCurrency(v: number | null) {
@@ -118,6 +119,7 @@ const FULL_SELECT = [
   'request_date', 'closing_date', 'result',
 ].join(',');
 
+// ── hooks ──────────────────────────────────────────────────────────────────────
 function useProcesses(search: string, status: string, page: number) {
   return useQuery({
     queryKey: ['processes', search, status, page],
@@ -153,53 +155,296 @@ function useProcessTasks(processId: string | null) {
   });
 }
 
-function useAddTask(processId: string | null) {
+// ── ProcessForm (create + edit) ───────────────────────────────────────────────
+type FormData = {
+  number: string; title: string; status: string; type: string;
+  client_name: string; comarca: string; vara: string; tribunal: string;
+  opponent: string; phase: string; stage: string; responsible: string;
+  lawyer: string; cause_value: string; honorarios_valor: string;
+  honorarios_percent: string; contingency: string; observations: string;
+  request_date: string; closing_date: string; result: string;
+};
+
+const EMPTY_FORM: FormData = {
+  number: '', title: '', status: 'novo', type: '',
+  client_name: '', comarca: '', vara: '', tribunal: '',
+  opponent: '', phase: '', stage: '', responsible: '',
+  lawyer: '', cause_value: '', honorarios_valor: '',
+  honorarios_percent: '', contingency: '', observations: '',
+  request_date: '', closing_date: '', result: '',
+};
+
+function processToForm(p: Process): FormData {
+  return {
+    number: p.number ?? '',
+    title: p.title ?? '',
+    status: p.status ?? 'novo',
+    type: p.type ?? '',
+    client_name: p.client_name ?? '',
+    comarca: p.comarca ?? '',
+    vara: p.vara ?? '',
+    tribunal: p.tribunal ?? '',
+    opponent: p.opponent ?? '',
+    phase: p.phase ?? '',
+    stage: p.stage ?? '',
+    responsible: p.responsible ?? p.lawyer ?? '',
+    lawyer: p.lawyer ?? '',
+    cause_value: p.cause_value != null ? String(p.cause_value) : '',
+    honorarios_valor: p.honorarios_valor != null ? String(p.honorarios_valor) : '',
+    honorarios_percent: p.honorarios_percent != null ? String(p.honorarios_percent) : '',
+    contingency: p.contingency != null ? String(p.contingency) : '',
+    observations: p.observations ?? '',
+    request_date: p.request_date ? p.request_date.slice(0, 10) : '',
+    closing_date: p.closing_date ? p.closing_date.slice(0, 10) : '',
+    result: p.result ?? '',
+  };
+}
+
+function formToPayload(f: FormData) {
+  return {
+    number: f.number || null,
+    title: f.title,
+    status: f.status,
+    type: f.type || null,
+    client_name: f.client_name || null,
+    comarca: f.comarca || null,
+    vara: f.vara || null,
+    tribunal: f.tribunal || null,
+    opponent: f.opponent || null,
+    phase: f.phase || null,
+    stage: f.stage || null,
+    responsible: f.responsible || null,
+    lawyer: f.lawyer || null,
+    cause_value: f.cause_value ? parseFloat(f.cause_value) : null,
+    honorarios_valor: f.honorarios_valor ? parseFloat(f.honorarios_valor) : null,
+    honorarios_percent: f.honorarios_percent ? parseFloat(f.honorarios_percent) : null,
+    contingency: f.contingency ? parseFloat(f.contingency) : null,
+    observations: f.observations || null,
+    request_date: f.request_date || null,
+    closing_date: f.closing_date || null,
+    result: f.result || null,
+    updated_at: new Date().toISOString(),
+  };
+}
+
+interface ProcessFormProps {
+  initialData?: Process;
+  onClose: () => void;
+  onSaved: (p: Process) => void;
+}
+
+function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (payload: { title: string; description: string; due_date: string }) => {
-      const { error } = await supabase.from('tasks').insert({
-        ...payload,
-        process_id: processId,
-        completed: false,
-      });
-      if (error) throw error;
+  const [form, setForm] = useState<FormData>(
+    initialData ? processToForm(initialData) : EMPTY_FORM
+  );
+  const isEdit = !!initialData;
+
+  const set = (k: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload = formToPayload(form);
+      if (isEdit) {
+        const { data, error } = await supabase
+          .from('processes')
+          .update(payload)
+          .eq('id', initialData!.id)
+          .select(FULL_SELECT)
+          .single();
+        if (error) throw error;
+        return data as Process;
+      } else {
+        const { data, error } = await supabase
+          .from('processes')
+          .insert({ ...payload, created_at: new Date().toISOString() })
+          .select(FULL_SELECT)
+          .single();
+        if (error) throw error;
+        return data as Process;
+      }
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tasks', processId] });
-      toast({ title: 'Andamento adicionado.' });
+    onSuccess: (p) => {
+      qc.invalidateQueries({ queryKey: ['processes'] });
+      toast({ title: isEdit ? 'Processo atualizado.' : 'Processo criado.' });
+      onSaved(p);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
+
+  const Field = ({ label, field, type = 'text', colSpan = 1 }: {
+    label: string; field: keyof FormData; type?: string; colSpan?: number;
+  }) => (
+    <div className={colSpan === 2 ? 'col-span-2' : ''}>
+      <Label className="text-xs text-gray-500 uppercase tracking-wide">{label}</Label>
+      <Input type={type} value={form[field]} onChange={set(field)} className="mt-1" />
+    </div>
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Número" field="number" />
+        <div>
+          <Label className="text-xs text-gray-500 uppercase tracking-wide">Status</Label>
+          <select value={form.status} onChange={set('status')}
+            className="mt-1 w-full text-sm border border-gray-200 rounded-md px-3 py-2 bg-white">
+            {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs text-gray-500 uppercase tracking-wide">Título *</Label>
+        <Input value={form.title} onChange={set('title')} className="mt-1" placeholder="Título do processo" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Cliente" field="client_name" />
+        <Field label="Parte Contrária" field="opponent" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Tipo" field="type" />
+        <Field label="Advogado" field="lawyer" />
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Comarca" field="comarca" />
+        <Field label="Vara" field="vara" />
+        <Field label="Tribunal" field="tribunal" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Fase" field="phase" />
+        <Field label="Etapa" field="stage" />
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <Field label="Valor da Causa (R$)" field="cause_value" type="number" />
+        <Field label="Honorários (R$)" field="honorarios_valor" type="number" />
+        <Field label="Honorários (%)" field="honorarios_percent" type="number" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Data de Entrada" field="request_date" type="date" />
+        <Field label="Data de Encerramento" field="closing_date" type="date" />
+      </div>
+
+      <div>
+        <Label className="text-xs text-gray-500 uppercase tracking-wide">Observações</Label>
+        <Textarea value={form.observations} onChange={set('observations')} className="mt-1" rows={3} />
+      </div>
+
+      {form.status === 'concluido' || form.status === 'closed' ? (
+        <div>
+          <Label className="text-xs text-gray-500 uppercase tracking-wide">Resultado</Label>
+          <Input value={form.result} onChange={set('result')} className="mt-1" />
+        </div>
+      ) : null}
+
+      <div className="flex gap-2 pt-2 border-t">
+        <Button onClick={() => save.mutate()} disabled={!form.title || save.isPending} className="flex-1">
+          {save.isPending ? 'Salvando…' : isEdit ? 'Salvar Alterações' : 'Criar Processo'}
+        </Button>
+        <Button variant="outline" onClick={onClose}>Cancelar</Button>
+      </div>
+    </div>
+  );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Processos() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Process | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Process | null>(null);
   const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
 
-  const { data, isLoading } = useProcesses(search, status, page);
+  const { data, isLoading } = useProcesses(search, statusFilter, page);
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
-  const addTask = useAddTask(selected?.id ?? null);
 
   const handleSearch = useCallback((v: string) => { setSearch(v); setPage(0); }, []);
-  const handleStatus = useCallback((v: string) => { setStatus(v); setPage(0); }, []);
+  const handleStatus = useCallback((v: string) => { setStatusFilter(v); setPage(0); }, []);
+
+  // Add task to process
+  const addTask = useMutation({
+    mutationFn: async (payload: { title: string; description: string; due_date: string }) => {
+      const { error } = await supabase.from('tasks').insert({
+        ...payload,
+        process_id: selected?.id,
+        completed: false,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks', selected?.id] });
+      toast({ title: 'Andamento adicionado.' });
+      setNewTask({ title: '', description: '', due_date: '' });
+      setShowTaskForm(false);
+    },
+    onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
+  // Delete process
+  const deleteProcess = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('processes').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processes'] });
+      toast({ title: 'Processo excluído.' });
+      setDeleteTarget(null);
+      setSelected(null);
+    },
+    onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
+  // Quick status change
+  const changeStatus = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+      const { data, error } = await supabase
+        .from('processes')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select(FULL_SELECT)
+        .single();
+      if (error) throw error;
+      return data as Process;
+    },
+    onSuccess: (p) => {
+      qc.invalidateQueries({ queryKey: ['processes'] });
+      setSelected(p);
+      toast({ title: `Status alterado para ${STATUS_LABELS[p.status] ?? p.status}` });
+    },
+    onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
 
   const submitTask = () => {
     if (!newTask.title.trim()) return;
     addTask.mutate(newTask);
-    setNewTask({ title: '', description: '', due_date: '' });
+  };
+
+  const closeDetail = () => {
+    setSelected(null);
+    setEditMode(false);
     setShowTaskForm(false);
   };
 
   return (
     <div className="p-6 space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">
           Processos{' '}
@@ -209,6 +454,9 @@ export default function Processos() {
             </span>
           )}
         </h1>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="h-4 w-4 mr-2" /> Novo Processo
+        </Button>
       </div>
 
       {/* Filtros */}
@@ -225,10 +473,11 @@ export default function Processos() {
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-gray-400" />
           <select
-            value={status}
+            value={statusFilter}
             onChange={(e) => handleStatus(e.target.value)}
             className="text-sm border border-gray-200 rounded-md px-3 py-2 bg-white"
           >
+            <option value="">Todos os status</option>
             {ALL_STATUSES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
@@ -249,9 +498,9 @@ export default function Processos() {
                 <thead>
                   <tr className="border-b bg-gray-50 text-left text-xs text-gray-500 uppercase tracking-wide">
                     <th className="px-4 py-3">Número</th>
+                    <th className="px-4 py-3">Título</th>
                     <th className="px-4 py-3">Cliente</th>
                     <th className="px-4 py-3">Comarca</th>
-                    <th className="px-4 py-3">Tipo</th>
                     <th className="px-4 py-3">Status</th>
                     <th className="px-4 py-3">Atualizado</th>
                   </tr>
@@ -261,18 +510,18 @@ export default function Processos() {
                     <tr
                       key={p.id}
                       className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => setSelected(p)}
+                      onClick={() => { setSelected(p); setEditMode(false); }}
                     >
-                      <td className="px-4 py-3 font-mono font-medium text-blue-700">{p.number || EMPTY}</td>
-                      <td className="px-4 py-3 max-w-[180px] truncate">{val(p.client_name)}</td>
-                      <td className="px-4 py-3 text-gray-600">{val(p.comarca)}</td>
-                      <td className="px-4 py-3 text-gray-600">{val(p.type)}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{p.number || EMPTY}</td>
+                      <td className="px-4 py-3 max-w-[220px] truncate font-medium">{p.title || EMPTY}</td>
+                      <td className="px-4 py-3 max-w-[160px] truncate text-gray-600">{val(p.client_name)}</td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{val(p.comarca)}</td>
                       <td className="px-4 py-3">
                         <Badge className={`text-xs ${STATUS_COLORS[p.status] ?? 'bg-gray-100 text-gray-600'}`}>
                           {STATUS_LABELS[p.status] ?? p.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-gray-500">{formatDate(p.updated_at)}</td>
+                      <td className="px-4 py-3 text-gray-500 whitespace-nowrap">{formatDate(p.updated_at)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -300,172 +549,260 @@ export default function Processos() {
         </div>
       )}
 
-      {/* Detalhe */}
-      <Sheet open={!!selected} onOpenChange={(open) => { if (!open) { setSelected(null); setShowTaskForm(false); } }}>
+      {/* ── Criar processo (Dialog) ── */}
+      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Novo Processo</DialogTitle>
+          </DialogHeader>
+          <ProcessForm
+            onClose={() => setCreateOpen(false)}
+            onSaved={(p) => { setCreateOpen(false); setSelected(p); }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Detalhe / Edição (Sheet) ── */}
+      <Sheet open={!!selected} onOpenChange={(open) => { if (!open) closeDetail(); }}>
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           {selected && (
             <>
               <SheetHeader>
-                <SheetTitle className="font-mono text-base">{selected.number || selected.title}</SheetTitle>
-                <Badge className={`w-fit text-xs ${STATUS_COLORS[selected.status] ?? 'bg-gray-100 text-gray-600'}`}>
-                  {STATUS_LABELS[selected.status] ?? selected.status}
-                </Badge>
-              </SheetHeader>
-
-              <div className="mt-4 space-y-5">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><User className="h-3 w-3" /> Cliente</p>
-                    <p className="text-sm font-medium mt-0.5">{val(selected.client_name)}</p>
+                    <SheetTitle className="font-mono text-base">{selected.number || selected.title}</SheetTitle>
+                    <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{selected.title}</p>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Parte Contrária</p>
-                    <p className="text-sm font-medium mt-0.5">{val(selected.opponent)}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><MapPin className="h-3 w-3" /> Comarca</p>
-                    <p className="text-sm mt-0.5">{val(selected.comarca)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Vara</p>
-                    <p className="text-sm mt-0.5">{val(selected.vara)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Tribunal</p>
-                    <p className="text-sm mt-0.5">{val(selected.tribunal)}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><Gavel className="h-3 w-3" /> Fase</p>
-                    <p className="text-sm mt-0.5">{val(selected.phase)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Etapa</p>
-                    <p className="text-sm mt-0.5">{val(selected.stage)}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Responsável</p>
-                    <p className="text-sm mt-0.5">{val(selected.responsible ?? selected.lawyer)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Tipo</p>
-                    <p className="text-sm mt-0.5">{val(selected.type)}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><DollarSign className="h-3 w-3" /> Valor Causa</p>
-                    <p className="text-sm font-medium mt-0.5">{formatCurrency(selected.cause_value)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Honorários</p>
-                    <p className="text-sm font-medium mt-0.5">
-                      {selected.honorarios_valor != null
-                        ? formatCurrency(selected.honorarios_valor)
-                        : selected.honorarios_percent != null
-                        ? `${selected.honorarios_percent}%`
-                        : EMPTY}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Contingência</p>
-                    <p className="text-sm font-medium mt-0.5">
-                      {selected.contingency != null ? `${selected.contingency}%` : EMPTY}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><Calendar className="h-3 w-3" /> Data Entrada</p>
-                    <p className="text-sm mt-0.5">{formatDate(selected.request_date ?? selected.created_at)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Última Atualiz.</p>
-                    <p className="text-sm mt-0.5">{formatDate(selected.last_update ?? selected.updated_at)}</p>
-                  </div>
-                </div>
-
-                {selected.result && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Resultado</p>
-                    <p className="text-sm mt-0.5">{selected.result}</p>
-                  </div>
-                )}
-
-                {selected.observations && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Observações</p>
-                    <p className="text-sm mt-0.5 text-gray-700 whitespace-pre-wrap">{selected.observations}</p>
-                  </div>
-                )}
-
-                {/* Andamentos */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-semibold flex items-center gap-1">
-                      <MessageSquare className="h-4 w-4" /> Andamentos ({tasks.length})
-                    </p>
-                    <Button size="sm" variant="outline" onClick={() => setShowTaskForm((v) => !v)}>
-                      <Plus className="h-3 w-3 mr-1" /> Adicionar
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      size="sm" variant="outline"
+                      onClick={() => setEditMode((v) => !v)}
+                      className="h-8 px-2"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="sm" variant="outline"
+                      onClick={() => setDeleteTarget(selected)}
+                      className="h-8 px-2 text-red-600 hover:text-red-700 hover:border-red-300"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
+                </div>
+              </SheetHeader>
 
-                  {showTaskForm && (
-                    <div className="border rounded-md p-3 space-y-2 mb-3 bg-gray-50">
-                      <Input
-                        placeholder="Título do andamento"
-                        value={newTask.title}
-                        onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))}
-                      />
-                      <Textarea
-                        placeholder="Descrição (opcional)"
-                        value={newTask.description}
-                        onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))}
-                        rows={2}
-                      />
-                      <Input
-                        type="date"
-                        value={newTask.due_date}
-                        onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))}
-                      />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={submitTask} disabled={addTask.isPending}>
-                          {addTask.isPending ? 'Salvando…' : 'Salvar'}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setShowTaskForm(false)}>
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
+              {editMode ? (
+                <div className="mt-4">
+                  <ProcessForm
+                    initialData={selected}
+                    onClose={() => setEditMode(false)}
+                    onSaved={(p) => { setSelected(p); setEditMode(false); }}
+                  />
+                </div>
+              ) : (
+                <div className="mt-4 space-y-5">
+                  {/* Status com troca rápida */}
+                  <div>
+                    <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Status</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {ALL_STATUSES.map((s) => (
+                        <button
+                          key={s.value}
+                          onClick={() => changeStatus.mutate({ id: selected.id, status: s.value })}
+                          className={`text-xs px-2 py-1 rounded-full border transition-colors ${
+                            selected.status === s.value
+                              ? `${STATUS_COLORS[s.value]} border-transparent font-semibold`
+                              : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'
+                          }`}
+                        >
+                          {s.value === selected.status && <Check className="inline h-3 w-3 mr-0.5" />}
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><User className="h-3 w-3" /> Cliente</p>
+                      <p className="text-sm font-medium mt-0.5">{val(selected.client_name)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Parte Contrária</p>
+                      <p className="text-sm font-medium mt-0.5">{val(selected.opponent)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><MapPin className="h-3 w-3" /> Comarca</p>
+                      <p className="text-sm mt-0.5">{val(selected.comarca)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Vara</p>
+                      <p className="text-sm mt-0.5">{val(selected.vara)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Tribunal</p>
+                      <p className="text-sm mt-0.5">{val(selected.tribunal)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><Gavel className="h-3 w-3" /> Fase</p>
+                      <p className="text-sm mt-0.5">{val(selected.phase)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Etapa</p>
+                      <p className="text-sm mt-0.5">{val(selected.stage)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Responsável / Advogado</p>
+                      <p className="text-sm mt-0.5">{val(selected.responsible ?? selected.lawyer)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Tipo</p>
+                      <p className="text-sm mt-0.5">{val(selected.type)}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><DollarSign className="h-3 w-3" /> Valor Causa</p>
+                      <p className="text-sm font-medium mt-0.5">{formatCurrency(selected.cause_value)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Honorários</p>
+                      <p className="text-sm font-medium mt-0.5">
+                        {selected.honorarios_valor != null
+                          ? formatCurrency(selected.honorarios_valor)
+                          : selected.honorarios_percent != null
+                          ? `${selected.honorarios_percent}%`
+                          : EMPTY}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Contingência</p>
+                      <p className="text-sm font-medium mt-0.5">
+                        {selected.contingency != null ? `${selected.contingency}%` : EMPTY}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1"><Calendar className="h-3 w-3" /> Data Entrada</p>
+                      <p className="text-sm mt-0.5">{formatDate(selected.request_date ?? selected.created_at)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Última Atualiz.</p>
+                      <p className="text-sm mt-0.5">{formatDate(selected.last_update ?? selected.updated_at)}</p>
+                    </div>
+                  </div>
+
+                  {selected.result && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Resultado</p>
+                      <p className="text-sm mt-0.5">{selected.result}</p>
                     </div>
                   )}
 
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {tasks.length === 0 ? (
-                      <p className="text-xs text-gray-400">Sem andamentos registrados.</p>
-                    ) : tasks.map((t) => (
-                      <div key={t.id} className="text-sm border rounded-md p-2 bg-white">
-                        <p className="font-medium">{t.title}</p>
-                        {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
-                        {t.due_date && <p className="text-xs text-gray-400 mt-1">{formatDate(t.due_date)}</p>}
+                  {selected.observations && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide">Observações</p>
+                      <p className="text-sm mt-0.5 text-gray-700 whitespace-pre-wrap">{selected.observations}</p>
+                    </div>
+                  )}
+
+                  {/* Andamentos */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold flex items-center gap-1">
+                        <MessageSquare className="h-4 w-4" /> Andamentos ({tasks.length})
+                      </p>
+                      <Button size="sm" variant="outline" onClick={() => setShowTaskForm((v) => !v)}>
+                        <Plus className="h-3 w-3 mr-1" /> Adicionar
+                      </Button>
+                    </div>
+
+                    {showTaskForm && (
+                      <div className="border rounded-md p-3 space-y-2 mb-3 bg-gray-50">
+                        <Input
+                          placeholder="Título do andamento"
+                          value={newTask.title}
+                          onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))}
+                        />
+                        <Textarea
+                          placeholder="Descrição (opcional)"
+                          value={newTask.description}
+                          onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))}
+                          rows={2}
+                        />
+                        <Input
+                          type="date"
+                          value={newTask.due_date}
+                          onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={submitTask} disabled={addTask.isPending}>
+                            {addTask.isPending ? 'Salvando…' : 'Salvar'}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setShowTaskForm(false)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </div>
-                    ))}
+                    )}
+
+                    <div className="space-y-2 max-h-52 overflow-y-auto">
+                      {tasks.length === 0 ? (
+                        <p className="text-xs text-gray-400">Sem andamentos registrados.</p>
+                      ) : tasks.map((t) => (
+                        <div key={t.id} className="text-sm border rounded-md p-2 bg-white">
+                          <p className="font-medium">{t.title}</p>
+                          {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
+                          {t.due_date && <p className="text-xs text-gray-400 mt-1">{formatDate(t.due_date)}</p>}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </SheetContent>
       </Sheet>
+
+      {/* ── Confirmar exclusão ── */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" /> Excluir Processo
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Tem certeza que deseja excluir o processo{' '}
+            <span className="font-semibold font-mono">{deleteTarget?.number || deleteTarget?.title}</span>?
+            Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteTarget && deleteProcess.mutate(deleteTarget.id)}
+              disabled={deleteProcess.isPending}
+            >
+              {deleteProcess.isPending ? 'Excluindo…' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

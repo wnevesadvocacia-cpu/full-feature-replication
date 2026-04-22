@@ -15,9 +15,9 @@ import {
 // ââ helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 const STATUS_LABELS: Record<string, string> = {
   novo: 'Novo', em_andamento: 'Em Andamento', aguardando: 'Aguardando',
-  concluido: 'ConcluÃ­do', ativo: 'Ativo', arquivado: 'Arquivado',
+  concluido: 'Concluído', ativo: 'Ativo', arquivado: 'Arquivado',
   recursal: 'Recursal', sobrestamento: 'Sobrestamento',
-  active: 'Ativo', archived: 'Arquivado', pending: 'Aguardando', closed: 'ConcluÃ­do',
+  active: 'Ativo', archived: 'Arquivado', pending: 'Aguardando', closed: 'Concluído',
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -45,15 +45,13 @@ const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
 
 // ââ hooks ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function useProcessStats() {
-  const { user } = useAuth();
   return useQuery({
     queryKey: ['report-processes', user?.id],
-    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('processes')
         .select('status, type, created_at, lawyer')
-        .eq('user_id', user!.id);
+        ;
       if (error) throw error;
       return data ?? [];
     },
@@ -61,15 +59,13 @@ function useProcessStats() {
 }
 
 function useClientStats() {
-  const { user } = useAuth();
   return useQuery({
     queryKey: ['report-clients', user?.id],
-    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
         .select('type, status, created_at')
-        .eq('user_id', user!.id);
+        ;
       if (error) throw error;
       return data ?? [];
     },
@@ -77,15 +73,13 @@ function useClientStats() {
 }
 
 function useTaskStats() {
-  const { user } = useAuth();
   return useQuery({
     queryKey: ['report-tasks', user?.id],
-    enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
         .select('status, priority, completed, due_date')
-        .eq('user_id', user!.id);
+        ;
       if (error) throw error;
       return data ?? [];
     },
@@ -151,7 +145,7 @@ export default function Relatorios() {
 
   // ââ Type chart ââ
   const typeData = groupCount(
-    procs.map(p => p.type ?? 'NÃ£o informado')
+    procs.map(p => p.type ?? 'Não informado')
   ).slice(0, 8);
 
   // ââ Monthly trend (last 12 months) ââ
@@ -173,8 +167,8 @@ export default function Relatorios() {
 
   // ââ Client type chart ââ
   const clientTypeData = groupCount(cls.map(c => c.type)).map(d => ({
-    name: d.name === 'individual' ? 'Pessoa FÃ­sica' :
-          d.name === 'company' ? 'Pessoa JurÃ­dica' : d.name,
+    name: d.name === 'individual' ? 'Pessoa Física' :
+          d.name === 'company' ? 'Pessoa Jurídica' : d.name,
     value: d.value,
   }));
 
@@ -182,14 +176,14 @@ export default function Relatorios() {
   const taskPriorityData = groupCount(
     tks.filter(t => !t.completed).map(t => t.priority)
   ).map(d => ({
-    name: d.name === 'high' ? 'Alta' : d.name === 'medium' ? 'MÃ©dia' :
+    name: d.name === 'high' ? 'Alta' : d.name === 'medium' ? 'Média' :
           d.name === 'low' ? 'Baixa' : d.name,
     value: d.value,
   }));
 
   // ââ Lawyer distribution ââ
   const lawyerData = groupCount(
-    procs.map(p => (p as any).lawyer ?? p.lawyer ?? 'NÃ£o atribuÃ­do')
+    procs.map(p => (p as any).lawyer ?? p.lawyer ?? 'Não atribuído')
   ).slice(0, 6);
 
   const isLoading = processes.isLoading || clients.isLoading || tasks.isLoading;
@@ -207,10 +201,10 @@ export default function Relatorios() {
       <div>
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <FileBarChart className="h-7 w-7" />
-          RelatÃ³rios
+          Relatórios
         </h1>
         <p className="text-muted-foreground mt-1">
-          VisÃ£o geral e estatÃ­sticas do escritÃ³rio
+          Visão geral e estatísticas do escritório
         </p>
       </div>
 
@@ -218,8 +212,8 @@ export default function Relatorios() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard title="Total Processos" value={total} icon={Scale} color="bg-blue-500" />
         <KpiCard title="Ativos" value={active} icon={TrendingUp} color="bg-green-500" />
-        <KpiCard title="ConcluÃ­dos" value={concluded} icon={CheckCircle2} color="bg-emerald-500" />
-        <KpiCard title="Taxa ConclusÃ£o" value={`${conclusionRate}%`} icon={TrendingUp} color="bg-indigo-500" />
+        <KpiCard title="Concluídos" value={concluded} icon={CheckCircle2} color="bg-emerald-500" />
+        <KpiCard title="Taxa Conclusão" value={`${conclusionRate}%`} icon={TrendingUp} color="bg-indigo-500" />
         <KpiCard title="Tarefas Pendentes" value={pendingTasks} icon={Clock} color="bg-amber-500" />
         <KpiCard title="Clientes" value={cls.length} icon={Users} color="bg-purple-500" />
       </div>
@@ -342,7 +336,7 @@ export default function Relatorios() {
                 {taskPriorityData.map((d, i) => {
                   const pct = pendingTasks > 0 ? (d.value / pendingTasks) * 100 : 0;
                   const color = d.name === 'Alta' ? 'bg-red-500' :
-                                d.name === 'MÃ©dia' ? 'bg-amber-500' : 'bg-green-500';
+                                d.name === 'Média' ? 'bg-amber-500' : 'bg-green-500';
                   return (
                     <div key={i}>
                       <div className="flex justify-between text-sm mb-1">
