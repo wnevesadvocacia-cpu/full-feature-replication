@@ -1,3 +1,4 @@
+import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HashRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -20,8 +21,48 @@ import Configuracoes from "./pages/Configuracoes";
 import Movimentacoes from "./pages/Movimentacoes";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: 1, staleTime: 30_000 },
+  },
+});
 
+// ── ErrorBoundary ─────────────────────────────────────────────────────────────
+interface EBState { hasError: boolean; error?: Error }
+class PageErrorBoundary extends React.Component<{ children: React.ReactNode }, EBState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: Error): EBState {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[PageErrorBoundary]', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
+          <div className="text-4xl">⚠️</div>
+          <h2 className="text-xl font-semibold text-gray-800">Erro ao carregar página</h2>
+          <p className="text-sm text-gray-500 max-w-md">
+            {this.state.error?.message ?? 'Erro desconhecido'}
+          </p>
+          <button
+            className="mt-2 px-4 py-2 bg-primary text-white rounded-md text-sm"
+            onClick={() => this.setState({ hasError: false, error: undefined })}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ── ProtectedRoute ────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) {
@@ -35,6 +76,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// ── App ───────────────────────────────────────────────────────────────────────
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -53,16 +95,16 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/processos" element={<Processos />} />
-              <Route path="/tarefas" element={<Tarefas />} />
-              <Route path="/financeiro" element={<Financeiro />} />
-              <Route path="/clientes" element={<Clientes />} />
-              <Route path="/agenda" element={<Agenda />} />
-              <Route path="/documentos" element={<Documentos />} />
-              <Route path="/relatorios" element={<Relatorios />} />
-              <Route path="/configuracoes" element={<Configuracoes />} />
-              <Route path="/movimentacoes" element={<Movimentacoes />} />
+              <Route path="/dashboard"     element={<PageErrorBoundary><Dashboard /></PageErrorBoundary>} />
+              <Route path="/processos"     element={<PageErrorBoundary><Processos /></PageErrorBoundary>} />
+              <Route path="/tarefas"       element={<PageErrorBoundary><Tarefas /></PageErrorBoundary>} />
+              <Route path="/financeiro"    element={<PageErrorBoundary><Financeiro /></PageErrorBoundary>} />
+              <Route path="/clientes"      element={<PageErrorBoundary><Clientes /></PageErrorBoundary>} />
+              <Route path="/agenda"        element={<PageErrorBoundary><Agenda /></PageErrorBoundary>} />
+              <Route path="/documentos"    element={<PageErrorBoundary><Documentos /></PageErrorBoundary>} />
+              <Route path="/relatorios"    element={<PageErrorBoundary><Relatorios /></PageErrorBoundary>} />
+              <Route path="/configuracoes" element={<PageErrorBoundary><Configuracoes /></PageErrorBoundary>} />
+              <Route path="/movimentacoes" element={<PageErrorBoundary><Movimentacoes /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

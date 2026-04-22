@@ -70,7 +70,7 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        // Process stats â use count queries (not page-limited)
+        // Process stats — use count queries (not page-limited)
         const [
           { count: totalCount },
           { count: activeCount },
@@ -126,7 +126,7 @@ export default function Dashboard() {
   }, []);
 
   const formatDate = (iso: string) => {
-    if (!iso) return 'â';
+    if (!iso) return '—';
     return new Date(iso).toLocaleDateString('pt-BR');
   };
 
@@ -151,7 +151,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-gray-900">{loading ? 'â¦' : stats.total.toLocaleString('pt-BR')}</p>
+            <p className="text-3xl font-bold text-gray-900">{loading ? '…' : stats.total.toLocaleString('pt-BR')}</p>
           </CardContent>
         </Card>
 
@@ -162,7 +162,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-green-700">{loading ? 'â¦' : stats.active.toLocaleString('pt-BR')}</p>
+            <p className="text-3xl font-bold text-green-700">{loading ? '…' : stats.active.toLocaleString('pt-BR')}</p>
           </CardContent>
         </Card>
 
@@ -173,7 +173,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-blue-700">{loading ? 'â¦' : clientCount.toLocaleString('pt-BR')}</p>
+            <p className="text-3xl font-bold text-blue-700">{loading ? '…' : clientCount.toLocaleString('pt-BR')}</p>
           </CardContent>
         </Card>
 
@@ -184,7 +184,7 @@ export default function Dashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-3xl font-bold text-yellow-700">{loading ? 'â¦' : taskCount.toLocaleString('pt-BR')}</p>
+            <p className="text-3xl font-bold text-yellow-700">{loading ? '…' : taskCount.toLocaleString('pt-BR')}</p>
           </CardContent>
         </Card>
       </div>
@@ -200,13 +200,13 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <p className="text-sm text-gray-400">Carregandoâ¦</p>
+              <p className="text-sm text-gray-400">Carregando…</p>
             ) : recentProcesses.length === 0 ? (
               <p className="text-sm text-gray-400">Nenhum processo encontrado.</p>
             ) : recentProcesses.map((p) => (
               <div key={p.id} className="flex items-start justify-between gap-2 py-1 border-b last:border-0">
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{p.number || p.title || 'â'}</p>
+                  <p className="text-sm font-medium truncate">{p.number || p.title || '—'}</p>
                   <p className="text-xs text-gray-500 truncate">{p.title ?? '—'}</p>
                 </div>
                 <div className="flex flex-col items-end gap-1 shrink-0">
@@ -230,7 +230,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <p className="text-sm text-gray-400">Carregandoâ¦</p>
+              <p className="text-sm text-gray-400">Carregando…</p>
             ) : upcomingTasks.length === 0 ? (
               <p className="text-sm text-gray-400">Nenhuma tarefa pendente.</p>
             ) : upcomingTasks.map((t) => (
@@ -251,20 +251,20 @@ export default function Dashboard() {
         <Card className="bg-gray-50">
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-gray-500 uppercase tracking-wide">Concluídos</p>
-            <p className="text-2xl font-bold text-gray-700">{loading ? 'â¦' : stats.concluded.toLocaleString('pt-BR')}</p>
+            <p className="text-2xl font-bold text-gray-700">{loading ? '…' : stats.concluded.toLocaleString('pt-BR')}</p>
           </CardContent>
         </Card>
         <Card className="bg-gray-50">
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-gray-500 uppercase tracking-wide">Aguardando</p>
-            <p className="text-2xl font-bold text-yellow-700">{loading ? 'â¦' : stats.pending.toLocaleString('pt-BR')}</p>
+            <p className="text-2xl font-bold text-yellow-700">{loading ? '…' : stats.pending.toLocaleString('pt-BR')}</p>
           </CardContent>
         </Card>
         <Card className="bg-gray-50">
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-gray-500 uppercase tracking-wide">Taxa Conclusão</p>
             <p className="text-2xl font-bold text-gray-700">
-              {loading || stats.total === 0 ? 'â¦' : `${Math.round((stats.concluded / stats.total) * 100)}%`}
+              {loading || stats.total === 0 ? '…' : `${Math.round((stats.concluded / stats.total) * 100)}%`}
             </p>
           </CardContent>
         </Card>
@@ -272,7 +272,7 @@ export default function Dashboard() {
           <CardContent className="pt-4 pb-3">
             <p className="text-xs text-gray-500 uppercase tracking-wide">Média p/ Cliente</p>
             <p className="text-2xl font-bold text-gray-700">
-              {loading || clientCount === 0 ? 'â¦' : (stats.total / clientCount).toFixed(1)}
+              {loading || clientCount === 0 ? '…' : (stats.total / clientCount).toFixed(1)}
             </p>
           </CardContent>
         </Card>

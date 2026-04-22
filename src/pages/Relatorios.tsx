@@ -11,7 +11,7 @@ import {
   AlertCircle, Scale, Calendar,
 } from 'lucide-react';
 
-// ââ helpers ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── helpers ────────────────────────────────────────────────────────────────────
 const STATUS_LABELS: Record<string, string> = {
   novo: 'Novo', em_andamento: 'Em Andamento', aguardando: 'Aguardando',
   concluido: 'Concluído', ativo: 'Ativo', arquivado: 'Arquivado',
@@ -42,7 +42,7 @@ function groupCount(arr: string[]): { name: string; value: number }[] {
 const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
   'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-// ââ hooks ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── hooks ──────────────────────────────────────────────────────────────────────
 function useProcessStats() {
   return useQuery({
     queryKey: ['report-processes'],
@@ -85,7 +85,7 @@ function useTaskStats() {
   });
 }
 
-// ââ KPI Card âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── KPI Card ───────────────────────────────────────────────────────────────────
 function KpiCard({
   title, value, sub, icon: Icon, color,
 }: {
@@ -110,7 +110,7 @@ function KpiCard({
   );
 }
 
-// ââ Main page ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ── Main page ──────────────────────────────────────────────────────────────────
 export default function Relatorios() {
   const processes = useProcessStats();
   const clients = useClientStats();
@@ -120,7 +120,7 @@ export default function Relatorios() {
   const cls = clients.data ?? [];
   const tks = tasks.data ?? [];
 
-  // ââ KPIs ââ
+  // ── KPIs ──
   const total = procs.length;
   const active = procs.filter(p =>
     !['concluido', 'arquivado', 'closed', 'archived'].includes(p.status)
@@ -135,19 +135,19 @@ export default function Relatorios() {
     return new Date(t.due_date) < new Date();
   }).length;
 
-  // ââ Status chart ââ
+  // ── Status chart ──
   const statusData = groupCount(procs.map(p => p.status)).map(d => ({
     name: STATUS_LABELS[d.name] ?? d.name,
     value: d.value,
     fill: STATUS_COLORS[d.name] ?? '#64748b',
   }));
 
-  // ââ Type chart ââ
+  // ── Type chart ──
   const typeData = groupCount(
     procs.map(p => p.type ?? 'Não informado')
   ).slice(0, 8);
 
-  // ââ Monthly trend (last 12 months) ââ
+  // ── Monthly trend (last 12 months) ──
   const now = new Date();
   const monthlyMap: Record<string, number> = {};
   for (let i = 11; i >= 0; i--) {
@@ -164,14 +164,14 @@ export default function Relatorios() {
     processos: v,
   }));
 
-  // ââ Client type chart ââ
+  // ── Client type chart ──
   const clientTypeData = groupCount(cls.map(c => c.type)).map(d => ({
     name: d.name === 'individual' ? 'Pessoa Física' :
           d.name === 'company' ? 'Pessoa Jurídica' : d.name,
     value: d.value,
   }));
 
-  // ââ Task priority chart ââ
+  // ── Task priority chart ──
   const taskPriorityData = groupCount(
     tks.filter(t => !t.completed).map(t => t.priority)
   ).map(d => ({
@@ -180,7 +180,7 @@ export default function Relatorios() {
     value: d.value,
   }));
 
-  // ââ Lawyer distribution ââ
+  // ── Lawyer distribution ──
   const lawyerData = groupCount(
     procs.map(p => (p as any).lawyer ?? p.lawyer ?? 'Não atribuído')
   ).slice(0, 6);
