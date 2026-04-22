@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { FileText, FileImage, File, Trash2, Download, Search, FolderOpen, Plus, ExternalLink } from 'lucide-react';
+import { FileText, FileImage, File, Trash2, Download, Search, FolderOpen, Plus, ExternalLink, Pencil, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface DocumentoItem {
@@ -124,6 +124,21 @@ function useDeleteDocumento() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['documentos'] }); },
   });
 }
+function useUpdateDocumento() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (d: { id: string; name: string; url: string; notes: string; date: string; process_id?: string }) => {
+      const { error } = await supabase.from('tasks').update({
+        title: d.name,
+        description: buildDescription(d.url, d.notes),
+        due_date: d.date || null,
+        process_id: d.process_id || null,
+      }).eq('id', d.id);
+      if (error) throw error;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documentos'] }); },
+  });
+}
 
 function getFileIcon(name: string) {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
@@ -141,51 +156,76 @@ function getCategoryBadge(name: string) {
   return { label: 'Documento', cls: 'bg-gray-100 text-gray-700' };
 }
 
+const EMPTY_DOC_FORM = () => ({
+  name: '', url: '', notes: '',
+  date: new Date().toISOString().split('T')[0],
+  process_id: '',
+});
+
 export default function Documentos() {
   const [search, setSearch] = useState('');
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    url: '',
-    notes: '',
-    date: new Date().toISOString().split('T')[0],
-    process_id: '',
-  });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<DocumentoItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DocumentoItem | null>(null);
+  const [form, setForm] = useState(EMPTY_DOC_FORM());
+  const [saving, setSaving] = useState(false);
 
   const { data: docs = [], isLoading } = useDocumentos(search);
   const { data: processes = [] } = useProcessList();
   const createDoc = useCreateDocumento();
+  const updateDoc = useUpdateDocumento();
   const deleteDoc = useDeleteDocumento();
+
+  const openEdit = (doc: DocumentoItem) => {
+    setForm({ name: doc.name, url: doc.url, notes: doc.notes, date: doc.date, process_id: doc.process_id ?? '' });
+    setEditTarget(doc);
+  };
 
   const handleCreate = async () => {
     if (!form.name.trim()) {
       toast({ title: 'Informe o nome do documento', variant: 'destructive' });
       return;
     }
+    setSaving(true);
     try {
       await createDoc.mutateAsync({
-        name: form.name,
-        url: form.url,
-        notes: form.notes,
-        date: form.date,
+        name: form.name, url: form.url, notes: form.notes, date: form.date,
         process_id: form.process_id || undefined,
       });
-      toast({ title: 'Documento cadastrado com sucesso!' });
-      setOpen(false);
-      setForm({ name: '', url: '', notes: '', date: new Date().toISOString().split('T')[0], process_id: '' });
+      toast({ title: 'Documento cadastrado!' });
+      setCreateOpen(false);
+      setForm(EMPTY_DOC_FORM());
     } catch (e: any) {
-      toast({ title: 'Erro ao cadastrar', description: e.message, variant: 'destructive' });
-    }
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remover este documento?')) return;
+  const handleEdit = async () => {
+    if (!editTarget || !form.name.trim()) return;
+    setSaving(true);
     try {
-      await deleteDoc.mutateAsync(id);
-      toast({ title: 'Documento removido.' });
+      await updateDoc.mutateAsync({
+        id: editTarget.id, name: form.name, url: form.url,
+        notes: form.notes, date: form.date,
+        process_id: form.process_id || undefined,
+      });
+      toast({ title: 'Documento atualizado!' });
+      setEditTarget(null);
     } catch (e: any) {
-      toast({ title: 'Erro ao remover', description: e.message, variant: 'destructive' });
-    }
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
+    try {
+      await deleteDoc.mutateAsync(deleteTarget.id);
+      toast({ title: 'Documento removido.' });
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
   };
 
   return (
@@ -195,7 +235,7 @@ export default function Documentos() {
           <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
           <p className="text-sm text-gray-500 mt-1">Gestão de documentos e arquivos</p>
         </div>
-        <Button onClick={() => setOpen(true)} className="gap-2">
+        <Button onClick={() => { setForm(EMPTY_DOC_FORM()); setCreateOpen(true); }} className="gap-2">
           <Plus className="h-4 w-4" /> Novo Documento
         </Button>
       </div>
@@ -262,8 +302,16 @@ export default function Documentos() {
                       )}
                       <Button
                         variant="ghost" size="icon"
+                        className="hover:bg-gray-50"
+                        onClick={() => openEdit(doc)}
+                        title="Editar"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost" size="icon"
                         className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => handleDelete(doc.id)}
+                        onClick={() => setDeleteTarget(doc)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -276,7 +324,7 @@ export default function Documentos() {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Novo Documento</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
@@ -325,9 +373,78 @@ export default function Documentos() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={createDoc.isPending}>
-              {createDoc.isPending ? 'Salvando...' : 'Cadastrar'}
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={saving}>
+              {saving ? 'Salvando…' : 'Cadastrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Editar Documento</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label>Nome do Documento *</Label>
+              <Input placeholder="ex: Petição Inicial.pdf" value={form.name}
+                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+            </div>
+            <div className="space-y-1">
+              <Label>Link do Arquivo (opcional)</Label>
+              <Input placeholder="https://drive.google.com/..." value={form.url}
+                onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Data</Label>
+                <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label>Processo</Label>
+                <Select value={form.process_id || '_none'}
+                  onValueChange={v => setForm(f => ({ ...f, process_id: v === '_none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— Nenhum —</SelectItem>
+                    {processes.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.number} — {p.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Observações</Label>
+              <Input placeholder="Notas…" value={form.notes}
+                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
+            <Button onClick={handleEdit} disabled={!form.name || saving}>
+              {saving ? 'Salvando…' : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" /> Remover Documento
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Remover <span className="font-semibold">"{deleteTarget?.name}"</span>? Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>
+              {saving ? 'Removendo…' : 'Remover'}
             </Button>
           </DialogFooter>
         </DialogContent>

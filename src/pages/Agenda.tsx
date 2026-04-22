@@ -14,8 +14,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import {
-  ChevronLeft, ChevronRight, Plus, Calendar, Clock, CheckCircle2, Circle,
+  ChevronLeft, ChevronRight, Plus, Calendar, Clock,
+  CheckCircle2, Circle, Pencil, Trash2, AlertTriangle,
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const MONTHS = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -34,11 +36,23 @@ interface Task {
   processes?: { number: string; title: string };
 }
 
-interface Process {
-  id: string;
-  number: string;
-  title: string;
+interface Process { id: string; number: string; title: string; }
+
+interface AgendaForm {
+  title: string; description: string; due_date: string;
+  priority: string; process_id: string;
 }
+
+const EMPTY_FORM = (date: string): AgendaForm => ({
+  title: '', description: '', due_date: date, priority: 'media', process_id: '',
+});
+
+const priorityColor: Record<string, string> = {
+  alta: 'bg-red-500', media: 'bg-yellow-500', baixa: 'bg-green-500',
+};
+const priorityLabel: Record<string, string> = {
+  alta: 'Alta', media: 'Média', baixa: 'Baixa',
+};
 
 function useAgendaTasks() {
   return useQuery({
@@ -55,7 +69,7 @@ function useAgendaTasks() {
 }
 
 function useProcessList() {
-  return useQuery({
+  return useQuery<Process[]>({
     queryKey: ['process-list'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -63,32 +77,31 @@ function useProcessList() {
         .select('id, number, title')
         .limit(100);
       if (error) throw error;
-      return data as Process[];
+      return data ?? [];
     },
   });
 }
 
 export default function Agenda() {
   const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
-  const [selectedDate, setSelectedDate] = useState<string>(
-    today.toISOString().split('T')[0]
-  );
-  const [newTaskOpen, setNewTaskOpen] = useState(false);
-  const [form, setForm] = useState({
-    title: '',
-    description: '',
-    due_date: today.toISOString().split('T')[0],
-    priority: 'media',
-    process_id: '',
-  });
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Task | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [form, setForm] = useState<AgendaForm>(EMPTY_FORM(todayStr));
+  const [saving, setSaving] = useState(false);
 
   const { data: tasks = [] } = useAgendaTasks();
   const { data: processes = [] } = useProcessList();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
 
+  // Calendar helpers
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
   const calendarCells: (number | null)[] = [
@@ -105,49 +118,21 @@ export default function Agenda() {
     }
   });
 
-  const selectedTasks = tasksByDate[selectedDate] || [];
+  const selectedTasks = tasksByDate[selectedDate] ?? [];
 
   const upcoming = tasks
     .filter((t) => {
       if (!t.due_date || t.completed) return false;
       const d = new Date(t.due_date.split('T')[0]);
-      const now = new Date(today.toISOString().split('T')[0]);
+      const now = new Date(todayStr);
       const diff = (d.getTime() - now.getTime()) / 86400000;
       return diff >= 0 && diff <= 30;
     })
     .slice(0, 10);
 
-  const createTask = useMutation({
-    mutationFn: async (payload: typeof form) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('tasks').insert({
-        title: payload.title,
-        description: payload.description || null,
-        due_date: payload.due_date || null,
-        priority: payload.priority,
-        process_id: payload.process_id || null,
-        user_id: user?.id,
-        completed: false,
-      });
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
-      toast({ title: 'Compromisso criado!' });
-      setNewTaskOpen(false);
-      setForm({ title: '', description: '', due_date: today.toISOString().split('T')[0], priority: 'media', process_id: '' });
-    },
-    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
-  });
-
-  const toggleTask = useMutation({
-    mutationFn: async ({ id, completed }: { id: string; completed: boolean }) => {
-      const { error } = await supabase.from('tasks').update({ completed }).eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] }),
-  });
-
+  function dateKey(day: number) {
+    return `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
   function prevMonth() {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
     else setCurrentMonth(m => m - 1);
@@ -157,32 +142,142 @@ export default function Agenda() {
     else setCurrentMonth(m => m + 1);
   }
 
-  function dateKey(day: number) {
-    return `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  }
+  const openEdit = (t: Task) => {
+    setForm({
+      title: t.title ?? '',
+      description: t.description ?? '',
+      due_date: t.due_date ? t.due_date.split('T')[0] : selectedDate,
+      priority: t.priority ?? 'media',
+      process_id: t.process_id ?? '',
+    });
+    setEditTarget(t);
+  };
 
-  const priorityColor: Record<string, string> = {
-    alta: 'bg-red-500',
-    media: 'bg-yellow-500',
-    baixa: 'bg-green-500',
+  const handleCreate = async () => {
+    if (!form.title.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('tasks').insert({
+        title: form.title,
+        description: form.description || null,
+        due_date: form.due_date || null,
+        priority: form.priority,
+        process_id: form.process_id || null,
+        user_id: user?.id,
+        completed: false,
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
+      toast({ title: 'Compromisso criado!' });
+      setCreateOpen(false);
+      setForm(EMPTY_FORM(selectedDate));
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
   };
-  const priorityLabel: Record<string, string> = {
-    alta: 'Alta', media: 'Média', baixa: 'Baixa',
+
+  const handleEdit = async () => {
+    if (!editTarget || !form.title.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('tasks').update({
+        title: form.title,
+        description: form.description || null,
+        due_date: form.due_date || null,
+        priority: form.priority,
+        process_id: form.process_id || null,
+      }).eq('id', editTarget.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
+      toast({ title: 'Compromisso atualizado!' });
+      setEditTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
   };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('tasks').delete().eq('id', deleteTarget.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
+      toast({ title: 'Compromisso removido.' });
+      setDeleteTarget(null);
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  const toggleTask = useMutation({
+    mutationFn: async ({ id, completed }: { id: string; completed: boolean }) => {
+      const { error } = await supabase.from('tasks').update({ completed }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] }),
+  });
+
+  const FormBody = ({ isEdit = false }) => (
+    <div className="space-y-4">
+      <div>
+        <Label>Título *</Label>
+        <Input className="mt-1" value={form.title}
+          onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          placeholder="Ex: Audiência de instrução" />
+      </div>
+      <div>
+        <Label>Data</Label>
+        <Input className="mt-1" type="date" value={form.due_date}
+          onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
+      </div>
+      <div>
+        <Label>Prioridade</Label>
+        <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
+          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="alta">Alta</SelectItem>
+            <SelectItem value="media">Média</SelectItem>
+            <SelectItem value="baixa">Baixa</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Processo (opcional)</Label>
+        <Select value={form.process_id || '_none'}
+          onValueChange={v => setForm(f => ({ ...f, process_id: v === '_none' ? '' : v }))}>
+          <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar processo…" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="_none">— Nenhum —</SelectItem>
+            {processes.map(p => (
+              <SelectItem key={p.id} value={p.id}>{p.number} — {p.title}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div>
+        <Label>Descrição (opcional)</Label>
+        <Textarea className="mt-1" value={form.description}
+          onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
           <p className="text-sm text-gray-500">Compromissos, audiências e prazos</p>
         </div>
-        <Button onClick={() => { setForm(f => ({ ...f, due_date: selectedDate })); setNewTaskOpen(true); }}>
+        <Button onClick={() => { setForm(EMPTY_FORM(selectedDate)); setCreateOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" /> Novo compromisso
         </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Calendário */}
         <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border p-4">
           <div className="flex items-center justify-between mb-4">
             <button onClick={prevMonth} className="p-1 hover:bg-gray-100 rounded">
@@ -206,7 +301,7 @@ export default function Agenda() {
             {calendarCells.map((day, i) => {
               if (!day) return <div key={i} />;
               const key = dateKey(day);
-              const isToday = key === today.toISOString().split('T')[0];
+              const isToday = key === todayStr;
               const isSelected = key === selectedDate;
               const hasTasks = !!tasksByDate[key]?.length;
               const hasIncomplete = tasksByDate[key]?.some(t => !t.completed);
@@ -227,6 +322,7 @@ export default function Agenda() {
           </div>
         </div>
 
+        {/* Próximos 30 dias */}
         <div className="bg-white rounded-xl shadow-sm border p-4">
           <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
             <Clock className="w-4 h-4 text-blue-500" /> Próximos 30 dias
@@ -236,7 +332,8 @@ export default function Agenda() {
           ) : (
             <div className="space-y-2">
               {upcoming.map(t => (
-                <div key={t.id} className="p-2 rounded-lg border border-gray-100 hover:border-blue-200 cursor-pointer"
+                <div key={t.id}
+                  className="p-2 rounded-lg border border-gray-100 hover:border-blue-200 cursor-pointer"
                   onClick={() => { if (t.due_date) setSelectedDate(t.due_date.split('T')[0]); }}>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityColor[t.priority || 'media']}`} />
@@ -254,6 +351,7 @@ export default function Agenda() {
         </div>
       </div>
 
+      {/* Tarefas do dia selecionado */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
           <Calendar className="w-4 h-4 text-blue-500" />
@@ -265,71 +363,85 @@ export default function Agenda() {
         ) : (
           <div className="space-y-2">
             {selectedTasks.map(t => (
-              <div key={t.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
-                <button onClick={() => toggleTask.mutate({ id: t.id, completed: !t.completed })} className="mt-0.5 flex-shrink-0">
+              <div key={t.id}
+                className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
+                <button
+                  onClick={() => toggleTask.mutate({ id: t.id, completed: !t.completed })}
+                  className="mt-0.5 flex-shrink-0">
                   {t.completed
                     ? <CheckCircle2 className="w-5 h-5 text-green-500" />
                     : <Circle className="w-5 h-5 text-gray-300" />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className={`font-medium ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>{t.title}</p>
+                  <p className={`font-medium ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                    {t.title}
+                  </p>
                   {t.description && <p className="text-sm text-gray-500 mt-0.5">{t.description}</p>}
-                  {t.processes && <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>}
+                  {t.processes && (
+                    <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
+                  )}
                 </div>
-                <Badge className={`text-white text-xs ${priorityColor[t.priority || 'media']}`}>
+                <Badge className={`text-white text-xs shrink-0 ${priorityColor[t.priority || 'media']}`}>
                   {priorityLabel[t.priority || 'media']}
                 </Badge>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600"
+                    onClick={() => setDeleteTarget(t)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <Dialog open={newTaskOpen} onOpenChange={setNewTaskOpen}>
+      {/* Create Dialog */}
+      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Novo compromisso</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Título *</Label>
-              <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Ex: Audiência de instrução" />
-            </div>
-            <div>
-              <Label>Data</Label>
-              <Input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
-            </div>
-            <div>
-              <Label>Prioridade</Label>
-              <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="alta">Alta</SelectItem>
-                  <SelectItem value="media">Média</SelectItem>
-                  <SelectItem value="baixa">Baixa</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Processo (opcional)</Label>
-              <Select value={form.process_id} onValueChange={v => setForm(f => ({ ...f, process_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecionar processo..." /></SelectTrigger>
-                <SelectContent>
-                  {processes.map(p => (
-                    <SelectItem key={p.id} value={p.id}>{p.number} — {p.title}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Descrição (opcional)</Label>
-              <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
-            </div>
-          </div>
+          <DialogHeader><DialogTitle>Novo compromisso</DialogTitle></DialogHeader>
+          <FormBody />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setNewTaskOpen(false)}>Cancelar</Button>
-            <Button onClick={() => createTask.mutate(form)} disabled={!form.title || createTask.isPending}>
-              {createTask.isPending ? 'Salvando...' : 'Salvar'}
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={!form.title || saving}>
+              {saving ? 'Salvando…' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar compromisso</DialogTitle></DialogHeader>
+          <FormBody isEdit />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
+            <Button onClick={handleEdit} disabled={!form.title || saving}>
+              {saving ? 'Salvando…' : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" /> Remover compromisso
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Remover <span className="font-semibold">"{deleteTarget?.title}"</span>? Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>
+              {saving ? 'Removendo…' : 'Remover'}
             </Button>
           </DialogFooter>
         </DialogContent>
