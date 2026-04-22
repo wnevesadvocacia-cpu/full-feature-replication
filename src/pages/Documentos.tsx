@@ -84,8 +84,8 @@ function useProcessList() {
       const { data, error } = await supabase
         .from('processes')
         .select('id, number, title')
-        .order('number')
-        .limit(200);
+        .order('updated_at', { ascending: false })
+        .limit(4000);
       if (error) throw error;
       return data ?? [];
     },

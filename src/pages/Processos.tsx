@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ChevronLeft, ChevronRight, Plus,
   User, MapPin, Gavel, Calendar, DollarSign, MessageSquare, X,
-  Pencil, Trash2, Check, AlertTriangle,
+  Pencil, Trash2, Check, AlertTriangle, Clock, FileText,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -149,9 +149,50 @@ function useProcessTasks(processId: string | null) {
         .from('tasks')
         .select('*')
         .eq('process_id', processId)
+        .not('assignee', 'eq', 'movimentacao')
+        .not('assignee', 'eq', 'documento')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Task[];
+    },
+  });
+}
+
+// ── Process Movimentacoes (in detail panel) ─────────────────────────────────
+const MOV_TIPOS: Record<string, string> = {
+  despacho: 'Despacho', decisao: 'Decisão', audiencia: 'Audiência',
+  sentenca: 'Sentença', recurso: 'Recurso', peticao: 'Petição',
+  citacao: 'Citação', intimacao: 'Intimação', outros: 'Outros',
+};
+function useProcessMovimentacoes(processId: string | null) {
+  return useQuery({
+    queryKey: ['proc-movs', processId],
+    enabled: !!processId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, title, description, due_date, created_at')
+        .eq('process_id', processId!)
+        .eq('assignee', 'movimentacao')
+        .order('due_date', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+function useProcessDocumentos(processId: string | null) {
+  return useQuery({
+    queryKey: ['proc-docs', processId],
+    enabled: !!processId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('id, title, description, due_date, created_at')
+        .eq('process_id', processId!)
+        .eq('assignee', 'documento')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
     },
   });
 }
@@ -376,6 +417,9 @@ export default function Processos() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
+  const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null);
+  const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
+  const [detailTab, setDetailTab] = useState<'details' | 'movs' | 'docs' | 'tasks'>('details');
 
   const handleSearch = useCallback((v: string) => { setSearch(v); setPage(0); }, []);
   const handleStatus = useCallback((v: string) => { setStatusFilter(v); setPage(0); }, []);
@@ -444,6 +488,7 @@ export default function Processos() {
     setSelected(null);
     setEditMode(false);
     setShowTaskForm(false);
+    setDetailTab('details');
   };
 
   return (
@@ -605,7 +650,28 @@ export default function Processos() {
                   />
                 </div>
               ) : (
-                <div className="mt-4 space-y-5">
+                <div className="mt-4 space-y-2">
+                  {/* Tabs */}
+                  <div className="flex gap-1 border-b pb-2 mb-4">
+                    {([
+                      { id: 'details', label: 'Detalhes' },
+                      { id: 'movs',    label: `Movimentações (${procMovs.length})` },
+                      { id: 'docs',    label: `Documentos (${procDocs.length})` },
+                      { id: 'tasks',   label: `Andamentos (${tasks.length})` },
+                    ] as { id: typeof detailTab; label: string }[]).map(({ id, label }) => (
+                      <button key={id} onClick={() => setDetailTab(id)}
+                        className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
+                          detailTab === id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-gray-500 hover:bg-gray-100'
+                        }`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* ── Tab: Detalhes ── */}
+                  {detailTab === 'details' && <div className="space-y-5">
                   {/* Status com troca rápida */}
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Status</p>
@@ -723,8 +789,8 @@ export default function Processos() {
                     </div>
                   )}
 
-                  {/* Andamentos */}
-                  <div>
+                  {/* ── Tab: Andamentos ── */}
+                  {detailTab === 'tasks' && <div>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-semibold flex items-center gap-1">
                         <MessageSquare className="h-4 w-4" /> Andamentos ({tasks.length})
@@ -774,7 +840,67 @@ export default function Processos() {
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </div>}
+                  </div>} {/* end details tab */}
+
+                  {/* ── Tab: Movimentações ── */}
+                  {detailTab === 'movs' && (
+                    <div className="space-y-2">
+                      {procMovs.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-8">Sem movimentações registradas para este processo.</p>
+                      ) : procMovs.map((m: any) => (
+                        <div key={m.id} className="border rounded-md p-3 bg-white text-sm">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
+                              {MOV_TIPOS[m.title] ?? m.title}
+                            </span>
+                            {m.due_date && (
+                              <span className="text-xs text-gray-400 flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(m.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+                          {m.description && <p className="text-xs text-gray-600 whitespace-pre-wrap">{m.description}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Tab: Documentos ── */}
+                  {detailTab === 'docs' && (
+                    <div className="space-y-2">
+                      {procDocs.length === 0 ? (
+                        <p className="text-sm text-gray-400 text-center py-8">Sem documentos registrados para este processo.</p>
+                      ) : procDocs.map((d: any) => {
+                        const sep = (d.description ?? '').indexOf('|||');
+                        const url  = sep !== -1 ? d.description.substring(0, sep) : '';
+                        const notes = sep !== -1 ? d.description.substring(sep + 3) : (d.description ?? '');
+                        return (
+                          <div key={d.id} className="border rounded-md p-3 bg-white text-sm flex items-start gap-3">
+                            <FileText className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium truncate">{d.title}</p>
+                              {notes && <p className="text-xs text-gray-500 truncate">{notes}</p>}
+                              {d.due_date && (
+                                <p className="text-xs text-gray-400 mt-0.5">
+                                  {new Date(d.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                </p>
+                              )}
+                            </div>
+                            {url && (
+                              <button
+                                onClick={() => window.open(url, '_blank')}
+                                className="text-xs text-blue-600 hover:underline shrink-0"
+                              >
+                                Abrir
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </>
