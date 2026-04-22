@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -46,7 +45,7 @@ const MONTHS_PT = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
 // ââ hooks ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 function useProcessStats() {
   return useQuery({
-    queryKey: ['report-processes', user?.id],
+    queryKey: ['report-processes'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('processes')
@@ -60,7 +59,7 @@ function useProcessStats() {
 
 function useClientStats() {
   return useQuery({
-    queryKey: ['report-clients', user?.id],
+    queryKey: ['report-clients'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
@@ -74,7 +73,7 @@ function useClientStats() {
 
 function useTaskStats() {
   return useQuery({
-    queryKey: ['report-tasks', user?.id],
+    queryKey: ['report-tasks'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('tasks')
