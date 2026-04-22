@@ -78,6 +78,8 @@ function useTaskStats() {
       const { data, error } = await supabase
         .from('tasks')
         .select('status, priority, completed, due_date')
+        .not('assignee', 'eq', 'movimentacao')
+        .not('assignee', 'eq', 'documento')
         ;
       if (error) throw error;
       return data ?? [];
