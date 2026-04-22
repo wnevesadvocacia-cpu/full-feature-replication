@@ -13,5 +13,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     storage: localStorage,
     persistSession: true,
     autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce',
   }
 });
+
+// URL base do app no GitHub Pages
+export const APP_URL = 'https://wnevesadvocacia-cpu.github.io/full-feature-replication/';

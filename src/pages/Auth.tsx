@@ -1,124 +1,92 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase, APP_URL } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
   Scale, Mail, Shield, Loader2, ArrowRight,
-  RotateCcw, Copy, CheckCircle2, Link2,
+  Eye, EyeOff, RotateCcw, Lock, CheckCircle2, KeyRound,
 } from 'lucide-react';
 
-type Step = 'email' | 'waiting' | 'paste-url';
+type Mode = 'login' | 'forgot' | 'sent';
 
 export default function Auth() {
-  const [step, setStep] = useState<Step>('email');
-  const [email, setEmail] = useState('');
-  const [pastedUrl, setPastedUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
+  const [mode, setMode]             = useState<Mode>('login');
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [showPass, setShowPass]     = useState(false);
+  const [loading, setLoading]       = useState(false);
+  const [cooldown, setCooldown]     = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect if already authenticated
+  // ── Já autenticado? ──────────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate('/');
+      if (session) navigate('/dashboard', { replace: true });
     });
-
-    // Also handle auth state change (PKCE callback, if ever URL is allowed)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) navigate('/');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) navigate('/dashboard', { replace: true });
     });
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Cooldown timer
   useEffect(() => {
-    if (resendCooldown <= 0) return;
-    const t = setInterval(() => setResendCooldown((c) => c - 1), 1000);
+    if (cooldown <= 0) return;
+    const t = setInterval(() => setCooldown(c => c - 1), 1000);
     return () => clearInterval(t);
-  }, [resendCooldown]);
+  }, [cooldown]);
 
-  const sendLink = async (emailAddr: string) => {
+  // ── Login email + senha ──────────────────────────────────────────────────────
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: emailAddr,
-        options: { shouldCreateUser: true },
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      // onAuthStateChange cuida do redirect
+    } catch (err: any) {
+      const msg = err.message?.toLowerCase() ?? '';
+      const friendly =
+        msg.includes('invalid login') || msg.includes('invalid credentials')
+          ? 'Email ou senha incorretos.'
+          : msg.includes('email not confirmed')
+          ? 'Email não confirmado. Verifique sua caixa de entrada.'
+          : err.message;
+      toast({ title: 'Erro ao entrar', description: friendly, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Enviar link de redefinição de senha ─────────────────────────────────────
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: APP_URL,
       });
       if (error) throw error;
-      setStep('waiting');
-      setResendCooldown(60);
+      setMode('sent');
+      setCooldown(60);
     } catch (err: any) {
-      toast({ title: 'Erro ao enviar link', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-    await sendLink(email.trim());
-  };
-
-  const handleResend = async () => {
-    if (resendCooldown > 0) return;
-    await sendLink(email);
-  };
-
-  /* ── Extrai a sessão da URL colada pelo usuário ── */
-  const handleUrlAuth = async () => {
-    if (!pastedUrl.trim()) return;
-    setLoading(true);
-    try {
-      let url: URL;
-      try {
-        url = new URL(pastedUrl.trim());
-      } catch {
-        throw new Error('URL inválida. Copie a URL completa da barra de endereços.');
-      }
-
-      // Implicit flow: tokens estão no hash  (#access_token=...&refresh_token=...)
-      const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
-      const access_token  = hash.get('access_token');
-      const refresh_token = hash.get('refresh_token');
-
-      // PKCE flow: código está no query param (?code=...)
-      const code = url.searchParams.get('code');
-
-      if (access_token && refresh_token) {
-        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-        if (error) throw error;
-        navigate('/');
-        return;
-      }
-
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-        navigate('/');
-        return;
-      }
-
-      throw new Error(
-        'Não encontrei o token na URL. Certifique-se de copiar a URL completa da barra de endereços após clicar em "Log In" no email.'
-      );
-    } catch (err: any) {
-      toast({ title: 'Erro ao autenticar', description: err.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleBack = () => { setStep('email'); setPastedUrl(''); };
-
+  // ── UI ───────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
+
+        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <div className="bg-blue-600 p-3 rounded-full">
@@ -126,171 +94,188 @@ export default function Auth() {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-1">WnevesBox</h1>
-          <p className="text-blue-200 text-sm">Gestao Juridica Inteligente</p>
+          <p className="text-blue-200 text-sm">Gestão Jurídica Inteligente</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
 
-          {/* ── Step 1: email ── */}
-          {step === 'email' && (
+          {/* ── LOGIN ── */}
+          {mode === 'login' && (
             <>
               <div className="mb-6 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
-                  <Mail className="h-6 w-6 text-blue-600" />
+                  <Lock className="h-6 w-6 text-blue-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Entrar</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Enviaremos um link de acesso para seu email.
-                </p>
+                <p className="text-sm text-gray-500 mt-1">Email e senha do escritório</p>
               </div>
 
-              <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="seu@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    autoFocus
-                    className="mt-1"
-                  />
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="wnevesadvocacia@gmail.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="pl-9"
+                      required
+                      autoFocus
+                    />
+                  </div>
                 </div>
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Senha</Label>
+                    <button
+                      type="button"
+                      onClick={() => setMode('forgot')}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  </div>
+                  <div className="relative mt-1">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="password"
+                      type={showPass ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="pl-9 pr-10"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
                   {loading
-                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</>
-                    : <><ArrowRight className="h-4 w-4 mr-2" />Enviar link de acesso</>}
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Entrando…</>
+                    : <><ArrowRight className="h-4 w-4 mr-2" />Entrar</>}
                 </Button>
               </form>
 
-              <div className="mt-6 pt-4 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-400">
+              <div className="mt-5 pt-4 border-t border-gray-100 flex items-center gap-2 text-xs text-gray-400">
                 <Shield className="h-3.5 w-3.5 shrink-0" />
-                <span>Acesso seguro via link de uso unico. Sem senha necessaria.</span>
+                <span>
+                  Primeiro acesso? Clique em{' '}
+                  <button onClick={() => setMode('forgot')} className="text-blue-500 hover:underline">
+                    Esqueci minha senha
+                  </button>{' '}
+                  para definir sua senha via email.
+                </span>
               </div>
             </>
           )}
 
-          {/* ── Step 2: waiting / instrucoes ── */}
-          {step === 'waiting' && (
+          {/* ── ESQUECI A SENHA ── */}
+          {mode === 'forgot' && (
             <>
-              <div className="mb-5 text-center">
+              <div className="mb-6 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mb-3">
-                  <Mail className="h-6 w-6 text-amber-600" />
+                  <KeyRound className="h-6 w-6 text-amber-600" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Siga os passos</h2>
+                <h2 className="text-xl font-bold text-gray-900">Redefinir senha</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Link enviado para <strong>{email}</strong>
+                  Enviaremos um link para criar ou redefinir sua senha.
                 </p>
               </div>
 
-              {/* Instrucoes numeradas */}
-              <ol className="space-y-3 text-sm mb-5">
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                  <span className="text-gray-700 pt-0.5">Abra o email <strong>"Sign in to your account"</strong> e clique em <strong>"Log In"</strong></span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                  <span className="text-gray-700 pt-0.5">Voce vera uma pagina de erro — <strong>nao se preocupe</strong>, isso e temporario</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                  <span className="text-gray-700 pt-0.5">
-                    <strong>Copie a URL completa</strong> da barra de enderecos do navegador{' '}
-                    <span className="text-gray-400">(Ctrl+L depois Ctrl+C)</span>
-                  </span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
-                  <span className="text-gray-700 pt-0.5">Clique em <strong>"Ja cliquei – colar URL"</strong> abaixo e cole a URL</span>
-                </li>
-              </ol>
-
-              <Button
-                onClick={() => setStep('paste-url')}
-                className="w-full bg-green-600 hover:bg-green-700 mb-3"
-              >
-                <Link2 className="h-4 w-4 mr-2" />
-                Ja cliquei – colar URL
-              </Button>
-
-              <div className="flex items-center justify-between text-sm">
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="text-gray-400 hover:text-gray-600 flex items-center gap-1"
-                >
-                  <ArrowRight className="h-3.5 w-3.5 rotate-180" />
-                  Trocar email
-                </button>
-                <button
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resendCooldown > 0}
-                  className={`flex items-center gap-1 ${resendCooldown > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:text-blue-800'}`}
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar link'}
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ── Step 3: colar URL ── */}
-          {step === 'paste-url' && (
-            <>
-              <div className="mb-5 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
-                  <Copy className="h-6 w-6 text-green-600" />
+              <form onSubmit={handleForgot} className="space-y-4">
+                <div>
+                  <Label htmlFor="email-forgot">Email</Label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="email-forgot"
+                      type="email"
+                      placeholder="wnevesadvocacia@gmail.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="pl-9"
+                      required
+                      autoFocus
+                    />
+                  </div>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Cole a URL aqui</h2>
-                <p className="text-sm text-gray-500 mt-1">
-                  Copie a URL da barra de enderecos e cole abaixo
-                </p>
-              </div>
-
-              <div className="mb-4">
-                <Label className="text-sm font-medium text-gray-700">
-                  URL da barra de enderecos
-                </Label>
-                <textarea
-                  className="mt-1 w-full border-2 border-gray-300 rounded-lg p-3 text-xs font-mono focus:border-blue-500 focus:outline-none resize-none"
-                  rows={4}
-                  placeholder="https://lovable.dev/auth-bridge?...#access_token=..."
-                  value={pastedUrl}
-                  onChange={(e) => setPastedUrl(e.target.value)}
-                  autoFocus
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  A URL começa com <code className="bg-gray-100 px-1 rounded">https://</code> e contem o token de acesso
-                </p>
-              </div>
-
-              <Button
-                onClick={handleUrlAuth}
-                className="w-full bg-green-600 hover:bg-green-700"
-                disabled={loading || !pastedUrl.trim()}
-              >
-                {loading
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Autenticando...</>
-                  : <><CheckCircle2 className="h-4 w-4 mr-2" />Entrar com este link</>}
-              </Button>
+                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" disabled={loading}>
+                  {loading
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
+                    : <><Mail className="h-4 w-4 mr-2" />Enviar link de redefinição</>}
+                </Button>
+              </form>
 
               <button
-                type="button"
-                onClick={() => setStep('waiting')}
-                className="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-600"
+                onClick={() => setMode('login')}
+                className="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600"
               >
-                ← Voltar para instrucoes
+                ← Voltar ao login
               </button>
+            </>
+          )}
+
+          {/* ── EMAIL ENVIADO ── */}
+          {mode === 'sent' && (
+            <>
+              <div className="mb-6 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
+                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Email enviado!</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Verifique a caixa de entrada de <strong>{email}</strong>
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm space-y-2 mb-5">
+                <p className="font-semibold text-blue-800">Como definir a senha:</p>
+                <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                  <li>Abra o email <strong>"Reset Your Password"</strong></li>
+                  <li>Clique em <strong>"Reset Password"</strong></li>
+                  <li>Digite e confirme sua nova senha</li>
+                  <li>Pronto — você entrará automaticamente</li>
+                </ol>
+              </div>
+
+              <div className="flex gap-3">
+                <Button variant="outline" className="flex-1" onClick={() => setMode('login')}>
+                  Voltar ao login
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  disabled={cooldown > 0 || loading}
+                  onClick={async () => {
+                    setLoading(true);
+                    await supabase.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
+                    setLoading(false);
+                    setCooldown(60);
+                    toast({ title: 'Email reenviado!' });
+                  }}
+                >
+                  {cooldown > 0
+                    ? <><RotateCcw className="h-4 w-4 mr-1" />{cooldown}s</>
+                    : <><RotateCcw className="h-4 w-4 mr-1" />Reenviar</>}
+                </Button>
+              </div>
             </>
           )}
         </div>
 
         <p className="text-center text-blue-300 text-xs mt-6">
-          WnevesBox &copy; {new Date().getFullYear()} &mdash; Todos os direitos reservados
+          WnevesBox &copy; {new Date().getFullYear()} — Todos os direitos reservados
         </p>
       </div>
     </div>
