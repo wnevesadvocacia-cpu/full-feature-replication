@@ -61,6 +61,8 @@ function useAgendaTasks() {
       const { data, error } = await supabase
         .from('tasks')
         .select('*, processes(number, title)')
+        .not('assignee', 'eq', 'movimentacao')
+        .not('assignee', 'eq', 'documento')
         .order('due_date', { ascending: true });
       if (error) throw error;
       return data as Task[];
