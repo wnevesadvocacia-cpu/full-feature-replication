@@ -3,13 +3,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Search, Filter, Calendar, Loader2 } from 'lucide-react';
-import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Filter,
+} from 'lucide-react';
+import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
+type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
 
 const priorityConfig: Record<TaskPriority, { label: string; className: string }> = {
   alta: { label: 'Alta', className: 'bg-destructive/10 text-destructive border-destructive/20' },
@@ -17,35 +25,56 @@ const priorityConfig: Record<TaskPriority, { label: string; className: string }>
   baixa: { label: 'Baixa', className: 'bg-muted text-muted-foreground border-border' },
 };
 
+interface TaskForm {
+  title: string; description: string; assignee: string; priority: string; due_date: string;
+}
+const EMPTY_FORM: TaskForm = { title: '', description: '', assignee: '', priority: 'media', due_date: '' };
+
 export default function Tarefas() {
   const [search, setSearch] = useState('');
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', assignee: '', priority: 'media', due_date: '' });
+  const [viewFilter, setViewFilter] = useState<ViewFilter>('pendentes');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
   const { data: tasks = [], isLoading } = useTasks();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { toast } = useToast();
+  const qc = useQueryClient();
 
-  const filtered = (tasks as any[]).filter(
-    (t) =>
-      t.title.toLowerCase().includes(search.toLowerCase()) ||
-      (t.assignee || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const set = (k: keyof TaskForm) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const filtered = (tasks as any[]).filter((t) => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      t.title.toLowerCase().includes(q) ||
+      (t.assignee || '').toLowerCase().includes(q) ||
+      (t.description || '').toLowerCase().includes(q);
+    if (!matchSearch) return false;
+    if (viewFilter === 'pendentes') return !t.completed;
+    if (viewFilter === 'concluidas') return t.completed;
+    return true;
+  });
+
+  const pendentes = (tasks as any[]).filter(t => !t.completed).length;
+  const concluidas = (tasks as any[]).filter(t => t.completed).length;
 
   const toggleTask = async (task: any) => {
-    const newCompleted = !task.completed;
     await updateTask.mutateAsync({
       id: task.id,
-      completed: newCompleted,
-      status: newCompleted ? 'concluida' : 'pendente',
+      completed: !task.completed,
+      status: !task.completed ? 'concluida' : 'pendente',
     });
   };
 
-  const pendentes = filtered.filter((t: any) => !t.completed);
-  const concluidas = filtered.filter((t: any) => t.completed);
-
   const handleCreate = async () => {
     if (!form.title) return;
+    setSaving(true);
     try {
       await createTask.mutateAsync({
         title: form.title,
@@ -54,129 +83,230 @@ export default function Tarefas() {
         priority: form.priority,
         due_date: form.due_date || undefined,
       });
-      setForm({ title: '', description: '', assignee: '', priority: 'media', due_date: '' });
-      setOpen(false);
-      toast({ title: 'Tarefa criada com sucesso!' });
+      setCreateOpen(false);
+      setForm(EMPTY_FORM);
+      toast({ title: 'Tarefa criada!' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
-    }
+    } finally { setSaving(false); }
+  };
+
+  const handleEdit = async () => {
+    if (!editTarget || !form.title) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('tasks').update({
+        title: form.title,
+        description: form.description || null,
+        assignee: form.assignee || null,
+        priority: form.priority,
+        due_date: form.due_date || null,
+      }).eq('id', editTarget.id);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      setEditTarget(null);
+      toast({ title: 'Tarefa atualizada!' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('tasks').delete().eq('id', deleteTarget.id);
+      if (error) throw error;
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      setDeleteTarget(null);
+      toast({ title: 'Tarefa excluída.' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setSaving(false); }
+  };
+
+  const openEdit = (t: any) => {
+    setForm({
+      title: t.title ?? '',
+      description: t.description ?? '',
+      assignee: t.assignee ?? '',
+      priority: t.priority ?? 'media',
+      due_date: t.due_date ? t.due_date.slice(0, 10) : '',
+    });
+    setEditTarget(t);
   };
 
   if (isLoading) {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
+  const TaskFormFields = () => (
+    <div className="space-y-4">
+      <div>
+        <Label>Título *</Label>
+        <Input className="mt-1" value={form.title} onChange={set('title')} placeholder="Título da tarefa" />
+      </div>
+      <div>
+        <Label>Descrição</Label>
+        <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes da tarefa" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Responsável</Label>
+          <Input className="mt-1" value={form.assignee} onChange={set('assignee')} placeholder="Nome" />
+        </div>
+        <div>
+          <Label>Prioridade</Label>
+          <select className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+            value={form.priority} onChange={set('priority')}>
+            <option value="baixa">Baixa</option>
+            <option value="media">Média</option>
+            <option value="alta">Alta</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <Label>Prazo</Label>
+        <Input className="mt-1" type="date" value={form.due_date} onChange={set('due_date')} />
+      </div>
+    </div>
+  );
+
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold">Tarefas</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {pendentes.length} pendentes · {concluidas.length} concluídas
+            {pendentes} pendentes · {concluidas} concluídas
           </p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button><Plus className="h-4 w-4" />Nova Tarefa</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader><DialogTitle>Nova Tarefa</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Título *</Label>
-                <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="Título da tarefa" />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Detalhes da tarefa" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Responsável</Label>
-                  <Input value={form.assignee} onChange={e => setForm(f => ({ ...f, assignee: e.target.value }))} placeholder="Nome" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Prioridade</Label>
-                  <select className="w-full rounded-md border bg-background px-3 py-2 text-sm" value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
-                    <option value="baixa">Baixa</option>
-                    <option value="media">Média</option>
-                    <option value="alta">Alta</option>
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label>Prazo</Label>
-                <Input type="date" value={form.due_date} onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
-              </div>
-              <Button className="w-full" onClick={handleCreate} disabled={createTask.isPending}>
-                {createTask.isPending ? 'Salvando...' : 'Criar Tarefa'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
+          <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
+        </Button>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Filtros */}
+      <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar tarefa..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder="Buscar tarefa…" value={search}
+            onChange={(e) => setSearch(e.target.value)} className="pl-10" />
         </div>
-        <Button variant="outline" size="sm"><Filter className="h-4 w-4" />Filtros</Button>
+        <div className="flex gap-1">
+          {([
+            { v: 'pendentes', l: 'Pendentes' },
+            { v: 'todas', l: 'Todas' },
+            { v: 'concluidas', l: 'Concluídas' },
+          ] as { v: ViewFilter; l: string }[]).map(({ v, l }) => (
+            <Button key={v} size="sm" variant={viewFilter === v ? 'default' : 'outline'}
+              onClick={() => setViewFilter(v)}>
+              {l}
+            </Button>
+          ))}
+        </div>
       </div>
 
+      {/* Lista */}
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-lg font-medium">Nenhuma tarefa encontrada</p>
           <p className="text-sm mt-1">Crie sua primeira tarefa clicando em "Nova Tarefa"</p>
         </div>
       ) : (
-        <>
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Pendentes</h3>
-            <div className="space-y-1">
-              {pendentes.map((task: any) => (
-                <div key={task.id} className="bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group">
-                  <Checkbox checked={task.completed} onCheckedChange={() => toggleTask(task)} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium">{task.title}</p>
-                      {task.processes?.number && <span className="text-xs text-muted-foreground font-mono">#{task.processes.number}</span>}
-                    </div>
-                    {task.description && <p className="text-xs text-muted-foreground mt-0.5">{task.description}</p>}
-                  </div>
-                  <Badge variant="outline" className={`text-xs shrink-0 ${priorityConfig[task.priority as TaskPriority]?.className || ''}`}>
-                    {priorityConfig[task.priority as TaskPriority]?.label || task.priority}
-                  </Badge>
-                  {task.due_date && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                      <Calendar className="h-3 w-3" />
-                      <span className="tabular-nums">{new Date(task.due_date).toLocaleDateString('pt-BR')}</span>
-                    </div>
+        <div className="space-y-1">
+          {filtered.map((task: any) => (
+            <div key={task.id}
+              className={`bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group ${task.completed ? 'opacity-60' : ''}`}>
+              <Checkbox checked={task.completed} onCheckedChange={() => toggleTask(task)} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
+                    {task.title}
+                  </p>
+                  {task.processes?.number && (
+                    <span className="text-xs text-muted-foreground font-mono">#{task.processes.number}</span>
                   )}
-                  {task.assignee && <span className="text-xs text-muted-foreground shrink-0">{task.assignee}</span>}
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {concluidas.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Concluídas</h3>
-              <div className="space-y-1">
-                {concluidas.map((task: any) => (
-                  <div key={task.id} className="bg-card rounded-lg px-4 py-3 shadow-card flex items-center gap-4 opacity-60">
-                    <Checkbox checked={task.completed} onCheckedChange={() => toggleTask(task)} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium line-through">{task.title}</p>
-                    </div>
-                    {task.assignee && <span className="text-xs text-muted-foreground">{task.assignee}</span>}
-                  </div>
-                ))}
+                {task.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{task.description}</p>
+                )}
+              </div>
+              <Badge variant="outline"
+                className={`text-xs shrink-0 ${priorityConfig[task.priority as TaskPriority]?.className || ''}`}>
+                {priorityConfig[task.priority as TaskPriority]?.label || task.priority}
+              </Badge>
+              {task.due_date && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                  <Calendar className="h-3 w-3" />
+                  <span>{new Date(task.due_date).toLocaleDateString('pt-BR')}</span>
+                </div>
+              )}
+              {task.assignee && (
+                <span className="text-xs text-muted-foreground shrink-0 hidden md:block">{task.assignee}</span>
+              )}
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(task)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700"
+                  onClick={() => setDeleteTarget(task)}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
-          )}
-        </>
+          ))}
+        </div>
       )}
+
+      {/* Create Dialog */}
+      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Nova Tarefa</DialogTitle></DialogHeader>
+          <TaskFormFields />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreate} disabled={!form.title || saving}>
+              {saving ? 'Salvando…' : 'Criar Tarefa'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar Tarefa</DialogTitle></DialogHeader>
+          <TaskFormFields />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
+            <Button onClick={handleEdit} disabled={!form.title || saving}>
+              {saving ? 'Salvando…' : 'Salvar Alterações'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirm */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="h-5 w-5" /> Excluir Tarefa
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Excluir <span className="font-semibold">"{deleteTarget?.title}"</span>? Esta ação não pode ser desfeita.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={saving}>
+              {saving ? 'Excluindo…' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
