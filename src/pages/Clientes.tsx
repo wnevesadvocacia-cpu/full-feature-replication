@@ -9,7 +9,7 @@ import {
   Pencil, Trash2, AlertTriangle, User, FileText, X,
 } from 'lucide-react';
 import { useClients, useCreateClient } from '@/hooks/useClients';
-import { useProcesses } from '@/hooks/useProcesses';
+import { useQuery } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
@@ -69,8 +69,20 @@ export default function Clientes() {
   const [saving, setSaving] = useState(false);
 
   const { data: clients = [], isLoading } = useClients();
-  const { data: processesData } = useProcesses();
-  const processes = processesData?.rows ?? [];
+  // Direct query for selected client's processes (avoids pagination limits)
+  const { data: clientProcs = [] } = useQuery({
+    queryKey: ['client-processes', selected?.id],
+    enabled: !!selected?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processes')
+        .select('id, number, title, status')
+        .eq('client_id', selected!.id)
+        .order('updated_at', { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
   const createClient = useCreateClient();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -159,7 +171,7 @@ export default function Clientes() {
     } finally { setSaving(false); }
   };
 
-  const clientProcesses = (c: any) => processes.filter((p: any) => p.client_id === c.id);
+  // clientProcs is loaded reactively from useQuery above when selected changes
 
   if (isLoading) {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
@@ -276,7 +288,7 @@ export default function Clientes() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((client: any) => {
-            const procs = clientProcesses(client);
+            // processes count shown from client record
             return (
               <div key={client.id}
                 className="bg-card rounded-lg p-5 shadow-card hover:shadow-card-hover transition-shadow duration-200 group cursor-pointer"
@@ -313,20 +325,7 @@ export default function Clientes() {
                   {client.phone && <div className="flex items-center gap-2"><Phone className="h-3.5 w-3.5" /><span>{client.phone}</span></div>}
                 </div>
 
-                {procs.length > 0 && (
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <Scale className="h-3 w-3" />
-                      <span>Processos ({procs.length})</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {procs.slice(0, 4).map((p: any) => (
-                        <Badge key={p.id} variant="outline" className="text-xs font-mono">#{p.number}</Badge>
-                      ))}
-                      {procs.length > 4 && <Badge variant="outline" className="text-xs">+{procs.length - 4}</Badge>}
-                    </div>
-                  </div>
-                )}
+
 
                 <div className="mt-4 pt-3 border-t flex items-center justify-between text-sm">
                   <Badge variant="outline" className={client.status === 'ativo'
@@ -432,7 +431,7 @@ export default function Clientes() {
 
                 {/* Processos do cliente */}
                 {(() => {
-                  const procs = clientProcesses(selected);
+                  const procs = clientProcs;
                   return procs.length > 0 ? (
                     <div>
                       <p className="text-xs text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
