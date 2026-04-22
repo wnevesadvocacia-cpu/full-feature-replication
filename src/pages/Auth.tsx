@@ -5,15 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Scale, Mail, Shield, Loader2, ArrowRight, RotateCcw, CheckCircle2 } from 'lucide-react';
+import {
+  Scale, Mail, Shield, Loader2, ArrowRight,
+  RotateCcw, Copy, CheckCircle2, Link2,
+} from 'lucide-react';
 
-type Step = 'email' | 'link-sent';
-
-const SITE_URL = 'https://wnevesadvocacia-cpu.github.io/full-feature-replication/';
+type Step = 'email' | 'waiting' | 'paste-url';
 
 export default function Auth() {
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
+  const [pastedUrl, setPastedUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
@@ -24,32 +26,31 @@ export default function Auth() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) navigate('/');
     });
+
+    // Also handle auth state change (PKCE callback, if ever URL is allowed)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) navigate('/');
+    });
+    return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Cooldown timer for resend
+  // Cooldown timer
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setInterval(() => setResendCooldown((c) => c - 1), 1000);
     return () => clearInterval(t);
   }, [resendCooldown]);
 
-  const sendMagicLink = async (emailAddr: string) => {
+  const sendLink = async (emailAddr: string) => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
         email: emailAddr,
-        options: {
-          shouldCreateUser: true,
-          emailRedirectTo: SITE_URL,
-        },
+        options: { shouldCreateUser: true },
       });
       if (error) throw error;
-      setStep('link-sent');
+      setStep('waiting');
       setResendCooldown(60);
-      toast({
-        title: 'Link enviado!',
-        description: `Verifique o email ${emailAddr} e clique no link de acesso.`,
-      });
     } catch (err: any) {
       toast({ title: 'Erro ao enviar link', description: err.message, variant: 'destructive' });
     } finally {
@@ -60,17 +61,59 @@ export default function Auth() {
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
-    await sendMagicLink(email.trim());
+    await sendLink(email.trim());
   };
 
   const handleResend = async () => {
     if (resendCooldown > 0) return;
-    await sendMagicLink(email);
+    await sendLink(email);
   };
 
-  const handleBack = () => {
-    setStep('email');
+  /* ── Extrai a sessão da URL colada pelo usuário ── */
+  const handleUrlAuth = async () => {
+    if (!pastedUrl.trim()) return;
+    setLoading(true);
+    try {
+      let url: URL;
+      try {
+        url = new URL(pastedUrl.trim());
+      } catch {
+        throw new Error('URL inválida. Copie a URL completa da barra de endereços.');
+      }
+
+      // Implicit flow: tokens estão no hash  (#access_token=...&refresh_token=...)
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ''));
+      const access_token  = hash.get('access_token');
+      const refresh_token = hash.get('refresh_token');
+
+      // PKCE flow: código está no query param (?code=...)
+      const code = url.searchParams.get('code');
+
+      if (access_token && refresh_token) {
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+        if (error) throw error;
+        navigate('/');
+        return;
+      }
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) throw error;
+        navigate('/');
+        return;
+      }
+
+      throw new Error(
+        'Não encontrei o token na URL. Certifique-se de copiar a URL completa da barra de endereços após clicar em "Log In" no email.'
+      );
+    } catch (err: any) {
+      toast({ title: 'Erro ao autenticar', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleBack = () => { setStep('email'); setPastedUrl(''); };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
@@ -87,7 +130,9 @@ export default function Auth() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          {step === 'email' ? (
+
+          {/* ── Step 1: email ── */}
+          {step === 'email' && (
             <>
               <div className="mb-6 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
@@ -101,9 +146,7 @@ export default function Auth() {
 
               <form onSubmit={handleEmailSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                    Email
-                  </Label>
+                  <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -115,13 +158,10 @@ export default function Auth() {
                     className="mt-1"
                   />
                 </div>
-
                 <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
-                  {loading ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</>
-                  ) : (
-                    <><ArrowRight className="h-4 w-4 mr-2" />Enviar link de acesso</>
-                  )}
+                  {loading
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando...</>
+                    : <><ArrowRight className="h-4 w-4 mr-2" />Enviar link de acesso</>}
                 </Button>
               </form>
 
@@ -130,28 +170,51 @@ export default function Auth() {
                 <span>Acesso seguro via link de uso unico. Sem senha necessaria.</span>
               </div>
             </>
-          ) : (
+          )}
+
+          {/* ── Step 2: waiting / instrucoes ── */}
+          {step === 'waiting' && (
             <>
-              <div className="mb-6 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+              <div className="mb-5 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mb-3">
+                  <Mail className="h-6 w-6 text-amber-600" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Verifique seu email</h2>
-                <p className="text-sm text-gray-500 mt-2">
-                  Enviamos um link de acesso para:
+                <h2 className="text-xl font-bold text-gray-900">Siga os passos</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Link enviado para <strong>{email}</strong>
                 </p>
-                <p className="text-sm font-semibold text-gray-800 mt-1">{email}</p>
               </div>
 
-              <div className="bg-blue-50 rounded-xl p-4 mb-6 text-center">
-                <Mail className="h-8 w-8 text-blue-500 mx-auto mb-2" />
-                <p className="text-sm text-blue-700 font-medium">
-                  Abra seu email e clique em <strong>"Log In"</strong>
-                </p>
-                <p className="text-xs text-blue-500 mt-1">
-                  O link abrira o WnevesBox automaticamente.
-                </p>
-              </div>
+              {/* Instrucoes numeradas */}
+              <ol className="space-y-3 text-sm mb-5">
+                <li className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                  <span className="text-gray-700 pt-0.5">Abra o email <strong>"Sign in to your account"</strong> e clique em <strong>"Log In"</strong></span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                  <span className="text-gray-700 pt-0.5">Voce vera uma pagina de erro — <strong>nao se preocupe</strong>, isso e temporario</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                  <span className="text-gray-700 pt-0.5">
+                    <strong>Copie a URL completa</strong> da barra de enderecos do navegador{' '}
+                    <span className="text-gray-400">(Ctrl+L depois Ctrl+C)</span>
+                  </span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+                  <span className="text-gray-700 pt-0.5">Clique em <strong>"Ja cliquei – colar URL"</strong> abaixo e cole a URL</span>
+                </li>
+              </ol>
+
+              <Button
+                onClick={() => setStep('paste-url')}
+                className="w-full bg-green-600 hover:bg-green-700 mb-3"
+              >
+                <Link2 className="h-4 w-4 mr-2" />
+                Ja cliquei – colar URL
+              </Button>
 
               <div className="flex items-center justify-between text-sm">
                 <button
@@ -162,25 +225,66 @@ export default function Auth() {
                   <ArrowRight className="h-3.5 w-3.5 rotate-180" />
                   Trocar email
                 </button>
-
                 <button
                   type="button"
                   onClick={handleResend}
                   disabled={resendCooldown > 0}
-                  className={`flex items-center gap-1 ${
-                    resendCooldown > 0
-                      ? 'text-gray-300 cursor-not-allowed'
-                      : 'text-blue-600 hover:text-blue-800'
-                  }`}
+                  className={`flex items-center gap-1 ${resendCooldown > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:text-blue-800'}`}
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
                   {resendCooldown > 0 ? `Reenviar em ${resendCooldown}s` : 'Reenviar link'}
                 </button>
               </div>
+            </>
+          )}
 
-              <div className="mt-4 pt-4 border-t border-gray-100 text-xs text-gray-400 text-center">
-                Nao encontrou? Verifique a pasta de spam.
+          {/* ── Step 3: colar URL ── */}
+          {step === 'paste-url' && (
+            <>
+              <div className="mb-5 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
+                  <Copy className="h-6 w-6 text-green-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Cole a URL aqui</h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Copie a URL da barra de enderecos e cole abaixo
+                </p>
               </div>
+
+              <div className="mb-4">
+                <Label className="text-sm font-medium text-gray-700">
+                  URL da barra de enderecos
+                </Label>
+                <textarea
+                  className="mt-1 w-full border-2 border-gray-300 rounded-lg p-3 text-xs font-mono focus:border-blue-500 focus:outline-none resize-none"
+                  rows={4}
+                  placeholder="https://lovable.dev/auth-bridge?...#access_token=..."
+                  value={pastedUrl}
+                  onChange={(e) => setPastedUrl(e.target.value)}
+                  autoFocus
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  A URL começa com <code className="bg-gray-100 px-1 rounded">https://</code> e contem o token de acesso
+                </p>
+              </div>
+
+              <Button
+                onClick={handleUrlAuth}
+                className="w-full bg-green-600 hover:bg-green-700"
+                disabled={loading || !pastedUrl.trim()}
+              >
+                {loading
+                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Autenticando...</>
+                  : <><CheckCircle2 className="h-4 w-4 mr-2" />Entrar com este link</>}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setStep('waiting')}
+                className="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-600"
+              >
+                ← Voltar para instrucoes
+              </button>
             </>
           )}
         </div>
