@@ -87,7 +87,10 @@ export default function Dashboard() {
           supabase.from('processes').select('*', { count: 'exact', head: true })
             .in('status', ['aguardando', 'pending']),
           supabase.from('clients').select('*', { count: 'exact', head: true }),
-          supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('completed', false),
+          supabase.from('tasks').select('*', { count: 'exact', head: true })
+            .eq('completed', false)
+            .not('assignee', 'eq', 'movimentacao')
+            .not('assignee', 'eq', 'documento'),
         ]);
 
         setStats({
@@ -113,6 +116,8 @@ export default function Dashboard() {
           .select('id, title, due_date, completed, process_id')
           .eq('completed', false)
           .not('due_date', 'is', null)
+          .not('assignee', 'eq', 'movimentacao')
+          .not('assignee', 'eq', 'documento')
           .order('due_date', { ascending: true })
           .limit(5);
         setUpcomingTasks(tasks ?? []);
