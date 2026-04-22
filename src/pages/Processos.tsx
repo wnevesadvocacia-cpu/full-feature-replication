@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -235,6 +236,7 @@ interface ProcessFormProps {
 
 function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [form, setForm] = useState<FormData>(
     initialData ? processToForm(initialData) : EMPTY_FORM
   );
@@ -258,7 +260,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
       } else {
         const { data, error } = await supabase
           .from('processes')
-          .insert({ ...payload, created_at: new Date().toISOString() })
+          .insert({ ...payload, created_at: new Date().toISOString(), user_id: user?.id })
           .select(FULL_SELECT)
           .single();
         if (error) throw error;
@@ -357,6 +359,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Processos() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(0);
@@ -384,6 +387,7 @@ export default function Processos() {
         ...payload,
         process_id: selected?.id,
         completed: false,
+        user_id: user?.id,
       });
       if (error) throw error;
     },
