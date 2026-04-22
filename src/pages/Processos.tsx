@@ -200,7 +200,7 @@ function useProcessDocumentos(processId: string | null) {
 // ── ProcessForm (create + edit) ───────────────────────────────────────────────
 type FormData = {
   number: string; title: string; status: string; type: string;
-  client_name: string; comarca: string; vara: string; tribunal: string;
+  client_id: string; client_name: string; comarca: string; vara: string; tribunal: string;
   opponent: string; phase: string; stage: string; responsible: string;
   lawyer: string; cause_value: string; honorarios_valor: string;
   honorarios_percent: string; contingency: string; observations: string;
@@ -209,7 +209,7 @@ type FormData = {
 
 const EMPTY_FORM: FormData = {
   number: '', title: '', status: 'novo', type: '',
-  client_name: '', comarca: '', vara: '', tribunal: '',
+  client_id: '', client_name: '', comarca: '', vara: '', tribunal: '',
   opponent: '', phase: '', stage: '', responsible: '',
   lawyer: '', cause_value: '', honorarios_valor: '',
   honorarios_percent: '', contingency: '', observations: '',
@@ -222,6 +222,7 @@ function processToForm(p: Process): FormData {
     title: p.title ?? '',
     status: p.status ?? 'novo',
     type: p.type ?? '',
+    client_id: p.client_id ?? '',
     client_name: p.client_name ?? '',
     comarca: p.comarca ?? '',
     vara: p.vara ?? '',
@@ -248,6 +249,7 @@ function formToPayload(f: FormData) {
     title: f.title,
     status: f.status,
     type: f.type || null,
+    client_id: f.client_id || null,
     client_name: f.client_name || null,
     comarca: f.comarca || null,
     vara: f.vara || null,
@@ -282,6 +284,26 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
     initialData ? processToForm(initialData) : EMPTY_FORM
   );
   const isEdit = !!initialData;
+
+  // Client lookup for linking process to client
+  const { data: clientList = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['client-list-proc'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name')
+        .order('name')
+        .limit(2000);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const id = e.target.value;
+    const found = clientList.find(c => c.id === id);
+    setForm(f => ({ ...f, client_id: id, client_name: found?.name ?? f.client_name }));
+  };
 
   const set = (k: keyof FormData) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
@@ -344,7 +366,25 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Cliente" field="client_name" />
+        <div>
+          <Label className="text-xs text-gray-500 uppercase tracking-wide">Cliente</Label>
+          <select
+            value={form.client_id}
+            onChange={handleClientChange}
+            className="mt-1 w-full text-sm border border-gray-200 rounded-md px-3 py-2 bg-white"
+          >
+            <option value="">— Selecionar cliente —</option>
+            {clientList.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+          {!form.client_id && (
+            <Input
+              className="mt-1 text-xs"
+              placeholder="Ou digite o nome manualmente"
+              value={form.client_name}
+              onChange={e => setForm(f => ({ ...f, client_name: e.target.value }))}
+            />
+          )}
+        </div>
         <Field label="Parte Contrária" field="opponent" />
       </div>
 
