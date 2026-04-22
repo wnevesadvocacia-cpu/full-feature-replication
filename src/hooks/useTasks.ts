@@ -10,6 +10,8 @@ export function useTasks() {
       const { data, error } = await supabase
         .from('tasks')
         .select('*, processes(number)')
+        .not('assignee', 'eq', 'movimentacao')
+        .not('assignee', 'eq', 'documento')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
