@@ -247,7 +247,7 @@ export default function Relatorios() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Calendar className="h-4 w-4" />
-              Processos Abertos â Ãltimos 12 Meses
+              Processos Abertos – Últimos 12 Meses
             </CardTitle>
           </CardHeader>
           <CardContent>
