@@ -511,9 +511,10 @@ export default function Agenda() {
           <div className="space-y-2">
             {selectedTasks.map(t => (
               <div key={t.id}
-                className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
+                onClick={() => setDetailTarget(t)}
+                className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group cursor-pointer hover:border-blue-300 hover:shadow-sm ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
                 <button
-                  onClick={() => toggleTask.mutate({ id: t.id, completed: !t.completed })}
+                  onClick={(e) => { e.stopPropagation(); toggleTask.mutate({ id: t.id, completed: !t.completed }); }}
                   className="mt-0.5 flex-shrink-0">
                   {t.completed
                     ? <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -535,7 +536,7 @@ export default function Agenda() {
                     <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
                   )}
                   {t.assignee && t.assignee !== 'agenda' && t.assignee !== 'movimentacao' && t.assignee !== 'documento' && (
-                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {t.assignee}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Responsável: {t.assignee}</p>
                   )}
                   {t.assignee === 'agenda' && (
                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-0.5 inline-block">AdvBox</span>
@@ -545,11 +546,11 @@ export default function Agenda() {
                   {priorityLabel[t.priority || 'media']}
                 </Badge>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(t); }}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600"
-                    onClick={() => setDeleteTarget(t)}>
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
