@@ -1,5 +1,13 @@
 import React from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+// Redirect Supabase implicit-flow recovery tokens to the correct HashRouter route
+if (typeof window !== 'undefined') {
+  const _h = window.location.hash;
+  if (_h && !_h.startsWith('#/') && _h.includes('access_token=')) {
+    window.location.replace(window.location.pathname + '?' + _h.substring(1) + '#/reset-password');
+  }
+}
 import { HashRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
