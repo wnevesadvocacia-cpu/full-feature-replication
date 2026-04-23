@@ -35,6 +35,11 @@ export default function Intimacoes() {
   const [filter, setFilter] = useState<'todas' | 'pendente' | 'tratada'>('pendente');
   const [form, setForm] = useState({ court: '', content: '', deadline: '' });
   const [syncing, setSyncing] = useState(false);
+  const [taskIntim, setTaskIntim] = useState<Intim | null>(null);
+  const [taskForm, setTaskForm] = useState({
+    title: '', description: '', assignee: '', priority: 'alta',
+    due_date: '', start_time: '', location: '',
+  });
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const t = todayISO();
     return isBusinessDay(t) ? t : previousBusinessDay(t);
@@ -86,30 +91,47 @@ export default function Intimacoes() {
   });
 
   const toTask = useMutation({
-    mutationFn: async (it: Intim) => {
-      // Sanitiza HTML do conteúdo para texto puro antes de salvar
-      const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
+      const { intim, form: tf } = payload;
       const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
-        title: `Intimação: ${plain.slice(0, 80)}`,
-        description: plain,
-        due_date: it.deadline,
-        priority: 'alta',
+        title: tf.title || `Intimação: ${intim.court || 'sem tribunal'}`,
+        description: tf.description || null,
+        assignee: tf.assignee || null,
+        due_date: tf.due_date || null,
+        start_time: tf.start_time || null,
+        location: tf.location || null,
+        priority: tf.priority,
         status: 'pendente',
-        process_id: it.process_id,
+        process_id: intim.process_id,
       }).select().single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
+      setTaskIntim(null);
       toast({
-        title: 'Tarefa criada com sucesso',
-        description: 'Acesse o módulo Tarefas para visualizar.',
+        title: 'Tarefa delegada com sucesso',
+        description: 'Acesse o módulo Tarefas para acompanhar.',
       });
     },
     onError: (e: any) => toast({ title: 'Erro ao criar tarefa', description: e.message, variant: 'destructive' }),
   });
+
+  const openTaskDialog = (it: Intim) => {
+    const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    setTaskForm({
+      title: `Intimação: ${plain.slice(0, 60)}${plain.length > 60 ? '…' : ''}`,
+      description: plain,
+      assignee: '',
+      priority: 'alta',
+      due_date: it.deadline ? it.deadline.slice(0, 10) : '',
+      start_time: '',
+      location: it.court || '',
+    });
+    setTaskIntim(it);
+  };
 
   // Contagem por dia (para mostrar badges no seletor)
   const countsByDate = useMemo(() => {
@@ -219,7 +241,7 @@ export default function Intimacoes() {
                 <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
               </div>
               <div className="flex flex-col gap-1 shrink-0">
-                <Button size="sm" variant="outline" onClick={() => toTask.mutate(it)}>
+                <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
                   <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
                 </Button>
                 {it.status !== 'tratada' && (
@@ -246,6 +268,97 @@ export default function Intimacoes() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={() => create.mutate()} disabled={!form.content || create.isPending}>
               {create.isPending ? 'Salvando…' : 'Registrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de delegação de tarefa */}
+      <Dialog open={!!taskIntim} onOpenChange={(o) => { if (!o) setTaskIntim(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" /> Delegar Tarefa da Intimação
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div>
+              <Label>Título *</Label>
+              <Input
+                value={taskForm.title}
+                onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                placeholder="Resumo da tarefa"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Descrição / Detalhes</Label>
+              <Textarea
+                rows={4}
+                value={taskForm.description}
+                onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Responsável</Label>
+                <Input
+                  value={taskForm.assignee}
+                  onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}
+                  placeholder="Nome do advogado"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Prioridade</Label>
+                <select
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={taskForm.priority}
+                  onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                >
+                  <option value="alta">Alta</option>
+                  <option value="media">Média</option>
+                  <option value="baixa">Baixa</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Prazo</Label>
+                <Input
+                  type="date"
+                  value={taskForm.due_date}
+                  onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Horário</Label>
+                <Input
+                  type="time"
+                  value={taskForm.start_time}
+                  onChange={(e) => setTaskForm({ ...taskForm, start_time: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Local / Tribunal</Label>
+              <Input
+                value={taskForm.location}
+                onChange={(e) => setTaskForm({ ...taskForm, location: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
+            <Button
+              onClick={() => taskIntim && toTask.mutate({ intim: taskIntim, form: taskForm })}
+              disabled={!taskForm.title || toTask.isPending}
+            >
+              {toTask.isPending ? 'Criando…' : 'Criar e Delegar'}
             </Button>
           </DialogFooter>
         </DialogContent>
