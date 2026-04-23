@@ -13,7 +13,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { FileText, FileImage, File, Trash2, Download, Search, FolderOpen, Upload, Pencil, AlertTriangle } from 'lucide-react';
+import { FileText, FileImage, File, Trash2, Download, Search, FolderOpen, Upload, Pencil, AlertTriangle, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface DocumentoItem {
@@ -113,6 +113,38 @@ export default function Documentos() {
   const [deleteTarget, setDeleteTarget] = useState<DocumentoItem | null>(null);
   const [form, setForm] = useState(EMPTY_FORM());
   const [saving, setSaving] = useState(false);
+  const [ocrTarget, setOcrTarget] = useState<DocumentoItem | null>(null);
+  const [ocrText, setOcrText] = useState('');
+  const [ocrLoading, setOcrLoading] = useState(false);
+
+  const runOcr = async (doc: DocumentoItem) => {
+    if (!doc.mime_type?.startsWith('image/') && doc.mime_type !== 'application/pdf') {
+      toast({ title: 'OCR indisponível', description: 'Apenas imagens (JPG/PNG) ou PDFs.', variant: 'destructive' });
+      return;
+    }
+    setOcrTarget(doc);
+    setOcrText('');
+    setOcrLoading(true);
+    try {
+      const { data: signed, error: sErr } = await supabase.storage.from(BUCKET).createSignedUrl(doc.storage_path, 60);
+      if (sErr || !signed) throw sErr ?? new Error('URL inválida');
+      const fileResp = await fetch(signed.signedUrl);
+      const blob = await fileResp.blob();
+      const buf = await blob.arrayBuffer();
+      let bin = '';
+      const bytes = new Uint8Array(buf);
+      for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+      const base64 = btoa(bin);
+      const { data, error } = await supabase.functions.invoke('ocr-documento', {
+        body: { imageBase64: base64, mimeType: doc.mime_type },
+      });
+      if (error) throw error;
+      setOcrText(data?.text || '(sem texto extraído)');
+    } catch (e: any) {
+      toast({ title: 'Erro OCR', description: e.message, variant: 'destructive' });
+      setOcrTarget(null);
+    } finally { setOcrLoading(false); }
+  };
 
   const { data: docs = [], isLoading } = useDocumentos(search);
   const { data: processes = [] } = useProcessList();
@@ -279,6 +311,12 @@ export default function Documentos() {
                       {doc.description && <p className="text-xs text-gray-500 mt-1 truncate">{doc.description}</p>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
+                      <Button variant="ghost" size="icon"
+                        className="text-purple-500 hover:text-purple-700"
+                        onClick={() => runOcr(doc)}
+                        title="Extrair texto (OCR)">
+                        <Sparkles className="h-4 w-4" />
+                      </Button>
                       <Button variant="ghost" size="icon"
                         className="text-blue-500 hover:text-blue-700"
                         onClick={() => handleDownload(doc)}
@@ -456,6 +494,34 @@ export default function Documentos() {
             <Button variant="destructive" onClick={handleDelete} disabled={saving}>
               {saving ? 'Removendo…' : 'Remover'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* OCR Dialog */}
+      <Dialog open={!!ocrTarget} onOpenChange={(o) => { if (!o) { setOcrTarget(null); setOcrText(''); } }}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              OCR — {ocrTarget?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto py-2">
+            {ocrLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                <p className="text-sm text-muted-foreground">Extraindo texto com IA…</p>
+              </div>
+            ) : (
+              <pre className="text-xs whitespace-pre-wrap font-mono bg-muted/40 p-4 rounded">{ocrText}</pre>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { navigator.clipboard.writeText(ocrText); toast({ title: 'Copiado!' }); }} disabled={!ocrText}>
+              Copiar texto
+            </Button>
+            <Button onClick={() => { setOcrTarget(null); setOcrText(''); }}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
