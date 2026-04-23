@@ -435,14 +435,21 @@ export default function Agenda() {
                   <p className={`font-medium ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                     {t.title}
                   </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-500">
+                    {t.event_type && <span className="font-medium text-gray-600">{t.event_type}</span>}
+                    {(t.start_time || t.end_time) && (
+                      <span>🕐 {t.start_time?.slice(0,5) ?? ''}{t.end_time ? ` – ${t.end_time.slice(0,5)}` : ''}</span>
+                    )}
+                    {t.location && <span>📍 {t.location}</span>}
+                  </div>
                   {t.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{t.description}</p>}
                   {t.processes && (
                     <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
                   )}
-                  {(t as any).assignee && (t as any).assignee !== 'agenda' && (t as any).assignee !== 'movimentacao' && (t as any).assignee !== 'documento' && (
-                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {(t as any).assignee}</p>
+                  {t.assignee && t.assignee !== 'agenda' && t.assignee !== 'movimentacao' && t.assignee !== 'documento' && (
+                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {t.assignee}</p>
                   )}
-                  {(t as any).assignee === 'agenda' && (
+                  {t.assignee === 'agenda' && (
                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-0.5 inline-block">AdvBox</span>
                   )}
                 </div>
