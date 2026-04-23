@@ -41,21 +41,69 @@ async function fetchDjen(oab: string, uf: string, daysBack = 30): Promise<DjenIt
   return all;
 }
 
+function cleanHtml(raw: string): string {
+  if (!raw) return '';
+  return raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function extractDeadline(text: string, receivedAt: string): string | null {
+  // Procura "prazo de X dias" no texto
+  const match = text.match(/prazo[\s\S]{0,30}?(\d{1,3})\s*dias/i);
+  if (!match) return null;
+  const days = parseInt(match[1], 10);
+  if (!days || days > 365) return null;
+  const base = new Date(receivedAt);
+  base.setDate(base.getDate() + days);
+  return base.toISOString().slice(0, 10);
+}
+
+async function findProcessId(supabase: any, userId: string, numero?: string): Promise<string | null> {
+  if (!numero) return null;
+  const { data } = await supabase.from('processes').select('id').eq('user_id', userId).eq('number', numero).limit(1).maybeSingle();
+  return data?.id || null;
+}
+
 async function syncForUser(supabase: any, row: any) {
   const items = await fetchDjen(row.oab_number, row.oab_uf, 30);
   let inserted = 0;
   for (const it of items) {
     const externalId = String(it.hash || it.id || `${it.numero_processo}-${it.data_disponibilizacao}`);
+    const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
+    const receivedAt = it.data_disponibilizacao || new Date().toISOString().slice(0, 10);
+    const deadline = extractDeadline(cleanText, receivedAt);
+    const processId = await findProcessId(supabase, row.user_id, it.numero_processo);
     const { error } = await supabase.from('intimations').insert({
       user_id: row.user_id,
       external_id: externalId,
       source: 'djen',
       court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? ' - ' + it.nomeOrgao : ''}` : it.nomeOrgao,
-      content: it.texto || it.tipoComunicacao || 'Sem conteúdo',
-      received_at: it.data_disponibilizacao || new Date().toISOString().slice(0, 10),
+      content: cleanText,
+      received_at: receivedAt,
+      deadline,
+      process_id: processId,
       status: 'pendente',
     });
-    if (!error) inserted++;
+    if (!error) {
+      inserted++;
+      // Notificação para o usuário
+      await supabase.from('notifications').insert({
+        user_id: row.user_id,
+        title: 'Nova intimação DJEN',
+        message: `${it.siglaTribunal || 'Tribunal'} - ${it.numero_processo || 'Processo'}${deadline ? ` (prazo: ${deadline})` : ''}`,
+        type: 'warning',
+        link: '/intimacoes',
+      });
+    }
     // Erros de unique violation (23505) são ignorados — significa duplicata
   }
   await supabase.from('oab_settings').update({ last_sync_at: new Date().toISOString() }).eq('id', row.id);
