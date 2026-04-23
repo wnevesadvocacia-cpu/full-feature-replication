@@ -158,7 +158,7 @@ export default function Agenda() {
   };
 
   const handleCreate = async () => {
-    if (!form.title.trim() || !form.process_id) return;
+    if (!form.title.trim() || !form.process_id || !form.due_date || !form.assignee.trim()) return;
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').insert({
@@ -182,7 +182,7 @@ export default function Agenda() {
   };
 
   const handleEdit = async () => {
-    if (!editTarget || !form.title.trim() || !form.process_id) return;
+    if (!editTarget || !form.title.trim() || !form.process_id || !form.due_date || !form.assignee.trim()) return;
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
@@ -391,6 +391,9 @@ export default function Agenda() {
                   {t.processes && (
                     <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
                   )}
+                  {(t as any).assignee && (t as any).assignee !== 'agenda' && (t as any).assignee !== 'movimentacao' && (t as any).assignee !== 'documento' && (
+                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {(t as any).assignee}</p>
+                  )}
                   {(t as any).assignee === 'agenda' && (
                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-0.5 inline-block">AdvBox</span>
                   )}
@@ -420,7 +423,7 @@ export default function Agenda() {
           <FormBody />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title || !form.process_id || saving}>
+            <Button onClick={handleCreate} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
               {saving ? 'Salvando…' : 'Salvar'}
             </Button>
           </DialogFooter>
@@ -434,7 +437,7 @@ export default function Agenda() {
           <FormBody isEdit />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || !form.process_id || saving}>
+            <Button onClick={handleEdit} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
