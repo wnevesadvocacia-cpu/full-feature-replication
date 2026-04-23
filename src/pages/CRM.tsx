@@ -66,11 +66,23 @@ export default function CRM() {
     onError: (e: any) => toast({ title: 'Erro ao mover', description: e.message, variant: 'destructive' }),
   });
 
+  // Map raw DB statuses → visual columns
+  const STATUS_MAP: Record<string, string> = {
+    prospecto: 'prospecto',
+    novo: 'novo',
+    ativo: 'ativo',
+    em_andamento: 'ativo',
+    suspenso: 'ativo',
+    recursal: 'recursal',
+    arquivado: 'arquivado',
+    concluido: 'arquivado',
+  };
+
   const grouped = useMemo(() => {
     const m: Record<string, any[]> = {};
     COLUMNS.forEach((c) => (m[c.key] = []));
     (processes as any[]).forEach((p) => {
-      const k = COLUMNS.find((c) => c.key === p.status)?.key || 'novo';
+      const k = STATUS_MAP[p.status] || 'novo';
       m[k].push(p);
     });
     return m;

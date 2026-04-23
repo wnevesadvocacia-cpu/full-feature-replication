@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // Redirect Supabase implicit-flow recovery tokens to the correct HashRouter route
@@ -17,33 +17,35 @@ import AppLayout from "@/components/AppLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
-import Dashboard from "./pages/Dashboard";
-import Processos from "./pages/Processos";
-import Tarefas from "./pages/Tarefas";
-import Financeiro from "./pages/Financeiro";
-import Clientes from "./pages/Clientes";
-import Agenda from "./pages/Agenda";
-import Documentos from "./pages/Documentos";
-import Relatorios from "./pages/Relatorios";
-import Configuracoes from "./pages/Configuracoes";
-import Movimentacoes from "./pages/Movimentacoes";
-import CRM from "./pages/CRM";
-import Modelos from "./pages/Modelos";
-import Intimacoes from "./pages/Intimacoes";
-import Notificacoes from "./pages/Notificacoes";
-import Equipe from "./pages/Equipe";
-import GeradorPecas from "./pages/GeradorPecas";
-import Timesheet from "./pages/Timesheet";
-import Honorarios from "./pages/Honorarios";
-import Despesas from "./pages/Despesas";
-import FluxoCaixa from "./pages/FluxoCaixa";
-import PortalAcessos from "./pages/PortalAcessos";
-import PortalCliente from "./pages/PortalCliente";
-import Assinaturas from "./pages/Assinaturas";
-import ImportarAdvbox from "./pages/ImportarAdvbox";
-import Versoes from "./pages/Versoes";
-import KanbanConfig from "./pages/KanbanConfig";
-import NotFound from "./pages/NotFound";
+
+// Lazy-loaded routes (code splitting)
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Processos = lazy(() => import("./pages/Processos"));
+const Tarefas = lazy(() => import("./pages/Tarefas"));
+const Financeiro = lazy(() => import("./pages/Financeiro"));
+const Clientes = lazy(() => import("./pages/Clientes"));
+const Agenda = lazy(() => import("./pages/Agenda"));
+const Documentos = lazy(() => import("./pages/Documentos"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Movimentacoes = lazy(() => import("./pages/Movimentacoes"));
+const CRM = lazy(() => import("./pages/CRM"));
+const Modelos = lazy(() => import("./pages/Modelos"));
+const Intimacoes = lazy(() => import("./pages/Intimacoes"));
+const Notificacoes = lazy(() => import("./pages/Notificacoes"));
+const Equipe = lazy(() => import("./pages/Equipe"));
+const GeradorPecas = lazy(() => import("./pages/GeradorPecas"));
+const Timesheet = lazy(() => import("./pages/Timesheet"));
+const Honorarios = lazy(() => import("./pages/Honorarios"));
+const Despesas = lazy(() => import("./pages/Despesas"));
+const FluxoCaixa = lazy(() => import("./pages/FluxoCaixa"));
+const PortalAcessos = lazy(() => import("./pages/PortalAcessos"));
+const PortalCliente = lazy(() => import("./pages/PortalCliente"));
+const Assinaturas = lazy(() => import("./pages/Assinaturas"));
+const ImportarAdvbox = lazy(() => import("./pages/ImportarAdvbox"));
+const Versoes = lazy(() => import("./pages/Versoes"));
+const KanbanConfig = lazy(() => import("./pages/KanbanConfig"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,12 +71,12 @@ class PageErrorBoundary extends React.Component<{ children: React.ReactNode }, E
       return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
           <div className="text-4xl">⚠️</div>
-          <h2 className="text-xl font-semibold text-gray-800">Erro ao carregar página</h2>
-          <p className="text-sm text-gray-500 max-w-md">
+          <h2 className="text-xl font-semibold text-foreground">Erro ao carregar página</h2>
+          <p className="text-sm text-muted-foreground max-w-md">
             {this.state.error?.message ?? 'Erro desconhecido'}
           </p>
           <button
-            className="mt-2 px-4 py-2 bg-primary text-white rounded-md text-sm"
+            className="mt-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm"
             onClick={() => this.setState({ hasError: false, error: undefined })}
           >
             Tentar novamente
@@ -85,6 +87,13 @@ class PageErrorBoundary extends React.Component<{ children: React.ReactNode }, E
     return this.props.children;
   }
 }
+
+// ── Suspense fallback ─────────────────────────────────────────────────────────
+const RouteFallback = () => (
+  <div className="flex items-center justify-center min-h-[60vh]">
+    <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+  </div>
+);
 
 // ── ProtectedRoute ────────────────────────────────────────────────────────────
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -103,6 +112,14 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const wrap = (El: React.ComponentType) => (
+  <PageErrorBoundary>
+    <Suspense fallback={<RouteFallback />}>
+      <El />
+    </Suspense>
+  </PageErrorBoundary>
+);
+
 // ── App ───────────────────────────────────────────────────────────────────────
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -115,7 +132,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/portal/:token" element={<PortalCliente />} />
+            <Route path="/portal/:token" element={wrap(PortalCliente)} />
             <Route
               element={
                 <ProtectedRoute>
@@ -123,33 +140,33 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route path="/dashboard"     element={<PageErrorBoundary><Dashboard /></PageErrorBoundary>} />
-              <Route path="/processos"     element={<PageErrorBoundary><Processos /></PageErrorBoundary>} />
-              <Route path="/tarefas"       element={<PageErrorBoundary><Tarefas /></PageErrorBoundary>} />
-              <Route path="/financeiro"    element={<PageErrorBoundary><Financeiro /></PageErrorBoundary>} />
-              <Route path="/clientes"      element={<PageErrorBoundary><Clientes /></PageErrorBoundary>} />
-              <Route path="/agenda"        element={<PageErrorBoundary><Agenda /></PageErrorBoundary>} />
-              <Route path="/documentos"    element={<PageErrorBoundary><Documentos /></PageErrorBoundary>} />
-              <Route path="/relatorios"    element={<PageErrorBoundary><Relatorios /></PageErrorBoundary>} />
-              <Route path="/configuracoes" element={<PageErrorBoundary><Configuracoes /></PageErrorBoundary>} />
-              <Route path="/movimentacoes" element={<PageErrorBoundary><Movimentacoes /></PageErrorBoundary>} />
-              <Route path="/crm"           element={<PageErrorBoundary><CRM /></PageErrorBoundary>} />
-              <Route path="/modelos"       element={<PageErrorBoundary><Modelos /></PageErrorBoundary>} />
-              <Route path="/intimacoes"    element={<PageErrorBoundary><Intimacoes /></PageErrorBoundary>} />
-              <Route path="/notificacoes"  element={<PageErrorBoundary><Notificacoes /></PageErrorBoundary>} />
-              <Route path="/equipe"        element={<PageErrorBoundary><Equipe /></PageErrorBoundary>} />
-              <Route path="/gerador-pecas" element={<PageErrorBoundary><GeradorPecas /></PageErrorBoundary>} />
-              <Route path="/timesheet"     element={<PageErrorBoundary><Timesheet /></PageErrorBoundary>} />
-              <Route path="/honorarios"    element={<PageErrorBoundary><Honorarios /></PageErrorBoundary>} />
-              <Route path="/despesas"      element={<PageErrorBoundary><Despesas /></PageErrorBoundary>} />
-              <Route path="/fluxo-caixa"   element={<PageErrorBoundary><FluxoCaixa /></PageErrorBoundary>} />
-              <Route path="/portal-acessos" element={<PageErrorBoundary><PortalAcessos /></PageErrorBoundary>} />
-              <Route path="/assinaturas"   element={<PageErrorBoundary><Assinaturas /></PageErrorBoundary>} />
-              <Route path="/importar"      element={<PageErrorBoundary><ImportarAdvbox /></PageErrorBoundary>} />
-              <Route path="/versoes"       element={<PageErrorBoundary><Versoes /></PageErrorBoundary>} />
-              <Route path="/kanban-config" element={<PageErrorBoundary><KanbanConfig /></PageErrorBoundary>} />
+              <Route path="/dashboard"     element={wrap(Dashboard)} />
+              <Route path="/processos"     element={wrap(Processos)} />
+              <Route path="/tarefas"       element={wrap(Tarefas)} />
+              <Route path="/financeiro"    element={wrap(Financeiro)} />
+              <Route path="/clientes"      element={wrap(Clientes)} />
+              <Route path="/agenda"        element={wrap(Agenda)} />
+              <Route path="/documentos"    element={wrap(Documentos)} />
+              <Route path="/relatorios"    element={wrap(Relatorios)} />
+              <Route path="/configuracoes" element={wrap(Configuracoes)} />
+              <Route path="/movimentacoes" element={wrap(Movimentacoes)} />
+              <Route path="/crm"           element={wrap(CRM)} />
+              <Route path="/modelos"       element={wrap(Modelos)} />
+              <Route path="/intimacoes"    element={wrap(Intimacoes)} />
+              <Route path="/notificacoes"  element={wrap(Notificacoes)} />
+              <Route path="/equipe"        element={wrap(Equipe)} />
+              <Route path="/gerador-pecas" element={wrap(GeradorPecas)} />
+              <Route path="/timesheet"     element={wrap(Timesheet)} />
+              <Route path="/honorarios"    element={wrap(Honorarios)} />
+              <Route path="/despesas"      element={wrap(Despesas)} />
+              <Route path="/fluxo-caixa"   element={wrap(FluxoCaixa)} />
+              <Route path="/portal-acessos" element={wrap(PortalAcessos)} />
+              <Route path="/assinaturas"   element={wrap(Assinaturas)} />
+              <Route path="/importar"      element={wrap(ImportarAdvbox)} />
+              <Route path="/versoes"       element={wrap(Versoes)} />
+              <Route path="/kanban-config" element={wrap(KanbanConfig)} />
             </Route>
-            <Route path="*" element={<NotFound />} />
+            <Route path="*" element={wrap(NotFound)} />
           </Routes>
         </AuthProvider>
       </HashRouter>
