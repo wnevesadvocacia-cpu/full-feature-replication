@@ -16,36 +16,51 @@ export type Database = {
     Tables: {
       clients: {
         Row: {
+          birth_date: string | null
           created_at: string
           document: string | null
           email: string | null
           id: string
+          marital_status: string | null
           name: string
+          nationality: string | null
+          occupation: string | null
           phone: string | null
+          rg: string | null
           status: string
           type: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          birth_date?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
           id?: string
+          marital_status?: string | null
           name: string
+          nationality?: string | null
+          occupation?: string | null
           phone?: string | null
+          rg?: string | null
           status?: string
           type?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          birth_date?: string | null
           created_at?: string
           document?: string | null
           email?: string | null
           id?: string
+          marital_status?: string | null
           name?: string
+          nationality?: string | null
+          occupation?: string | null
           phone?: string | null
+          rg?: string | null
           status?: string
           type?: string
           updated_at?: string
@@ -103,48 +118,180 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          fatura_vencida: boolean
+          id: string
+          nova_tarefa: boolean
+          novo_cliente: boolean
+          tarefa_concluida: boolean
+          updated_at: string
+          user_id: string
+          vencimento_processo: boolean
+        }
+        Insert: {
+          created_at?: string
+          fatura_vencida?: boolean
+          id?: string
+          nova_tarefa?: boolean
+          novo_cliente?: boolean
+          tarefa_concluida?: boolean
+          updated_at?: string
+          user_id: string
+          vencimento_processo?: boolean
+        }
+        Update: {
+          created_at?: string
+          fatura_vencida?: boolean
+          id?: string
+          nova_tarefa?: boolean
+          novo_cliente?: boolean
+          tarefa_concluida?: boolean
+          updated_at?: string
+          user_id?: string
+          vencimento_processo?: boolean
+        }
+        Relationships: []
+      }
+      office_settings: {
+        Row: {
+          cidade: string | null
+          cnpj: string | null
+          created_at: string
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          id: string
+          nome: string | null
+          site: string | null
+          telefone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome?: string | null
+          site?: string | null
+          telefone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome?: string | null
+          site?: string | null
+          telefone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       processes: {
         Row: {
+          cause_value: number | null
           client_id: string | null
+          client_name: string | null
+          closing_date: string | null
+          comarca: string | null
+          contingency: number | null
           created_at: string
           due_date: string | null
+          honorarios_percent: number | null
+          honorarios_valor: number | null
           id: string
+          last_update: string | null
           lawyer: string | null
           number: string
+          observations: string | null
+          opponent: string | null
+          phase: string | null
+          request_date: string | null
+          responsible: string | null
+          result: string | null
+          stage: string | null
           status: string
           title: string
+          tribunal: string | null
           type: string | null
           updated_at: string
           user_id: string
           value: number | null
+          vara: string | null
         }
         Insert: {
+          cause_value?: number | null
           client_id?: string | null
+          client_name?: string | null
+          closing_date?: string | null
+          comarca?: string | null
+          contingency?: number | null
           created_at?: string
           due_date?: string | null
+          honorarios_percent?: number | null
+          honorarios_valor?: number | null
           id?: string
+          last_update?: string | null
           lawyer?: string | null
           number: string
+          observations?: string | null
+          opponent?: string | null
+          phase?: string | null
+          request_date?: string | null
+          responsible?: string | null
+          result?: string | null
+          stage?: string | null
           status?: string
           title: string
+          tribunal?: string | null
           type?: string | null
           updated_at?: string
           user_id: string
           value?: number | null
+          vara?: string | null
         }
         Update: {
+          cause_value?: number | null
           client_id?: string | null
+          client_name?: string | null
+          closing_date?: string | null
+          comarca?: string | null
+          contingency?: number | null
           created_at?: string
           due_date?: string | null
+          honorarios_percent?: number | null
+          honorarios_valor?: number | null
           id?: string
+          last_update?: string | null
           lawyer?: string | null
           number?: string
+          observations?: string | null
+          opponent?: string | null
+          phase?: string | null
+          request_date?: string | null
+          responsible?: string | null
+          result?: string | null
+          stage?: string | null
           status?: string
           title?: string
+          tribunal?: string | null
           type?: string | null
           updated_at?: string
           user_id?: string
           value?: number | null
+          vara?: string | null
         }
         Relationships: [
           {
