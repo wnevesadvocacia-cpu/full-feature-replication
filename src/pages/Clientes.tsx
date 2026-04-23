@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Plus, Search, Mail, Phone, MoreHorizontal, Loader2, Scale,
-  Pencil, Trash2, AlertTriangle, User, FileText, X,
+  Pencil, Trash2, AlertTriangle, User, FileText, X, DollarSign,
 } from 'lucide-react';
 import { useClients, useCreateClient } from '@/hooks/useClients';
 import { useQuery } from '@tanstack/react-query';
@@ -159,7 +159,7 @@ export default function Clientes() {
           occupation: form.occupation || null,
           status: form.status,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', editTarget.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['clients'] });
