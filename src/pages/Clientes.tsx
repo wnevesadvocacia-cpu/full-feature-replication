@@ -84,6 +84,22 @@ export default function Clientes() {
       return data ?? [];
     },
   });
+  // Invoices for selected client
+  const { data: clientInvoices = [] } = useQuery({
+    queryKey: ['client-invoices', selected?.id],
+    enabled: !!selected?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, number, amount, status, due_date')
+        .eq('client_id', selected!.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
   const createClient = useCreateClient();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -429,6 +445,23 @@ export default function Clientes() {
                     </div>
                   )}
                 </div>
+
+                {/* Faturas do cliente */}
+                {clientInvoices.length > 0 && (() => {
+                  const total = clientInvoices.reduce((s: number, i: any) => s + Number(i.amount), 0);
+                  const paid = clientInvoices.filter((i: any) => i.status === 'pago').reduce((s: number, i: any) => s + Number(i.amount), 0);
+                  return (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" /> Faturas ({clientInvoices.length}) — Total: {total.toLocaleString('pt-BR', {style:'currency',currency:'BRL'})}
+                      </p>
+                      <div className="flex gap-3 text-xs">
+                        <span className="text-green-600">Recebido: {paid.toLocaleString('pt-BR', {style:'currency',currency:'BRL'})}</span>
+                        <span className="text-yellow-600">Pendente: {(total - paid).toLocaleString('pt-BR', {style:'currency',currency:'BRL'})}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Processos do cliente */}
                 {(() => {

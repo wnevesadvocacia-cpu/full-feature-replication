@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, ChevronLeft, ChevronRight, Plus,
   User, MapPin, Gavel, Calendar, DollarSign, MessageSquare, X,
-  Pencil, Trash2, Check, AlertTriangle, Clock, FileText,
+  Pencil, Trash2, Check, AlertTriangle, Clock, FileText, Download,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
@@ -98,6 +98,25 @@ const ALL_STATUSES = [
 
 const PAGE_SIZE = 50;
 const EMPTY = '—';
+
+function exportToCSV(rows: Process[]) {
+  const headers = ['Número','Título','Cliente','Parte Contrária','Status','Tipo','Comarca','Vara','Advogado','Valor Causa','Observações'];
+  const escape = (v: string | null | undefined) => {
+    const s = v ?? '';
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s;
+  };
+  const rows2 = rows.map(p => [
+    p.number, p.title, p.client_name, p.opponent, p.status,
+    p.type, p.comarca, p.vara, p.lawyer ?? p.responsible,
+    p.cause_value != null ? String(p.cause_value) : '',
+    p.observations,
+  ].map(escape).join(','));
+  const csv = [headers.join(','), ...rows2].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'processos.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
 
 function formatCurrency(v: number | null) {
   if (v == null) return EMPTY;
@@ -583,9 +602,14 @@ export default function Processos() {
             </span>
           )}
         </h1>
-        <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> Novo Processo
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => exportToCSV(rows)} disabled={rows.length === 0}>
+            <Download className="h-4 w-4 mr-2" /> Exportar CSV
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> Novo Processo
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
