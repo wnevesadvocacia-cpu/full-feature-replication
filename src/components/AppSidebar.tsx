@@ -25,6 +25,7 @@ import {
   Database,
   History,
   Settings2,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -67,6 +68,7 @@ const secondaryNav = [
   { title: 'Versões de Petições', url: '/versoes', icon: History },
   { title: 'Personalizar Kanban', url: '/kanban-config', icon: Settings2 },
   { title: 'Importar Informações', url: '/importar', icon: Database },
+  { title: 'Auditoria', url: '/auditoria', icon: ShieldCheck },
 ];
 
 export function AppSidebar() {
