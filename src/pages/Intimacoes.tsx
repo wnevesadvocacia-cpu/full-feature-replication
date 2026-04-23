@@ -35,6 +35,11 @@ export default function Intimacoes() {
   const [filter, setFilter] = useState<'todas' | 'pendente' | 'tratada'>('pendente');
   const [form, setForm] = useState({ court: '', content: '', deadline: '' });
   const [syncing, setSyncing] = useState(false);
+  const [taskIntim, setTaskIntim] = useState<Intim | null>(null);
+  const [taskForm, setTaskForm] = useState({
+    title: '', description: '', assignee: '', priority: 'alta',
+    due_date: '', start_time: '', location: '',
+  });
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const t = todayISO();
     return isBusinessDay(t) ? t : previousBusinessDay(t);
