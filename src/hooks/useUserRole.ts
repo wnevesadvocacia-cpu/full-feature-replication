@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export type AppRole = 'admin' | 'advogado' | 'estagiario' | 'financeiro';
+export type AppRole = 'admin' | 'advogado' | 'estagiario' | 'financeiro' | 'gerente';
 
 export function useUserRoles() {
   const { user } = useAuth();
@@ -23,4 +23,10 @@ export function useUserRoles() {
 export function useIsAdmin() {
   const { data: roles = [] } = useUserRoles();
   return roles.includes('admin');
+}
+
+/** Apenas admin e gerente podem excluir registros do sistema. */
+export function useCanDelete() {
+  const { data: roles = [] } = useUserRoles();
+  return roles.includes('admin') || roles.includes('gerente');
 }
