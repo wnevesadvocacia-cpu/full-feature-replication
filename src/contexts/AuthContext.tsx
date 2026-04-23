@@ -28,10 +28,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // the stored session, eliminating the lock-contention from a second
     // getSession() call that caused the 5-second blank-screen deadlock.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        if (event === 'PASSWORD_RECOVERY') window.location.hash = '/reset-password';
       }
     );
 
