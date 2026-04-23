@@ -51,7 +51,7 @@ async function syncForUser(supabase: any, row: any) {
       external_id: externalId,
       source: 'djen',
       court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? ' - ' + it.nomeOrgao : ''}` : it.nomeOrgao,
-      content: (it.texto || '').slice(0, 5000) || (it.tipoComunicacao || 'Sem conteúdo'),
+      content: it.texto || it.tipoComunicacao || 'Sem conteúdo',
       received_at: it.data_disponibilizacao || new Date().toISOString().slice(0, 10),
       status: 'pendente',
     });
