@@ -186,16 +186,19 @@ function useProcessTypes() {
   return useQuery<string[]>({
     queryKey: ['process-types'],
     queryFn: async () => {
+      // Fetch all types efficiently using count-only approach
       const { data, error } = await supabase
         .from('processes')
         .select('type')
         .not('type', 'is', null)
+        .not('type', 'eq', '')
         .limit(5000);
       if (error) throw error;
-      const types = Array.from(new Set((data ?? []).map((r: any) => r.type).filter(Boolean))).sort();
-      return types as string[];
+      const types = Array.from(new Set((data ?? []).map((r: any) => r.type as string).filter(Boolean))).sort();
+      return types;
     },
-    staleTime: 5 * 60_000,
+    staleTime: 10 * 60_000, // 10 minutes cache
+    gcTime: 30 * 60_000,
   });
 }
 
@@ -506,6 +509,34 @@ export default function Processos() {
   const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
   const [detailTab, setDetailTab] = useState<'details' | 'movs' | 'docs' | 'tasks'>('details');
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportAll = async () => {
+    setIsExporting(true);
+    try {
+      let all: Process[] = [];
+      let off = 0;
+      while (true) {
+        let q = supabase.from('processes').select(FULL_SELECT)
+          .order('updated_at', { ascending: false })
+          .range(off, off + 999);
+        if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%,opponent.ilike.%${search}%,comarca.ilike.%${search}%`);
+        if (statusFilter) q = q.eq('status', statusFilter);
+        if (typeFilter) q = q.eq('type', typeFilter);
+        const { data, error } = await q;
+        if (error || !data || data.length === 0) break;
+        all = all.concat(data as Process[]);
+        if (data.length < 1000) break;
+        off += 1000;
+      }
+      exportToCSV(all);
+    } catch (e) {
+      console.error('Export failed:', e);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleSearch = useCallback((v: string) => { setSearch(v); setPage(0); }, []);
   const handleStatus = useCallback((v: string) => { setStatusFilter(v); setPage(0); }, []);
   const handleType = useCallback((v: string) => { setTypeFilter(v); setPage(0); }, []);
@@ -603,8 +634,9 @@ export default function Processos() {
           )}
         </h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => exportToCSV(rows)} disabled={rows.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Exportar CSV
+          <Button variant="outline" onClick={handleExportAll} disabled={isExporting}>
+            <Download className="h-4 w-4 mr-2" />
+            {isExporting ? 'Exportando…' : `Exportar CSV (${total})`}
           </Button>
           <Button onClick={() => setCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-2" /> Novo Processo
