@@ -33,6 +33,11 @@ interface Task {
   priority?: string;
   completed: boolean;
   process_id?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  event_type?: string | null;
+  location?: string | null;
+  assignee?: string | null;
   processes?: { number: string; title: string };
 }
 
@@ -41,10 +46,14 @@ interface Process { id: string; number: string; title: string; }
 interface AgendaForm {
   title: string; description: string; due_date: string;
   priority: string; process_id: string; assignee: string;
+  start_time: string; end_time: string; event_type: string; location: string;
 }
+
+const EVENT_TYPES = ['Audiência','Prazo Fatal','Reunião','Despacho','Diligência','Sustentação Oral','Outro'];
 
 const EMPTY_FORM = (date: string): AgendaForm => ({
   title: '', description: '', due_date: date, priority: 'media', process_id: '', assignee: '',
+  start_time: '', end_time: '', event_type: 'Audiência', location: '',
 });
 
 const priorityColor: Record<string, string> = {
@@ -97,6 +106,7 @@ export default function Agenda() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [form, setForm] = useState<AgendaForm>(EMPTY_FORM(todayStr));
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState<'day' | 'week' | 'month'>('month');
 
   const { data: tasks = [] } = useAgendaTasks();
   const { data: processes = [] } = useProcessList();
@@ -121,7 +131,24 @@ export default function Agenda() {
     }
   });
 
+  // Sort tasks within each day by start_time
+  Object.keys(tasksByDate).forEach(k => {
+    tasksByDate[k].sort((a, b) => (a.start_time ?? '99').localeCompare(b.start_time ?? '99'));
+  });
+
   const selectedTasks = tasksByDate[selectedDate] ?? [];
+
+  // Week view: 7 days starting Sunday of selected date
+  const weekDays: string[] = (() => {
+    const d = new Date(selectedDate + 'T12:00:00');
+    const start = new Date(d);
+    start.setDate(d.getDate() - d.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const x = new Date(start);
+      x.setDate(start.getDate() + i);
+      return x.toISOString().split('T')[0];
+    });
+  })();
 
   const upcoming = tasks
     .filter((t) => {
@@ -152,7 +179,11 @@ export default function Agenda() {
       due_date: t.due_date ? t.due_date.split('T')[0] : selectedDate,
       priority: t.priority ?? 'media',
       process_id: t.process_id ?? '',
-      assignee: (t as any).assignee ?? '',
+      assignee: t.assignee ?? '',
+      start_time: t.start_time ?? '',
+      end_time: t.end_time ?? '',
+      event_type: t.event_type ?? 'Audiência',
+      location: t.location ?? '',
     });
     setEditTarget(t);
   };
@@ -168,6 +199,10 @@ export default function Agenda() {
         priority: form.priority,
         process_id: form.process_id,
         assignee: form.assignee || null,
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
+        event_type: form.event_type || null,
+        location: form.location || null,
         user_id: user?.id,
         completed: false,
       });
@@ -192,6 +227,10 @@ export default function Agenda() {
         priority: form.priority,
         process_id: form.process_id,
         assignee: form.assignee || null,
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
+        event_type: form.event_type || null,
+        location: form.location || null,
       }).eq('id', editTarget.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
@@ -244,6 +283,33 @@ export default function Agenda() {
           placeholder="Nome do responsável" />
       </div>
       <div>
+        <Label>Tipo</Label>
+        <Select value={form.event_type} onValueChange={v => setForm(f => ({ ...f, event_type: v }))}>
+          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {EVENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Hora início</Label>
+          <Input className="mt-1" type="time" value={form.start_time}
+            onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} />
+        </div>
+        <div>
+          <Label>Hora fim</Label>
+          <Input className="mt-1" type="time" value={form.end_time}
+            onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} />
+        </div>
+      </div>
+      <div>
+        <Label>Local</Label>
+        <Input className="mt-1" value={form.location}
+          onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+          placeholder="Ex: Fórum Central — Sala 302" />
+      </div>
+      <div>
         <Label>Prioridade</Label>
         <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
           <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
@@ -282,9 +348,19 @@ export default function Agenda() {
           <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
           <p className="text-sm text-gray-500">Compromissos, audiências e prazos</p>
         </div>
-        <Button onClick={() => { setForm(EMPTY_FORM(selectedDate)); setCreateOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> Novo compromisso
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border bg-white overflow-hidden">
+            {(['day','week','month'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className={`px-3 py-1.5 text-xs font-medium ${view === v ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mês'}
+              </button>
+            ))}
+          </div>
+          <Button onClick={() => { setForm(EMPTY_FORM(selectedDate)); setCreateOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Novo compromisso
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -295,42 +371,84 @@ export default function Agenda() {
               <ChevronLeft className="w-5 h-5" />
             </button>
             <h2 className="font-semibold text-gray-800">
-              {MONTHS[currentMonth]} {currentYear}
+              {view === 'day'
+                ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                : view === 'week'
+                  ? `Semana de ${new Date(weekDays[0] + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} a ${new Date(weekDays[6] + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`
+                  : `${MONTHS[currentMonth]} ${currentYear}`}
             </h2>
             <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded">
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 mb-2">
-            {WEEKDAYS.map(d => (
-              <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
-            ))}
-          </div>
+          {view === 'month' && (
+            <>
+              <div className="grid grid-cols-7 mb-2">
+                {WEEKDAYS.map(d => (
+                  <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {calendarCells.map((day, i) => {
+                  if (!day) return <div key={i} />;
+                  const key = dateKey(day);
+                  const isToday = key === todayStr;
+                  const isSelected = key === selectedDate;
+                  const hasTasks = !!tasksByDate[key]?.length;
+                  const hasIncomplete = tasksByDate[key]?.some(t => !t.completed);
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDate(key)}
+                      className={`relative flex flex-col items-center justify-center h-10 w-full rounded-lg text-sm transition-colors
+                        ${isSelected ? 'bg-blue-600 text-white' : isToday ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}`}
+                    >
+                      {day}
+                      {hasTasks && (
+                        <span className={`absolute bottom-1 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : hasIncomplete ? 'bg-orange-500' : 'bg-green-500'}`} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
-          <div className="grid grid-cols-7 gap-1">
-            {calendarCells.map((day, i) => {
-              if (!day) return <div key={i} />;
-              const key = dateKey(day);
-              const isToday = key === todayStr;
-              const isSelected = key === selectedDate;
-              const hasTasks = !!tasksByDate[key]?.length;
-              const hasIncomplete = tasksByDate[key]?.some(t => !t.completed);
-              return (
-                <button
-                  key={i}
-                  onClick={() => setSelectedDate(key)}
-                  className={`relative flex flex-col items-center justify-center h-10 w-full rounded-lg text-sm transition-colors
-                    ${isSelected ? 'bg-blue-600 text-white' : isToday ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}`}
-                >
-                  {day}
-                  {hasTasks && (
-                    <span className={`absolute bottom-1 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : hasIncomplete ? 'bg-orange-500' : 'bg-green-500'}`} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {view === 'week' && (
+            <div className="grid grid-cols-7 gap-2">
+              {weekDays.map((k) => {
+                const dt = new Date(k + 'T12:00:00');
+                const isSelected = k === selectedDate;
+                const isToday = k === todayStr;
+                const dayTasks = tasksByDate[k] ?? [];
+                return (
+                  <button key={k} onClick={() => setSelectedDate(k)}
+                    className={`flex flex-col items-stretch h-40 p-2 rounded-lg border text-left transition-colors
+                      ${isSelected ? 'border-blue-600 bg-blue-50' : isToday ? 'border-blue-200' : 'border-gray-100 hover:bg-gray-50'}`}>
+                    <div className="text-[11px] uppercase text-gray-400">{WEEKDAYS[dt.getDay()]}</div>
+                    <div className={`text-lg font-semibold ${isToday ? 'text-blue-700' : 'text-gray-800'}`}>{dt.getDate()}</div>
+                    <div className="mt-1 space-y-1 overflow-hidden">
+                      {dayTasks.slice(0, 3).map(t => (
+                        <div key={t.id} className="text-[11px] truncate px-1 py-0.5 rounded bg-white border border-gray-200">
+                          {t.start_time?.slice(0,5) ?? ''} {t.title}
+                        </div>
+                      ))}
+                      {dayTasks.length > 3 && (
+                        <div className="text-[11px] text-gray-400">+{dayTasks.length - 3} mais</div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {view === 'day' && (
+            <p className="text-sm text-gray-400">
+              Veja os compromissos do dia abaixo.
+            </p>
+          )}
         </div>
 
         {/* Próximos 30 dias */}
@@ -387,14 +505,21 @@ export default function Agenda() {
                   <p className={`font-medium ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                     {t.title}
                   </p>
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-xs text-gray-500">
+                    {t.event_type && <span className="font-medium text-gray-600">{t.event_type}</span>}
+                    {(t.start_time || t.end_time) && (
+                      <span>🕐 {t.start_time?.slice(0,5) ?? ''}{t.end_time ? ` – ${t.end_time.slice(0,5)}` : ''}</span>
+                    )}
+                    {t.location && <span>📍 {t.location}</span>}
+                  </div>
                   {t.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{t.description}</p>}
                   {t.processes && (
                     <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
                   )}
-                  {(t as any).assignee && (t as any).assignee !== 'agenda' && (t as any).assignee !== 'movimentacao' && (t as any).assignee !== 'documento' && (
-                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {(t as any).assignee}</p>
+                  {t.assignee && t.assignee !== 'agenda' && t.assignee !== 'movimentacao' && t.assignee !== 'documento' && (
+                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {t.assignee}</p>
                   )}
-                  {(t as any).assignee === 'agenda' && (
+                  {t.assignee === 'agenda' && (
                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-0.5 inline-block">AdvBox</span>
                   )}
                 </div>
