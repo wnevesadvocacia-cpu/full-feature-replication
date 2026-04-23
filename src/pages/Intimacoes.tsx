@@ -241,7 +241,7 @@ export default function Intimacoes() {
                 <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
               </div>
               <div className="flex flex-col gap-1 shrink-0">
-                <Button size="sm" variant="outline" onClick={() => toTask.mutate(it)}>
+                <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
                   <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
                 </Button>
                 {it.status !== 'tratada' && (
