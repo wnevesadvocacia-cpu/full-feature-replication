@@ -21,7 +21,7 @@ import {
   Wallet,
   TrendingUp,
   Link2,
-} from 'lucide-react';
+  PenTool,
 import {
   Sidebar,
   SidebarContent,
