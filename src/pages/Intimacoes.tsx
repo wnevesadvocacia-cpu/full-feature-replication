@@ -97,6 +97,20 @@ export default function Intimacoes() {
     },
   });
 
+  // Membros da equipe (papéis atribuídos) para preencher o seletor de responsável
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members'],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('user_id, role')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as { user_id: string; role: string }[];
+    },
+  });
+
   const create = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).from('intimations').insert({
