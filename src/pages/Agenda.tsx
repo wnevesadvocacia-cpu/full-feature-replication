@@ -395,18 +395,34 @@ export default function Agenda() {
                   const key = dateKey(day);
                   const isToday = key === todayStr;
                   const isSelected = key === selectedDate;
-                  const hasTasks = !!tasksByDate[key]?.length;
-                  const hasIncomplete = tasksByDate[key]?.some(t => !t.completed);
+                  const dayList = tasksByDate[key] ?? [];
+                  const pendingCount = dayList.filter(t => !t.completed).length;
+                  const doneCount = dayList.length - pendingCount;
                   return (
                     <button
                       key={i}
                       onClick={() => setSelectedDate(key)}
-                      className={`relative flex flex-col items-center justify-center h-10 w-full rounded-lg text-sm transition-colors
+                      className={`relative flex flex-col items-center justify-center h-12 w-full rounded-lg text-sm transition-colors
                         ${isSelected ? 'bg-blue-600 text-white' : isToday ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}`}
                     >
-                      {day}
-                      {hasTasks && (
-                        <span className={`absolute bottom-1 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : hasIncomplete ? 'bg-orange-500' : 'bg-green-500'}`} />
+                      <span>{day}</span>
+                      {dayList.length > 0 && (
+                        <div className="absolute bottom-0.5 flex items-center gap-0.5">
+                          {pendingCount > 0 && (
+                            <span className={`text-[9px] font-bold px-1 rounded leading-none py-0.5 ${
+                              isSelected ? 'bg-white text-blue-700' : 'bg-orange-500 text-white'
+                            }`}>
+                              {pendingCount}
+                            </span>
+                          )}
+                          {doneCount > 0 && pendingCount === 0 && (
+                            <span className={`text-[9px] font-bold px-1 rounded leading-none py-0.5 ${
+                              isSelected ? 'bg-white text-green-700' : 'bg-green-500 text-white'
+                            }`}>
+                              ✓{doneCount}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </button>
                   );

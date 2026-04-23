@@ -15,6 +15,35 @@ import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO
 
 interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
 
+// Títulos comuns da praxis jurídica para tarefas delegadas a partir de intimações
+const PRAXIS_TASK_TITLES = [
+  'Acompanhar expedição de guia',
+  'Avisar cliente sobre perícia',
+  'Avisar cliente sobre audiência',
+  'Juntar petição',
+  'Elaborar contestação',
+  'Elaborar réplica',
+  'Elaborar recurso (apelação)',
+  'Elaborar embargos de declaração',
+  'Elaborar agravo de instrumento',
+  'Cumprir diligência',
+  'Cumprir despacho',
+  'Comparecer à audiência',
+  'Comparecer à perícia',
+  'Solicitar documentos ao cliente',
+  'Solicitar cópia integral dos autos',
+  'Protocolar manifestação',
+  'Protocolar memoriais',
+  'Pagar custas processuais',
+  'Pagar guia GRU / DARF',
+  'Levantar alvará',
+  'Substabelecer poderes',
+  'Apresentar contrarrazões',
+  'Atualizar cálculos',
+  'Realizar audiência de conciliação',
+  'Verificar publicação no DJE',
+];
+
 // Detecta se o conteúdo é HTML (tags ou entidades) e prepara para render seguro.
 function renderIntimContent(raw: string) {
   const looksHtml = /<[a-z!/][^>]*>|&[a-z]+;|&#\d+;/i.test(raw);
@@ -122,7 +151,7 @@ export default function Intimacoes() {
   const openTaskDialog = (it: Intim) => {
     const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
     setTaskForm({
-      title: `Intimação: ${plain.slice(0, 60)}${plain.length > 60 ? '…' : ''}`,
+      title: '', // usuário escolhe / digita
       description: plain,
       assignee: '',
       priority: 'alta',
@@ -283,13 +312,36 @@ export default function Intimacoes() {
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
             <div>
-              <Label>Título *</Label>
+              <Label>Título da tarefa *</Label>
               <Input
                 value={taskForm.title}
                 onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-                placeholder="Resumo da tarefa"
+                placeholder="Digite ou selecione abaixo"
                 className="mt-1"
+                list="praxis-titles"
               />
+              <datalist id="praxis-titles">
+                {PRAXIS_TASK_TITLES.map((t) => <option key={t} value={t} />)}
+              </datalist>
+              <div className="mt-2 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                {PRAXIS_TASK_TITLES.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTaskForm((f) => ({ ...f, title: t }))}
+                    className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
+                      taskForm.title === t
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted/40 hover:bg-muted text-foreground border-border'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Selecione um título da praxis ou digite um personalizado. A tarefa aparecerá na Agenda no dia escolhido.
+              </p>
             </div>
             <div>
               <Label>Descrição / Detalhes</Label>
