@@ -157,7 +157,7 @@ export default function Agenda() {
   };
 
   const handleCreate = async () => {
-    if (!form.title.trim()) return;
+    if (!form.title.trim() || !form.process_id) return;
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').insert({
@@ -165,7 +165,7 @@ export default function Agenda() {
         description: form.description || null,
         due_date: form.due_date || null,
         priority: form.priority,
-        process_id: form.process_id || null,
+        process_id: form.process_id,
         user_id: user?.id,
         completed: false,
       });
@@ -180,7 +180,7 @@ export default function Agenda() {
   };
 
   const handleEdit = async () => {
-    if (!editTarget || !form.title.trim()) return;
+    if (!editTarget || !form.title.trim() || !form.process_id) return;
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
@@ -188,7 +188,7 @@ export default function Agenda() {
         description: form.description || null,
         due_date: form.due_date || null,
         priority: form.priority,
-        process_id: form.process_id || null,
+        process_id: form.process_id,
       }).eq('id', editTarget.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
@@ -411,7 +411,7 @@ export default function Agenda() {
           <FormBody />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title || saving}>
+            <Button onClick={handleCreate} disabled={!form.title || !form.process_id || saving}>
               {saving ? 'Salvando…' : 'Salvar'}
             </Button>
           </DialogFooter>
@@ -425,7 +425,7 @@ export default function Agenda() {
           <FormBody isEdit />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || saving}>
+            <Button onClick={handleEdit} disabled={!form.title || !form.process_id || saving}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
