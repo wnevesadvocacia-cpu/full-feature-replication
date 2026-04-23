@@ -39,6 +39,7 @@ import Despesas from "./pages/Despesas";
 import FluxoCaixa from "./pages/FluxoCaixa";
 import PortalAcessos from "./pages/PortalAcessos";
 import PortalCliente from "./pages/PortalCliente";
+import Assinaturas from "./pages/Assinaturas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
