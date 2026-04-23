@@ -91,30 +91,47 @@ export default function Intimacoes() {
   });
 
   const toTask = useMutation({
-    mutationFn: async (it: Intim) => {
-      // Sanitiza HTML do conteúdo para texto puro antes de salvar
-      const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
+      const { intim, form: tf } = payload;
       const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
-        title: `Intimação: ${plain.slice(0, 80)}`,
-        description: plain,
-        due_date: it.deadline,
-        priority: 'alta',
+        title: tf.title || `Intimação: ${intim.court || 'sem tribunal'}`,
+        description: tf.description || null,
+        assignee: tf.assignee || null,
+        due_date: tf.due_date || null,
+        start_time: tf.start_time || null,
+        location: tf.location || null,
+        priority: tf.priority,
         status: 'pendente',
-        process_id: it.process_id,
+        process_id: intim.process_id,
       }).select().single();
       if (error) throw error;
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] });
+      setTaskIntim(null);
       toast({
-        title: 'Tarefa criada com sucesso',
-        description: 'Acesse o módulo Tarefas para visualizar.',
+        title: 'Tarefa delegada com sucesso',
+        description: 'Acesse o módulo Tarefas para acompanhar.',
       });
     },
     onError: (e: any) => toast({ title: 'Erro ao criar tarefa', description: e.message, variant: 'destructive' }),
   });
+
+  const openTaskDialog = (it: Intim) => {
+    const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    setTaskForm({
+      title: `Intimação: ${plain.slice(0, 60)}${plain.length > 60 ? '…' : ''}`,
+      description: plain,
+      assignee: '',
+      priority: 'alta',
+      due_date: it.deadline ? it.deadline.slice(0, 10) : '',
+      start_time: '',
+      location: it.court || '',
+    });
+    setTaskIntim(it);
+  };
 
   // Contagem por dia (para mostrar badges no seletor)
   const countsByDate = useMemo(() => {
