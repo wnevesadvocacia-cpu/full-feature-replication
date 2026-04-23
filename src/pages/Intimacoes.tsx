@@ -186,7 +186,7 @@ export default function Intimacoes() {
                   <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
                   {it.deadline && <span className="text-xs text-warning">Prazo: {formatBR(it.deadline.slice(0, 10))}</span>}
                 </div>
-                <p className="text-sm mt-2">{it.content}</p>
+                <p className="text-sm mt-2 whitespace-pre-wrap break-words">{it.content}</p>
                 <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
               </div>
               <div className="flex flex-col gap-1 shrink-0">
