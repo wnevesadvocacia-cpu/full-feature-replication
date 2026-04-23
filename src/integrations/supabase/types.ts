@@ -68,6 +68,83 @@ export type Database = {
         }
         Relationships: []
       }
+      document_templates: {
+        Row: {
+          category: string | null
+          content: string
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          content?: string
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      intimations: {
+        Row: {
+          content: string
+          court: string | null
+          created_at: string
+          deadline: string | null
+          id: string
+          process_id: string | null
+          received_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          court?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          process_id?: string | null
+          received_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          court?: string | null
+          created_at?: string
+          deadline?: string | null
+          id?: string
+          process_id?: string | null
+          received_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intimations_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoices: {
         Row: {
           amount: number
@@ -151,6 +228,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           vencimento_processo?: boolean
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          link: string | null
+          message: string | null
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link?: string | null
+          message?: string | null
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
