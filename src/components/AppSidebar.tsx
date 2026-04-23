@@ -60,6 +60,7 @@ const secondaryNav = [
   { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
   { title: 'Equipe', url: '/equipe', icon: UserCog },
   { title: 'Portal do Cliente', url: '/portal-acessos', icon: Link2 },
+  { title: 'Assinatura Digital', url: '/assinaturas', icon: PenTool },
 ];
 
 export function AppSidebar() {
