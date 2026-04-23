@@ -77,9 +77,9 @@ export default function FluxoCaixa() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard title="Entradas (6m)" value={fmt(stats.totalIn)} icon={TrendingUp} trend={{ value: '', isPositive: true }} />
+        <MetricCard title="Entradas (6m)" value={fmt(stats.totalIn)} icon={TrendingUp} />
         <MetricCard title="Saídas (6m)" value={fmt(stats.totalOut)} icon={TrendingDown} />
-        <MetricCard title="Resultado" value={fmt(stats.totalNet)} icon={DollarSign} trend={{ value: stats.totalNet >= 0 ? 'lucro' : 'prejuízo', isPositive: stats.totalNet >= 0 }} />
+        <MetricCard title="Resultado" value={fmt(stats.totalNet)} icon={DollarSign} />
         <MetricCard title="Margem" value={stats.totalIn ? `${Math.round((stats.totalNet / stats.totalIn) * 100)}%` : '—'} icon={BarChart3} />
       </div>
 
