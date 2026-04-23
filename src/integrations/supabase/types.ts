@@ -128,6 +128,42 @@ export type Database = {
         }
         Relationships: []
       }
+      document_versions: {
+        Row: {
+          change_note: string | null
+          content: string
+          created_at: string
+          document_id: string | null
+          id: string
+          template_id: string | null
+          title: string
+          user_id: string
+          version_number: number
+        }
+        Insert: {
+          change_note?: string | null
+          content?: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          template_id?: string | null
+          title: string
+          user_id: string
+          version_number?: number
+        }
+        Update: {
+          change_note?: string | null
+          content?: string
+          created_at?: string
+          document_id?: string | null
+          id?: string
+          template_id?: string | null
+          title?: string
+          user_id?: string
+          version_number?: number
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           category: string | null
@@ -398,6 +434,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      kanban_columns: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          position: number
+          status_key: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          position?: number
+          status_key: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          position?: number
+          status_key?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       notification_preferences: {
         Row: {
