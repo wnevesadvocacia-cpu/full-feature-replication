@@ -265,6 +265,33 @@ export default function Agenda() {
           placeholder="Nome do responsável" />
       </div>
       <div>
+        <Label>Tipo</Label>
+        <Select value={form.event_type} onValueChange={v => setForm(f => ({ ...f, event_type: v }))}>
+          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {EVENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label>Hora início</Label>
+          <Input className="mt-1" type="time" value={form.start_time}
+            onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} />
+        </div>
+        <div>
+          <Label>Hora fim</Label>
+          <Input className="mt-1" type="time" value={form.end_time}
+            onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} />
+        </div>
+      </div>
+      <div>
+        <Label>Local</Label>
+        <Input className="mt-1" value={form.location}
+          onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
+          placeholder="Ex: Fórum Central — Sala 302" />
+      </div>
+      <div>
         <Label>Prioridade</Label>
         <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
           <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
