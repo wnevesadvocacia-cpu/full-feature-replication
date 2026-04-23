@@ -16,6 +16,8 @@ import {
   Bell,
   UserCog,
   Sparkles,
+  Clock,
+  Receipt,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -37,7 +39,9 @@ const mainNav = [
   { title: 'Processos', url: '/processos', icon: Briefcase },
   { title: 'Intimações', url: '/intimacoes', icon: Bell },
   { title: 'Tarefas', url: '/tarefas', icon: CheckSquare },
+  { title: 'Timesheet', url: '/timesheet', icon: Clock },
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
+  { title: 'Honorários', url: '/honorarios', icon: Receipt },
   { title: 'Clientes', url: '/clientes', icon: Users },
 ];
 
