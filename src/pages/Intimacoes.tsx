@@ -141,7 +141,7 @@ export default function Intimacoes() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setTaskIntim(null);
       toast({
-        title: 'Tarefa delegada com sucesso',
+        title: 'Responsável definido com sucesso',
         description: 'Acesse o módulo Tarefas para acompanhar.',
       });
     },
