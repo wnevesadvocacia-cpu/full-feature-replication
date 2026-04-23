@@ -307,7 +307,7 @@ export default function Intimacoes() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5 text-primary" /> Delegar Tarefa da Intimação
+              <CheckSquare className="h-5 w-5 text-primary" /> Responsável pela Tarefa da Intimação
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
