@@ -87,17 +87,28 @@ export default function Intimacoes() {
 
   const toTask = useMutation({
     mutationFn: async (it: Intim) => {
-      const { error } = await supabase.from('tasks').insert({
+      // Sanitiza HTML do conteúdo para texto puro antes de salvar
+      const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+      const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
-        title: `Intimação: ${it.content.slice(0, 60)}`,
-        description: it.content,
+        title: `Intimação: ${plain.slice(0, 80)}`,
+        description: plain,
         due_date: it.deadline,
         priority: 'alta',
+        status: 'pendente',
         process_id: it.process_id,
-      });
+      }).select().single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); toast({ title: 'Tarefa criada' }); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      toast({
+        title: 'Tarefa criada com sucesso',
+        description: 'Acesse o módulo Tarefas para visualizar.',
+      });
+    },
+    onError: (e: any) => toast({ title: 'Erro ao criar tarefa', description: e.message, variant: 'destructive' }),
   });
 
   // Contagem por dia (para mostrar badges no seletor)
