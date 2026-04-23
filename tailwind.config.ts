@@ -14,8 +14,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
-        body: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        display: ['Instrument Serif', 'Times New Roman', 'serif'],
+        body: ['Work Sans', 'system-ui', 'sans-serif'],
+        serif: ['Instrument Serif', 'serif'],
+        sans: ['Work Sans', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -97,12 +99,22 @@ export default {
           from: { opacity: "0" },
           to: { opacity: "1" },
         },
+        "fade-up": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+          to: { opacity: "1", transform: "translateY(0)" },
+        },
+        "shimmer": {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "slide-in": "slide-in 0.2s ease-out",
-        "fade-in": "fade-in 0.15s ease-out",
+        "fade-in": "fade-in 0.2s ease-out",
+        "fade-up": "fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1)",
+        "shimmer": "shimmer 2.5s linear infinite",
       },
     },
   },
