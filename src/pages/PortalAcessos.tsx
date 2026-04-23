@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Copy, Trash2, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { DeleteGuard } from '@/components/DeleteGuard';
 
 export default function PortalAcessos() {
   const { user } = useAuth();
@@ -136,9 +137,11 @@ export default function PortalAcessos() {
                     <Button variant="ghost" size="sm" onClick={() => toggle.mutate({ id: t.id, active: !t.active })}>
                       {t.active ? 'Desativar' : 'Ativar'}
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove.mutate(t.id)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DeleteGuard>
+                      <Button variant="ghost" size="icon" className="text-destructive" onClick={() => remove.mutate(t.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </DeleteGuard>
                   </div>
                 </CardContent>
               </Card>
