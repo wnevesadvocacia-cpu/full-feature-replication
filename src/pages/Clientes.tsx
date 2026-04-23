@@ -78,7 +78,8 @@ export default function Clientes() {
         .from('processes')
         .select('id, number, title, status')
         .eq('client_id', selected!.id)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .limit(500);
       if (error) throw error;
       return data ?? [];
     },

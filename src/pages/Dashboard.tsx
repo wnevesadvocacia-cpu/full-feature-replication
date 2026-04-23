@@ -134,7 +134,8 @@ export default function Dashboard() {
 
   const formatDate = (iso: string) => {
     if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('pt-BR');
+    const d = iso.includes('T') ? iso : iso.slice(0,10) + 'T12:00:00';
+    return new Date(d).toLocaleDateString('pt-BR');
   };
 
   return (

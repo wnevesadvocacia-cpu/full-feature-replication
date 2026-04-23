@@ -379,9 +379,12 @@ export default function Agenda() {
                   <p className={`font-medium ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                     {t.title}
                   </p>
-                  {t.description && <p className="text-sm text-gray-500 mt-0.5">{t.description}</p>}
+                  {t.description && <p className="text-sm text-gray-500 mt-0.5 line-clamp-2">{t.description}</p>}
                   {t.processes && (
                     <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
+                  )}
+                  {(t as any).assignee === 'agenda' && (
+                    <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-0.5 inline-block">AdvBox</span>
                   )}
                 </div>
                 <Badge className={`text-white text-xs shrink-0 ${priorityColor[t.priority || 'media']}`}>

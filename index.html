@@ -17,7 +17,14 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@Lovable" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-  </head>
+    <style>
+    @media print {
+      .print\:hidden { display: none !important; }
+      aside, nav, [data-sidebar] { display: none !important; }
+      .shadow-card, .shadow-card-hover { box-shadow: none !important; }
+    }
+  </style>
+</head>
 
   <body>
     <div id="root"></div>

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   FileBarChart, Users, CheckCircle2, Clock, TrendingUp,
-  AlertCircle, Scale, Calendar,
+  AlertCircle, Scale, Calendar, Printer,
 } from 'lucide-react';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -197,14 +197,22 @@ export default function Relatorios() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <FileBarChart className="h-7 w-7" />
-          Relatórios
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Visão geral e estatísticas do escritório
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <FileBarChart className="h-7 w-7" />
+            Relatórios
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Visão geral e estatísticas do escritório
+          </p>
+        </div>
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-4 py-2 rounded-md border text-sm font-medium hover:bg-muted transition-colors print:hidden"
+        >
+          <Printer className="h-4 w-4" /> Imprimir / Exportar PDF
+        </button>
       </div>
 
       {/* KPIs */}

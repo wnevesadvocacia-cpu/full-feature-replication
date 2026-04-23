@@ -155,6 +155,7 @@ function useProcessTasks(processId: string | null) {
         .eq('process_id', processId)
         .not('assignee', 'eq', 'movimentacao')
         .not('assignee', 'eq', 'documento')
+        .not('assignee', 'eq', 'agenda')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data ?? []) as Task[];
@@ -195,7 +196,8 @@ function useProcessMovimentacoes(processId: string | null) {
         .select('id, title, description, due_date, created_at')
         .eq('process_id', processId!)
         .eq('assignee', 'movimentacao')
-        .order('due_date', { ascending: false });
+        .order('due_date', { ascending: false })
+        .limit(2000);
       if (error) throw error;
       return data ?? [];
     },
@@ -211,7 +213,8 @@ function useProcessDocumentos(processId: string | null) {
         .select('id, title, description, due_date, created_at')
         .eq('process_id', processId!)
         .eq('assignee', 'documento')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(2000);
       if (error) throw error;
       return data ?? [];
     },
