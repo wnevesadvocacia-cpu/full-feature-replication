@@ -40,11 +40,11 @@ interface Process { id: string; number: string; title: string; }
 
 interface AgendaForm {
   title: string; description: string; due_date: string;
-  priority: string; process_id: string;
+  priority: string; process_id: string; assignee: string;
 }
 
 const EMPTY_FORM = (date: string): AgendaForm => ({
-  title: '', description: '', due_date: date, priority: 'media', process_id: '',
+  title: '', description: '', due_date: date, priority: 'media', process_id: '', assignee: '',
 });
 
 const priorityColor: Record<string, string> = {
@@ -152,12 +152,13 @@ export default function Agenda() {
       due_date: t.due_date ? t.due_date.split('T')[0] : selectedDate,
       priority: t.priority ?? 'media',
       process_id: t.process_id ?? '',
+      assignee: (t as any).assignee ?? '',
     });
     setEditTarget(t);
   };
 
   const handleCreate = async () => {
-    if (!form.title.trim() || !form.process_id) return;
+    if (!form.title.trim() || !form.process_id || !form.due_date || !form.assignee.trim()) return;
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').insert({
@@ -166,6 +167,7 @@ export default function Agenda() {
         due_date: form.due_date || null,
         priority: form.priority,
         process_id: form.process_id,
+        assignee: form.assignee || null,
         user_id: user?.id,
         completed: false,
       });
@@ -180,7 +182,7 @@ export default function Agenda() {
   };
 
   const handleEdit = async () => {
-    if (!editTarget || !form.title.trim() || !form.process_id) return;
+    if (!editTarget || !form.title.trim() || !form.process_id || !form.due_date || !form.assignee.trim()) return;
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
@@ -189,6 +191,7 @@ export default function Agenda() {
         due_date: form.due_date || null,
         priority: form.priority,
         process_id: form.process_id,
+        assignee: form.assignee || null,
       }).eq('id', editTarget.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
@@ -230,9 +233,15 @@ export default function Agenda() {
           placeholder="Ex: Audiência de instrução" />
       </div>
       <div>
-        <Label>Data</Label>
+        <Label>Prazo final *</Label>
         <Input className="mt-1" type="date" value={form.due_date}
-          onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} />
+          onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} required />
+      </div>
+      <div>
+        <Label>Delegado a *</Label>
+        <Input className="mt-1" value={form.assignee}
+          onChange={e => setForm(f => ({ ...f, assignee: e.target.value }))}
+          placeholder="Nome do responsável" />
       </div>
       <div>
         <Label>Prioridade</Label>
@@ -382,6 +391,9 @@ export default function Agenda() {
                   {t.processes && (
                     <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
                   )}
+                  {(t as any).assignee && (t as any).assignee !== 'agenda' && (t as any).assignee !== 'movimentacao' && (t as any).assignee !== 'documento' && (
+                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {(t as any).assignee}</p>
+                  )}
                   {(t as any).assignee === 'agenda' && (
                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-0.5 inline-block">AdvBox</span>
                   )}
@@ -411,7 +423,7 @@ export default function Agenda() {
           <FormBody />
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title || !form.process_id || saving}>
+            <Button onClick={handleCreate} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
               {saving ? 'Salvando…' : 'Salvar'}
             </Button>
           </DialogFooter>
@@ -425,7 +437,7 @@ export default function Agenda() {
           <FormBody isEdit />
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || !form.process_id || saving}>
+            <Button onClick={handleEdit} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
