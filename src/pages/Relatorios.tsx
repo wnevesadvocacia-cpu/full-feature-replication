@@ -85,6 +85,29 @@ function useTaskStats() {
   });
 }
 
+function useFinancialStats() {
+  return useQuery({
+    queryKey: ['report-financial'],
+    queryFn: async () => {
+      const [inv, exp, proc, cli] = await Promise.all([
+        supabase.from('invoices').select('amount, status, paid_date, client_id, created_at').limit(5000),
+        supabase.from('expenses').select('amount, date, client_id, process_id, reimbursable, reimbursed').limit(5000),
+        supabase.from('processes').select('id, client_id, type, status, result, honorarios_valor, value').limit(5000),
+        supabase.from('clients').select('id, name').limit(5000),
+      ]);
+      return {
+        invoices: inv.data ?? [],
+        expenses: exp.data ?? [],
+        processes: proc.data ?? [],
+        clients: cli.data ?? [],
+      };
+    },
+  });
+}
+
+const fmtBRL = (n: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
+
 // ── KPI Card ───────────────────────────────────────────────────────────────────
 function KpiCard({
   title, value, sub, icon: Icon, color,
