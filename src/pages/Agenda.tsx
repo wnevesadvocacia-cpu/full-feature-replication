@@ -563,6 +563,115 @@ export default function Agenda() {
         )}
       </div>
 
+      {/* Detail / Overview Dialog */}
+      <Dialog open={!!detailTarget} onOpenChange={(o) => { if (!o) setDetailTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          {detailTarget && (() => {
+            const t = detailTarget;
+            const overdue = !t.completed && t.due_date && t.due_date.split('T')[0] < todayStr;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => toggleTask.mutate({ id: t.id, completed: !t.completed })}
+                      className="mt-1 flex-shrink-0"
+                      title={t.completed ? 'Reabrir' : 'Marcar como concluída'}
+                    >
+                      {t.completed
+                        ? <CheckCircle2 className="w-6 h-6 text-green-500" />
+                        : <Circle className="w-6 h-6 text-gray-300 hover:text-blue-500" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <DialogTitle className={`text-lg ${t.completed ? 'line-through text-gray-400' : ''}`}>
+                        {t.title}
+                      </DialogTitle>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <Badge className={`text-white ${priorityColor[t.priority || 'media']}`}>
+                          {priorityLabel[t.priority || 'media']}
+                        </Badge>
+                        {t.event_type && <Badge variant="outline">{t.event_type}</Badge>}
+                        {t.completed && <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">Concluída</Badge>}
+                        {overdue && <Badge variant="destructive">Atrasada</Badge>}
+                      </div>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-3 py-2">
+                  {t.due_date && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-700">
+                        {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                  {(t.start_time || t.end_time) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span>{t.start_time?.slice(0,5) ?? ''}{t.end_time ? ` – ${t.end_time.slice(0,5)}` : ''}</span>
+                    </div>
+                  )}
+                  {t.location && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span>{t.location}</span>
+                    </div>
+                  )}
+                  {t.assignee && !['agenda','movimentacao','documento'].includes(t.assignee) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span>Responsável: <span className="font-medium">{t.assignee}</span></span>
+                    </div>
+                  )}
+                  {t.processes && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Briefcase className="w-4 h-4 text-gray-400" />
+                      <span>Processo <span className="font-mono">{t.processes.number}</span> — {t.processes.title}</span>
+                    </div>
+                  )}
+                  {t.event_type && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Tag className="w-4 h-4 text-gray-400" />
+                      <span>{t.event_type}</span>
+                    </div>
+                  )}
+                  {t.description && (
+                    <div className="flex items-start gap-2 text-sm pt-1 border-t">
+                      <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <p className="whitespace-pre-wrap text-gray-700">{t.description}</p>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    className="text-red-500 hover:text-red-600 sm:mr-auto"
+                    onClick={() => { setDeleteTarget(t); setDetailTarget(null); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Remover
+                  </Button>
+                  <Button variant="outline" onClick={() => { openEdit(t); setDetailTarget(null); }}>
+                    <Pencil className="h-4 w-4 mr-1" /> Editar
+                  </Button>
+                  {t.completed ? (
+                    <Button variant="secondary" onClick={() => { toggleTask.mutate({ id: t.id, completed: false }); setDetailTarget(null); }}>
+                      <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
+                    </Button>
+                  ) : (
+                    <Button onClick={() => { toggleTask.mutate({ id: t.id, completed: true }); setDetailTarget(null); }}>
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Resolver tarefa
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
+
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-md">
