@@ -247,7 +247,7 @@ export default function Auth() {
                 <Button variant="outline" className="flex-1" disabled={cooldown > 0 || loading}
                   onClick={async () => {
                     setLoading(true);
-                    await supabase.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
+                    await supabase.auth.resetPasswordForEmail(email, { redirectTo: APP_URL + '#/reset-password' });
                     setLoading(false); setCooldown(60);
                     toast({ title: 'Email reenviado!' });
                   }}>
