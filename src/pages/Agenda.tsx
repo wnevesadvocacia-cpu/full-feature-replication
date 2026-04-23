@@ -33,6 +33,11 @@ interface Task {
   priority?: string;
   completed: boolean;
   process_id?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  event_type?: string | null;
+  location?: string | null;
+  assignee?: string | null;
   processes?: { number: string; title: string };
 }
 
@@ -41,10 +46,14 @@ interface Process { id: string; number: string; title: string; }
 interface AgendaForm {
   title: string; description: string; due_date: string;
   priority: string; process_id: string; assignee: string;
+  start_time: string; end_time: string; event_type: string; location: string;
 }
+
+const EVENT_TYPES = ['Audiência','Prazo Fatal','Reunião','Despacho','Diligência','Sustentação Oral','Outro'];
 
 const EMPTY_FORM = (date: string): AgendaForm => ({
   title: '', description: '', due_date: date, priority: 'media', process_id: '', assignee: '',
+  start_time: '', end_time: '', event_type: 'Audiência', location: '',
 });
 
 const priorityColor: Record<string, string> = {
