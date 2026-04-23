@@ -360,7 +360,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
       if (isEdit) {
         const { data, error } = await supabase
           .from('processes')
-          .update(payload)
+          .update(payload as any)
           .eq('id', initialData!.id)
           .select(FULL_SELECT)
           .single();
@@ -369,7 +369,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
       } else {
         const { data, error } = await supabase
           .from('processes')
-          .insert({ ...payload, created_at: new Date().toISOString(), user_id: user?.id })
+          .insert({ ...payload, created_at: new Date().toISOString(), user_id: user?.id } as any)
           .select(FULL_SELECT)
           .single();
         if (error) throw error;

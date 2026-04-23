@@ -159,7 +159,7 @@ export default function Clientes() {
           occupation: form.occupation || null,
           status: form.status,
           updated_at: new Date().toISOString(),
-        })
+        } as any)
         .eq('id', editTarget.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['clients'] });
