@@ -369,12 +369,38 @@ export default function Intimacoes() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Responsável</Label>
-                <Input
-                  value={taskForm.assignee}
-                  onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}
-                  placeholder="Nome do advogado"
-                  className="mt-1"
-                />
+                <select
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
+                  value={
+                    teamMembers.some((m) => m.user_id === taskForm.assignee)
+                      ? taskForm.assignee
+                      : taskForm.assignee
+                        ? '__custom__'
+                        : ''
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '__custom__') setTaskForm({ ...taskForm, assignee: ' ' });
+                    else setTaskForm({ ...taskForm, assignee: v });
+                  }}
+                >
+                  <option value="">— Selecionar —</option>
+                  {teamMembers.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.role} · {m.user_id.slice(0, 8)}
+                    </option>
+                  ))}
+                  <option value="__custom__">Outro (digitar nome)</option>
+                </select>
+                {taskForm.assignee &&
+                  !teamMembers.some((m) => m.user_id === taskForm.assignee) && (
+                    <Input
+                      value={taskForm.assignee.trim()}
+                      onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}
+                      placeholder="Nome do advogado/responsável"
+                      className="mt-2"
+                    />
+                  )}
               </div>
               <div>
                 <Label>Prioridade</Label>
