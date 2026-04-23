@@ -148,7 +148,7 @@ export default function Auth() {
                   <Label htmlFor="email">Email</Label>
                   <div className="relative mt-1">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input id="email" type="email" placeholder="wnevesadvocacia@gmail.com"
+                    <Input id="email" type="email" placeholder="seu@email.com"
                       value={email} onChange={e => setEmail(e.target.value)}
                       className="pl-9" required autoFocus />
                   </div>
@@ -204,7 +204,7 @@ export default function Auth() {
                   <Label>Email</Label>
                   <div className="relative mt-1">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input type="email" placeholder="wnevesadvocacia@gmail.com"
+                    <Input type="email" placeholder="seu@email.com"
                       value={email} onChange={e => setEmail(e.target.value)}
                       className="pl-9" required autoFocus />
                   </div>
