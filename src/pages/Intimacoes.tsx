@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,8 +8,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
 
 interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
 
@@ -21,6 +22,10 @@ export default function Intimacoes() {
   const [filter, setFilter] = useState<'todas' | 'pendente' | 'tratada'>('pendente');
   const [form, setForm] = useState({ court: '', content: '', deadline: '' });
   const [syncing, setSyncing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const t = todayISO();
+    return isBusinessDay(t) ? t : previousBusinessDay(t);
+  });
 
   const syncDjen = async () => {
     setSyncing(true);
@@ -39,7 +44,7 @@ export default function Intimacoes() {
     queryKey: ['intimations'],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from('intimations').select('*').order('received_at', { ascending: false }).limit(500);
+      const { data, error } = await (supabase as any).from('intimations').select('*').order('received_at', { ascending: false }).limit(2000);
       if (error) throw error;
       return data as Intim[];
     },
@@ -49,7 +54,7 @@ export default function Intimacoes() {
     mutationFn: async () => {
       const { error } = await (supabase as any).from('intimations').insert({
         user_id: user!.id, court: form.court || null, content: form.content,
-        deadline: form.deadline || null,
+        deadline: form.deadline || null, received_at: selectedDate,
       });
       if (error) throw error;
     },
@@ -82,7 +87,36 @@ export default function Intimacoes() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); toast({ title: 'Tarefa criada' }); },
   });
 
-  const filtered = items.filter((i) => filter === 'todas' || i.status === filter);
+  // Contagem por dia (para mostrar badges no seletor)
+  const countsByDate = useMemo(() => {
+    const m = new Map<string, number>();
+    items.forEach((it) => {
+      const d = it.received_at?.slice(0, 10);
+      if (d) m.set(d, (m.get(d) ?? 0) + 1);
+    });
+    return m;
+  }, [items]);
+
+  const dayItems = useMemo(
+    () => items.filter((i) => i.received_at?.slice(0, 10) === selectedDate),
+    [items, selectedDate]
+  );
+
+  const filtered = dayItems.filter((i) => filter === 'todas' || i.status === filter);
+
+  const goPrev = () => setSelectedDate((d) => previousBusinessDay(d));
+  const goNext = () => {
+    const next = nextBusinessDay(selectedDate);
+    if (next > todayISO()) return;
+    setSelectedDate(next);
+  };
+  const goToday = () => {
+    const t = todayISO();
+    setSelectedDate(isBusinessDay(t) ? t : previousBusinessDay(t));
+  };
+
+  const isHoliday = !isBusinessDay(selectedDate);
+  const totalDay = dayItems.length;
 
   if (isLoading) return <div className="p-6 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>;
 
@@ -91,7 +125,7 @@ export default function Intimacoes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold">Intimações</h1>
-          <p className="text-muted-foreground text-sm mt-1">Sincronização automática via DJEN/CNJ a cada 6h</p>
+          <p className="text-muted-foreground text-sm mt-1">Calendário oficial CNJ · Sincronização DJEN automática a cada 6h</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={syncDjen} disabled={syncing}>
@@ -99,6 +133,32 @@ export default function Intimacoes() {
             Sincronizar
           </Button>
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova Intimação</Button>
+        </div>
+      </div>
+
+      {/* Navegador de data (calendário CNJ) */}
+      <div className="bg-card rounded-lg border shadow-card p-3 flex items-center gap-3 flex-wrap">
+        <Button variant="outline" size="icon" className="h-9 w-9" onClick={goPrev} title="Dia útil anterior">
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+            className="h-9 w-44"
+            max={todayISO()}
+          />
+        </div>
+        <Button variant="outline" size="icon" className="h-9 w-9" onClick={goNext} title="Próximo dia útil" disabled={nextBusinessDay(selectedDate) > todayISO()}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={goToday}>Hoje</Button>
+        <div className="flex items-center gap-2 ml-auto text-sm">
+          <span className="font-medium">{formatBR(selectedDate)}</span>
+          {isHoliday && <Badge variant="outline" className="text-xs bg-warning/10 text-warning border-warning/20">Não-útil (CNJ)</Badge>}
+          <Badge variant="secondary" className="text-xs">{totalDay} publicação(ões)</Badge>
         </div>
       </div>
 
@@ -113,7 +173,8 @@ export default function Intimacoes() {
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Bell className="h-10 w-10 mx-auto mb-2 opacity-40" />
-          <p>Nenhuma intimação.</p>
+          <p>Nenhuma publicação disponibilizada em {formatBR(selectedDate)}.</p>
+          <p className="text-xs mt-1">Use "Sincronizar" para buscar novas intimações deste dia.</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -123,10 +184,10 @@ export default function Intimacoes() {
                 <div className="flex items-center gap-2 flex-wrap">
                   {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                   <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
-                  {it.deadline && <span className="text-xs text-warning">Prazo: {new Date(it.deadline + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+                  {it.deadline && <span className="text-xs text-warning">Prazo: {formatBR(it.deadline.slice(0, 10))}</span>}
                 </div>
                 <p className="text-sm mt-2">{it.content}</p>
-                <p className="text-xs text-muted-foreground mt-1">Recebida em {new Date(it.received_at + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
               </div>
               <div className="flex flex-col gap-1 shrink-0">
                 <Button size="sm" variant="outline" onClick={() => toTask.mutate(it)}>
@@ -146,7 +207,7 @@ export default function Intimacoes() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nova Intimação</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Nova Intimação ({formatBR(selectedDate)})</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div><Label>Tribunal/Vara</Label><Input value={form.court} onChange={(e) => setForm({ ...form, court: e.target.value })} placeholder="Ex: 2ª Vara Cível - TJSP" /></div>
             <div><Label>Conteúdo *</Label><Textarea rows={5} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} /></div>
