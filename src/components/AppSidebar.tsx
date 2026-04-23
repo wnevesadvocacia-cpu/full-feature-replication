@@ -18,6 +18,8 @@ import {
   Sparkles,
   Clock,
   Receipt,
+  Wallet,
+  TrendingUp,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -42,6 +44,8 @@ const mainNav = [
   { title: 'Timesheet', url: '/timesheet', icon: Clock },
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
   { title: 'Honorários', url: '/honorarios', icon: Receipt },
+  { title: 'Despesas', url: '/despesas', icon: Wallet },
+  { title: 'Fluxo de Caixa', url: '/fluxo-caixa', icon: TrendingUp },
   { title: 'Clientes', url: '/clientes', icon: Users },
 ];
 
