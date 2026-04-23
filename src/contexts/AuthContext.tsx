@@ -24,6 +24,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Use ONLY onAuthStateChange — it fires INITIAL_SESSION immediately with
+    // the stored session, eliminating the lock-contention from a second
+    // getSession() call that caused the 5-second blank-screen deadlock.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
@@ -32,13 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Safety net: if onAuthStateChange never fires (edge-case env issue),
+    // stop showing the loading spinner after 3 s so the UI is never stuck.
+    const timer = setTimeout(() => setLoading(false), 3000);
 
-    return () => subscription.unsubscribe();
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const signOut = async () => {

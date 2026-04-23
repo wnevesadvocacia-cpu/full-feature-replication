@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, APP_URL } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,16 +24,11 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // ── Já autenticado? ──────────────────────────────────────────────────────────
+  // ── Já autenticado? Usa o contexto (sem segundo lock do Supabase) ────────────
+  const { user } = useAuth();
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) navigate('/dashboard', { replace: true });
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
-      if (session) navigate('/dashboard', { replace: true });
-    });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    if (user) navigate('/dashboard', { replace: true });
+  }, [user, navigate]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
