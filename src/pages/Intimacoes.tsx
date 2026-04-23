@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
@@ -20,6 +20,20 @@ export default function Intimacoes() {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'todas' | 'pendente' | 'tratada'>('pendente');
   const [form, setForm] = useState({ court: '', content: '', deadline: '' });
+  const [syncing, setSyncing] = useState(false);
+
+  const syncDjen = async () => {
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sync-djen', { body: {}, method: 'POST' });
+      if (error) throw error;
+      const r = (data?.results || [])[0];
+      if (!r) toast({ title: 'Cadastre sua OAB em Configurações → Intimações', variant: 'destructive' });
+      else toast({ title: 'Sincronizado', description: `${r.inserted} novas / ${r.total} encontradas` });
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+    } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
+    finally { setSyncing(false); }
+  };
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['intimations'],
@@ -77,9 +91,15 @@ export default function Intimacoes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold">Intimações</h1>
-          <p className="text-muted-foreground text-sm mt-1">Gestão manual de publicações judiciais</p>
+          <p className="text-muted-foreground text-sm mt-1">Sincronização automática via DJEN/CNJ a cada 6h</p>
         </div>
-        <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova Intimação</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={syncDjen} disabled={syncing}>
+            {syncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            Sincronizar
+          </Button>
+          <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova Intimação</Button>
+        </div>
       </div>
 
       <div className="flex gap-1">
