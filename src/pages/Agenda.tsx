@@ -348,9 +348,19 @@ export default function Agenda() {
           <h1 className="text-2xl font-bold text-gray-900">Agenda</h1>
           <p className="text-sm text-gray-500">Compromissos, audiências e prazos</p>
         </div>
-        <Button onClick={() => { setForm(EMPTY_FORM(selectedDate)); setCreateOpen(true); }}>
-          <Plus className="w-4 h-4 mr-2" /> Novo compromisso
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border bg-white overflow-hidden">
+            {(['day','week','month'] as const).map(v => (
+              <button key={v} onClick={() => setView(v)}
+                className={`px-3 py-1.5 text-xs font-medium ${view === v ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-50'}`}>
+                {v === 'day' ? 'Dia' : v === 'week' ? 'Semana' : 'Mês'}
+              </button>
+            ))}
+          </div>
+          <Button onClick={() => { setForm(EMPTY_FORM(selectedDate)); setCreateOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Novo compromisso
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
