@@ -35,6 +35,8 @@ import Equipe from "./pages/Equipe";
 import GeradorPecas from "./pages/GeradorPecas";
 import Timesheet from "./pages/Timesheet";
 import Honorarios from "./pages/Honorarios";
+import Despesas from "./pages/Despesas";
+import FluxoCaixa from "./pages/FluxoCaixa";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -132,6 +134,8 @@ const App = () => (
               <Route path="/gerador-pecas" element={<PageErrorBoundary><GeradorPecas /></PageErrorBoundary>} />
               <Route path="/timesheet"     element={<PageErrorBoundary><Timesheet /></PageErrorBoundary>} />
               <Route path="/honorarios"    element={<PageErrorBoundary><Honorarios /></PageErrorBoundary>} />
+              <Route path="/despesas"      element={<PageErrorBoundary><Despesas /></PageErrorBoundary>} />
+              <Route path="/fluxo-caixa"   element={<PageErrorBoundary><FluxoCaixa /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
