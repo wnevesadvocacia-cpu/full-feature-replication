@@ -480,8 +480,11 @@ export default function Agenda() {
             <div className="space-y-2">
               {upcoming.map(t => (
                 <div key={t.id}
-                  className="p-2 rounded-lg border border-gray-100 hover:border-blue-200 cursor-pointer"
-                  onClick={() => { if (t.due_date) setSelectedDate(t.due_date.split('T')[0]); }}>
+                  className="p-2 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-colors"
+                  onClick={() => {
+                    if (t.due_date) setSelectedDate(t.due_date.split('T')[0]);
+                    setDetailTarget(t);
+                  }}>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityColor[t.priority || 'media']}`} />
                     <span className="text-sm font-medium text-gray-700 truncate">{t.title}</span>
