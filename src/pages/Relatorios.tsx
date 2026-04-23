@@ -131,7 +131,7 @@ export default function Relatorios() {
   const pendingTasks = tks.filter(t => !t.completed).length;
   const overdueTasks = tks.filter(t => {
     if (t.completed || !t.due_date) return false;
-    return new Date(t.due_date) < new Date();
+    const due = new Date(t.due_date + 'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); return due < today;
   }).length;
 
   // ── Status chart ──
@@ -165,8 +165,8 @@ export default function Relatorios() {
 
   // ── Client type chart ──
   const clientTypeData = groupCount(cls.map(c => c.type)).map(d => ({
-    name: d.name === 'individual' ? 'Pessoa Física' :
-          d.name === 'company' ? 'Pessoa Jurídica' : d.name,
+    name: d.name === 'PF' ? 'Pessoa Física' :
+          d.name === 'PJ' ? 'Pessoa Jurídica' : d.name,
     value: d.value,
   }));
 
@@ -174,14 +174,14 @@ export default function Relatorios() {
   const taskPriorityData = groupCount(
     tks.filter(t => !t.completed).map(t => t.priority)
   ).map(d => ({
-    name: d.name === 'high' ? 'Alta' : d.name === 'medium' ? 'Média' :
-          d.name === 'low' ? 'Baixa' : d.name,
+    name: d.name === 'alta' ? 'Alta' : d.name === 'media' ? 'Média' :
+          d.name === 'baixa' ? 'Baixa' : d.name ?? 'Sem prioridade',
     value: d.value,
   }));
 
   // ── Lawyer distribution ──
   const lawyerData = groupCount(
-    procs.map(p => (p as any).lawyer ?? p.lawyer ?? 'Não atribuído')
+    procs.map(p => p.lawyer ?? 'Não atribuído')
   ).slice(0, 6);
 
   const isLoading = processes.isLoading || clients.isLoading || tasks.isLoading;
