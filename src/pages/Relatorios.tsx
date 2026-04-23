@@ -49,8 +49,7 @@ function useProcessStats() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('processes')
-        .select('status, type, created_at, lawyer')
-        ;
+        .select('status, type, created_at, lawyer').limit(5000);
       if (error) throw error;
       return data ?? [];
     },
@@ -63,8 +62,7 @@ function useClientStats() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('type, status, created_at')
-        ;
+        .select('type, status, created_at').limit(5000);
       if (error) throw error;
       return data ?? [];
     },
@@ -79,8 +77,7 @@ function useTaskStats() {
         .from('tasks')
         .select('status, priority, completed, due_date')
         .not('assignee', 'eq', 'movimentacao')
-        .not('assignee', 'eq', 'documento')
-        ;
+        .not('assignee', 'eq', 'documento').limit(5000);
       if (error) throw error;
       return data ?? [];
     },
