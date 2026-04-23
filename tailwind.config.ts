@@ -14,10 +14,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Instrument Serif', 'Times New Roman', 'serif'],
-        body: ['Work Sans', 'system-ui', 'sans-serif'],
-        serif: ['Instrument Serif', 'serif'],
-        sans: ['Work Sans', 'system-ui', 'sans-serif'],
+        display: ['Space Grotesk', 'system-ui', 'sans-serif'],
+        body: ['DM Sans', 'system-ui', 'sans-serif'],
+        sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -76,8 +76,8 @@
     --shadow-gold: 0 4px 14px hsl(42 60% 50% / 0.25);
 
     /* Typography */
-    --font-display: 'Instrument Serif', 'Times New Roman', serif;
-    --font-body: 'Work Sans', system-ui, -apple-system, sans-serif;
+    --font-display: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --font-body: 'DM Sans', system-ui, -apple-system, sans-serif;
 
     /* Motion */
     --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
@@ -165,9 +165,9 @@
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    font-weight: 400;
-    letter-spacing: -0.015em;
-    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.15;
   }
 
   h1 { @apply text-3xl md:text-4xl; }
