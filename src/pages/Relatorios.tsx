@@ -138,6 +138,7 @@ export default function Relatorios() {
   const processes = useProcessStats();
   const clients = useClientStats();
   const tasks = useTaskStats();
+  const fin = useFinancialStats();
 
   const procs = processes.data ?? [];
   const cls = clients.data ?? [];
