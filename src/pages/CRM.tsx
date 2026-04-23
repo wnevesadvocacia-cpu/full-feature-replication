@@ -51,7 +51,7 @@ export default function CRM() {
         .from('processes')
         .select('id, number, title, status, client_name, value')
         .order('updated_at', { ascending: false })
-        .limit(500);
+        .limit(5000);
       if (error) throw error;
       return data ?? [];
     },
