@@ -272,6 +272,97 @@ export default function Intimacoes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog de delegação de tarefa */}
+      <Dialog open={!!taskIntim} onOpenChange={(o) => { if (!o) setTaskIntim(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" /> Delegar Tarefa da Intimação
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div>
+              <Label>Título *</Label>
+              <Input
+                value={taskForm.title}
+                onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                placeholder="Resumo da tarefa"
+                className="mt-1"
+              />
+            </div>
+            <div>
+              <Label>Descrição / Detalhes</Label>
+              <Textarea
+                rows={4}
+                value={taskForm.description}
+                onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Responsável</Label>
+                <Input
+                  value={taskForm.assignee}
+                  onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}
+                  placeholder="Nome do advogado"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Prioridade</Label>
+                <select
+                  className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+                  value={taskForm.priority}
+                  onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}
+                >
+                  <option value="alta">Alta</option>
+                  <option value="media">Média</option>
+                  <option value="baixa">Baixa</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Prazo</Label>
+                <Input
+                  type="date"
+                  value={taskForm.due_date}
+                  onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Horário</Label>
+                <Input
+                  type="time"
+                  value={taskForm.start_time}
+                  onChange={(e) => setTaskForm({ ...taskForm, start_time: e.target.value })}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Local / Tribunal</Label>
+              <Input
+                value={taskForm.location}
+                onChange={(e) => setTaskForm({ ...taskForm, location: e.target.value })}
+                className="mt-1"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
+            <Button
+              onClick={() => taskIntim && toTask.mutate({ intim: taskIntim, form: taskForm })}
+              disabled={!taskForm.title || toTask.isPending}
+            >
+              {toTask.isPending ? 'Criando…' : 'Criar e Delegar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
