@@ -16,6 +16,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, Calendar, Clock,
   CheckCircle2, Circle, Pencil, Trash2, AlertTriangle,
+  MapPin, User, Briefcase, FileText, Tag, RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -104,6 +105,7 @@ export default function Agenda() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Task | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Task | null>(null);
   const [form, setForm] = useState<AgendaForm>(EMPTY_FORM(todayStr));
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<'day' | 'week' | 'month'>('month');
@@ -478,8 +480,11 @@ export default function Agenda() {
             <div className="space-y-2">
               {upcoming.map(t => (
                 <div key={t.id}
-                  className="p-2 rounded-lg border border-gray-100 hover:border-blue-200 cursor-pointer"
-                  onClick={() => { if (t.due_date) setSelectedDate(t.due_date.split('T')[0]); }}>
+                  className="p-2 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50/30 cursor-pointer transition-colors"
+                  onClick={() => {
+                    if (t.due_date) setSelectedDate(t.due_date.split('T')[0]);
+                    setDetailTarget(t);
+                  }}>
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full flex-shrink-0 ${priorityColor[t.priority || 'media']}`} />
                     <span className="text-sm font-medium text-gray-700 truncate">{t.title}</span>
@@ -509,9 +514,10 @@ export default function Agenda() {
           <div className="space-y-2">
             {selectedTasks.map(t => (
               <div key={t.id}
-                className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
+                onClick={() => setDetailTarget(t)}
+                className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group cursor-pointer hover:border-blue-300 hover:shadow-sm ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
                 <button
-                  onClick={() => toggleTask.mutate({ id: t.id, completed: !t.completed })}
+                  onClick={(e) => { e.stopPropagation(); toggleTask.mutate({ id: t.id, completed: !t.completed }); }}
                   className="mt-0.5 flex-shrink-0">
                   {t.completed
                     ? <CheckCircle2 className="w-5 h-5 text-green-500" />
@@ -533,7 +539,7 @@ export default function Agenda() {
                     <p className="text-xs text-blue-500 mt-0.5">Processo {t.processes.number}</p>
                   )}
                   {t.assignee && t.assignee !== 'agenda' && t.assignee !== 'movimentacao' && t.assignee !== 'documento' && (
-                    <p className="text-xs text-gray-500 mt-0.5">Delegado: {t.assignee}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Responsável: {t.assignee}</p>
                   )}
                   {t.assignee === 'agenda' && (
                     <span className="text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded mt-0.5 inline-block">AdvBox</span>
@@ -543,11 +549,11 @@ export default function Agenda() {
                   {priorityLabel[t.priority || 'media']}
                 </Badge>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(t)}>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(t); }}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600"
-                    onClick={() => setDeleteTarget(t)}>
+                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -556,6 +562,115 @@ export default function Agenda() {
           </div>
         )}
       </div>
+
+      {/* Detail / Overview Dialog */}
+      <Dialog open={!!detailTarget} onOpenChange={(o) => { if (!o) setDetailTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          {detailTarget && (() => {
+            const t = detailTarget;
+            const overdue = !t.completed && t.due_date && t.due_date.split('T')[0] < todayStr;
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-start gap-3">
+                    <button
+                      onClick={() => toggleTask.mutate({ id: t.id, completed: !t.completed })}
+                      className="mt-1 flex-shrink-0"
+                      title={t.completed ? 'Reabrir' : 'Marcar como concluída'}
+                    >
+                      {t.completed
+                        ? <CheckCircle2 className="w-6 h-6 text-green-500" />
+                        : <Circle className="w-6 h-6 text-gray-300 hover:text-blue-500" />}
+                    </button>
+                    <div className="flex-1 min-w-0">
+                      <DialogTitle className={`text-lg ${t.completed ? 'line-through text-gray-400' : ''}`}>
+                        {t.title}
+                      </DialogTitle>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        <Badge className={`text-white ${priorityColor[t.priority || 'media']}`}>
+                          {priorityLabel[t.priority || 'media']}
+                        </Badge>
+                        {t.event_type && <Badge variant="outline">{t.event_type}</Badge>}
+                        {t.completed && <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">Concluída</Badge>}
+                        {overdue && <Badge variant="destructive">Atrasada</Badge>}
+                      </div>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-3 py-2">
+                  {t.due_date && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-gray-400" />
+                      <span className="font-medium text-gray-700">
+                        {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                  {(t.start_time || t.end_time) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span>{t.start_time?.slice(0,5) ?? ''}{t.end_time ? ` – ${t.end_time.slice(0,5)}` : ''}</span>
+                    </div>
+                  )}
+                  {t.location && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MapPin className="w-4 h-4 text-gray-400" />
+                      <span>{t.location}</span>
+                    </div>
+                  )}
+                  {t.assignee && !['agenda','movimentacao','documento'].includes(t.assignee) && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span>Responsável: <span className="font-medium">{t.assignee}</span></span>
+                    </div>
+                  )}
+                  {t.processes && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Briefcase className="w-4 h-4 text-gray-400" />
+                      <span>Processo <span className="font-mono">{t.processes.number}</span> — {t.processes.title}</span>
+                    </div>
+                  )}
+                  {t.event_type && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Tag className="w-4 h-4 text-gray-400" />
+                      <span>{t.event_type}</span>
+                    </div>
+                  )}
+                  {t.description && (
+                    <div className="flex items-start gap-2 text-sm pt-1 border-t">
+                      <FileText className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                      <p className="whitespace-pre-wrap text-gray-700">{t.description}</p>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <Button
+                    variant="outline"
+                    className="text-red-500 hover:text-red-600 sm:mr-auto"
+                    onClick={() => { setDeleteTarget(t); setDetailTarget(null); }}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Remover
+                  </Button>
+                  <Button variant="outline" onClick={() => { openEdit(t); setDetailTarget(null); }}>
+                    <Pencil className="h-4 w-4 mr-1" /> Editar
+                  </Button>
+                  {t.completed ? (
+                    <Button variant="secondary" onClick={() => { toggleTask.mutate({ id: t.id, completed: false }); setDetailTarget(null); }}>
+                      <RotateCcw className="h-4 w-4 mr-1" /> Reabrir
+                    </Button>
+                  ) : (
+                    <Button onClick={() => { toggleTask.mutate({ id: t.id, completed: true }); setDetailTarget(null); }}>
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Resolver tarefa
+                    </Button>
+                  )}
+                </DialogFooter>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
