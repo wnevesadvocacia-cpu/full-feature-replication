@@ -66,7 +66,7 @@ const secondaryNav = [
   { title: 'Assinatura Digital', url: '/assinaturas', icon: PenTool },
   { title: 'Versões de Petições', url: '/versoes', icon: History },
   { title: 'Personalizar Kanban', url: '/kanban-config', icon: Settings2 },
-  { title: 'Importar ADVBOX', url: '/importar', icon: Database },
+  { title: 'Importar Informações', url: '/importar', icon: Database },
 ];
 
 export function AppSidebar() {

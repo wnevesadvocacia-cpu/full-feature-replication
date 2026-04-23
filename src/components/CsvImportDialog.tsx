@@ -160,7 +160,7 @@ export default function CsvImportDialog() {
               ) : (
                 <>
                   <p className="text-sm font-medium">Clique para selecionar o arquivo CSV</p>
-                  <p className="text-xs text-muted-foreground">Exportado do ADVBOX ou qualquer planilha</p>
+                  <p className="text-xs text-muted-foreground">CSV de qualquer planilha ou sistema</p>
                 </>
               )}
             </label>
