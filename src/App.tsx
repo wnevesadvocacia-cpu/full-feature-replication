@@ -45,6 +45,7 @@ const Assinaturas = lazy(() => import("./pages/Assinaturas"));
 const ImportarAdvbox = lazy(() => import("./pages/ImportarAdvbox"));
 const Versoes = lazy(() => import("./pages/Versoes"));
 const KanbanConfig = lazy(() => import("./pages/KanbanConfig"));
+const Auditoria = lazy(() => import("./pages/Auditoria"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -165,6 +166,7 @@ const App = () => (
               <Route path="/importar"      element={wrap(ImportarAdvbox)} />
               <Route path="/versoes"       element={wrap(Versoes)} />
               <Route path="/kanban-config" element={wrap(KanbanConfig)} />
+              <Route path="/auditoria"     element={wrap(Auditoria)} />
             </Route>
             <Route path="*" element={wrap(NotFound)} />
           </Routes>
