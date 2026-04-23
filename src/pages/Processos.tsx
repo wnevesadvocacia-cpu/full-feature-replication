@@ -124,9 +124,9 @@ const FULL_SELECT = [
 ].join(',');
 
 // ── hooks ──────────────────────────────────────────────────────────────────────
-function useProcesses(search: string, status: string, page: number) {
+function useProcesses(search: string, status: string, type: string, page: number) {
   return useQuery({
-    queryKey: ['processes', search, status, page],
+    queryKey: ['processes', search, status, type, page],
     queryFn: async () => {
       let q = supabase
         .from('processes')
@@ -135,6 +135,7 @@ function useProcesses(search: string, status: string, page: number) {
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
       if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%,opponent.ilike.%${search}%,comarca.ilike.%${search}%`);
       if (status) q = q.eq('status', status);
+      if (type) q = q.eq('type', type);
       const { data, error, count } = await q;
       if (error) throw error;
       return { rows: (data ?? []) as Process[], total: count ?? 0 };
@@ -158,6 +159,23 @@ function useProcessTasks(processId: string | null) {
       if (error) throw error;
       return (data ?? []) as Task[];
     },
+  });
+}
+
+function useProcessTypes() {
+  return useQuery<string[]>({
+    queryKey: ['process-types'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processes')
+        .select('type')
+        .not('type', 'is', null)
+        .limit(5000);
+      if (error) throw error;
+      const types = Array.from(new Set((data ?? []).map((r: any) => r.type).filter(Boolean))).sort();
+      return types as string[];
+    },
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -446,6 +464,7 @@ export default function Processos() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Process | null>(null);
   const [editMode, setEditMode] = useState(false);
@@ -454,7 +473,8 @@ export default function Processos() {
   const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
 
-  const { data, isLoading } = useProcesses(search, statusFilter, page);
+  const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
+  const { data: processTypes = [] } = useProcessTypes();
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -466,6 +486,7 @@ export default function Processos() {
 
   const handleSearch = useCallback((v: string) => { setSearch(v); setPage(0); }, []);
   const handleStatus = useCallback((v: string) => { setStatusFilter(v); setPage(0); }, []);
+  const handleType = useCallback((v: string) => { setTypeFilter(v); setPage(0); }, []);
 
   // Add task to process
   const addTask = useMutation({
@@ -575,7 +596,7 @@ export default function Processos() {
             className="pl-9"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Filter className="h-4 w-4 text-gray-400" />
           <select
             value={statusFilter}
@@ -587,6 +608,18 @@ export default function Processos() {
               <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
+          {processTypes.length > 0 && (
+            <select
+              value={typeFilter}
+              onChange={(e) => handleType(e.target.value)}
+              className="text-sm border border-gray-200 rounded-md px-3 py-2 bg-white"
+            >
+              <option value="">Todos os tipos</option>
+              {processTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
