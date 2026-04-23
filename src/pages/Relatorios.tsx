@@ -85,6 +85,29 @@ function useTaskStats() {
   });
 }
 
+function useFinancialStats() {
+  return useQuery({
+    queryKey: ['report-financial'],
+    queryFn: async () => {
+      const [inv, exp, proc, cli] = await Promise.all([
+        supabase.from('invoices').select('amount, status, paid_date, client_id, created_at').limit(5000),
+        supabase.from('expenses').select('amount, date, client_id, process_id, reimbursable, reimbursed').limit(5000),
+        supabase.from('processes').select('id, client_id, type, status, result, honorarios_valor, value').limit(5000),
+        supabase.from('clients').select('id, name').limit(5000),
+      ]);
+      return {
+        invoices: inv.data ?? [],
+        expenses: exp.data ?? [],
+        processes: proc.data ?? [],
+        clients: cli.data ?? [],
+      };
+    },
+  });
+}
+
+const fmtBRL = (n: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(n || 0);
+
 // ── KPI Card ───────────────────────────────────────────────────────────────────
 function KpiCard({
   title, value, sub, icon: Icon, color,
@@ -115,6 +138,7 @@ export default function Relatorios() {
   const processes = useProcessStats();
   const clients = useClientStats();
   const tasks = useTaskStats();
+  const fin = useFinancialStats();
 
   const procs = processes.data ?? [];
   const cls = clients.data ?? [];
@@ -447,6 +471,224 @@ export default function Relatorios() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── BI Avançado ──────────────────────────────────── */}
+      <BiAvancado fin={fin.data} loading={fin.isLoading} />
+    </div>
+  );
+}
+
+// ── BI Avançado ───────────────────────────────────────────────────────────────
+type FinData = {
+  invoices: { amount: number; status: string; paid_date: string | null; client_id: string | null; created_at: string }[];
+  expenses: { amount: number; date: string; client_id: string | null; process_id: string | null; reimbursable: boolean; reimbursed: boolean }[];
+  processes: { id: string; client_id: string | null; type: string | null; status: string; result: string | null; honorarios_valor: number | null; value: number | null }[];
+  clients: { id: string; name: string }[];
+};
+
+function BiAvancado({ fin, loading }: { fin: FinData | undefined; loading: boolean }) {
+  if (loading) {
+    return (
+      <Card><CardContent className="pt-6 flex items-center justify-center h-32">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+      </CardContent></Card>
+    );
+  }
+  if (!fin) return null;
+
+  const { invoices, expenses, processes: procs, clients: cls } = fin;
+  const clientName = (id: string | null) => cls.find(c => c.id === id)?.name ?? '—';
+
+  // Receita realizada (faturas pagas)
+  const receitaPaga = invoices.filter(i => i.status === 'pago' || i.status === 'paga').reduce((s, i) => s + Number(i.amount || 0), 0);
+  const receitaPendente = invoices.filter(i => i.status === 'pendente').reduce((s, i) => s + Number(i.amount || 0), 0);
+  const despesasTotal = expenses.reduce((s, e) => s + Number(e.amount || 0), 0);
+  const lucroLiquido = receitaPaga - despesasTotal;
+
+  // Taxa de sucesso por área (tipo de processo)
+  const concluidos = procs.filter(p => ['concluido', 'closed', 'arquivado'].includes(p.status));
+  const successByType: Record<string, { ganhos: number; total: number }> = {};
+  for (const p of concluidos) {
+    const t = p.type ?? 'Não informado';
+    if (!successByType[t]) successByType[t] = { ganhos: 0, total: 0 };
+    successByType[t].total++;
+    if (p.result && /(ganho|procedente|favorável|exito|êxito|vitoria|vitória)/i.test(p.result)) {
+      successByType[t].ganhos++;
+    }
+  }
+  const successData = Object.entries(successByType)
+    .filter(([, v]) => v.total > 0)
+    .map(([name, v]) => ({ name, taxa: Math.round((v.ganhos / v.total) * 100), total: v.total }))
+    .sort((a, b) => b.taxa - a.taxa)
+    .slice(0, 8);
+
+  // ROI por cliente (receita - despesas reembolsáveis não-reembolsadas)
+  const roiByClient: Record<string, { receita: number; despesa: number }> = {};
+  for (const i of invoices) {
+    if (!i.client_id) continue;
+    const paga = i.status === 'pago' || i.status === 'paga';
+    if (!paga) continue;
+    if (!roiByClient[i.client_id]) roiByClient[i.client_id] = { receita: 0, despesa: 0 };
+    roiByClient[i.client_id].receita += Number(i.amount || 0);
+  }
+  for (const e of expenses) {
+    if (!e.client_id) continue;
+    if (!roiByClient[e.client_id]) roiByClient[e.client_id] = { receita: 0, despesa: 0 };
+    roiByClient[e.client_id].despesa += Number(e.amount || 0);
+  }
+  const roiData = Object.entries(roiByClient)
+    .map(([id, v]) => ({
+      name: clientName(id),
+      receita: v.receita,
+      despesa: v.despesa,
+      roi: v.receita - v.despesa,
+    }))
+    .sort((a, b) => b.roi - a.roi)
+    .slice(0, 10);
+
+  // Receita mensal (últimos 12 meses)
+  const now = new Date();
+  const monthly: Record<string, { receita: number; despesa: number }> = {};
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    monthly[`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`] = { receita: 0, despesa: 0 };
+  }
+  for (const inv of invoices) {
+    if (!(inv.status === 'pago' || inv.status === 'paga') || !inv.paid_date) continue;
+    const d = new Date(inv.paid_date + 'T00:00:00');
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (k in monthly) monthly[k].receita += Number(inv.amount || 0);
+  }
+  for (const e of expenses) {
+    const d = new Date(e.date + 'T00:00:00');
+    const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (k in monthly) monthly[k].despesa += Number(e.amount || 0);
+  }
+  const monthlyFin = Object.entries(monthly).map(([k, v]) => ({
+    name: MONTHS_PT[parseInt(k.split('-')[1]) - 1],
+    Receita: Math.round(v.receita),
+    Despesa: Math.round(v.despesa),
+  }));
+
+  return (
+    <div className="space-y-6 pt-2">
+      <div className="flex items-center gap-2">
+        <TrendingUp className="h-5 w-5 text-primary" />
+        <h2 className="text-lg font-semibold">BI Avançado — Performance &amp; Financeiro</h2>
+      </div>
+
+      {/* KPIs financeiros */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <KpiCard title="Receita Recebida" value={fmtBRL(receitaPaga)} icon={TrendingUp} color="bg-emerald-500" />
+        <KpiCard title="Receita Pendente" value={fmtBRL(receitaPendente)} icon={Clock} color="bg-amber-500" />
+        <KpiCard title="Despesas Totais" value={fmtBRL(despesasTotal)} icon={AlertCircle} color="bg-red-500" />
+        <KpiCard
+          title="Lucro Líquido"
+          value={fmtBRL(lucroLiquido)}
+          icon={TrendingUp}
+          color={lucroLiquido >= 0 ? 'bg-green-600' : 'bg-rose-600'}
+        />
+      </div>
+
+      {/* Receita vs Despesa mensal */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Receita vs Despesa — Últimos 12 Meses</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={monthlyFin} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+              <Tooltip formatter={(v: number) => fmtBRL(v)} />
+              <Legend />
+              <Bar dataKey="Receita" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="Despesa" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Taxa de sucesso por área */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+              Taxa de Sucesso por Área
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {successData.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                Sem processos concluídos com resultado registrado
+              </div>
+            ) : (
+              <div className="space-y-3 pt-2">
+                {successData.map((d, i) => (
+                  <div key={i}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="truncate max-w-[220px]" title={d.name}>{d.name}</span>
+                      <span className="font-medium shrink-0 ml-2">
+                        {d.taxa}% <span className="text-xs text-muted-foreground">({d.total})</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div
+                        className={`h-2 rounded-full ${d.taxa >= 70 ? 'bg-emerald-500' : d.taxa >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                        style={{ width: `${d.taxa}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ROI por cliente */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Top 10 Clientes por ROI
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {roiData.length === 0 ? (
+              <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+                Sem dados financeiros por cliente
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-muted-foreground">
+                      <th className="text-left py-2 px-2 font-medium">Cliente</th>
+                      <th className="text-right py-2 px-2 font-medium">Receita</th>
+                      <th className="text-right py-2 px-2 font-medium">Despesa</th>
+                      <th className="text-right py-2 px-2 font-medium">ROI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {roiData.map((d, i) => (
+                      <tr key={i} className="border-b last:border-0 hover:bg-muted/50">
+                        <td className="py-2 px-2 truncate max-w-[140px]" title={d.name}>{d.name}</td>
+                        <td className="py-2 px-2 text-right text-emerald-600">{fmtBRL(d.receita)}</td>
+                        <td className="py-2 px-2 text-right text-red-600">{fmtBRL(d.despesa)}</td>
+                        <td className={`py-2 px-2 text-right font-semibold ${d.roi >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                          {fmtBRL(d.roi)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
