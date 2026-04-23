@@ -14,6 +14,7 @@ import {
   KanbanSquare,
   FileSignature,
   Bell,
+  UserCog,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -45,6 +46,7 @@ const secondaryNav = [
   { title: 'Documentos', url: '/documentos', icon: FileText },
   { title: 'Movimentações', url: '/movimentacoes', icon: Activity },
   { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
+  { title: 'Equipe', url: '/equipe', icon: UserCog },
 ];
 
 export function AppSidebar() {
