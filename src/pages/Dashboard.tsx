@@ -111,17 +111,16 @@ export default function Dashboard() {
           .limit(5);
         setRecentProcesses(recent ?? []);
 
-        // Upcoming tasks
+        // Upcoming tasks (include agenda items for dashboard)
         const { data: tasks } = await supabase
           .from('tasks')
-          .select('id, title, due_date, completed, process_id')
+          .select('id, title, due_date, completed, process_id, assignee')
           .eq('completed', false)
           .not('due_date', 'is', null)
           .not('assignee', 'eq', 'movimentacao')
           .not('assignee', 'eq', 'documento')
-          .not('assignee', 'eq', 'agenda')
           .order('due_date', { ascending: true })
-          .limit(5);
+          .limit(8);
         setUpcomingTasks(tasks ?? []);
       } catch (err) {
         console.error('Dashboard load error:', err);
@@ -241,15 +240,20 @@ export default function Dashboard() {
               <p className="text-sm text-gray-400">Carregando…</p>
             ) : upcomingTasks.length === 0 ? (
               <p className="text-sm text-gray-400">Nenhuma tarefa pendente.</p>
-            ) : upcomingTasks.map((t) => (
-              <div key={t.id} className="flex items-center justify-between gap-2 py-1 border-b last:border-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <CheckSquare className="h-4 w-4 text-gray-400 shrink-0" />
-                  <p className="text-sm truncate">{t.title}</p>
-                </div>
-                <span className="text-xs text-gray-500 shrink-0">{formatDate(t.due_date)}</span>
-              </div>
-            ))}
+            ) : upcomingTasks.map((t) => {
+                const isOverdue = t.due_date && new Date(t.due_date.slice(0,10) + 'T12:00:00') < new Date(new Date().toISOString().split('T')[0] + 'T12:00:00');
+                const isAgenda = (t as any).assignee === 'agenda';
+                return (
+                  <div key={t.id} className="flex items-center justify-between gap-2 py-1 border-b last:border-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <CheckSquare className={`h-4 w-4 shrink-0 ${isOverdue ? 'text-red-400' : 'text-gray-400'}`} />
+                      <p className={`text-sm truncate ${isOverdue ? 'text-red-700 font-medium' : ''}`}>{t.title}</p>
+                      {isAgenda && <span className="text-xs bg-purple-100 text-purple-700 px-1 rounded shrink-0">Agenda</span>}
+                    </div>
+                    <span className={`text-xs shrink-0 ${isOverdue ? 'text-red-500 font-semibold' : 'text-gray-500'}`}>{formatDate(t.due_date)}</span>
+                  </div>
+                );
+              })}
           </CardContent>
         </Card>
       </div>
