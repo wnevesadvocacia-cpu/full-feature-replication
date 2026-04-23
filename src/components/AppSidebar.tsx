@@ -77,16 +77,21 @@ export function AppSidebar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarHeader className="p-4">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
+      <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
-            <span className="text-primary-foreground font-bold text-sm">W</span>
+          <div className="h-9 w-9 rounded-md bg-gradient-gold flex items-center justify-center shrink-0 shadow-gold">
+            <span className="font-display text-lg text-primary-foreground leading-none">W</span>
           </div>
           {!collapsed && (
-            <span className="font-display font-bold text-sidebar-accent-foreground text-lg tracking-tight">
-              WnevesBox
-            </span>
+            <div className="flex flex-col leading-tight">
+              <span className="font-display text-xl text-sidebar-accent-foreground tracking-tight">
+                WnevesBox
+              </span>
+              <span className="text-[10px] uppercase tracking-[0.2em] text-sidebar-muted font-medium">
+                Legal Suite
+              </span>
+            </div>
           )}
         </div>
       </SidebarHeader>
