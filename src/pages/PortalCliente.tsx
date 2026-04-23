@@ -1,0 +1,152 @@
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Briefcase, Receipt, AlertCircle, Loader2, Scale } from 'lucide-react';
+
+export default function PortalCliente() {
+  const { token } = useParams<{ token: string }>();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    (async () => {
+      try {
+        const { data: res, error } = await supabase.rpc('get_client_portal_data', { _token: token });
+        if (error) throw error;
+        if ((res as any)?.error) throw new Error('Token inválido ou expirado');
+        setData(res);
+      } catch (e: any) {
+        setError(e.message);
+      } finally { setLoading(false); }
+    })();
+  }, [token]);
+
+  const fmt = (n: any) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <Card className="max-w-md w-full">
+          <CardContent className="p-8 text-center space-y-3">
+            <AlertCircle className="h-12 w-12 mx-auto text-destructive" />
+            <h1 className="text-xl font-semibold">Acesso indisponível</h1>
+            <p className="text-sm text-muted-foreground">{error || 'Token não encontrado.'}</p>
+            <p className="text-xs text-muted-foreground">Solicite um novo link ao seu advogado.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { client, processes = [], invoices = [] } = data;
+
+  return (
+    <div className="min-h-screen bg-muted/30">
+      <header className="bg-card border-b">
+        <div className="max-w-4xl mx-auto px-6 py-5 flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
+            <Scale className="h-5 w-5 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="font-display font-bold text-lg">Portal do Cliente</h1>
+            <p className="text-xs text-muted-foreground">Acompanhe seus processos e faturas</p>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Bem-vindo(a)</p>
+            <h2 className="text-2xl font-display font-bold mt-1">{client?.name}</h2>
+            {client?.email && <p className="text-sm text-muted-foreground mt-1">{client.email}</p>}
+          </CardContent>
+        </Card>
+
+        <section>
+          <h3 className="font-semibold flex items-center gap-2 mb-3">
+            <Briefcase className="h-4 w-4 text-primary" />
+            Seus processos ({processes.length})
+          </h3>
+          {processes.length === 0 ? (
+            <Card><CardContent className="p-6 text-sm text-muted-foreground text-center">Nenhum processo ativo.</CardContent></Card>
+          ) : (
+            <div className="space-y-3">
+              {processes.map((p: any) => (
+                <Card key={p.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-mono text-muted-foreground">{p.number}</p>
+                        <p className="font-medium mt-1">{p.title}</p>
+                        <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
+                          {p.tribunal && <span>🏛 {p.tribunal}</span>}
+                          {p.vara && <span>⚖ {p.vara}</span>}
+                          {p.comarca && <span>📍 {p.comarca}</span>}
+                        </div>
+                      </div>
+                      <Badge variant="outline">{p.status}</Badge>
+                    </div>
+                    {p.last_update && (
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Última atualização: {new Date(p.last_update).toLocaleDateString('pt-BR')}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section>
+          <h3 className="font-semibold flex items-center gap-2 mb-3">
+            <Receipt className="h-4 w-4 text-primary" />
+            Suas faturas ({invoices.length})
+          </h3>
+          {invoices.length === 0 ? (
+            <Card><CardContent className="p-6 text-sm text-muted-foreground text-center">Nenhuma fatura.</CardContent></Card>
+          ) : (
+            <Card>
+              <CardContent className="p-0">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 text-xs uppercase">
+                    <tr><th className="px-4 py-2 text-left">Número</th><th className="px-4 py-2 text-left">Vencimento</th><th className="px-4 py-2 text-right">Valor</th><th className="px-4 py-2">Status</th></tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {invoices.map((i: any, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-2 font-mono text-xs">{i.number}</td>
+                        <td className="px-4 py-2 text-muted-foreground">{i.due_date ? new Date(i.due_date).toLocaleDateString('pt-BR') : '—'}</td>
+                        <td className="px-4 py-2 text-right font-mono">{fmt(i.amount)}</td>
+                        <td className="px-4 py-2 text-center">
+                          <Badge variant={i.status === 'paga' ? 'default' : i.status === 'vencida' ? 'destructive' : 'outline'}>{i.status}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+
+        <p className="text-xs text-muted-foreground text-center pt-4">
+          Acesso somente leitura · Em caso de dúvidas, contate seu advogado.
+        </p>
+      </main>
+    </div>
+  );
+}

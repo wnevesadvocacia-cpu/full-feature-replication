@@ -37,6 +37,8 @@ import Timesheet from "./pages/Timesheet";
 import Honorarios from "./pages/Honorarios";
 import Despesas from "./pages/Despesas";
 import FluxoCaixa from "./pages/FluxoCaixa";
+import PortalAcessos from "./pages/PortalAcessos";
+import PortalCliente from "./pages/PortalCliente";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -109,6 +111,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/portal/:token" element={<PortalCliente />} />
             <Route
               element={
                 <ProtectedRoute>
@@ -136,6 +139,7 @@ const App = () => (
               <Route path="/honorarios"    element={<PageErrorBoundary><Honorarios /></PageErrorBoundary>} />
               <Route path="/despesas"      element={<PageErrorBoundary><Despesas /></PageErrorBoundary>} />
               <Route path="/fluxo-caixa"   element={<PageErrorBoundary><FluxoCaixa /></PageErrorBoundary>} />
+              <Route path="/portal-acessos" element={<PageErrorBoundary><PortalAcessos /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
