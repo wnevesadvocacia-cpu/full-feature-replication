@@ -161,7 +161,11 @@ export default function Agenda() {
       due_date: t.due_date ? t.due_date.split('T')[0] : selectedDate,
       priority: t.priority ?? 'media',
       process_id: t.process_id ?? '',
-      assignee: (t as any).assignee ?? '',
+      assignee: t.assignee ?? '',
+      start_time: t.start_time ?? '',
+      end_time: t.end_time ?? '',
+      event_type: t.event_type ?? 'Audiência',
+      location: t.location ?? '',
     });
     setEditTarget(t);
   };
@@ -177,6 +181,10 @@ export default function Agenda() {
         priority: form.priority,
         process_id: form.process_id,
         assignee: form.assignee || null,
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
+        event_type: form.event_type || null,
+        location: form.location || null,
         user_id: user?.id,
         completed: false,
       });
@@ -201,6 +209,10 @@ export default function Agenda() {
         priority: form.priority,
         process_id: form.process_id,
         assignee: form.assignee || null,
+        start_time: form.start_time || null,
+        end_time: form.end_time || null,
+        event_type: form.event_type || null,
+        location: form.location || null,
       }).eq('id', editTarget.id);
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
