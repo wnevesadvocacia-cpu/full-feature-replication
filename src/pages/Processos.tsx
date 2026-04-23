@@ -157,7 +157,7 @@ function useProcesses(search: string, status: string, type: string, page: number
       if (type) q = q.eq('type', type);
       const { data, error, count } = await q;
       if (error) throw error;
-      return { rows: (data ?? []) as Process[], total: count ?? 0 };
+      return { rows: (data ?? []) as unknown as Process[], total: count ?? 0 };
     },
     placeholderData: (prev) => prev,
   });
@@ -365,7 +365,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
           .select(FULL_SELECT)
           .single();
         if (error) throw error;
-        return data as Process;
+        return data as unknown as Process;
       } else {
         const { data, error } = await supabase
           .from('processes')
@@ -373,7 +373,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
           .select(FULL_SELECT)
           .single();
         if (error) throw error;
-        return data as Process;
+        return data as unknown as Process;
       }
     },
     onSuccess: (p) => {
@@ -525,7 +525,7 @@ export default function Processos() {
         if (typeFilter) q = q.eq('type', typeFilter);
         const { data, error } = await q;
         if (error || !data || data.length === 0) break;
-        all = all.concat(data as Process[]);
+        all = all.concat(data as unknown as Process[]);
         if (data.length < 1000) break;
         off += 1000;
       }
@@ -599,7 +599,7 @@ export default function Processos() {
         .select(FULL_SELECT)
         .single();
       if (error) throw error;
-      return data as Process;
+      return data as unknown as Process;
     },
     onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ['processes'] });
