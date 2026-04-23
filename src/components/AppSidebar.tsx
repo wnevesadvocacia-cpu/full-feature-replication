@@ -11,6 +11,9 @@ import {
   BarChart3,
   Settings,
   Activity,
+  KanbanSquare,
+  FileSignature,
+  Bell,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -28,7 +31,9 @@ import {
 
 const mainNav = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'CRM Kanban', url: '/crm', icon: KanbanSquare },
   { title: 'Processos', url: '/processos', icon: Briefcase },
+  { title: 'Intimações', url: '/intimacoes', icon: Bell },
   { title: 'Tarefas', url: '/tarefas', icon: CheckSquare },
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
   { title: 'Clientes', url: '/clientes', icon: Users },
@@ -36,6 +41,7 @@ const mainNav = [
 
 const secondaryNav = [
   { title: 'Agenda', url: '/agenda', icon: Calendar },
+  { title: 'Modelos', url: '/modelos', icon: FileSignature },
   { title: 'Documentos', url: '/documentos', icon: FileText },
   { title: 'Movimentações', url: '/movimentacoes', icon: Activity },
   { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },

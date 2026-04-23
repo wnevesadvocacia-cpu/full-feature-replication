@@ -27,6 +27,10 @@ import Documentos from "./pages/Documentos";
 import Relatorios from "./pages/Relatorios";
 import Configuracoes from "./pages/Configuracoes";
 import Movimentacoes from "./pages/Movimentacoes";
+import CRM from "./pages/CRM";
+import Modelos from "./pages/Modelos";
+import Intimacoes from "./pages/Intimacoes";
+import Notificacoes from "./pages/Notificacoes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -116,6 +120,10 @@ const App = () => (
               <Route path="/relatorios"    element={<PageErrorBoundary><Relatorios /></PageErrorBoundary>} />
               <Route path="/configuracoes" element={<PageErrorBoundary><Configuracoes /></PageErrorBoundary>} />
               <Route path="/movimentacoes" element={<PageErrorBoundary><Movimentacoes /></PageErrorBoundary>} />
+              <Route path="/crm"           element={<PageErrorBoundary><CRM /></PageErrorBoundary>} />
+              <Route path="/modelos"       element={<PageErrorBoundary><Modelos /></PageErrorBoundary>} />
+              <Route path="/intimacoes"    element={<PageErrorBoundary><Intimacoes /></PageErrorBoundary>} />
+              <Route path="/notificacoes"  element={<PageErrorBoundary><Notificacoes /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

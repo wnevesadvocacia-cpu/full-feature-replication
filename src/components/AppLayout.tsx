@@ -4,7 +4,8 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { CommandMenu } from '@/components/CommandMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Search, Bell, LogOut } from 'lucide-react';
+import { Search, LogOut } from 'lucide-react';
+import { NotificationBell } from '@/components/NotificationBell';
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
@@ -32,9 +33,7 @@ export default function AppLayout() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon">
-                <Bell className="h-4 w-4" />
-              </Button>
+              <NotificationBell />
 
               <div className="flex items-center gap-3 ml-2 pl-2 border-l">
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
