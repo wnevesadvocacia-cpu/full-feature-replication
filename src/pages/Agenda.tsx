@@ -19,6 +19,7 @@ import {
   MapPin, User, Briefcase, FileText, Tag, RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { DeleteGuard } from '@/components/DeleteGuard';
 
 const MONTHS = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -552,10 +553,12 @@ export default function Agenda() {
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); openEdit(t); }}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600"
-                    onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
+                  <DeleteGuard>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-red-400 hover:text-red-600"
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(t); }}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </DeleteGuard>
                 </div>
               </div>
             ))}
@@ -646,13 +649,15 @@ export default function Agenda() {
                 </div>
 
                 <DialogFooter className="flex-col sm:flex-row gap-2">
-                  <Button
-                    variant="outline"
-                    className="text-red-500 hover:text-red-600 sm:mr-auto"
-                    onClick={() => { setDeleteTarget(t); setDetailTarget(null); }}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" /> Remover
-                  </Button>
+                  <DeleteGuard>
+                    <Button
+                      variant="outline"
+                      className="text-red-500 hover:text-red-600 sm:mr-auto"
+                      onClick={() => { setDeleteTarget(t); setDetailTarget(null); }}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" /> Remover
+                    </Button>
+                  </DeleteGuard>
                   <Button variant="outline" onClick={() => { openEdit(t); setDetailTarget(null); }}>
                     <Pencil className="h-4 w-4 mr-1" /> Editar
                   </Button>
