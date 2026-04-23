@@ -3,29 +3,63 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Briefcase, Receipt, AlertCircle, Loader2, Scale } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { SignaturePad } from '@/components/SignaturePad';
+import { Briefcase, Receipt, AlertCircle, Loader2, Scale, FileSignature, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function PortalCliente() {
   const { token } = useParams<{ token: string }>();
   const [data, setData] = useState<any>(null);
+  const [signatures, setSignatures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [openSig, setOpenSig] = useState<any>(null);
+  const [signerName, setSignerName] = useState('');
+  const [signing, setSigning] = useState(false);
 
-  useEffect(() => {
+  const loadAll = async () => {
     if (!token) return;
-    (async () => {
-      try {
-        const { data: res, error } = await supabase.rpc('get_client_portal_data', { _token: token });
-        if (error) throw error;
-        if ((res as any)?.error) throw new Error('Token inválido ou expirado');
-        setData(res);
-      } catch (e: any) {
-        setError(e.message);
-      } finally { setLoading(false); }
-    })();
-  }, [token]);
+    try {
+      const [{ data: portal, error: e1 }, { data: sigs, error: e2 }] = await Promise.all([
+        supabase.rpc('get_client_portal_data', { _token: token }),
+        supabase.rpc('get_portal_signatures', { _token: token }),
+      ]);
+      if (e1) throw e1;
+      if (e2) throw e2;
+      if ((portal as any)?.error) throw new Error('Token inválido ou expirado');
+      setData(portal);
+      setSignatures(Array.isArray(sigs) ? sigs : []);
+    } catch (e: any) {
+      setError(e.message);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [token]);
 
   const fmt = (n: any) => Number(n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  const handleSign = async (dataUrl: string) => {
+    if (!signerName.trim()) {
+      toast.error('Informe seu nome completo antes de assinar');
+      return;
+    }
+    setSigning(true);
+    try {
+      const { data: res, error } = await supabase.rpc('sign_portal_document', {
+        _token: token!, _request_id: openSig.id, _signature_data_url: dataUrl, _signer_name: signerName.trim(),
+      });
+      if (error) throw error;
+      if ((res as any)?.error) throw new Error((res as any).error);
+      toast.success('Documento assinado com sucesso!');
+      setOpenSig(null);
+      setSignerName('');
+      await loadAll();
+    } catch (e: any) {
+      toast.error('Erro ao assinar: ' + e.message);
+    } finally { setSigning(false); }
+  };
 
   if (loading) {
     return (
@@ -51,6 +85,7 @@ export default function PortalCliente() {
   }
 
   const { client, processes = [], invoices = [] } = data;
+  const pendingSigs = signatures.filter(s => s.status === 'pendente');
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -74,6 +109,48 @@ export default function PortalCliente() {
             {client?.email && <p className="text-sm text-muted-foreground mt-1">{client.email}</p>}
           </CardContent>
         </Card>
+
+        {/* Documentos para assinar */}
+        {signatures.length > 0 && (
+          <section>
+            <h3 className="font-semibold flex items-center gap-2 mb-3">
+              <FileSignature className="h-4 w-4 text-primary" />
+              Documentos para assinar
+              {pendingSigs.length > 0 && (
+                <Badge variant="destructive" className="ml-1">{pendingSigs.length} pendente{pendingSigs.length !== 1 ? 's' : ''}</Badge>
+              )}
+            </h3>
+            <div className="space-y-3">
+              {signatures.map((s) => (
+                <Card key={s.id} className={s.status === 'pendente' ? 'border-primary/40' : ''}>
+                  <CardContent className="p-4 flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium">{s.title}</p>
+                      {s.description && <p className="text-sm text-muted-foreground mt-1">{s.description}</p>}
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Solicitado em {new Date(s.created_at).toLocaleDateString('pt-BR')}
+                        {s.signed_at && ` · Assinado em ${new Date(s.signed_at).toLocaleDateString('pt-BR')}`}
+                      </p>
+                    </div>
+                    {s.status === 'pendente' ? (
+                      <button
+                        onClick={() => setOpenSig(s)}
+                        className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+                      >
+                        Assinar agora
+                      </button>
+                    ) : (
+                      <Badge variant={s.status === 'assinado' ? 'default' : 'secondary'} className="gap-1">
+                        {s.status === 'assinado' && <CheckCircle2 className="h-3 w-3" />}
+                        {s.status}
+                      </Badge>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section>
           <h3 className="font-semibold flex items-center gap-2 mb-3">
@@ -147,6 +224,31 @@ export default function PortalCliente() {
           Acesso somente leitura · Em caso de dúvidas, contate seu advogado.
         </p>
       </main>
+
+      {/* Dialog de assinatura */}
+      <Dialog open={!!openSig} onOpenChange={(o) => !o && setOpenSig(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Assinar: {openSig?.title}</DialogTitle>
+            <DialogDescription>
+              {openSig?.description || 'Confirme seu nome e assine no campo abaixo. Esta assinatura tem validade entre as partes.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Seu nome completo</label>
+              <Input
+                value={signerName}
+                onChange={(e) => setSignerName(e.target.value)}
+                placeholder="Como aparece no seu RG/CPF"
+                className="mt-1"
+                disabled={signing}
+              />
+            </div>
+            <SignaturePad onSign={handleSign} disabled={signing} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
