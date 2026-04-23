@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import DOMPurify from 'dompurify';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,18 @@ import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
 
 interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
+
+// Detecta se o conteúdo é HTML (tags ou entidades) e prepara para render seguro.
+function renderIntimContent(raw: string) {
+  const looksHtml = /<[a-z!/][^>]*>|&[a-z]+;|&#\d+;/i.test(raw);
+  if (!looksHtml) return { html: null as string | null, text: raw };
+  const clean = DOMPurify.sanitize(raw, {
+    ALLOWED_TAGS: ['p','br','b','strong','i','em','u','span','div','section','article','header','footer','table','thead','tbody','tr','td','th','ul','ol','li','hr','h1','h2','h3','h4','h5','h6','small','sup','sub'],
+    ALLOWED_ATTR: ['align','colspan','rowspan'],
+  });
+  return { html: clean, text: null as string | null };
+}
+
 
 export default function Intimacoes() {
   const { user } = useAuth();
@@ -186,7 +199,12 @@ export default function Intimacoes() {
                   <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
                   {it.deadline && <span className="text-xs text-warning">Prazo: {formatBR(it.deadline.slice(0, 10))}</span>}
                 </div>
-                <p className="text-sm mt-2 whitespace-pre-wrap break-words">{it.content}</p>
+                {(() => {
+                  const r = renderIntimContent(it.content);
+                  return r.html
+                    ? <div className="text-sm mt-2 break-words intim-content prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
+                    : <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.text}</p>;
+                })()}
                 <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
               </div>
               <div className="flex flex-col gap-1 shrink-0">

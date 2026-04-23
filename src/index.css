@@ -137,4 +137,10 @@
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+  .intim-content table { @apply w-full border-collapse my-2 text-xs; }
+  .intim-content td, .intim-content th { @apply border border-border px-2 py-1 align-top; }
+  .intim-content p { @apply my-1; }
+  .intim-content hr { @apply my-2 border-border; }
+  .intim-content b, .intim-content strong { @apply font-semibold; }
+  .intim-content header, .intim-content footer { @apply text-muted-foreground; }
 }
