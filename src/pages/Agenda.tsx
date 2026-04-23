@@ -16,6 +16,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, Calendar, Clock,
   CheckCircle2, Circle, Pencil, Trash2, AlertTriangle,
+  MapPin, User, Briefcase, FileText, Tag, RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
