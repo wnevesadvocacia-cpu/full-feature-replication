@@ -471,6 +471,9 @@ export default function Relatorios() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ── BI Avançado ──────────────────────────────────── */}
+      <BiAvancado fin={fin.data} loading={fin.isLoading} />
     </div>
   );
 }
