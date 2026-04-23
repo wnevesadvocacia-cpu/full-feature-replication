@@ -284,7 +284,7 @@ export default function Tarefas() {
               {task.due_date && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                   <Calendar className="h-3 w-3" />
-                  <span>{new Date(task.due_date).toLocaleDateString('pt-BR')}</span>
+                  <span>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                 </div>
               )}
               {task.assignee && (

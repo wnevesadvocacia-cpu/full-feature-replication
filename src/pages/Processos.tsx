@@ -105,7 +105,10 @@ function formatCurrency(v: number | null) {
 }
 function formatDate(s: string | null | undefined) {
   if (!s) return EMPTY;
-  return new Date(s).toLocaleDateString('pt-BR');
+  // Append T12:00:00 for bare date strings (YYYY-MM-DD) so UTC parsing
+  // doesn't shift the date backward in Brazilian timezone (UTC-3)
+  const normalized = s.includes('T') ? s : s.slice(0, 10) + 'T12:00:00';
+  return new Date(normalized).toLocaleDateString('pt-BR');
 }
 function val(s: string | null | undefined) {
   return s || EMPTY;
