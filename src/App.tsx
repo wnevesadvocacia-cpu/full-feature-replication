@@ -39,6 +39,7 @@ import Despesas from "./pages/Despesas";
 import FluxoCaixa from "./pages/FluxoCaixa";
 import PortalAcessos from "./pages/PortalAcessos";
 import PortalCliente from "./pages/PortalCliente";
+import Assinaturas from "./pages/Assinaturas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -140,6 +141,7 @@ const App = () => (
               <Route path="/despesas"      element={<PageErrorBoundary><Despesas /></PageErrorBoundary>} />
               <Route path="/fluxo-caixa"   element={<PageErrorBoundary><FluxoCaixa /></PageErrorBoundary>} />
               <Route path="/portal-acessos" element={<PageErrorBoundary><PortalAcessos /></PageErrorBoundary>} />
+              <Route path="/assinaturas"   element={<PageErrorBoundary><Assinaturas /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

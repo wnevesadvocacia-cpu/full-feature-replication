@@ -650,6 +650,57 @@ export type Database = {
           },
         ]
       }
+      signature_requests: {
+        Row: {
+          client_id: string
+          created_at: string
+          description: string | null
+          document_id: string | null
+          expires_at: string | null
+          id: string
+          signature_data_url: string | null
+          signed_at: string | null
+          signer_ip: string | null
+          signer_name: string | null
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          description?: string | null
+          document_id?: string | null
+          expires_at?: string | null
+          id?: string
+          signature_data_url?: string | null
+          signed_at?: string | null
+          signer_ip?: string | null
+          signer_name?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          description?: string | null
+          document_id?: string | null
+          expires_at?: string | null
+          id?: string
+          signature_data_url?: string | null
+          signed_at?: string | null
+          signer_ip?: string | null
+          signer_name?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assignee: string | null
@@ -787,12 +838,22 @@ export type Database = {
     }
     Functions: {
       get_client_portal_data: { Args: { _token: string }; Returns: Json }
+      get_portal_signatures: { Args: { _token: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      sign_portal_document: {
+        Args: {
+          _request_id: string
+          _signature_data_url: string
+          _signer_name: string
+          _token: string
+        }
+        Returns: Json
       }
     }
     Enums: {
