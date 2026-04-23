@@ -141,7 +141,7 @@ export default function Intimacoes() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setTaskIntim(null);
       toast({
-        title: 'Tarefa delegada com sucesso',
+        title: 'Responsável definido com sucesso',
         description: 'Acesse o módulo Tarefas para acompanhar.',
       });
     },
@@ -307,7 +307,7 @@ export default function Intimacoes() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5 text-primary" /> Delegar Tarefa da Intimação
+              <CheckSquare className="h-5 w-5 text-primary" /> Responsável pela Tarefa da Intimação
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
@@ -410,7 +410,7 @@ export default function Intimacoes() {
               onClick={() => taskIntim && toTask.mutate({ intim: taskIntim, form: taskForm })}
               disabled={!taskForm.title || toTask.isPending}
             >
-              {toTask.isPending ? 'Criando…' : 'Criar e Delegar'}
+              {toTask.isPending ? 'Criando…' : 'Criar Tarefa'}
             </Button>
           </DialogFooter>
         </DialogContent>
