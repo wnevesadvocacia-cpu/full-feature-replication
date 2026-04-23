@@ -69,7 +69,19 @@ export default function ResetPassword() {
 
     processHash();
 
-    return () => subscription.unsubscribe();
+    // Safety net: nunca deixar o spinner eterno. Após 5s, libera a UI
+    // mostrando "Link inválido" se a sessão de recovery não foi detectada.
+    const timer = setTimeout(() => {
+      setChecking((prev) => {
+        if (prev) console.warn('[ResetPassword] timeout — liberando UI');
+        return false;
+      });
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timer);
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
