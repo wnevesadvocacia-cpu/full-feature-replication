@@ -158,6 +158,60 @@ export type Database = {
           },
         ]
       }
+      fee_agreements: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          fixed_amount: number | null
+          hourly_rate: number | null
+          id: string
+          installments_count: number | null
+          installments_paid: number
+          notes: string | null
+          process_id: string | null
+          status: string
+          success_percent: number | null
+          total_estimated: number | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          fixed_amount?: number | null
+          hourly_rate?: number | null
+          id?: string
+          installments_count?: number | null
+          installments_paid?: number
+          notes?: string | null
+          process_id?: string | null
+          status?: string
+          success_percent?: number | null
+          total_estimated?: number | null
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          fixed_amount?: number | null
+          hourly_rate?: number | null
+          id?: string
+          installments_count?: number | null
+          installments_paid?: number
+          notes?: string | null
+          process_id?: string | null
+          status?: string
+          success_percent?: number | null
+          total_estimated?: number | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       intimations: {
         Row: {
           content: string
@@ -576,6 +630,51 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      time_entries: {
+        Row: {
+          billable: boolean
+          client_id: string | null
+          created_at: string
+          date: string
+          description: string | null
+          hourly_rate: number | null
+          hours: number
+          id: string
+          invoiced: boolean
+          process_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          billable?: boolean
+          client_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          hourly_rate?: number | null
+          hours?: number
+          id?: string
+          invoiced?: boolean
+          process_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          billable?: boolean
+          client_id?: string | null
+          created_at?: string
+          date?: string
+          description?: string | null
+          hourly_rate?: number | null
+          hours?: number
+          id?: string
+          invoiced?: boolean
+          process_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
