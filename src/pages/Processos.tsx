@@ -293,7 +293,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
         .from('clients')
         .select('id, name')
         .order('name')
-        .limit(2000);
+        .limit(5000);
       if (error) throw error;
       return data ?? [];
     },

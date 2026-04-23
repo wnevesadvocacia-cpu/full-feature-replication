@@ -75,8 +75,9 @@ function useMovimentacoes(search: string) {
         .select('id, process_id, title, description, due_date, created_at, processes(number, title)')
         .eq('assignee', MOV_MARKER)
         .order('due_date', { ascending: false })
-        .order('created_at', { ascending: false });
-      if (search) q = q.or(`description.ilike.%${search}%,title.ilike.%${search}%`);
+        .order('created_at', { ascending: false })
+        .limit(5000);
+      if (search) q = (q as any).or(`description.ilike.%${search}%,title.ilike.%${search}%`);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []).map((t: any) => ({

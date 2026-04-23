@@ -56,8 +56,9 @@ function useDocumentos(search: string) {
         .from('tasks')
         .select('id, process_id, title, description, due_date, created_at, processes(number, title)')
         .eq('assignee', DOC_MARKER)
-        .order('created_at', { ascending: false });
-      if (search) q = q.ilike('title', `%${search}%`);
+        .order('created_at', { ascending: false })
+        .limit(5000);
+      if (search) q = (q as any).ilike('title', `%${search}%`);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []).map((t: any) => {

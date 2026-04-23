@@ -63,7 +63,8 @@ function useAgendaTasks() {
         .select('*, processes(number, title)')
         .not('assignee', 'eq', 'movimentacao')
         .not('assignee', 'eq', 'documento')
-        .order('due_date', { ascending: true });
+        .order('due_date', { ascending: true })
+        .limit(5000);
       if (error) throw error;
       return data as Task[];
     },
@@ -77,7 +78,7 @@ function useProcessList() {
       const { data, error } = await supabase
         .from('processes')
         .select('id, number, title')
-        .limit(100);
+        .order('number', { ascending: true }).limit(4000);
       if (error) throw error;
       return data ?? [];
     },
