@@ -497,6 +497,34 @@ export default function Documentos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* OCR Dialog */}
+      <Dialog open={!!ocrTarget} onOpenChange={(o) => { if (!o) { setOcrTarget(null); setOcrText(''); } }}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              OCR — {ocrTarget?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto py-2">
+            {ocrLoading ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <Loader2 className="h-8 w-8 animate-spin text-purple-500" />
+                <p className="text-sm text-muted-foreground">Extraindo texto com IA…</p>
+              </div>
+            ) : (
+              <pre className="text-xs whitespace-pre-wrap font-mono bg-muted/40 p-4 rounded">{ocrText}</pre>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { navigator.clipboard.writeText(ocrText); toast({ title: 'Copiado!' }); }} disabled={!ocrText}>
+              Copiar texto
+            </Button>
+            <Button onClick={() => { setOcrTarget(null); setOcrText(''); }}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
