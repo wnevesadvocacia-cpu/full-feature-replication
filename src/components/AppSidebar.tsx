@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Link2,
   PenTool,
+} from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
