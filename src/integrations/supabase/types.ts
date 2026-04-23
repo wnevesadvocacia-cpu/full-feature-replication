@@ -906,6 +906,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_delete: { Args: { _user_id: string }; Returns: boolean }
       get_client_portal_data: { Args: { _token: string }; Returns: Json }
       get_portal_signatures: { Args: { _token: string }; Returns: Json }
       has_role: {
