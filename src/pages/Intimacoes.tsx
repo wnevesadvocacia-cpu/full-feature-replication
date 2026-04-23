@@ -410,7 +410,7 @@ export default function Intimacoes() {
               onClick={() => taskIntim && toTask.mutate({ intim: taskIntim, form: taskForm })}
               disabled={!taskForm.title || toTask.isPending}
             >
-              {toTask.isPending ? 'Criando…' : 'Criar e Delegar'}
+              {toTask.isPending ? 'Criando…' : 'Criar Tarefa'}
             </Button>
           </DialogFooter>
         </DialogContent>
