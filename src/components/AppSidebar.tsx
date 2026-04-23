@@ -15,6 +15,7 @@ import {
   FileSignature,
   Bell,
   UserCog,
+  Sparkles,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -41,6 +42,7 @@ const mainNav = [
 ];
 
 const secondaryNav = [
+  { title: 'Gerador de Peças (IA)', url: '/gerador-pecas', icon: Sparkles },
   { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Modelos', url: '/modelos', icon: FileSignature },
   { title: 'Documentos', url: '/documentos', icon: FileText },
