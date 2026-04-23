@@ -98,6 +98,66 @@ export type Database = {
         }
         Relationships: []
       }
+      documents: {
+        Row: {
+          category: string | null
+          client_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          mime_type: string | null
+          name: string
+          process_id: string | null
+          size_bytes: number | null
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          mime_type?: string | null
+          name: string
+          process_id?: string | null
+          size_bytes?: number | null
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          category?: string | null
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          mime_type?: string | null
+          name?: string
+          process_id?: string | null
+          size_bytes?: number | null
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intimations: {
         Row: {
           content: string

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,67 +13,42 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { FileText, FileImage, File, Trash2, Download, Search, FolderOpen, Plus, ExternalLink, Pencil, AlertTriangle } from 'lucide-react';
+import { FileText, FileImage, File, Trash2, Download, Search, FolderOpen, Upload, Pencil, AlertTriangle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface DocumentoItem {
   id: string;
   name: string;
-  url: string;
-  notes: string;
-  date: string;
+  description: string | null;
+  category: string | null;
+  storage_path: string;
+  mime_type: string | null;
+  size_bytes: number | null;
   process_id: string | null;
+  client_id: string | null;
   created_at: string;
   processes?: { number: string; title: string } | null;
+  clients?: { name: string } | null;
 }
 
-interface Process {
-  id: string;
-  number: string;
-  title: string;
-}
+interface Process { id: string; number: string; title: string; }
+interface Client { id: string; name: string; }
 
-// Uses tasks table with assignee='documento' as marker
-// title = document name, description = "url|||notes", due_date = date
-const DOC_MARKER = 'documento';
-
-function parseDescription(desc: string | null): { url: string; notes: string } {
-  if (!desc) return { url: '', notes: '' };
-  const sep = desc.indexOf('|||');
-  if (sep === -1) return { url: '', notes: desc };
-  return { url: desc.substring(0, sep), notes: desc.substring(sep + 3) };
-}
-
-function buildDescription(url: string, notes: string): string {
-  return url ? `${url}|||${notes}` : notes;
-}
+const BUCKET = 'documents';
 
 function useDocumentos(search: string) {
   return useQuery<DocumentoItem[]>({
     queryKey: ['documentos', search],
     queryFn: async () => {
       let q = supabase
-        .from('tasks')
-        .select('id, process_id, title, description, due_date, created_at, processes(number, title)')
-        .eq('assignee', DOC_MARKER)
+        .from('documents')
+        .select('id, name, description, category, storage_path, mime_type, size_bytes, process_id, client_id, created_at, processes(number, title), clients(name)')
         .order('created_at', { ascending: false })
         .limit(5000);
-      if (search) q = (q as any).ilike('title', `%${search}%`);
+      if (search) q = (q as any).ilike('name', `%${search}%`);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []).map((t: any) => {
-        const { url, notes } = parseDescription(t.description);
-        return {
-          id: t.id,
-          process_id: t.process_id,
-          name: t.title || 'Documento',
-          url,
-          notes,
-          date: t.due_date || t.created_at?.split('T')[0] || '',
-          created_at: t.created_at,
-          processes: t.processes,
-        };
-      });
+      return (data ?? []) as any;
     },
   });
 }
@@ -82,69 +57,30 @@ function useProcessList() {
   return useQuery<Process[]>({
     queryKey: ['process-list-doc'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('processes')
-        .select('id, number, title')
-        .order('updated_at', { ascending: false })
-        .limit(4000);
+      const { data, error } = await supabase.from('processes')
+        .select('id, number, title').order('updated_at', { ascending: false }).limit(4000);
       if (error) throw error;
       return data ?? [];
     },
   });
 }
 
-function useCreateDocumento() {
-  const qc = useQueryClient();
-  const { user } = useAuth();
-  return useMutation({
-    mutationFn: async (d: { name: string; url: string; notes: string; date: string; process_id?: string }) => {
-      const { error } = await supabase.from('tasks').insert({
-        user_id: user?.id,
-        title: d.name,
-        description: buildDescription(d.url, d.notes),
-        due_date: d.date,
-        process_id: d.process_id || null,
-        assignee: DOC_MARKER,
-        priority: 'media',
-        status: 'pendente',
-        completed: false,
-      });
+function useClientList() {
+  return useQuery<Client[]>({
+    queryKey: ['client-list-doc'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('clients')
+        .select('id, name').order('name').limit(4000);
       if (error) throw error;
+      return data ?? [];
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documentos'] }); },
   });
 }
 
-function useDeleteDocumento() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('tasks').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documentos'] }); },
-  });
-}
-function useUpdateDocumento() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (d: { id: string; name: string; url: string; notes: string; date: string; process_id?: string }) => {
-      const { error } = await supabase.from('tasks').update({
-        title: d.name,
-        description: buildDescription(d.url, d.notes),
-        due_date: d.date || null,
-        process_id: d.process_id || null,
-      }).eq('id', d.id);
-      if (error) throw error;
-    },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['documentos'] }); },
-  });
-}
-
-function getFileIcon(name: string) {
+function getFileIcon(name: string, mime?: string | null) {
   const ext = name.split('.').pop()?.toLowerCase() ?? '';
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return <FileImage className="h-5 w-5 text-blue-500" />;
-  if (ext === 'pdf') return <FileText className="h-5 w-5 text-red-500" />;
+  if (mime?.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return <FileImage className="h-5 w-5 text-blue-500" />;
+  if (ext === 'pdf' || mime === 'application/pdf') return <FileText className="h-5 w-5 text-red-500" />;
   return <File className="h-5 w-5 text-gray-500" />;
 }
 
@@ -157,61 +93,111 @@ function getCategoryBadge(name: string) {
   return { label: 'Documento', cls: 'bg-gray-100 text-gray-700' };
 }
 
-const EMPTY_DOC_FORM = () => ({
-  name: '', url: '', notes: '',
-  date: new Date().toISOString().split('T')[0],
-  process_id: '',
-});
+function formatBytes(b?: number | null): string {
+  if (!b) return '';
+  if (b < 1024) return `${b} B`;
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1024 / 1024).toFixed(1)} MB`;
+}
+
+const EMPTY_FORM = () => ({ description: '', category: 'geral', process_id: '', client_id: '' });
 
 export default function Documentos() {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');
-  const [createOpen, setCreateOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [editTarget, setEditTarget] = useState<DocumentoItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DocumentoItem | null>(null);
-  const [form, setForm] = useState(EMPTY_DOC_FORM());
+  const [form, setForm] = useState(EMPTY_FORM());
   const [saving, setSaving] = useState(false);
 
   const { data: docs = [], isLoading } = useDocumentos(search);
   const { data: processes = [] } = useProcessList();
-  const createDoc = useCreateDocumento();
-  const updateDoc = useUpdateDocumento();
-  const deleteDoc = useDeleteDocumento();
+  const { data: clients = [] } = useClientList();
 
-  const openEdit = (doc: DocumentoItem) => {
-    setForm({ name: doc.name, url: doc.url, notes: doc.notes, date: doc.date, process_id: doc.process_id ?? '' });
-    setEditTarget(doc);
-  };
-
-  const handleCreate = async () => {
-    if (!form.name.trim()) {
-      toast({ title: 'Informe o nome do documento', variant: 'destructive' });
+  const onPickFile = (f: File | null) => {
+    if (!f) return;
+    if (f.size > 50 * 1024 * 1024) {
+      toast({ title: 'Arquivo muito grande', description: 'Limite: 50 MB', variant: 'destructive' });
       return;
     }
+    setPendingFile(f);
+    setForm(EMPTY_FORM());
+    setUploadOpen(true);
+  };
+
+  const handleUpload = async () => {
+    if (!pendingFile || !user) return;
     setSaving(true);
     try {
-      await createDoc.mutateAsync({
-        name: form.name, url: form.url, notes: form.notes, date: form.date,
-        process_id: form.process_id || undefined,
+      const ext = pendingFile.name.split('.').pop() ?? 'bin';
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, pendingFile, {
+        contentType: pendingFile.type || undefined,
+        upsert: false,
       });
-      toast({ title: 'Documento cadastrado!' });
-      setCreateOpen(false);
-      setForm(EMPTY_DOC_FORM());
+      if (upErr) throw upErr;
+      const { error: insErr } = await supabase.from('documents').insert({
+        user_id: user.id,
+        name: pendingFile.name,
+        description: form.description || null,
+        category: form.category || 'geral',
+        storage_path: path,
+        mime_type: pendingFile.type || null,
+        size_bytes: pendingFile.size,
+        process_id: form.process_id || null,
+        client_id: form.client_id || null,
+      });
+      if (insErr) {
+        await supabase.storage.from(BUCKET).remove([path]);
+        throw insErr;
+      }
+      toast({ title: 'Documento enviado!' });
+      setUploadOpen(false);
+      setPendingFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      qc.invalidateQueries({ queryKey: ['documentos'] });
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      toast({ title: 'Erro no upload', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
   };
 
+  const handleDownload = async (doc: DocumentoItem) => {
+    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(doc.storage_path, 60);
+    if (error || !data) {
+      toast({ title: 'Erro ao baixar', description: error?.message, variant: 'destructive' });
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  };
+
+  const openEdit = (doc: DocumentoItem) => {
+    setForm({
+      description: doc.description ?? '',
+      category: doc.category ?? 'geral',
+      process_id: doc.process_id ?? '',
+      client_id: doc.client_id ?? '',
+    });
+    setEditTarget(doc);
+  };
+
   const handleEdit = async () => {
-    if (!editTarget || !form.name.trim()) return;
+    if (!editTarget) return;
     setSaving(true);
     try {
-      await updateDoc.mutateAsync({
-        id: editTarget.id, name: form.name, url: form.url,
-        notes: form.notes, date: form.date,
-        process_id: form.process_id || undefined,
-      });
+      const { error } = await supabase.from('documents').update({
+        description: form.description || null,
+        category: form.category || 'geral',
+        process_id: form.process_id || null,
+        client_id: form.client_id || null,
+      }).eq('id', editTarget.id);
+      if (error) throw error;
       toast({ title: 'Documento atualizado!' });
       setEditTarget(null);
+      qc.invalidateQueries({ queryKey: ['documentos'] });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -221,9 +207,12 @@ export default function Documentos() {
     if (!deleteTarget) return;
     setSaving(true);
     try {
-      await deleteDoc.mutateAsync(deleteTarget.id);
+      await supabase.storage.from(BUCKET).remove([deleteTarget.storage_path]);
+      const { error } = await supabase.from('documents').delete().eq('id', deleteTarget.id);
+      if (error) throw error;
       toast({ title: 'Documento removido.' });
       setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ['documentos'] });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -234,21 +223,23 @@ export default function Documentos() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Documentos</h1>
-          <p className="text-sm text-gray-500 mt-1">Gestão de documentos e arquivos</p>
+          <p className="text-sm text-gray-500 mt-1">GED — Gestão Eletrônica de Documentos</p>
         </div>
-        <Button onClick={() => { setForm(EMPTY_DOC_FORM()); setCreateOpen(true); }} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo Documento
+        <Button onClick={() => fileInputRef.current?.click()} className="gap-2">
+          <Upload className="h-4 w-4" /> Enviar Arquivo
         </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="hidden"
+          onChange={e => onPickFile(e.target.files?.[0] ?? null)}
+        />
       </div>
 
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-        <Input
-          placeholder="Buscar documentos..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="pl-9"
-        />
+        <Input placeholder="Buscar documentos..." value={search}
+          onChange={e => setSearch(e.target.value)} className="pl-9" />
       </div>
 
       {isLoading ? (
@@ -256,8 +247,8 @@ export default function Documentos() {
       ) : docs.length === 0 ? (
         <div className="text-center py-16">
           <FolderOpen className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-          <p className="text-gray-500">Nenhum documento cadastrado.</p>
-          <p className="text-sm text-gray-400 mt-1">Clique em "Novo Documento" para adicionar.</p>
+          <p className="text-gray-500">Nenhum documento enviado.</p>
+          <p className="text-sm text-gray-400 mt-1">Clique em "Enviar Arquivo" para começar.</p>
         </div>
       ) : (
         <div className="grid gap-3">
@@ -267,53 +258,39 @@ export default function Documentos() {
               <Card key={doc.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
-                    <div className="shrink-0">{getFileIcon(doc.name)}</div>
+                    <div className="shrink-0">{getFileIcon(doc.name, doc.mime_type)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-sm text-gray-900 truncate">{doc.name}</span>
                         <Badge className={`text-xs ${badge.cls}`}>{badge.label}</Badge>
+                        {doc.size_bytes != null && (
+                          <span className="text-xs text-gray-400">{formatBytes(doc.size_bytes)}</span>
+                        )}
                         {doc.processes && (
                           <span className="text-xs text-gray-500 font-mono">{doc.processes.number}</span>
                         )}
-                        {doc.date && (
-                          <span className="text-xs text-gray-400">
-                            {new Date(doc.date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </span>
+                        {doc.clients && (
+                          <span className="text-xs text-gray-500">👤 {doc.clients.name}</span>
                         )}
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                        </span>
                       </div>
-                      {doc.notes && <p className="text-xs text-gray-500 mt-1 truncate">{doc.notes}</p>}
-                      {doc.processes && (
-                        <p className="text-xs text-gray-400 truncate">{doc.processes.title}</p>
-                      )}
+                      {doc.description && <p className="text-xs text-gray-500 mt-1 truncate">{doc.description}</p>}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      {doc.url ? (
-                        <Button
-                          variant="ghost" size="icon"
-                          className="text-blue-500 hover:text-blue-700"
-                          onClick={() => window.open(doc.url, '_blank')}
-                          title="Abrir link"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </Button>
-                      ) : (
-                        <Button variant="ghost" size="icon" disabled title="Sem link cadastrado">
-                          <Download className="h-4 w-4 text-gray-300" />
-                        </Button>
-                      )}
-                      <Button
-                        variant="ghost" size="icon"
-                        className="hover:bg-gray-50"
-                        onClick={() => openEdit(doc)}
-                        title="Editar"
-                      >
+                      <Button variant="ghost" size="icon"
+                        className="text-blue-500 hover:text-blue-700"
+                        onClick={() => handleDownload(doc)}
+                        title="Baixar">
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(doc)} title="Editar">
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost" size="icon"
+                      <Button variant="ghost" size="icon"
                         className="text-red-400 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => setDeleteTarget(doc)}
-                      >
+                        onClick={() => setDeleteTarget(doc)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -325,83 +302,33 @@ export default function Documentos() {
         </div>
       )}
 
-      <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
+      {/* Upload Dialog */}
+      <Dialog open={uploadOpen} onOpenChange={(o) => { if (!o) { setUploadOpen(false); setPendingFile(null); } }}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Novo Documento</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Enviar Documento</DialogTitle></DialogHeader>
           <div className="space-y-4 py-2">
+            {pendingFile && (
+              <div className="text-sm bg-gray-50 p-3 rounded">
+                <p className="font-medium truncate">{pendingFile.name}</p>
+                <p className="text-xs text-gray-500">{formatBytes(pendingFile.size)} · {pendingFile.type || 'tipo desconhecido'}</p>
+              </div>
+            )}
             <div className="space-y-1">
-              <Label>Nome do Documento <span className="text-red-500">*</span></Label>
-              <Input
-                placeholder="ex: Petição Inicial.pdf"
-                value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>Link do Arquivo (opcional)</Label>
-              <Input
-                placeholder="https://drive.google.com/... ou outro link"
-                value={form.url}
-                onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
-              />
-              <p className="text-xs text-gray-400">Cole o link do Google Drive, OneDrive ou qualquer nuvem.</p>
+              <Label>Categoria</Label>
+              <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="geral">Geral</SelectItem>
+                  <SelectItem value="peticao">Petição</SelectItem>
+                  <SelectItem value="contrato">Contrato</SelectItem>
+                  <SelectItem value="procuracao">Procuração</SelectItem>
+                  <SelectItem value="documento_pessoal">Documento Pessoal</SelectItem>
+                  <SelectItem value="comprovante">Comprovante</SelectItem>
+                  <SelectItem value="decisao">Decisão</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Data</Label>
-                <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-              </div>
-              <div className="space-y-1">
-                <Label>Processo</Label>
-                <Select value={form.process_id} onValueChange={v => setForm(f => ({ ...f, process_id: v === '_none' ? '' : v }))}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="_none">— Nenhum —</SelectItem>
-                    {processes.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.number} — {p.title}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Observações</Label>
-              <Input
-                placeholder="Notas sobre o documento..."
-                value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={saving}>
-              {saving ? 'Salvando…' : 'Cadastrar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Dialog */}
-      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Editar Documento</DialogTitle></DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label>Nome do Documento *</Label>
-              <Input placeholder="ex: Petição Inicial.pdf" value={form.name}
-                onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            </div>
-            <div className="space-y-1">
-              <Label>Link do Arquivo (opcional)</Label>
-              <Input placeholder="https://drive.google.com/..." value={form.url}
-                onChange={e => setForm(f => ({ ...f, url: e.target.value }))} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Data</Label>
-                <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-              </div>
               <div className="space-y-1">
                 <Label>Processo</Label>
                 <Select value={form.process_id || '_none'}
@@ -415,17 +342,99 @@ export default function Documentos() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-1">
+                <Label>Cliente</Label>
+                <Select value={form.client_id || '_none'}
+                  onValueChange={v => setForm(f => ({ ...f, client_id: v === '_none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— Nenhum —</SelectItem>
+                    {clients.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="space-y-1">
-              <Label>Observações</Label>
-              <Input placeholder="Notas…" value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+              <Label>Descrição</Label>
+              <Input placeholder="Notas sobre o documento..." value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setUploadOpen(false); setPendingFile(null); }}>Cancelar</Button>
+            <Button onClick={handleUpload} disabled={saving || !pendingFile}>
+              {saving ? 'Enviando…' : 'Enviar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>Editar Documento</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-2">
+            {editTarget && (
+              <div className="text-sm bg-gray-50 p-3 rounded">
+                <p className="font-medium truncate">{editTarget.name}</p>
+                <p className="text-xs text-gray-500">{formatBytes(editTarget.size_bytes)}</p>
+              </div>
+            )}
+            <div className="space-y-1">
+              <Label>Categoria</Label>
+              <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="geral">Geral</SelectItem>
+                  <SelectItem value="peticao">Petição</SelectItem>
+                  <SelectItem value="contrato">Contrato</SelectItem>
+                  <SelectItem value="procuracao">Procuração</SelectItem>
+                  <SelectItem value="documento_pessoal">Documento Pessoal</SelectItem>
+                  <SelectItem value="comprovante">Comprovante</SelectItem>
+                  <SelectItem value="decisao">Decisão</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label>Processo</Label>
+                <Select value={form.process_id || '_none'}
+                  onValueChange={v => setForm(f => ({ ...f, process_id: v === '_none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— Nenhum —</SelectItem>
+                    {processes.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.number} — {p.title}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Cliente</Label>
+                <Select value={form.client_id || '_none'}
+                  onValueChange={v => setForm(f => ({ ...f, client_id: v === '_none' ? '' : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="_none">— Nenhum —</SelectItem>
+                    {clients.map(c => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label>Descrição</Label>
+              <Input placeholder="Notas…" value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.name || saving}>
-              {saving ? 'Salvando…' : 'Salvar Alterações'}
+            <Button onClick={handleEdit} disabled={saving}>
+              {saving ? 'Salvando…' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -439,8 +448,8 @@ export default function Documentos() {
               <AlertTriangle className="h-5 w-5" /> Remover Documento
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
-            Remover <span className="font-semibold">"{deleteTarget?.name}"</span>? Esta ação não pode ser desfeita.
+          <p className="text-sm text-gray-600 py-2">
+            Tem certeza que deseja remover <strong>{deleteTarget?.name}</strong>? O arquivo será excluído permanentemente.
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
