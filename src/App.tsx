@@ -40,6 +40,9 @@ import FluxoCaixa from "./pages/FluxoCaixa";
 import PortalAcessos from "./pages/PortalAcessos";
 import PortalCliente from "./pages/PortalCliente";
 import Assinaturas from "./pages/Assinaturas";
+import ImportarAdvbox from "./pages/ImportarAdvbox";
+import Versoes from "./pages/Versoes";
+import KanbanConfig from "./pages/KanbanConfig";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -142,6 +145,9 @@ const App = () => (
               <Route path="/fluxo-caixa"   element={<PageErrorBoundary><FluxoCaixa /></PageErrorBoundary>} />
               <Route path="/portal-acessos" element={<PageErrorBoundary><PortalAcessos /></PageErrorBoundary>} />
               <Route path="/assinaturas"   element={<PageErrorBoundary><Assinaturas /></PageErrorBoundary>} />
+              <Route path="/importar"      element={<PageErrorBoundary><ImportarAdvbox /></PageErrorBoundary>} />
+              <Route path="/versoes"       element={<PageErrorBoundary><Versoes /></PageErrorBoundary>} />
+              <Route path="/kanban-config" element={<PageErrorBoundary><KanbanConfig /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
