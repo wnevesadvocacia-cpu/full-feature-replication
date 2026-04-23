@@ -20,6 +20,7 @@ import {
   Receipt,
   Wallet,
   TrendingUp,
+  Link2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -57,6 +58,7 @@ const secondaryNav = [
   { title: 'Movimentações', url: '/movimentacoes', icon: Activity },
   { title: 'Relatórios', url: '/relatorios', icon: BarChart3 },
   { title: 'Equipe', url: '/equipe', icon: UserCog },
+  { title: 'Portal do Cliente', url: '/portal-acessos', icon: Link2 },
 ];
 
 export function AppSidebar() {
