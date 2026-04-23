@@ -246,12 +246,11 @@ export default function Agenda() {
         </Select>
       </div>
       <div>
-        <Label>Processo (opcional)</Label>
-        <Select value={form.process_id || '_none'}
-          onValueChange={v => setForm(f => ({ ...f, process_id: v === '_none' ? '' : v }))}>
+        <Label>Processo *</Label>
+        <Select value={form.process_id}
+          onValueChange={v => setForm(f => ({ ...f, process_id: v }))}>
           <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar processo…" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="_none">— Nenhum —</SelectItem>
             {processes.map(p => (
               <SelectItem key={p.id} value={p.id}>{p.number} — {p.title}</SelectItem>
             ))}
