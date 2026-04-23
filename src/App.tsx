@@ -141,6 +141,7 @@ const App = () => (
               <Route path="/despesas"      element={<PageErrorBoundary><Despesas /></PageErrorBoundary>} />
               <Route path="/fluxo-caixa"   element={<PageErrorBoundary><FluxoCaixa /></PageErrorBoundary>} />
               <Route path="/portal-acessos" element={<PageErrorBoundary><PortalAcessos /></PageErrorBoundary>} />
+              <Route path="/assinaturas"   element={<PageErrorBoundary><Assinaturas /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
