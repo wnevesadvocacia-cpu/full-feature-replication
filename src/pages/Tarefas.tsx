@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { DeleteGuard } from '@/components/DeleteGuard';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
@@ -294,10 +295,12 @@ export default function Tarefas() {
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(task)}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700"
-                  onClick={() => setDeleteTarget(task)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <DeleteGuard>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700"
+                    onClick={() => setDeleteTarget(task)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </DeleteGuard>
               </div>
             </div>
           ))}

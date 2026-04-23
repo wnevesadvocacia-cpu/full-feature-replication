@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Loader2, Trash2, FileSignature, TrendingUp } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DeleteGuard } from '@/components/DeleteGuard';
 
 interface FA {
   id: string;
@@ -177,9 +178,11 @@ export default function Honorarios() {
                   <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary">{TYPE_LABEL[a.type]}</span>
                   <p className="text-xs text-muted-foreground mt-1">Status: {a.status}</p>
                 </div>
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(a.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <DeleteGuard>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(a.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </DeleteGuard>
               </div>
               <div className="mt-3 space-y-1 text-sm">
                 {a.type === 'fixo' && a.fixed_amount && (

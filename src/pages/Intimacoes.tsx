@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
+import { DeleteGuard } from '@/components/DeleteGuard';
 
 interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
 
@@ -290,9 +291,11 @@ export default function Intimacoes() {
                 {it.status !== 'tratada' && (
                   <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
                 )}
-                <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(it.id)}>
-                  <Trash2 className="h-3 w-3" />
-                </Button>
+                <DeleteGuard>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(it.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </DeleteGuard>
               </div>
             </div>
           ))}

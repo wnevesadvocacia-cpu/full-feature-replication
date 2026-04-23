@@ -16,6 +16,7 @@ import {
   Pencil, Trash2, Check, AlertTriangle, Clock, FileText, Download,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { DeleteGuard } from '@/components/DeleteGuard';
 
 interface Process {
   id: string;
@@ -778,13 +779,15 @@ export default function Processos() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                    <Button
-                      size="sm" variant="outline"
-                      onClick={() => setDeleteTarget(selected)}
-                      className="h-8 px-2 text-red-600 hover:text-red-700 hover:border-red-300"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <DeleteGuard>
+                      <Button
+                        size="sm" variant="outline"
+                        onClick={() => setDeleteTarget(selected)}
+                        className="h-8 px-2 text-red-600 hover:text-red-700 hover:border-red-300"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </DeleteGuard>
                   </div>
                 </div>
               </SheetHeader>

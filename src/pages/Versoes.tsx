@@ -13,6 +13,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { History, Save, FileText, GitCompare, RotateCcw, Trash2 } from 'lucide-react';
+import { DeleteGuard } from '@/components/DeleteGuard';
 
 export default function Versoes() {
   const { user } = useAuth();
@@ -162,9 +163,11 @@ export default function Versoes() {
                       <Button size="sm" variant="ghost" onClick={() => { if (confirm('Restaurar esta versão sobre o modelo atual?')) restore.mutate(v); }} title="Restaurar">
                         <RotateCcw className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" variant="ghost" onClick={() => { if (confirm('Excluir versão?')) remove.mutate(v.id); }} title="Excluir">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      <DeleteGuard>
+                        <Button size="sm" variant="ghost" onClick={() => { if (confirm('Excluir versão?')) remove.mutate(v.id); }} title="Excluir">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </DeleteGuard>
                     </div>
                   </div>
                 ))}
