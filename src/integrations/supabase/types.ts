@@ -104,9 +104,11 @@ export type Database = {
           court: string | null
           created_at: string
           deadline: string | null
+          external_id: string | null
           id: string
           process_id: string | null
           received_at: string
+          source: string | null
           status: string
           updated_at: string
           user_id: string
@@ -116,9 +118,11 @@ export type Database = {
           court?: string | null
           created_at?: string
           deadline?: string | null
+          external_id?: string | null
           id?: string
           process_id?: string | null
           received_at?: string
+          source?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -128,9 +132,11 @@ export type Database = {
           court?: string | null
           created_at?: string
           deadline?: string | null
+          external_id?: string | null
           id?: string
           process_id?: string | null
           received_at?: string
+          source?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -260,6 +266,39 @@ export type Database = {
           read?: boolean
           title?: string
           type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      oab_settings: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          oab_number: string
+          oab_uf: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          oab_number: string
+          oab_uf: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          oab_number?: string
+          oab_uf?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
