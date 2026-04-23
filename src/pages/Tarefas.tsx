@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -6,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Filter,
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle,
 } from 'lucide-react';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import {
@@ -26,9 +27,30 @@ const priorityConfig: Record<TaskPriority, { label: string; className: string }>
 };
 
 interface TaskForm {
-  title: string; description: string; assignee: string; priority: string; due_date: string;
+  title: string; description: string; assignee: string;
+  priority: string; due_date: string; process_id: string;
 }
-const EMPTY_FORM: TaskForm = { title: '', description: '', assignee: '', priority: 'media', due_date: '' };
+const EMPTY_FORM: TaskForm = {
+  title: '', description: '', assignee: '',
+  priority: 'media', due_date: '', process_id: '',
+};
+
+interface Process { id: string; number: string; title: string; }
+
+function useProcessList() {
+  return useQuery<Process[]>({
+    queryKey: ['process-list-tarefas'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processes')
+        .select('id, number, title')
+        .order('number', { ascending: true })
+        .limit(4000);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
@@ -40,6 +62,7 @@ export default function Tarefas() {
   const [saving, setSaving] = useState(false);
 
   const { data: tasks = [], isLoading } = useTasks();
+  const { data: processList = [] } = useProcessList();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { toast } = useToast();
@@ -54,7 +77,8 @@ export default function Tarefas() {
     const matchSearch =
       t.title.toLowerCase().includes(q) ||
       (t.assignee || '').toLowerCase().includes(q) ||
-      (t.description || '').toLowerCase().includes(q);
+      (t.description || '').toLowerCase().includes(q) ||
+      (t.processes?.number || '').includes(q);
     if (!matchSearch) return false;
     if (viewFilter === 'pendentes') return !t.completed;
     if (viewFilter === 'concluidas') return t.completed;
@@ -82,6 +106,7 @@ export default function Tarefas() {
         assignee: form.assignee || undefined,
         priority: form.priority,
         due_date: form.due_date || undefined,
+        process_id: form.process_id || undefined,
       });
       setCreateOpen(false);
       setForm(EMPTY_FORM);
@@ -101,6 +126,7 @@ export default function Tarefas() {
         assignee: form.assignee || null,
         priority: form.priority,
         due_date: form.due_date || null,
+        process_id: form.process_id || null,
       }).eq('id', editTarget.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['tasks'] });
@@ -132,6 +158,7 @@ export default function Tarefas() {
       assignee: t.assignee ?? '',
       priority: t.priority ?? 'media',
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
+      process_id: t.process_id ?? '',
     });
     setEditTarget(t);
   };
@@ -149,6 +176,21 @@ export default function Tarefas() {
       <div>
         <Label>Descrição</Label>
         <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes da tarefa" />
+      </div>
+      <div>
+        <Label>Processo vinculado</Label>
+        <select
+          className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+          value={form.process_id}
+          onChange={set('process_id')}
+        >
+          <option value="">— Nenhum processo —</option>
+          {processList.map(p => (
+            <option key={p.id} value={p.id}>
+              {p.number} — {p.title}
+            </option>
+          ))}
+        </select>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -191,7 +233,7 @@ export default function Tarefas() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar tarefa…" value={search}
+          <Input placeholder="Buscar por título, responsável ou nº do processo…" value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-10" />
         </div>
         <div className="flex gap-1">
@@ -226,7 +268,9 @@ export default function Tarefas() {
                     {task.title}
                   </p>
                   {task.processes?.number && (
-                    <span className="text-xs text-muted-foreground font-mono">#{task.processes.number}</span>
+                    <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 font-mono">
+                      #{task.processes.number}
+                    </span>
                   )}
                 </div>
                 {task.description && (
