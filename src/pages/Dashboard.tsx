@@ -90,7 +90,8 @@ export default function Dashboard() {
           supabase.from('tasks').select('*', { count: 'exact', head: true })
             .eq('completed', false)
             .not('assignee', 'eq', 'movimentacao')
-            .not('assignee', 'eq', 'documento'),
+            .not('assignee', 'eq', 'documento')
+            .not('assignee', 'eq', 'agenda'),
         ]);
 
         setStats({
@@ -118,6 +119,7 @@ export default function Dashboard() {
           .not('due_date', 'is', null)
           .not('assignee', 'eq', 'movimentacao')
           .not('assignee', 'eq', 'documento')
+          .not('assignee', 'eq', 'agenda')
           .order('due_date', { ascending: true })
           .limit(5);
         setUpcomingTasks(tasks ?? []);

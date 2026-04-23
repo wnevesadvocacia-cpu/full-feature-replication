@@ -77,7 +77,8 @@ function useTaskStats() {
         .from('tasks')
         .select('status, priority, completed, due_date')
         .not('assignee', 'eq', 'movimentacao')
-        .not('assignee', 'eq', 'documento').limit(5000);
+        .not('assignee', 'eq', 'documento')
+        .not('assignee', 'eq', 'agenda').limit(5000);
       if (error) throw error;
       return data ?? [];
     },
