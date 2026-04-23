@@ -130,7 +130,7 @@ function useProcesses(search: string, status: string, page: number) {
         .select(FULL_SELECT, { count: 'exact' })
         .order('updated_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%`);
+      if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%,opponent.ilike.%${search}%,comarca.ilike.%${search}%`);
       if (status) q = q.eq('status', status);
       const { data, error, count } = await q;
       if (error) throw error;
@@ -484,6 +484,19 @@ export default function Processos() {
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
+  // Delete individual andamento task
+  const deleteTask = useMutation({
+    mutationFn: async (taskId: string) => {
+      const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tasks', selected?.id] });
+      toast({ title: 'Andamento removido.' });
+    },
+    onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
   // Delete process
   const deleteProcess = useMutation({
     mutationFn: async (id: string) => {
@@ -553,7 +566,7 @@ export default function Processos() {
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input
-            placeholder="Buscar por número, título, cliente…"
+            placeholder="Buscar número, título, cliente, parte contrária…"
             value={search}
             onChange={(e) => handleSearch(e.target.value)}
             className="pl-9"
@@ -599,7 +612,7 @@ export default function Processos() {
                     <tr
                       key={p.id}
                       className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => { setSelected(p); setEditMode(false); }}
+                      onClick={() => { setSelected(p); setEditMode(false); setDetailTab('details'); }}
                     >
                       <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{p.number || EMPTY}</td>
                       <td className="px-4 py-3 max-w-[220px] truncate font-medium">{p.title || EMPTY}</td>
@@ -828,6 +841,7 @@ export default function Processos() {
                       <p className="text-sm mt-0.5 text-gray-700 whitespace-pre-wrap">{selected.observations}</p>
                     </div>
                   )}
+                  </div>} {/* end details tab */}
 
                   {/* ── Tab: Andamentos ── */}
                   {detailTab === 'tasks' && <div>
@@ -873,15 +887,24 @@ export default function Processos() {
                       {tasks.length === 0 ? (
                         <p className="text-xs text-gray-400">Sem andamentos registrados.</p>
                       ) : tasks.map((t) => (
-                        <div key={t.id} className="text-sm border rounded-md p-2 bg-white">
-                          <p className="font-medium">{t.title}</p>
-                          {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
-                          {t.due_date && <p className="text-xs text-gray-400 mt-1">{formatDate(t.due_date)}</p>}
+                        <div key={t.id} className="text-sm border rounded-md p-2 bg-white flex items-start gap-2 group/task">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{t.title}</p>
+                            {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
+                            {t.due_date && <p className="text-xs text-gray-400 mt-1">{formatDate(t.due_date)}</p>}
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6 shrink-0 text-red-400 opacity-0 group-hover/task:opacity-100 transition-opacity"
+                            onClick={() => deleteTask.mutate(t.id)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </div>
                       ))}
                     </div>
                   </div>}
-                  </div>} {/* end details tab */}
 
                   {/* ── Tab: Movimentações ── */}
                   {detailTab === 'movs' && (
