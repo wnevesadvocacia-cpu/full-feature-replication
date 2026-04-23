@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      client_portal_tokens: {
+        Row: {
+          active: boolean
+          client_id: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           birth_date: string | null
@@ -756,6 +786,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_client_portal_data: { Args: { _token: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
