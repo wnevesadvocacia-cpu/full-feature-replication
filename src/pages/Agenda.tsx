@@ -106,6 +106,7 @@ export default function Agenda() {
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [form, setForm] = useState<AgendaForm>(EMPTY_FORM(todayStr));
   const [saving, setSaving] = useState(false);
+  const [view, setView] = useState<'day' | 'week' | 'month'>('month');
 
   const { data: tasks = [] } = useAgendaTasks();
   const { data: processes = [] } = useProcessList();
