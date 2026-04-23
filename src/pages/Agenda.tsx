@@ -105,6 +105,7 @@ export default function Agenda() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<Task | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Task | null>(null);
   const [form, setForm] = useState<AgendaForm>(EMPTY_FORM(todayStr));
   const [saving, setSaving] = useState(false);
   const [view, setView] = useState<'day' | 'week' | 'month'>('month');
