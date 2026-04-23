@@ -117,11 +117,11 @@ export default function ImportarAdvbox() {
 
     for (let i = 0; i < valid.length; i += batchSize) {
       const chunk = valid.slice(i, i + batchSize).map(v => ({ ...v, user_id: user.id }));
-      const { error, count } = await supabase.from(type === 'clientes' ? 'clients' : 'processes').insert(chunk).select('id', { count: 'exact', head: true });
+      const { error, data } = await supabase.from(type === 'clientes' ? 'clients' : 'processes').insert(chunk).select('id');
       if (error) {
         errors.push(`Lote ${Math.floor(i / batchSize) + 1}: ${error.message}`);
       } else {
-        inserted += count ?? chunk.length;
+        inserted += data?.length ?? chunk.length;
       }
     }
 
