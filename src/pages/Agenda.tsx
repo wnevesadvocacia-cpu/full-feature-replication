@@ -371,42 +371,84 @@ export default function Agenda() {
               <ChevronLeft className="w-5 h-5" />
             </button>
             <h2 className="font-semibold text-gray-800">
-              {MONTHS[currentMonth]} {currentYear}
+              {view === 'day'
+                ? new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                : view === 'week'
+                  ? `Semana de ${new Date(weekDays[0] + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} a ${new Date(weekDays[6] + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`
+                  : `${MONTHS[currentMonth]} ${currentYear}`}
             </h2>
             <button onClick={nextMonth} className="p-1 hover:bg-gray-100 rounded">
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-7 mb-2">
-            {WEEKDAYS.map(d => (
-              <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
-            ))}
-          </div>
+          {view === 'month' && (
+            <>
+              <div className="grid grid-cols-7 mb-2">
+                {WEEKDAYS.map(d => (
+                  <div key={d} className="text-center text-xs font-medium text-gray-400 py-1">{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {calendarCells.map((day, i) => {
+                  if (!day) return <div key={i} />;
+                  const key = dateKey(day);
+                  const isToday = key === todayStr;
+                  const isSelected = key === selectedDate;
+                  const hasTasks = !!tasksByDate[key]?.length;
+                  const hasIncomplete = tasksByDate[key]?.some(t => !t.completed);
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDate(key)}
+                      className={`relative flex flex-col items-center justify-center h-10 w-full rounded-lg text-sm transition-colors
+                        ${isSelected ? 'bg-blue-600 text-white' : isToday ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}`}
+                    >
+                      {day}
+                      {hasTasks && (
+                        <span className={`absolute bottom-1 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : hasIncomplete ? 'bg-orange-500' : 'bg-green-500'}`} />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
 
-          <div className="grid grid-cols-7 gap-1">
-            {calendarCells.map((day, i) => {
-              if (!day) return <div key={i} />;
-              const key = dateKey(day);
-              const isToday = key === todayStr;
-              const isSelected = key === selectedDate;
-              const hasTasks = !!tasksByDate[key]?.length;
-              const hasIncomplete = tasksByDate[key]?.some(t => !t.completed);
-              return (
-                <button
-                  key={i}
-                  onClick={() => setSelectedDate(key)}
-                  className={`relative flex flex-col items-center justify-center h-10 w-full rounded-lg text-sm transition-colors
-                    ${isSelected ? 'bg-blue-600 text-white' : isToday ? 'bg-blue-50 text-blue-700 font-semibold' : 'hover:bg-gray-100 text-gray-700'}`}
-                >
-                  {day}
-                  {hasTasks && (
-                    <span className={`absolute bottom-1 w-1 h-1 rounded-full ${isSelected ? 'bg-white' : hasIncomplete ? 'bg-orange-500' : 'bg-green-500'}`} />
-                  )}
-                </button>
-              );
-            })}
-          </div>
+          {view === 'week' && (
+            <div className="grid grid-cols-7 gap-2">
+              {weekDays.map((k) => {
+                const dt = new Date(k + 'T12:00:00');
+                const isSelected = k === selectedDate;
+                const isToday = k === todayStr;
+                const dayTasks = tasksByDate[k] ?? [];
+                return (
+                  <button key={k} onClick={() => setSelectedDate(k)}
+                    className={`flex flex-col items-stretch h-40 p-2 rounded-lg border text-left transition-colors
+                      ${isSelected ? 'border-blue-600 bg-blue-50' : isToday ? 'border-blue-200' : 'border-gray-100 hover:bg-gray-50'}`}>
+                    <div className="text-[11px] uppercase text-gray-400">{WEEKDAYS[dt.getDay()]}</div>
+                    <div className={`text-lg font-semibold ${isToday ? 'text-blue-700' : 'text-gray-800'}`}>{dt.getDate()}</div>
+                    <div className="mt-1 space-y-1 overflow-hidden">
+                      {dayTasks.slice(0, 3).map(t => (
+                        <div key={t.id} className="text-[11px] truncate px-1 py-0.5 rounded bg-white border border-gray-200">
+                          {t.start_time?.slice(0,5) ?? ''} {t.title}
+                        </div>
+                      ))}
+                      {dayTasks.length > 3 && (
+                        <div className="text-[11px] text-gray-400">+{dayTasks.length - 3} mais</div>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {view === 'day' && (
+            <p className="text-sm text-gray-400">
+              Veja os compromissos do dia abaixo.
+            </p>
+          )}
         </div>
 
         {/* Próximos 30 dias */}
