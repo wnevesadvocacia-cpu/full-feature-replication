@@ -32,6 +32,7 @@ import Modelos from "./pages/Modelos";
 import Intimacoes from "./pages/Intimacoes";
 import Notificacoes from "./pages/Notificacoes";
 import Equipe from "./pages/Equipe";
+import GeradorPecas from "./pages/GeradorPecas";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -126,6 +127,7 @@ const App = () => (
               <Route path="/intimacoes"    element={<PageErrorBoundary><Intimacoes /></PageErrorBoundary>} />
               <Route path="/notificacoes"  element={<PageErrorBoundary><Notificacoes /></PageErrorBoundary>} />
               <Route path="/equipe"        element={<PageErrorBoundary><Equipe /></PageErrorBoundary>} />
+              <Route path="/gerador-pecas" element={<PageErrorBoundary><GeradorPecas /></PageErrorBoundary>} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
