@@ -22,6 +22,9 @@ import {
   TrendingUp,
   Link2,
   PenTool,
+  Database,
+  History,
+  Settings2,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -61,6 +64,9 @@ const secondaryNav = [
   { title: 'Equipe', url: '/equipe', icon: UserCog },
   { title: 'Portal do Cliente', url: '/portal-acessos', icon: Link2 },
   { title: 'Assinatura Digital', url: '/assinaturas', icon: PenTool },
+  { title: 'Versões de Petições', url: '/versoes', icon: History },
+  { title: 'Personalizar Kanban', url: '/kanban-config', icon: Settings2 },
+  { title: 'Importar ADVBOX', url: '/importar', icon: Database },
 ];
 
 export function AppSidebar() {
