@@ -131,7 +131,24 @@ export default function Agenda() {
     }
   });
 
+  // Sort tasks within each day by start_time
+  Object.keys(tasksByDate).forEach(k => {
+    tasksByDate[k].sort((a, b) => (a.start_time ?? '99').localeCompare(b.start_time ?? '99'));
+  });
+
   const selectedTasks = tasksByDate[selectedDate] ?? [];
+
+  // Week view: 7 days starting Sunday of selected date
+  const weekDays: string[] = (() => {
+    const d = new Date(selectedDate + 'T12:00:00');
+    const start = new Date(d);
+    start.setDate(d.getDate() - d.getDay());
+    return Array.from({ length: 7 }, (_, i) => {
+      const x = new Date(start);
+      x.setDate(start.getDate() + i);
+      return x.toISOString().split('T')[0];
+    });
+  })();
 
   const upcoming = tasks
     .filter((t) => {
