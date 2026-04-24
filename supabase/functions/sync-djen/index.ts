@@ -1,5 +1,14 @@
 // Sincroniza intimações do DJEN (Diário de Justiça Eletrônico Nacional - CNJ)
 // API pública gratuita: https://comunicaapi.pje.jus.br/api/v1/comunicacao
+//
+// SISTEMA À PROVA DE FALHAS — camadas de proteção:
+// 1. Retry com backoff exponencial (3 tentativas) em cada chamada à API CNJ
+// 2. Timeout de 30s por requisição (evita travamento)
+// 3. Janela de busca redundante (45 dias) para nunca perder publicação por gap de cron
+// 4. Log persistente de cada execução (tabela sync_logs)
+// 5. Contagem de falhas consecutivas → notificação crítica ao usuário em ≥2 falhas
+// 6. Falha em uma OAB NÃO interrompe sincronização das outras
+// 7. Notificação destructive quando intimação tem prazo ≤ 5 dias
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
@@ -19,17 +28,49 @@ interface DjenItem {
   prazo?: string;
 }
 
-async function fetchDjen(oab: string, uf: string, daysBack = 30): Promise<DjenItem[]> {
-  const dataInicio = new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_RETRIES = 3;
+const DAYS_BACK = 45; // janela ampla = redundância contra qualquer gap de cron
+
+async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
+    clearTimeout(timer);
+    // Retry em 5xx ou 429 (rate limit)
+    if ((res.status >= 500 || res.status === 429) && attempt < MAX_RETRIES) {
+      const wait = 2 ** attempt * 1000 + Math.random() * 500;
+      console.warn(`DJEN ${res.status} — tentativa ${attempt}/${MAX_RETRIES}, aguardando ${Math.round(wait)}ms`);
+      await new Promise(r => setTimeout(r, wait));
+      return fetchWithRetry(url, attempt + 1);
+    }
+    return res;
+  } catch (e: any) {
+    clearTimeout(timer);
+    if (attempt < MAX_RETRIES) {
+      const wait = 2 ** attempt * 1000 + Math.random() * 500;
+      console.warn(`DJEN fetch erro (${e.message}) — tentativa ${attempt}/${MAX_RETRIES}, aguardando ${Math.round(wait)}ms`);
+      await new Promise(r => setTimeout(r, wait));
+      return fetchWithRetry(url, attempt + 1);
+    }
+    throw e;
+  }
+}
+
+async function fetchDjen(oab: string, uf: string): Promise<{ items: DjenItem[]; attempts: number }> {
+  const dataInicio = new Date(Date.now() - DAYS_BACK * 86400_000).toISOString().slice(0, 10);
   const dataFim = new Date().toISOString().slice(0, 10);
   const all: DjenItem[] = [];
   let pagina = 1;
-  while (pagina <= 10) {
+  let totalAttempts = 0;
+  while (pagina <= 20) {
     const url = `https://comunicaapi.pje.jus.br/api/v1/comunicacao?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${pagina}&itensPorPagina=100`;
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    const res = await fetchWithRetry(url);
+    totalAttempts++;
     if (!res.ok) {
       const t = await res.text();
-      throw new Error(`DJEN ${res.status}: ${t.slice(0, 200)}`);
+      throw new Error(`DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`);
     }
     const json = await res.json();
     const items: DjenItem[] = json.items || json.data || [];
@@ -38,7 +79,7 @@ async function fetchDjen(oab: string, uf: string, daysBack = 30): Promise<DjenIt
     if (items.length < 100) break;
     pagina++;
   }
-  return all;
+  return { items: all, attempts: totalAttempts };
 }
 
 function cleanHtml(raw: string): string {
@@ -57,7 +98,6 @@ function cleanHtml(raw: string): string {
 }
 
 function extractDeadline(text: string, receivedAt: string): string | null {
-  // Procura "prazo de X dias" no texto
   const match = text.match(/prazo[\s\S]{0,30}?(\d{1,3})\s*dias/i);
   if (!match) return null;
   const days = parseInt(match[1], 10);
@@ -67,47 +107,135 @@ function extractDeadline(text: string, receivedAt: string): string | null {
   return base.toISOString().slice(0, 10);
 }
 
+function daysUntil(iso: string): number {
+  const target = new Date(iso + 'T12:00:00Z').getTime();
+  return Math.ceil((target - Date.now()) / 86400_000);
+}
+
 async function findProcessId(supabase: any, userId: string, numero?: string): Promise<string | null> {
   if (!numero) return null;
   const { data } = await supabase.from('processes').select('id').eq('user_id', userId).eq('number', numero).limit(1).maybeSingle();
   return data?.id || null;
 }
 
-async function syncForUser(supabase: any, row: any) {
-  const items = await fetchDjen(row.oab_number, row.oab_uf, 30);
+async function syncForOab(supabase: any, row: any, triggeredBy: string) {
+  const startedAt = Date.now();
+  let items: DjenItem[] = [];
+  let attempts = 0;
   let inserted = 0;
-  for (const it of items) {
-    const externalId = String(it.hash || it.id || `${it.numero_processo}-${it.data_disponibilizacao}`);
-    const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
-    const receivedAt = it.data_disponibilizacao || new Date().toISOString().slice(0, 10);
-    const deadline = extractDeadline(cleanText, receivedAt);
-    const processId = await findProcessId(supabase, row.user_id, it.numero_processo);
-    const { error } = await supabase.from('intimations').insert({
-      user_id: row.user_id,
-      external_id: externalId,
-      source: 'djen',
-      court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? ' - ' + it.nomeOrgao : ''}` : it.nomeOrgao,
-      content: cleanText,
-      received_at: receivedAt,
-      deadline,
-      process_id: processId,
-      status: 'pendente',
-    });
-    if (!error) {
-      inserted++;
-      // Notificação para o usuário
+  let urgentDeadlines = 0;
+  let errorMessage: string | null = null;
+  let status: 'success' | 'partial' | 'failed' = 'success';
+
+  try {
+    const result = await fetchDjen(row.oab_number, row.oab_uf);
+    items = result.items;
+    attempts = result.attempts;
+  } catch (e: any) {
+    errorMessage = e.message || String(e);
+    status = 'failed';
+  }
+
+  if (status !== 'failed') {
+    for (const it of items) {
+      try {
+        const externalId = String(it.hash || it.id || `${it.numero_processo}-${it.data_disponibilizacao}`);
+        const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
+        const receivedAt = it.data_disponibilizacao || new Date().toISOString().slice(0, 10);
+        const deadline = extractDeadline(cleanText, receivedAt);
+        const processId = await findProcessId(supabase, row.user_id, it.numero_processo);
+        const { error } = await supabase.from('intimations').insert({
+          user_id: row.user_id,
+          external_id: externalId,
+          source: 'djen',
+          court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? ' - ' + it.nomeOrgao : ''}` : it.nomeOrgao,
+          content: cleanText,
+          received_at: receivedAt,
+          deadline,
+          process_id: processId,
+          status: 'pendente',
+        });
+        if (!error) {
+          inserted++;
+          // URGENTE se prazo ≤ 5 dias úteis
+          const isUrgent = deadline && daysUntil(deadline) <= 5;
+          if (isUrgent) urgentDeadlines++;
+          await supabase.from('notifications').insert({
+            user_id: row.user_id,
+            title: isUrgent ? '⚠️ Intimação URGENTE' : 'Nova intimação DJEN',
+            message: `OAB/${row.oab_uf} ${row.oab_number} — ${it.siglaTribunal || 'Tribunal'} - ${it.numero_processo || 'Processo'}${deadline ? ` (prazo: ${deadline})` : ''}`,
+            type: isUrgent ? 'destructive' : 'warning',
+            link: '/intimacoes',
+          });
+        } else if (error.code !== '23505') {
+          // 23505 = duplicata (esperado). Outros erros = parcial.
+          console.error('insert intimation error:', error);
+          status = 'partial';
+        }
+      } catch (itemErr: any) {
+        console.error('item processing error:', itemErr);
+        status = 'partial';
+      }
+    }
+  }
+
+  const duration = Date.now() - startedAt;
+  const now = new Date().toISOString();
+
+  // Atualiza oab_settings com tracking de falhas
+  if (status === 'failed') {
+    await supabase.from('oab_settings').update({
+      last_sync_at: now,
+      consecutive_failures: (row.consecutive_failures || 0) + 1,
+      last_error: errorMessage?.slice(0, 500),
+    }).eq('id', row.id);
+
+    // Alerta crítico: ≥2 falhas consecutivas
+    const failureCount = (row.consecutive_failures || 0) + 1;
+    if (failureCount >= 2) {
       await supabase.from('notifications').insert({
         user_id: row.user_id,
-        title: 'Nova intimação DJEN',
-        message: `${it.siglaTribunal || 'Tribunal'} - ${it.numero_processo || 'Processo'}${deadline ? ` (prazo: ${deadline})` : ''}`,
-        type: 'warning',
-        link: '/intimacoes',
+        title: '🚨 Falha crítica na sincronização DJEN',
+        message: `OAB/${row.oab_uf} ${row.oab_number} falhou ${failureCount}x consecutivas. Verifique imediatamente em Configurações → Intimações. Erro: ${errorMessage?.slice(0, 100)}`,
+        type: 'destructive',
+        link: '/configuracoes',
       });
     }
-    // Erros de unique violation (23505) são ignorados — significa duplicata
+  } else {
+    await supabase.from('oab_settings').update({
+      last_sync_at: now,
+      last_success_at: now,
+      consecutive_failures: 0,
+      last_error: null,
+    }).eq('id', row.id);
   }
-  await supabase.from('oab_settings').update({ last_sync_at: new Date().toISOString() }).eq('id', row.id);
-  return { user_id: row.user_id, total: items.length, inserted };
+
+  // Log persistente
+  await supabase.from('sync_logs').insert({
+    user_id: row.user_id,
+    oab_settings_id: row.id,
+    oab_number: row.oab_number,
+    oab_uf: row.oab_uf,
+    status,
+    attempts,
+    items_found: items.length,
+    items_inserted: inserted,
+    duration_ms: duration,
+    error_message: errorMessage?.slice(0, 1000),
+    triggered_by: triggeredBy,
+  });
+
+  return {
+    user_id: row.user_id,
+    oab: `${row.oab_number}/${row.oab_uf}`,
+    status,
+    total: items.length,
+    inserted,
+    urgent: urgentDeadlines,
+    attempts,
+    duration_ms: duration,
+    error: errorMessage,
+  };
 }
 
 Deno.serve(async (req) => {
@@ -122,11 +250,11 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const isManual = url.searchParams.get('manual') === '1';
     const authHeader = req.headers.get('Authorization');
+    const triggeredBy = isManual ? 'manual' : 'cron';
 
     let targets: any[] = [];
 
     if (isManual && authHeader) {
-      // Sincroniza só o usuário autenticado
       const userClient = createClient(
         Deno.env.get('SUPABASE_URL')!,
         Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -139,17 +267,19 @@ Deno.serve(async (req) => {
       const { data } = await supabase.from('oab_settings').select('*').eq('user_id', userData.user.id).eq('active', true);
       targets = data || [];
     } else {
-      // Cron: todos ativos
       const { data } = await supabase.from('oab_settings').select('*').eq('active', true);
       targets = data || [];
     }
 
-    const results = [];
-    for (const row of targets) {
-      try {
-        results.push(await syncForUser(supabase, row));
-      } catch (e: any) {
-        results.push({ user_id: row.user_id, error: e.message });
+    // Roda em paralelo (limitado a 5) para escalar com muitos usuários, sem que falha de uma derrube as outras
+    const CONCURRENCY = 5;
+    const results: any[] = [];
+    for (let i = 0; i < targets.length; i += CONCURRENCY) {
+      const batch = targets.slice(i, i + CONCURRENCY);
+      const batchResults = await Promise.allSettled(batch.map(row => syncForOab(supabase, row, triggeredBy)));
+      for (const r of batchResults) {
+        if (r.status === 'fulfilled') results.push(r.value);
+        else results.push({ status: 'failed', error: String(r.reason) });
       }
     }
 
@@ -157,7 +287,7 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
-    console.error('sync-djen error', e);
+    console.error('sync-djen fatal:', e);
     return new Response(JSON.stringify({ success: false, error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

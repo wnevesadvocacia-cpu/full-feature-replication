@@ -36,7 +36,7 @@ export default function Configuracoes() {
   const [escritorio, setEscritorio] = useState(EMPTY_ESCRITORIO);
   const [notifs, setNotifs] = useState(EMPTY_NOTIFS);
   const [senhaForm, setSenhaForm] = useState({ nova: '', confirmar: '' });
-  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null };
+  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null; last_success_at?: string | null; consecutive_failures?: number; last_error?: string | null };
   const [oabs, setOabs] = useState<OabRow[]>([]);
   const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
   const [syncing, setSyncing] = useState(false);
@@ -55,7 +55,7 @@ export default function Configuracoes() {
           (supabase as any).from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle(),
           (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
         ]);
-        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at })));
+        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error })));
         if (cancel) return;
         if (office) {
           setEscritorio({
@@ -182,7 +182,7 @@ export default function Configuracoes() {
       const totalFound = (data?.results || []).reduce((s: number, r: any) => s + (r.total || 0), 0);
       toast({ title: 'Sincronização concluída', description: `${totalInserted} novas / ${totalFound} encontradas em ${(data?.results || []).length} OAB(s)` });
       const { data: oabRows } = await (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
-      if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at })));
+      if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error })));
     } catch (e: any) { toast({ title: 'Erro ao sincronizar', description: e.message, variant: 'destructive' }); }
     finally { setSyncing(false); }
   }
@@ -282,26 +282,43 @@ export default function Configuracoes() {
               {/* Lista de OABs cadastradas */}
               <div className="space-y-2">
                 {oabs.length === 0 && <p className="text-sm text-gray-500 italic">Nenhuma OAB cadastrada ainda.</p>}
-                {oabs.map((row) => (
-                  <div key={row.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center gap-3">
-                      <Scale className="w-4 h-4 text-blue-600" />
-                      <div>
-                        <p className="font-medium text-sm">OAB/{row.oab_uf} {row.oab_number}</p>
-                        {row.last_sync_at && <p className="text-xs text-gray-500">Última sync: {new Date(row.last_sync_at).toLocaleString('pt-BR')}</p>}
+                {oabs.map((row) => {
+                  const failures = row.consecutive_failures || 0;
+                  const hoursSinceSuccess = row.last_success_at ? (Date.now() - new Date(row.last_success_at).getTime()) / 3_600_000 : null;
+                  const isHealthy = failures === 0 && (hoursSinceSuccess === null || hoursSinceSuccess < 12);
+                  const isWarning = failures === 1 || (hoursSinceSuccess !== null && hoursSinceSuccess >= 12 && hoursSinceSuccess < 24);
+                  const isCritical = failures >= 2 || (hoursSinceSuccess !== null && hoursSinceSuccess >= 24);
+                  const statusColor = !row.active ? 'bg-gray-400' : isCritical ? 'bg-red-500' : isWarning ? 'bg-yellow-500' : 'bg-green-500';
+                  const statusLabel = !row.active ? 'Inativa' : isCritical ? `${failures} falha(s)` : isWarning ? 'Atrasada' : 'Saudável';
+                  return (
+                    <div key={row.id} className={`flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 ${isCritical && row.active ? 'border-red-300 bg-red-50/50' : ''}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <Scale className="w-4 h-4 text-blue-600" />
+                          <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${statusColor}`} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-sm">OAB/{row.oab_uf} {row.oab_number}</p>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full text-white ${statusColor}`}>{statusLabel}</span>
+                          </div>
+                          {row.last_success_at && <p className="text-xs text-gray-500">Última sync OK: {new Date(row.last_success_at).toLocaleString('pt-BR')}</p>}
+                          {row.active && isCritical && row.last_error && (
+                            <p className="text-xs text-red-600 mt-0.5 truncate max-w-md" title={row.last_error}>⚠️ {row.last_error}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => toggleOabActive(row)} className={`relative inline-flex h-5 w-9 rounded-full ${row.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                          <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${row.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                        </button>
+                        <Button variant="ghost" size="sm" onClick={() => removeOab(row)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => toggleOabActive(row)} className={`relative inline-flex h-5 w-9 rounded-full ${row.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                        <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${row.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                      </button>
-                      <span className="text-xs text-gray-500 w-12">{row.active ? 'Ativa' : 'Inativa'}</span>
-                      <Button variant="ghost" size="sm" onClick={() => removeOab(row)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Adicionar nova OAB */}
