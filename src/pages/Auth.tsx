@@ -39,6 +39,8 @@ function clearAttempts(key: string, scope: string) {
   try { localStorage.removeItem(`${key}:${scope}`); } catch {}
 }
 
+const OTP_TTL_SEC = 300; // 5 min — padrão Supabase
+
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
   const [email, setEmail]     = useState('');
@@ -48,6 +50,8 @@ export default function Auth() {
   const [honeypot, setHoneypot] = useState('');
   const [formMountedAt] = useState(() => Date.now());
   const [blockedUntil, setBlockedUntil] = useState<number>(0);
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0);
+  const [now, setNow] = useState<number>(Date.now());
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -62,23 +66,31 @@ export default function Auth() {
     return () => clearInterval(t);
   }, [cooldown]);
 
-  // Atualiza contador de bloqueio em tempo real
+  // Tick global (1s) — atualiza countdowns de bloqueio e expiração do OTP
   useEffect(() => {
-    if (blockedUntil <= 0) return;
-    const t = setInterval(() => {
-      if (Date.now() >= blockedUntil) setBlockedUntil(0);
-    }, 1000);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [blockedUntil]);
+  }, []);
+
+  useEffect(() => {
+    if (blockedUntil > 0 && now >= blockedUntil) setBlockedUntil(0);
+  }, [now, blockedUntil]);
 
   const blockRemaining = useMemo(() => {
     if (!blockedUntil) return 0;
-    return Math.max(0, Math.ceil((blockedUntil - Date.now()) / 1000));
-  }, [blockedUntil, cooldown]);
+    return Math.max(0, Math.ceil((blockedUntil - now) / 1000));
+  }, [blockedUntil, now]);
+
+  const otpRemaining = useMemo(() => {
+    if (!otpExpiresAt) return 0;
+    return Math.max(0, Math.ceil((otpExpiresAt - now) / 1000));
+  }, [otpExpiresAt, now]);
+
+  const otpExpired = otpExpiresAt > 0 && otpRemaining === 0;
 
   const formatRemain = (s: number) => {
     const m = Math.floor(s / 60); const r = s % 60;
-    return m > 0 ? `${m}m ${r}s` : `${r}s`;
+    return m > 0 ? `${m}m ${r.toString().padStart(2, '0')}s` : `${r}s`;
   };
 
   // Passo 1 — solicita o código por email
@@ -125,6 +137,7 @@ export default function Auth() {
       setStep('otp');
       setOtp('');
       setCooldown(60);
+      setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -138,12 +151,17 @@ export default function Auth() {
       toast({ title: 'Código inválido', description: 'Digite os 6 dígitos.', variant: 'destructive' });
       return;
     }
+    // OTP expirado
+    if (otpExpiresAt > 0 && Date.now() >= otpExpiresAt) {
+      toast({ title: 'Código expirado', description: 'Solicite um novo código para continuar.', variant: 'destructive' });
+      return;
+    }
     const normalized = email.trim().toLowerCase();
-    const now = Date.now();
+    const ts = Date.now();
     const att = readAttempts(VERIFY_KEY, normalized);
-    if (att.blockedUntil && att.blockedUntil > now) {
+    if (att.blockedUntil && att.blockedUntil > ts) {
       setBlockedUntil(att.blockedUntil);
-      toast({ title: 'Muitas tentativas', description: `Verificação bloqueada. Aguarde ${formatRemain(Math.ceil((att.blockedUntil - now) / 1000))}.`, variant: 'destructive' });
+      toast({ title: 'Muitas tentativas', description: `Verificação bloqueada. Aguarde ${formatRemain(Math.ceil((att.blockedUntil - ts) / 1000))}.`, variant: 'destructive' });
       return;
     }
 
@@ -156,23 +174,25 @@ export default function Auth() {
       if (data.session) {
         clearAttempts(VERIFY_KEY, normalized);
         clearAttempts(SEND_KEY, normalized);
+        setOtpExpiresAt(0);
         navigate('/dashboard', { replace: true });
       }
     } catch (err: any) {
       const next = (att.count || 0) + 1;
       if (next >= VERIFY_MAX) {
-        const blockedUntilTs = now + VERIFY_BLOCK_MS;
-        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || now, blockedUntil: blockedUntilTs });
+        const blockedUntilTs = ts + VERIFY_BLOCK_MS;
+        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || ts, blockedUntil: blockedUntilTs });
         setBlockedUntil(blockedUntilTs);
         toast({ title: 'Conta bloqueada temporariamente', description: `Após ${VERIFY_MAX} tentativas falhas, aguarde ${formatRemain(VERIFY_BLOCK_MS / 1000)}.`, variant: 'destructive' });
       } else {
-        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || now });
+        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || ts });
         const msg = err.message?.toLowerCase() ?? '';
         const friendly =
           msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
           msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${VERIFY_MAX - next}.` :
           err.message;
         toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
+        if (msg.includes('expired')) setOtpExpiresAt(Date.now() - 1);
       }
     } finally { setLoading(false); }
   };
@@ -246,6 +266,21 @@ export default function Auth() {
                   Enviamos um código de 6 dígitos para <strong>{email}</strong>
                 </p>
               </div>
+              {otpExpiresAt > 0 && (
+                <div className={`mb-4 flex items-center justify-center gap-2 rounded-lg border p-2 text-sm font-medium ${
+                  otpExpired
+                    ? 'border-red-200 bg-red-50 text-red-700'
+                    : otpRemaining <= 60
+                      ? 'border-amber-200 bg-amber-50 text-amber-800'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}>
+                  {otpExpired ? (
+                    <><ShieldAlert className="h-4 w-4" /> Código expirado — solicite um novo</>
+                  ) : (
+                    <><Lock className="h-4 w-4" /> Expira em <span className="font-mono tabular-nums">{formatRemain(otpRemaining)}</span></>
+                  )}
+                </div>
+              )}
               <form onSubmit={verifyCode} className="space-y-4">
                 <div>
                   <Label htmlFor="otp">Código de verificação</Label>
@@ -260,10 +295,12 @@ export default function Auth() {
                     className="mt-1 text-center text-2xl font-mono tracking-[0.5em]"
                     autoFocus
                     required
+                    disabled={otpExpired}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6 || blockRemaining > 0}>
+                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6 || blockRemaining > 0 || otpExpired}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando…</>
+                    : otpExpired ? <><ShieldAlert className="h-4 w-4 mr-2" />Código expirado</>
                     : <><CheckCircle2 className="h-4 w-4 mr-2" />Confirmar e entrar</>}
                 </Button>
               </form>
