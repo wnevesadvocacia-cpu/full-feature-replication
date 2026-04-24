@@ -9,3 +9,7 @@ project_id = "coyqbspjryohkccxnkti"
     verify_jwt = false
   [functions.otp-verify]
     verify_jwt = false
+  [functions.send-otp-resend]
+    verify_jwt = false
+  [functions.verify-otp-resend]
+    verify_jwt = false
