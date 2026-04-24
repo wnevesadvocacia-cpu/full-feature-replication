@@ -1,9 +1,18 @@
 import React, { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Redirect auth token hashes to the correct HashRouter route
+// Normalize malformed hash routes and redirect auth token hashes to the correct HashRouter route
 if (typeof window !== 'undefined') {
   const _h = window.location.hash;
+  const knownRoutes = ['/auth', '/reset-password', '/dashboard'];
+
+  for (const route of knownRoutes) {
+    if (_h.startsWith(`#${route}%20`) || _h.startsWith(`#${route} `) || _h.startsWith(`#${route}\n`) || _h.startsWith(`#${route}\t`)) {
+      window.location.replace(`${window.location.pathname}${window.location.search}#${route}`);
+      break;
+    }
+  }
+
   if (_h && !_h.startsWith('#/') && _h.includes('access_token=')) {
     const params = new URLSearchParams(_h.substring(1));
     const targetRoute = params.get('type') === 'recovery' ? '/reset-password' : '/dashboard';
