@@ -1,11 +1,13 @@
 import React, { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-// Redirect Supabase implicit-flow recovery tokens to the correct HashRouter route
+// Redirect auth token hashes to the correct HashRouter route
 if (typeof window !== 'undefined') {
   const _h = window.location.hash;
   if (_h && !_h.startsWith('#/') && _h.includes('access_token=')) {
-    window.location.replace(window.location.pathname + '?' + _h.substring(1) + '#/reset-password');
+    const params = new URLSearchParams(_h.substring(1));
+    const targetRoute = params.get('type') === 'recovery' ? '/reset-password' : '/dashboard';
+    window.location.replace(`${window.location.pathname}?${_h.substring(1)}#${targetRoute}`);
   }
 }
 import { HashRouter, Route, Routes, Navigate } from "react-router-dom";
