@@ -277,8 +277,8 @@ export default function Intimacoes() {
                   {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                   <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
                   {(() => {
-                    const det = detectDeadline(it.content, it.received_at, todayISO());
-                    return det ? <DeadlineBadge deadline={det} receivedAtISO={it.received_at} /> : null;
+                    const det = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO());
+                    return det ? <DeadlineBadge deadline={det} receivedAtISO={it.received_at.slice(0, 10)} /> : null;
                   })()}
                   {it.deadline && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
                 </div>
