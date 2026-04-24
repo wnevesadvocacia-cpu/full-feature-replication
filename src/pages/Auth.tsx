@@ -41,6 +41,24 @@ function clearAttempts(key: string, scope: string) {
 }
 
 const OTP_TTL_SEC = 300; // 5 min — padrão Supabase
+const RESEND_COOLDOWN_SEC = 60;
+const LAST_REQUEST_KEY = 'wb_otp_last_request'; // { email, requestedAt }
+
+function readLastRequest(): { email: string; requestedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(LAST_REQUEST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.email === 'string' && typeof parsed.requestedAt === 'number') return parsed;
+  } catch {}
+  return null;
+}
+function writeLastRequest(email: string) {
+  try { localStorage.setItem(LAST_REQUEST_KEY, JSON.stringify({ email, requestedAt: Date.now() })); } catch {}
+}
+function clearLastRequest() {
+  try { localStorage.removeItem(LAST_REQUEST_KEY); } catch {}
+}
 
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
@@ -71,6 +89,17 @@ export default function Auth() {
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
+  }, []);
+
+  // Rehidrata último email solicitado e cooldown remanescente (cross-reload)
+  useEffect(() => {
+    const last = readLastRequest();
+    if (!last) return;
+    const elapsed = Math.floor((Date.now() - last.requestedAt) / 1000);
+    if (elapsed < RESEND_COOLDOWN_SEC) {
+      setEmail(last.email);
+      setCooldown(RESEND_COOLDOWN_SEC - elapsed);
+    }
   }, []);
 
   useEffect(() => {
@@ -137,8 +166,9 @@ export default function Auth() {
       if (error) throw error;
       setStep('otp');
       setOtp('');
-      setCooldown(60);
+      setCooldown(RESEND_COOLDOWN_SEC);
       setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
+      writeLastRequest(normalized);
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -176,6 +206,7 @@ export default function Auth() {
         clearAttempts(VERIFY_KEY, normalized);
         clearAttempts(SEND_KEY, normalized);
         setOtpExpiresAt(0);
+        clearLastRequest();
         navigate('/dashboard', { replace: true });
       }
     } catch (err: any) {
@@ -331,13 +362,14 @@ export default function Auth() {
               )}
 
               <div className="mt-4 flex items-center justify-between text-sm">
-                <button onClick={() => { setStep('email'); setOtp(''); }}
+                <button onClick={() => { setStep('email'); setOtp(''); setOtpExpiresAt(0); clearLastRequest(); }}
                   className="text-gray-500 hover:text-gray-700">
                   ← Trocar email
                 </button>
                 <button
-                  disabled={cooldown > 0 || loading || blockRemaining > 0}
+                  disabled={cooldown > 0 || loading || blockRemaining > 0 || !email}
                   onClick={() => sendCode()}
+                  title={cooldown > 0 ? `Aguarde ${cooldown}s para reenviar` : `Reenviar código para ${email}`}
                   className="flex items-center gap-1 text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed">
                   <RotateCcw className="h-3 w-3" />
                   {cooldown > 0 ? `Reenviar em ${cooldown}s` : 'Reenviar código'}
