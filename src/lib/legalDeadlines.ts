@@ -30,10 +30,14 @@ export interface DetectedDeadline {
   doubled: boolean;
   /** Data de vencimento calculada (ISO YYYY-MM-DD) ou null se não foi possível */
   dueDate: string | null;
+  /** Data inicial da contagem (1º dia útil após a publicação - CPC art. 224) */
+  startDate: string | null;
   /** Severidade visual: critical (≤2 dias úteis), warning (≤5), normal (>5), expired */
   severity: 'expired' | 'critical' | 'warning' | 'normal';
   /** Dias úteis restantes até o vencimento (negativo = vencido) */
   businessDaysLeft: number;
+  /** True quando o prazo foi inferido pela regra geral (5 dias - CPC art. 218 §3º) */
+  isFallback: boolean;
 }
 
 interface Rule {
