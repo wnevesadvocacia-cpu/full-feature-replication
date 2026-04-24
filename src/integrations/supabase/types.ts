@@ -582,8 +582,11 @@ export type Database = {
       oab_settings: {
         Row: {
           active: boolean
+          consecutive_failures: number
           created_at: string
           id: string
+          last_error: string | null
+          last_success_at: string | null
           last_sync_at: string | null
           oab_number: string
           oab_uf: string
@@ -592,8 +595,11 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          consecutive_failures?: number
           created_at?: string
           id?: string
+          last_error?: string | null
+          last_success_at?: string | null
           last_sync_at?: string | null
           oab_number: string
           oab_uf: string
@@ -602,8 +608,11 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          consecutive_failures?: number
           created_at?: string
           id?: string
+          last_error?: string | null
+          last_success_at?: string | null
           last_sync_at?: string | null
           oab_number?: string
           oab_uf?: string
@@ -808,6 +817,54 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sync_logs: {
+        Row: {
+          attempts: number
+          created_at: string
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          items_found: number | null
+          items_inserted: number | null
+          oab_number: string | null
+          oab_settings_id: string | null
+          oab_uf: string | null
+          status: string
+          triggered_by: string | null
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          items_found?: number | null
+          items_inserted?: number | null
+          oab_number?: string | null
+          oab_settings_id?: string | null
+          oab_uf?: string | null
+          status: string
+          triggered_by?: string | null
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          items_found?: number | null
+          items_inserted?: number | null
+          oab_number?: string | null
+          oab_settings_id?: string | null
+          oab_uf?: string | null
+          status?: string
+          triggered_by?: string | null
           user_id?: string
         }
         Relationships: []
