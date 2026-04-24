@@ -206,27 +206,29 @@ export default function Auth() {
     } finally { setLoading(false); }
   };
 
-  // Reenvio do OTP (na tela do código) — sem revalidar senha
+  // Reenvio do OTP (na tela do código) — usa senha em memória
   const resendCode = async () => {
-    if (!email) return;
+    if (!email || !password) {
+      toast({ title: 'Sessão expirada', description: 'Volte e faça login novamente.', variant: 'destructive' });
+      return;
+    }
     const normalized = email.trim().toLowerCase();
     setLoading(true);
     try {
-      await dispatchOtp(normalized);
+      await dispatchOtp(normalized, password);
       toast({ title: 'Código reenviado', description: `Novo código enviado para ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
-  // Passo 2 — valida o código de 6 dígitos
+  // Passo 2 — valida o código de 6 dígitos via edge function customizada
   const verifyCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (otp.length !== OTP_LENGTH) {
       toast({ title: 'Código inválido', description: `Digite os ${OTP_LENGTH} dígitos.`, variant: 'destructive' });
       return;
     }
-    // OTP expirado
     if (otpExpiresAt > 0 && Date.now() >= otpExpiresAt) {
       toast({ title: 'Código expirado', description: 'Solicite um novo código para continuar.', variant: 'destructive' });
       return;
@@ -242,16 +244,38 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: normalized, token: otp, type: 'email',
+      // 1) Valida o código numérico via edge function
+      const { data, error } = await supabase.functions.invoke('otp-verify', {
+        body: { email: normalized, code: otp },
       });
-      if (error) throw error;
-      if (data.session) {
+
+      let payload: any = data;
+      if (error) {
+        const ctx: any = (error as any).context;
+        try {
+          if (ctx && typeof ctx.json === 'function') payload = await ctx.json();
+        } catch { /* ignore */ }
+        const errCode = payload?.error || error.message;
+        const remaining = payload?.remaining_attempts;
+        throw Object.assign(new Error(errCode), { remaining });
+      }
+      if (!payload?.ok || !payload?.token_hash) throw new Error(payload?.error || 'verify_failed');
+
+      // 2) Troca o token_hash por uma sessão real no client
+      const { data: sessData, error: sessError } = await supabase.auth.verifyOtp({
+        type: 'magiclink',
+        token_hash: payload.token_hash,
+      });
+      if (sessError) throw sessError;
+      if (sessData.session) {
         clearAttempts(VERIFY_KEY, normalized);
         clearAttempts(SEND_KEY, normalized);
         setOtpExpiresAt(0);
         clearLastRequest();
+        setPassword('');
         navigate('/dashboard', { replace: true });
+      } else {
+        throw new Error('no_session');
       }
     } catch (err: any) {
       const next = (att.count || 0) + 1;
@@ -262,13 +286,14 @@ export default function Auth() {
         toast({ title: 'Conta bloqueada temporariamente', description: `Após ${VERIFY_MAX} tentativas falhas, aguarde ${formatRemain(VERIFY_BLOCK_MS / 1000)}.`, variant: 'destructive' });
       } else {
         writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || ts });
-        const msg = err.message?.toLowerCase() ?? '';
+        const msg = (err.message || '').toLowerCase();
         const friendly =
-          msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
-          msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${VERIFY_MAX - next}.` :
-          err.message;
+          msg.includes('expired') || msg.includes('not_found') ? 'Código expirado. Solicite um novo.' :
+          msg.includes('too_many') ? 'Muitas tentativas. Solicite um novo código.' :
+          msg.includes('invalid_code') || msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${err.remaining ?? (VERIFY_MAX - next)}.` :
+          err.message || 'Falha na verificação';
         toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
-        if (msg.includes('expired')) setOtpExpiresAt(Date.now() - 1);
+        if (msg.includes('expired') || msg.includes('not_found')) setOtpExpiresAt(Date.now() - 1);
       }
     } finally { setLoading(false); }
   };
