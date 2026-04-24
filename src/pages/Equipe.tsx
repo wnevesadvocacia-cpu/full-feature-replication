@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, ShieldAlert } from 'lucide-react';
+import { Loader2, Trash2, ShieldAlert, UserPlus } from 'lucide-react';
 
 type AppRole = 'admin' | 'advogado' | 'estagiario' | 'financeiro';
 const ROLES: AppRole[] = ['admin', 'advogado', 'estagiario', 'financeiro'];
@@ -25,6 +25,11 @@ export default function Equipe() {
   const { toast } = useToast();
   const [userId, setUserId] = useState('');
   const [role, setRole] = useState<AppRole>('advogado');
+
+  // Criar novo usuário
+  const [newEmail, setNewEmail] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [newRole, setNewRole] = useState<AppRole>('advogado');
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['user-roles-all'],
@@ -67,6 +72,23 @@ export default function Equipe() {
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
+  const createUser = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('admin-create-user', {
+        body: { email: newEmail, password: newPass, role: newRole },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['user-roles-all'] });
+      setNewEmail(''); setNewPass('');
+      toast({ title: 'Usuário criado!', description: `${newEmail} já pode entrar no sistema.` });
+    },
+    onError: (e: any) => toast({ title: 'Erro ao criar usuário', description: e.message, variant: 'destructive' }),
+  });
+
   if (!isAdmin) {
     return (
       <div className="p-6 max-w-md mx-auto mt-12 text-center space-y-3">
@@ -88,8 +110,50 @@ export default function Equipe() {
         </p>
       </div>
 
+      {/* Criar novo usuário */}
+      <div className="bg-card rounded-lg shadow-card p-4 space-y-3 border-2 border-primary/20">
+        <h2 className="font-semibold text-sm flex items-center gap-2">
+          <UserPlus className="h-4 w-4" /> Criar novo usuário
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <Label>Email</Label>
+            <Input
+              className="mt-1" type="email" placeholder="usuario@dominio.com"
+              value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Senha (mín. 8 caracteres)</Label>
+            <Input
+              className="mt-1" type="password" placeholder="••••••••"
+              value={newPass} onChange={(e) => setNewPass(e.target.value)}
+            />
+          </div>
+          <div>
+            <Label>Papel</Label>
+            <select
+              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value as AppRole)}
+            >
+              {ROLES.map((r) => <option key={r} value={r}>{roleLabel[r]}</option>)}
+            </select>
+          </div>
+        </div>
+        <Button
+          onClick={() => createUser.mutate()}
+          disabled={!newEmail || newPass.length < 8 || createUser.isPending}
+        >
+          {createUser.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando…</> : <><UserPlus className="h-4 w-4 mr-2" />Criar usuário</>}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          O usuário é criado já confirmado e pode fazer login imediatamente.
+        </p>
+      </div>
+
       <div className="bg-card rounded-lg shadow-card p-4 space-y-3">
-        <h2 className="font-semibold text-sm">Atribuir papel</h2>
+        <h2 className="font-semibold text-sm">Atribuir papel a usuário existente</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="md:col-span-2">
             <Label>User ID (UUID)</Label>
