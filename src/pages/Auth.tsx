@@ -41,6 +41,24 @@ function clearAttempts(key: string, scope: string) {
 }
 
 const OTP_TTL_SEC = 300; // 5 min — padrão Supabase
+const RESEND_COOLDOWN_SEC = 60;
+const LAST_REQUEST_KEY = 'wb_otp_last_request'; // { email, requestedAt }
+
+function readLastRequest(): { email: string; requestedAt: number } | null {
+  try {
+    const raw = localStorage.getItem(LAST_REQUEST_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.email === 'string' && typeof parsed.requestedAt === 'number') return parsed;
+  } catch {}
+  return null;
+}
+function writeLastRequest(email: string) {
+  try { localStorage.setItem(LAST_REQUEST_KEY, JSON.stringify({ email, requestedAt: Date.now() })); } catch {}
+}
+function clearLastRequest() {
+  try { localStorage.removeItem(LAST_REQUEST_KEY); } catch {}
+}
 
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
