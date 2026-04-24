@@ -40,8 +40,8 @@ function clearAttempts(key: string, scope: string) {
   try { localStorage.removeItem(`${key}:${scope}`); } catch {}
 }
 
-const OTP_LENGTH = 8;
-const OTP_TTL_SEC = 300; // 5 min — padrão Supabase
+const OTP_LENGTH = 6;
+const OTP_TTL_SEC = 300; // 5 min
 const RESEND_COOLDOWN_SEC = 60;
 const LAST_REQUEST_KEY = 'wb_otp_last_request'; // { email, requestedAt }
 
@@ -125,13 +125,27 @@ export default function Auth() {
     return m > 0 ? `${m}m ${r.toString().padStart(2, '0')}s` : `${r}s`;
   };
 
-  // Dispara o OTP por email (usado no fluxo de reenvio — senha já validada)
-  const dispatchOtp = async (normalized: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalized,
-      options: { shouldCreateUser: false },
+  // Dispara o OTP por email via edge function customizada (Resend)
+  const dispatchOtp = async (normalized: string, password?: string) => {
+    const { data, error } = await supabase.functions.invoke('otp-request', {
+      body: { email: normalized, password },
     });
-    if (error) throw error;
+    if (error) {
+      // Tenta extrair o erro estruturado da response
+      const ctx: any = (error as any).context;
+      let detail = error.message;
+      try {
+        if (ctx && typeof ctx.json === 'function') {
+          const j = await ctx.json();
+          if (j?.error === 'invalid_credentials') throw new Error('invalid_credentials');
+          detail = j?.error || detail;
+        }
+      } catch (e: any) {
+        if (e.message === 'invalid_credentials') throw e;
+      }
+      throw new Error(detail);
+    }
+    if (data?.error) throw new Error(data.error);
     setOtp('');
     setCooldown(RESEND_COOLDOWN_SEC);
     setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
