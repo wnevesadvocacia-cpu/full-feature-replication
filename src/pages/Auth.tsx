@@ -266,6 +266,21 @@ export default function Auth() {
                   Enviamos um código de 6 dígitos para <strong>{email}</strong>
                 </p>
               </div>
+              {otpExpiresAt > 0 && (
+                <div className={`mb-4 flex items-center justify-center gap-2 rounded-lg border p-2 text-sm font-medium ${
+                  otpExpired
+                    ? 'border-red-200 bg-red-50 text-red-700'
+                    : otpRemaining <= 60
+                      ? 'border-amber-200 bg-amber-50 text-amber-800'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}>
+                  {otpExpired ? (
+                    <><ShieldAlert className="h-4 w-4" /> Código expirado — solicite um novo</>
+                  ) : (
+                    <><Lock className="h-4 w-4" /> Expira em <span className="font-mono tabular-nums">{formatRemain(otpRemaining)}</span></>
+                  )}
+                </div>
+              )}
               <form onSubmit={verifyCode} className="space-y-4">
                 <div>
                   <Label htmlFor="otp">Código de verificação</Label>
@@ -280,10 +295,12 @@ export default function Auth() {
                     className="mt-1 text-center text-2xl font-mono tracking-[0.5em]"
                     autoFocus
                     required
+                    disabled={otpExpired}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6 || blockRemaining > 0}>
+                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6 || blockRemaining > 0 || otpExpired}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando…</>
+                    : otpExpired ? <><ShieldAlert className="h-4 w-4 mr-2" />Código expirado</>
                     : <><CheckCircle2 className="h-4 w-4 mr-2" />Confirmar e entrar</>}
                 </Button>
               </form>
