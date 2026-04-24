@@ -61,24 +61,29 @@ function inRecesso(iso: string): boolean {
   return false;
 }
 
-export function isBusinessDay(iso: string): boolean {
+import type { CityKey } from './cityHolidays';
+import { getCityHolidays } from './cityHolidays';
+
+export function isBusinessDay(iso: string, location?: CityKey): boolean {
   const d = new Date(iso + 'T12:00:00Z');
   const dow = d.getUTCDay();
   if (dow === 0 || dow === 6) return false;
   if (inRecesso(iso)) return false;
-  const yearHolidays = getCnjHolidays(d.getUTCFullYear());
-  return !yearHolidays.has(iso);
+  const year = d.getUTCFullYear();
+  if (getCnjHolidays(year).has(iso)) return false;
+  if (location && getCityHolidays(year, location).has(iso)) return false;
+  return true;
 }
 
-export function nextBusinessDay(iso: string): string {
+export function nextBusinessDay(iso: string, location?: CityKey): string {
   let d = new Date(iso + 'T12:00:00Z');
-  do { d = addDays(d, 1); } while (!isBusinessDay(fmt(d)));
+  do { d = addDays(d, 1); } while (!isBusinessDay(fmt(d), location));
   return fmt(d);
 }
 
-export function previousBusinessDay(iso: string): string {
+export function previousBusinessDay(iso: string, location?: CityKey): string {
   let d = new Date(iso + 'T12:00:00Z');
-  do { d = addDays(d, -1); } while (!isBusinessDay(fmt(d)));
+  do { d = addDays(d, -1); } while (!isBusinessDay(fmt(d), location));
   return fmt(d);
 }
 
