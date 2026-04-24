@@ -104,7 +104,13 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL"),
+        from: (() => {
+          const raw = Deno.env.get("RESEND_FROM_EMAIL") ?? "noreply@wnevesbox.com";
+          // Extract email address if formatted as "Name <email@x>" or use raw
+          const match = raw.match(/<([^>]+)>/);
+          const addr = match ? match[1] : raw;
+          return `WnevesBox <${addr}>`;
+        })(),
         to: [email],
         subject,
         html,
