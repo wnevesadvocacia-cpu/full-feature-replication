@@ -196,23 +196,6 @@ export default function Auth() {
       }
     } finally { setLoading(false); }
   };
-      const next = (att.count || 0) + 1;
-      if (next >= VERIFY_MAX) {
-        const blockedUntilTs = now + VERIFY_BLOCK_MS;
-        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || now, blockedUntil: blockedUntilTs });
-        setBlockedUntil(blockedUntilTs);
-        toast({ title: 'Conta bloqueada temporariamente', description: `Após ${VERIFY_MAX} tentativas falhas, aguarde ${formatRemain(VERIFY_BLOCK_MS / 1000)}.`, variant: 'destructive' });
-      } else {
-        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || now });
-        const msg = err.message?.toLowerCase() ?? '';
-        const friendly =
-          msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
-          msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${VERIFY_MAX - next}.` :
-          err.message;
-        toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
-      }
-    } finally { setLoading(false); }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
