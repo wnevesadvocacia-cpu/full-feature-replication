@@ -40,6 +40,7 @@ function clearAttempts(key: string, scope: string) {
   try { localStorage.removeItem(`${key}:${scope}`); } catch {}
 }
 
+const OTP_LENGTH = 8;
 const OTP_TTL_SEC = 300; // 5 min — padrão Supabase
 const RESEND_COOLDOWN_SEC = 60;
 const LAST_REQUEST_KEY = 'wb_otp_last_request'; // { email, requestedAt }
@@ -213,8 +214,8 @@ export default function Auth() {
   // Passo 2 — valida o código de 6 dígitos
   const verifyCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (otp.length !== 6) {
-      toast({ title: 'Código inválido', description: 'Digite os 6 dígitos.', variant: 'destructive' });
+    if (otp.length !== OTP_LENGTH) {
+      toast({ title: 'Código inválido', description: `Digite os ${OTP_LENGTH} dígitos.`, variant: 'destructive' });
       return;
     }
     // OTP expirado
@@ -339,7 +340,7 @@ export default function Auth() {
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Digite o código</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Enviamos um código de 6 dígitos para <strong>{email}</strong>
+                  Enviamos um código de {OTP_LENGTH} dígitos para <strong>{email}</strong>
                 </p>
               </div>
               {otpExpiresAt > 0 && (
@@ -362,13 +363,13 @@ export default function Auth() {
                   <Label htmlFor="otp" className="self-start">Código de verificação</Label>
                   <InputOTP
                     id="otp"
-                    maxLength={6}
+                    maxLength={OTP_LENGTH}
                     value={otp}
                     onChange={(v) => {
-                      const clean = v.replace(/\D/g, '').slice(0, 6);
+                      const clean = v.replace(/\D/g, '').slice(0, OTP_LENGTH);
                       setOtp(clean);
-                      // Auto-submit ao completar 6 dígitos
-                      if (clean.length === 6 && !loading && !otpExpired && blockRemaining === 0) {
+                      // Auto-submit ao completar o código
+                      if (clean.length === OTP_LENGTH && !loading && !otpExpired && blockRemaining === 0) {
                         setTimeout(() => verifyCode(), 50);
                       }
                     }}
@@ -387,11 +388,13 @@ export default function Auth() {
                       <InputOTPSlot index={3} className="h-12 w-11 text-xl font-semibold" />
                       <InputOTPSlot index={4} className="h-12 w-11 text-xl font-semibold" />
                       <InputOTPSlot index={5} className="h-12 w-11 text-xl font-semibold" />
+                      <InputOTPSlot index={6} className="h-12 w-11 text-xl font-semibold" />
+                      <InputOTPSlot index={7} className="h-12 w-11 text-xl font-semibold" />
                     </InputOTPGroup>
                   </InputOTP>
                   <p className="text-xs text-gray-400 mt-1">Dica: você pode colar o código copiado do email</p>
                 </div>
-                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6 || blockRemaining > 0 || otpExpired}>
+                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== OTP_LENGTH || blockRemaining > 0 || otpExpired}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando…</>
                     : otpExpired ? <><ShieldAlert className="h-4 w-4 mr-2" />Código expirado</>
                     : <><CheckCircle2 className="h-4 w-4 mr-2" />Confirmar e entrar</>}
