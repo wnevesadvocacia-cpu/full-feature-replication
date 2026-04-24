@@ -131,43 +131,58 @@ export default function Configuracoes() {
     finally { setSaving(false); }
   }
 
-  async function saveOab(overrides?: Partial<typeof oab>) {
+  async function addOab() {
     if (!user?.id) return;
-    const payload = { ...oab, ...overrides };
-    if (!payload.oab_number.trim() || payload.oab_uf.length !== 2) {
-      toast({ title: 'Preencha número da OAB e UF (2 letras)', variant: 'destructive' });
-      return;
+    const num = newOab.oab_number.trim();
+    const uf = newOab.oab_uf.toUpperCase().trim();
+    if (!num || uf.length !== 2) { toast({ title: 'Preencha número e UF (2 letras)', variant: 'destructive' }); return; }
+    if (oabs.some(o => o.oab_number === num && o.oab_uf === uf)) {
+      toast({ title: 'Esta OAB já está cadastrada', variant: 'destructive' }); return;
     }
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from('oab_settings').upsert({
-        user_id: user.id, oab_number: payload.oab_number.trim(), oab_uf: payload.oab_uf.toUpperCase(), active: payload.active,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+      const { data, error } = await (supabase as any).from('oab_settings').insert({
+        user_id: user.id, oab_number: num, oab_uf: uf, active: newOab.active,
+      }).select().single();
       if (error) throw error;
-      toast({ title: payload.active ? 'OAB salva! Sincronização ativa.' : 'OAB salva. Sincronização desativada.' });
+      setOabs(prev => [...prev, { id: data.id, oab_number: data.oab_number, oab_uf: data.oab_uf, active: data.active, last_sync_at: data.last_sync_at }]);
+      setNewOab({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
+      toast({ title: 'OAB adicionada!' });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSaving(false); }
   }
 
-  async function toggleActive() {
-    const next = !oab.active;
-    setOab(o => ({ ...o, active: next }));
-    // Se já existe OAB cadastrada, persiste a mudança imediatamente
-    if (oab.oab_number.trim() && oab.oab_uf.length === 2) {
-      await saveOab({ active: next });
+  async function toggleOabActive(row: OabRow) {
+    if (!row.id) return;
+    const next = !row.active;
+    setOabs(prev => prev.map(o => o.id === row.id ? { ...o, active: next } : o));
+    const { error } = await (supabase as any).from('oab_settings').update({ active: next, updated_at: new Date().toISOString() }).eq('id', row.id);
+    if (error) {
+      setOabs(prev => prev.map(o => o.id === row.id ? { ...o, active: !next } : o));
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
     }
   }
 
+  async function removeOab(row: OabRow) {
+    if (!row.id) return;
+    if (!confirm(`Remover OAB ${row.oab_number}/${row.oab_uf}?`)) return;
+    const { error } = await (supabase as any).from('oab_settings').delete().eq('id', row.id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    setOabs(prev => prev.filter(o => o.id !== row.id));
+    toast({ title: 'OAB removida' });
+  }
+
   async function syncNow() {
+    if (!user?.id) return;
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-djen', { body: {}, method: 'POST' });
+      const { data, error } = await supabase.functions.invoke('sync-djen?manual=1', { body: {}, method: 'POST' });
       if (error) throw error;
-      const r = (data?.results || [])[0];
-      toast({ title: 'Sincronização concluída', description: r ? `${r.inserted} novas / ${r.total} encontradas` : 'Nenhum resultado' });
-      const { data: oabRow } = await (supabase as any).from('oab_settings').select('last_sync_at').eq('user_id', user!.id).maybeSingle();
-      if (oabRow) setOab((o) => ({ ...o, last_sync_at: oabRow.last_sync_at }));
+      const totalInserted = (data?.results || []).reduce((s: number, r: any) => s + (r.inserted || 0), 0);
+      const totalFound = (data?.results || []).reduce((s: number, r: any) => s + (r.total || 0), 0);
+      toast({ title: 'Sincronização concluída', description: `${totalInserted} novas / ${totalFound} encontradas em ${(data?.results || []).length} OAB(s)` });
+      const { data: oabRows } = await (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
+      if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at })));
     } catch (e: any) { toast({ title: 'Erro ao sincronizar', description: e.message, variant: 'destructive' }); }
     finally { setSyncing(false); }
   }
