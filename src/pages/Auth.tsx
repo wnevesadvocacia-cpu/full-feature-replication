@@ -42,8 +42,11 @@ export default function Auth() {
     if (!email || !password) return;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
+      if (data.session) {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (err: any) {
       const msg = err.message?.toLowerCase() ?? '';
       const friendly =
