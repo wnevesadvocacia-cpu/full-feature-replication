@@ -7,6 +7,17 @@ import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useUserRoles, type AppRole } from '@/hooks/useUserRole';
+
+const ROLE_LABELS: Record<AppRole, string> = {
+  admin: 'Administrador',
+  gerente: 'Gerente',
+  advogado: 'Advogado',
+  estagiario: 'Estagiário',
+  financeiro: 'Financeiro',
+  assistente_adm: 'Assistente Administrativo',
+  usuario: 'Usuário',
+};
 
 type Tab = 'perfil' | 'escritorio' | 'notificacoes' | 'intimacoes' | 'seguranca';
 
