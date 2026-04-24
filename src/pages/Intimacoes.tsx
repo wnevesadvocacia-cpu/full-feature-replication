@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
+import { detectDeadline } from '@/lib/legalDeadlines';
+import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 
 interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
@@ -274,7 +276,11 @@ export default function Intimacoes() {
                 <div className="flex items-center gap-2 flex-wrap">
                   {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                   <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
-                  {it.deadline && <span className="text-xs text-warning">Prazo: {formatBR(it.deadline.slice(0, 10))}</span>}
+                  {(() => {
+                    const det = detectDeadline(it.content, it.received_at, todayISO());
+                    return det ? <DeadlineBadge deadline={det} receivedAtISO={it.received_at} /> : null;
+                  })()}
+                  {it.deadline && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
                 </div>
                 {(() => {
                   const r = renderIntimContent(it.content);
