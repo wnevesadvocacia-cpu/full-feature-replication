@@ -173,17 +173,21 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      // 1) Valida credenciais
-      const { error: pwErr } = await supabase.auth.signInWithPassword({
-        email: normalized, password,
+      // 1) Valida credenciais via REST direto (não cria sessão no client)
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ email: normalized, password }),
       });
-      if (pwErr) {
+      if (!resp.ok) {
         toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
         return;
       }
-      // 2) Encerra a sessão imediatamente — só entra após o OTP
-      await supabase.auth.signOut();
-      // 3) Envia o código por email (2º fator)
+      // 2) Envia o código por email (2º fator) — sessão nunca foi persistida
       await dispatchOtp(normalized);
       setStep('otp');
       setPassword('');
