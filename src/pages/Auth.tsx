@@ -63,6 +63,7 @@ function clearLastRequest() {
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
   const [email, setEmail]     = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp]         = useState('');
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
