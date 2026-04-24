@@ -91,6 +91,17 @@ export default function Auth() {
     return () => clearInterval(t);
   }, []);
 
+  // Rehidrata último email solicitado e cooldown remanescente (cross-reload)
+  useEffect(() => {
+    const last = readLastRequest();
+    if (!last) return;
+    const elapsed = Math.floor((Date.now() - last.requestedAt) / 1000);
+    if (elapsed < RESEND_COOLDOWN_SEC) {
+      setEmail(last.email);
+      setCooldown(RESEND_COOLDOWN_SEC - elapsed);
+    }
+  }, []);
+
   useEffect(() => {
     if (blockedUntil > 0 && now >= blockedUntil) setBlockedUntil(0);
   }, [now, blockedUntil]);
