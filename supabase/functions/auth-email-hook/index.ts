@@ -19,7 +19,7 @@ const corsHeaders = {
 const EMAIL_SUBJECTS: Record<string, string> = {
   signup: 'Confirm your email',
   invite: "You've been invited",
-  magiclink: 'Seu código de verificação WnevesBox',
+  magiclink: 'Your login link',
   recovery: 'Reset your password',
   email_change: 'Confirm your new email',
   reauthentication: 'Your verification code',
@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "WnevesBox"
+const SITE_NAME = "full-feature-replication"
 const SENDER_DOMAIN = "notify.wnevesbox.com"
 const ROOT_DOMAIN = "wnevesbox.com"
 const FROM_DOMAIN = "notify.wnevesbox.com" // Domain shown in From address (may be root or sender subdomain)
@@ -57,7 +57,7 @@ const SAMPLE_DATA: Record<string, object> = {
   },
   magiclink: {
     siteName: SITE_NAME,
-    token: '12345678',
+    confirmationUrl: SAMPLE_PROJECT_URL,
   },
   recovery: {
     siteName: SITE_NAME,
