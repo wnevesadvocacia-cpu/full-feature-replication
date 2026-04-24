@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import {
-  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert, KeyRound,
+  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
 
 type Step = 'email' | 'otp';
@@ -41,7 +41,7 @@ function clearAttempts(key: string, scope: string) {
 }
 
 const OTP_LENGTH = 6;
-const OTP_TTL_SEC = 300; // 5 min
+const OTP_TTL_SEC = 600; // 10 min
 const RESEND_COOLDOWN_SEC = 60;
 const LAST_REQUEST_KEY = 'wb_otp_last_request'; // { email, requestedAt }
 
@@ -64,7 +64,6 @@ function clearLastRequest() {
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
   const [email, setEmail]     = useState('');
-  const [password, setPassword] = useState('');
   const [otp, setOtp]         = useState('');
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -126,9 +125,9 @@ export default function Auth() {
   };
 
   // Dispara o OTP por email via edge function customizada (Resend)
-  const dispatchOtp = async (normalized: string, password?: string) => {
-    const { data, error } = await supabase.functions.invoke('otp-request', {
-      body: { email: normalized, password },
+  const dispatchOtp = async (normalized: string) => {
+    const { data, error } = await supabase.functions.invoke('send-otp-resend', {
+      body: { email: normalized },
     });
     if (error) {
       // Tenta extrair o erro estruturado da response
@@ -137,25 +136,23 @@ export default function Auth() {
       try {
         if (ctx && typeof ctx.json === 'function') {
           const j = await ctx.json();
-          if (j?.error === 'invalid_credentials') throw new Error('invalid_credentials');
           detail = j?.error || detail;
         }
-      } catch (e: any) {
-        if (e.message === 'invalid_credentials') throw e;
-      }
+      } catch {}
       throw new Error(detail);
     }
     if (data?.error) throw new Error(data.error);
     setOtp('');
     setCooldown(RESEND_COOLDOWN_SEC);
-    setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
+    const expiresAt = data?.expires_at ? new Date(data.expires_at).getTime() : Date.now() + OTP_TTL_SEC * 1000;
+    setOtpExpiresAt(expiresAt);
     writeLastRequest(normalized);
   };
 
-  // Passo 1 — valida email + senha; se OK, faz signOut e dispara código por email (2FA)
+  // Passo 1 — envia o código por email via Resend
   const loginAndSendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!email || !password) return;
+    if (!email) return;
     const normalized = email.trim().toLowerCase();
 
     if (honeypot) {
@@ -188,34 +185,21 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      // Edge function valida senha + envia OTP via Resend (sem criar sessão no client)
-      try {
-        await dispatchOtp(normalized, password);
-      } catch (e: any) {
-        if (e.message === 'invalid_credentials') {
-          toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
-          return;
-        }
-        throw e;
-      }
+      await dispatchOtp(normalized);
       setStep('otp');
-      // mantemos a senha em memória apenas para reenvio (não persiste em storage)
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message || 'Falha ao enviar código', variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
-  // Reenvio do OTP (na tela do código) — usa senha em memória
+  // Reenvio do OTP (na tela do código)
   const resendCode = async () => {
-    if (!email || !password) {
-      toast({ title: 'Sessão expirada', description: 'Volte e faça login novamente.', variant: 'destructive' });
-      return;
-    }
+    if (!email) return;
     const normalized = email.trim().toLowerCase();
     setLoading(true);
     try {
-      await dispatchOtp(normalized, password);
+      await dispatchOtp(normalized);
       toast({ title: 'Código reenviado', description: `Novo código enviado para ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
@@ -245,7 +229,7 @@ export default function Auth() {
     setLoading(true);
     try {
       // 1) Valida o código numérico via edge function
-      const { data, error } = await supabase.functions.invoke('otp-verify', {
+      const { data, error } = await supabase.functions.invoke('verify-otp-resend', {
         body: { email: normalized, code: otp },
       });
 
@@ -272,7 +256,6 @@ export default function Auth() {
         clearAttempts(SEND_KEY, normalized);
         setOtpExpiresAt(0);
         clearLastRequest();
-        setPassword('');
         navigate('/dashboard', { replace: true });
       } else {
         throw new Error('no_session');
@@ -317,7 +300,7 @@ export default function Auth() {
                   <Lock className="h-6 w-6 text-blue-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Entrar com segurança</h2>
-                <p className="text-sm text-gray-500 mt-1">Confirme suas credenciais — enviaremos um código por email para concluir o login.</p>
+                <p className="text-sm text-gray-500 mt-1">Informe seu email — enviaremos um código de 6 dígitos para concluir o login.</p>
               </div>
               {blockRemaining > 0 && (
                 <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
@@ -335,15 +318,6 @@ export default function Auth() {
                       className="pl-9" required autoFocus autoComplete="email" />
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="password">Senha</Label>
-                  <div className="relative mt-1">
-                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input id="password" type="password" placeholder="••••••••"
-                      value={password} onChange={e => setPassword(e.target.value)}
-                      className="pl-9" required autoComplete="current-password" />
-                  </div>
-                </div>
                 {/* Honeypot — invisível para humanos, atrai bots */}
                 <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>
                   <label htmlFor={HONEYPOT_FIELD}>Não preencha este campo</label>
@@ -357,8 +331,8 @@ export default function Auth() {
                     onChange={e => setHoneypot(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || !password || blockRemaining > 0}>
-                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Validando…</>
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0}>
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
                     : <><ArrowRight className="h-4 w-4 mr-2" />Continuar</>}
                 </Button>
               </form>
