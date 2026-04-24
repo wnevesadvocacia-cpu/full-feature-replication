@@ -26,6 +26,7 @@ import {
   History,
   Settings2,
   ShieldCheck,
+  Send,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -69,6 +70,7 @@ const secondaryNav = [
   { title: 'Personalizar Kanban', url: '/kanban-config', icon: Settings2 },
   { title: 'Importar Informações', url: '/importar', icon: Database },
   { title: 'Auditoria', url: '/auditoria', icon: ShieldCheck },
+  { title: 'Peticionamento Eletrônico (em breve)', url: '#peticionamento', icon: Send, disabled: true },
 ];
 
 export function AppSidebar() {
