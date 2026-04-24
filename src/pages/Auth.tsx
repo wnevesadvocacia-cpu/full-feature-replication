@@ -362,13 +362,14 @@ export default function Auth() {
               )}
 
               <div className="mt-4 flex items-center justify-between text-sm">
-                <button onClick={() => { setStep('email'); setOtp(''); }}
+                <button onClick={() => { setStep('email'); setOtp(''); setOtpExpiresAt(0); clearLastRequest(); }}
                   className="text-gray-500 hover:text-gray-700">
                   ← Trocar email
                 </button>
                 <button
-                  disabled={cooldown > 0 || loading || blockRemaining > 0}
+                  disabled={cooldown > 0 || loading || blockRemaining > 0 || !email}
                   onClick={() => sendCode()}
+                  title={cooldown > 0 ? `Aguarde ${cooldown}s para reenviar` : `Reenviar código para ${email}`}
                   className="flex items-center gap-1 text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed">
                   <RotateCcw className="h-3 w-3" />
                   {cooldown > 0 ? `Reenviar em ${cooldown}s` : 'Reenviar código'}
