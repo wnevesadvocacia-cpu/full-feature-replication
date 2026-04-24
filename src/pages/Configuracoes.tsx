@@ -180,7 +180,7 @@ export default function Configuracoes() {
         <div className="flex-1 bg-white rounded-xl border shadow-sm p-6">
           {tab === 'perfil' && (
             <div className="space-y-6">
-              <div><h2 className="text-lg font-semibold">Meu Perfil</h2><p className="text-sm text-gray-400">Informações pessoais do advogado</p></div>
+              <div><h2 className="text-lg font-semibold">Meu Perfil</h2><p className="text-sm text-gray-400">Suas informações pessoais</p></div>
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
                   <span className="text-blue-600 font-bold text-xl">{(perfil.nome || user?.email || 'U').charAt(0).toUpperCase()}</span>
