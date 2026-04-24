@@ -958,6 +958,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_office_member: { Args: { _user_id: string }; Returns: boolean }
       sign_portal_document: {
         Args: {
           _request_id: string
