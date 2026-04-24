@@ -279,7 +279,7 @@ export default function Auth() {
                   <Lock className="h-6 w-6 text-blue-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Entrar com segurança</h2>
-                <p className="text-sm text-gray-500 mt-1">Enviaremos um código de 6 dígitos para o seu email.</p>
+                <p className="text-sm text-gray-500 mt-1">Confirme suas credenciais — enviaremos um código por email para concluir o login.</p>
               </div>
               {blockRemaining > 0 && (
                 <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
@@ -287,14 +287,23 @@ export default function Auth() {
                   <span>Acesso temporariamente bloqueado por segurança. Tente novamente em <strong>{formatRemain(blockRemaining)}</strong>.</span>
                 </div>
               )}
-              <form onSubmit={sendCode} className="space-y-4" autoComplete="on">
+              <form onSubmit={loginAndSendCode} className="space-y-4" autoComplete="on">
                 <div>
                   <Label htmlFor="email">Email</Label>
                   <div className="relative mt-1">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input id="email" type="email" placeholder="seu@email.com"
                       value={email} onChange={e => setEmail(e.target.value)}
-                      className="pl-9" required autoFocus />
+                      className="pl-9" required autoFocus autoComplete="email" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="password">Senha</Label>
+                  <div className="relative mt-1">
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input id="password" type="password" placeholder="••••••••"
+                      value={password} onChange={e => setPassword(e.target.value)}
+                      className="pl-9" required autoComplete="current-password" />
                   </div>
                 </div>
                 {/* Honeypot — invisível para humanos, atrai bots */}
@@ -310,9 +319,9 @@ export default function Auth() {
                     onChange={e => setHoneypot(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0}>
-                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
-                    : <><ArrowRight className="h-4 w-4 mr-2" />Enviar código</>}
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || !password || blockRemaining > 0}>
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Validando…</>
+                    : <><ArrowRight className="h-4 w-4 mr-2" />Continuar</>}
                 </Button>
               </form>
             </>
