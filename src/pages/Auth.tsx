@@ -1,30 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase, APP_URL } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Scale, Mail, Shield, Loader2, ArrowRight, Eye, EyeOff,
-  RotateCcw, Lock, CheckCircle2, KeyRound, Link2,
+  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck,
 } from 'lucide-react';
 
-type Mode = 'login' | 'forgot' | 'sent' | 'paste';
+type Step = 'email' | 'otp';
 
 export default function Auth() {
-  const [mode, setMode]         = useState<Mode>('login');
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [pastedUrl, setPasted]  = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [loading, setLoading]   = useState(false);
+  const [step, setStep]       = useState<Step>('email');
+  const [email, setEmail]     = useState('');
+  const [otp, setOtp]         = useState('');
+  const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // ── Já autenticado? Usa o contexto (sem segundo lock do Supabase) ────────────
   const { user } = useAuth();
   useEffect(() => {
     if (user) navigate('/dashboard', { replace: true });
@@ -36,96 +32,53 @@ export default function Auth() {
     return () => clearInterval(t);
   }, [cooldown]);
 
-  // ── Login email + senha ──────────────────────────────────────────────────────
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
-    setLoading(true);
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
-      if (data.session) {
-        navigate('/dashboard', { replace: true });
-      }
-    } catch (err: any) {
-      const msg = err.message?.toLowerCase() ?? '';
-      const friendly =
-        msg.includes('invalid login') || msg.includes('invalid credentials')
-          ? 'Email ou senha incorretos.'
-          : msg.includes('email not confirmed')
-          ? 'Email não confirmado. Verifique sua caixa de entrada.'
-          : err.message;
-      toast({ title: 'Erro ao entrar', description: friendly, variant: 'destructive' });
-    } finally { setLoading(false); }
-  };
-
-  // ── Esqueci a senha ──────────────────────────────────────────────────────────
-  const handleForgot = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Passo 1 — solicita o código por email
+  const sendCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!email) return;
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: APP_URL + '#/reset-password',
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: true },
       });
       if (error) throw error;
-      setMode('sent');
+      setStep('otp');
+      setOtp('');
       setCooldown(60);
+      toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${email}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
-  // ── Extrai sessão da URL copiada (Lovable auth-bridge ou token direto) ───────
-  const handlePasteUrl = async () => {
-    const raw = pastedUrl.trim();
-    if (!raw) return;
+  // Passo 2 — valida o código de 6 dígitos
+  const verifyCode = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (otp.length !== 6) {
+      toast({ title: 'Código inválido', description: 'Digite os 6 dígitos.', variant: 'destructive' });
+      return;
+    }
     setLoading(true);
     try {
-      let urlObj: URL;
-      try { urlObj = new URL(raw); } catch { throw new Error('URL inválida. Cole a URL completa da barra de endereços.'); }
-
-      // Tokens podem estar no hash da URL ou em return_url dentro da query string
-      let hashStr = urlObj.hash.replace(/^#/, '');
-
-      // Caso Lovable auth-bridge: extrai o return_url e pega o hash DELE
-      const returnUrl = urlObj.searchParams.get('return_url');
-      if (returnUrl && !hashStr.includes('access_token')) {
-        try {
-          const inner = new URL(returnUrl);
-          hashStr = inner.hash.replace(/^#/, '');
-        } catch { /* ignora */ }
-      }
-
-      const params = new URLSearchParams(hashStr);
-      const access_token  = params.get('access_token');
-      const refresh_token = params.get('refresh_token');
-      const code          = urlObj.searchParams.get('code');
-
-      if (access_token && refresh_token) {
-        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-        if (error) throw error;
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-        navigate('/dashboard', { replace: true });
-        return;
-      }
-
-      throw new Error('Token não encontrado na URL. Copie a URL COMPLETA da barra de endereços (incluindo tudo após o #).');
+      const { data, error } = await supabase.auth.verifyOtp({
+        email, token: otp, type: 'email',
+      });
+      if (error) throw error;
+      if (data.session) navigate('/dashboard', { replace: true });
     } catch (err: any) {
-      toast({ title: 'Erro ao autenticar', description: err.message, variant: 'destructive' });
+      const msg = err.message?.toLowerCase() ?? '';
+      const friendly =
+        msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
+        msg.includes('invalid') ? 'Código incorreto. Verifique e tente novamente.' :
+        err.message;
+      toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
             <div className="bg-blue-600 p-3 rounded-full"><Scale className="h-8 w-8 text-white" /></div>
@@ -135,18 +88,16 @@ export default function Auth() {
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-
-          {/* ── LOGIN ── */}
-          {mode === 'login' && (
+          {step === 'email' && (
             <>
               <div className="mb-5 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
                   <Lock className="h-6 w-6 text-blue-600" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Entrar</h2>
+                <h2 className="text-xl font-bold text-gray-900">Entrar com segurança</h2>
+                <p className="text-sm text-gray-500 mt-1">Enviaremos um código de 6 dígitos para o seu email.</p>
               </div>
-
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={sendCode} className="space-y-4">
                 <div>
                   <Label htmlFor="email">Email</Label>
                   <div className="relative mt-1">
@@ -156,141 +107,60 @@ export default function Auth() {
                       className="pl-9" required autoFocus />
                   </div>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="password">Senha</Label>
-                    <button type="button" onClick={() => setMode('forgot')}
-                      className="text-xs text-blue-600 hover:underline">
-                      Esqueci minha senha
-                    </button>
-                  </div>
-                  <div className="relative mt-1">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input id="password" type={showPass ? 'text' : 'password'} placeholder="••••••••"
-                      value={password} onChange={e => setPassword(e.target.value)}
-                      className="pl-9 pr-10" required />
-                    <button type="button" onClick={() => setShowPass(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading}>
-                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Entrando…</>
-                    : <><ArrowRight className="h-4 w-4 mr-2" />Entrar</>}
-                </Button>
-              </form>
-
-              {/* Opção colar URL do email */}
-              <div className="mt-4 pt-4 border-t border-gray-100">
-                <button onClick={() => setMode('paste')}
-                  className="w-full flex items-center justify-center gap-2 text-sm text-gray-500 hover:text-blue-600">
-                  <Link2 className="h-4 w-4" />
-                  Tenho um link do email (colar URL)
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* ── ESQUECI A SENHA ── */}
-          {mode === 'forgot' && (
-            <>
-              <div className="mb-5 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-100 rounded-full mb-3">
-                  <KeyRound className="h-6 w-6 text-amber-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">Redefinir senha</h2>
-                <p className="text-sm text-gray-500 mt-1">Enviaremos um link de redefinição de senha.</p>
-              </div>
-              <form onSubmit={handleForgot} className="space-y-4">
-                <div>
-                  <Label>Email</Label>
-                  <div className="relative mt-1">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <Input type="email" placeholder="seu@email.com"
-                      value={email} onChange={e => setEmail(e.target.value)}
-                      className="pl-9" required autoFocus />
-                  </div>
-                </div>
-                <Button type="submit" className="w-full bg-amber-600 hover:bg-amber-700" disabled={loading}>
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
-                    : <><Mail className="h-4 w-4 mr-2" />Enviar link de redefinição</>}
+                    : <><ArrowRight className="h-4 w-4 mr-2" />Enviar código</>}
                 </Button>
               </form>
-              <button onClick={() => setMode('login')} className="mt-4 w-full text-center text-sm text-gray-400 hover:text-gray-600">
-                ← Voltar ao login
-              </button>
             </>
           )}
 
-          {/* ── EMAIL ENVIADO ── */}
-          {mode === 'sent' && (
+          {step === 'otp' && (
             <>
               <div className="mb-5 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-emerald-100 rounded-full mb-3">
+                  <ShieldCheck className="h-6 w-6 text-emerald-600" />
                 </div>
-                <h2 className="text-xl font-bold text-gray-900">Email enviado!</h2>
-                <p className="text-sm text-gray-500 mt-1">Verifique a caixa de entrada de <strong>{email}</strong></p>
-              </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm space-y-2 mb-5">
-                <p className="font-semibold text-amber-800">⚠️ Atenção — o link redireciona para o Lovable:</p>
-                <ol className="list-decimal list-inside space-y-1 text-amber-700">
-                  <li>Clique em <strong>"Reset Password"</strong> no email</li>
-                  <li>Aparecerá a página do Lovable</li>
-                  <li><strong>Copie a URL completa</strong> da barra de endereços <span className="text-xs">(Ctrl+L → Ctrl+C)</span></li>
-                  <li>Volte ao WnevesBox → clique em <strong>"Tenho um link do email"</strong></li>
-                  <li>Cole a URL → entrará automaticamente</li>
-                </ol>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="outline" className="flex-1" onClick={() => { setMode('paste'); }}>
-                  <Link2 className="h-4 w-4 mr-2" /> Colar URL
-                </Button>
-                <Button variant="outline" className="flex-1" disabled={cooldown > 0 || loading}
-                  onClick={async () => {
-                    setLoading(true);
-                    await supabase.auth.resetPasswordForEmail(email, { redirectTo: APP_URL + '#/reset-password' });
-                    setLoading(false); setCooldown(60);
-                    toast({ title: 'Email reenviado!' });
-                  }}>
-                  {cooldown > 0 ? <><RotateCcw className="h-4 w-4 mr-1" />{cooldown}s</> : <><RotateCcw className="h-4 w-4 mr-1" />Reenviar</>}
-                </Button>
-              </div>
-            </>
-          )}
-
-          {/* ── COLAR URL ── */}
-          {mode === 'paste' && (
-            <>
-              <div className="mb-5 text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full mb-3">
-                  <Link2 className="h-6 w-6 text-purple-600" />
-                </div>
-                <h2 className="text-xl font-bold text-gray-900">Cole a URL aqui</h2>
+                <h2 className="text-xl font-bold text-gray-900">Digite o código</h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Cole a URL completa da barra de endereços após clicar no link do email
+                  Enviamos um código de 6 dígitos para <strong>{email}</strong>
                 </p>
               </div>
-              <div className="mb-4">
-                <Label>URL copiada do navegador</Label>
-                <textarea
-                  className="mt-1 w-full border-2 border-gray-300 rounded-lg p-3 text-xs font-mono focus:border-blue-500 focus:outline-none resize-none"
-                  rows={5}
-                  placeholder={"https://lovable.dev/auth-bridge?project_id=...#access_token=...\nou\nhttps://...github.io/...#access_token=..."}
-                  value={pastedUrl}
-                  onChange={e => setPasted(e.target.value)}
-                  autoFocus
-                />
+              <form onSubmit={verifyCode} className="space-y-4">
+                <div>
+                  <Label htmlFor="otp">Código de verificação</Label>
+                  <Input
+                    id="otp"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={otp}
+                    onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="mt-1 text-center text-2xl font-mono tracking-[0.5em]"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6}>
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando…</>
+                    : <><CheckCircle2 className="h-4 w-4 mr-2" />Confirmar e entrar</>}
+                </Button>
+              </form>
+
+              <div className="mt-4 flex items-center justify-between text-sm">
+                <button onClick={() => { setStep('email'); setOtp(''); }}
+                  className="text-gray-500 hover:text-gray-700">
+                  ← Trocar email
+                </button>
+                <button
+                  disabled={cooldown > 0 || loading}
+                  onClick={() => sendCode()}
+                  className="flex items-center gap-1 text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed">
+                  <RotateCcw className="h-3 w-3" />
+                  {cooldown > 0 ? `Reenviar em ${cooldown}s` : 'Reenviar código'}
+                </button>
               </div>
-              <Button onClick={handlePasteUrl} className="w-full bg-purple-600 hover:bg-purple-700"
-                disabled={loading || !pastedUrl.trim()}>
-                {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Autenticando…</>
-                  : <><CheckCircle2 className="h-4 w-4 mr-2" />Entrar com este link</>}
-              </Button>
-              <button onClick={() => setMode('login')} className="mt-3 w-full text-center text-sm text-gray-400 hover:text-gray-600">
-                ← Voltar ao login
-              </button>
             </>
           )}
         </div>
