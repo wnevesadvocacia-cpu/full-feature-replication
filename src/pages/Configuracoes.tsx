@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, Scale, RefreshCw } from 'lucide-react';
+import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, Scale, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -36,7 +36,9 @@ export default function Configuracoes() {
   const [escritorio, setEscritorio] = useState(EMPTY_ESCRITORIO);
   const [notifs, setNotifs] = useState(EMPTY_NOTIFS);
   const [senhaForm, setSenhaForm] = useState({ nova: '', confirmar: '' });
-  const [oab, setOab] = useState({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null as string | null });
+  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null };
+  const [oabs, setOabs] = useState<OabRow[]>([]);
+  const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => { if (user?.email) setPerfil(p => ({ ...p, email: user.email! })); }, [user]);
@@ -48,12 +50,12 @@ export default function Configuracoes() {
     (async () => {
       setLoadingData(true);
       try {
-        const [{ data: office }, { data: prefs }, { data: oabRow }] = await Promise.all([
+        const [{ data: office }, { data: prefs }, { data: oabRows }] = await Promise.all([
           (supabase as any).from('office_settings').select('*').eq('user_id', user.id).maybeSingle(),
           (supabase as any).from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).maybeSingle(),
+          (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
         ]);
-        if (oabRow) setOab({ oab_number: oabRow.oab_number, oab_uf: oabRow.oab_uf, active: oabRow.active, last_sync_at: oabRow.last_sync_at });
+        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at })));
         if (cancel) return;
         if (office) {
           setEscritorio({
@@ -129,43 +131,58 @@ export default function Configuracoes() {
     finally { setSaving(false); }
   }
 
-  async function saveOab(overrides?: Partial<typeof oab>) {
+  async function addOab() {
     if (!user?.id) return;
-    const payload = { ...oab, ...overrides };
-    if (!payload.oab_number.trim() || payload.oab_uf.length !== 2) {
-      toast({ title: 'Preencha número da OAB e UF (2 letras)', variant: 'destructive' });
-      return;
+    const num = newOab.oab_number.trim();
+    const uf = newOab.oab_uf.toUpperCase().trim();
+    if (!num || uf.length !== 2) { toast({ title: 'Preencha número e UF (2 letras)', variant: 'destructive' }); return; }
+    if (oabs.some(o => o.oab_number === num && o.oab_uf === uf)) {
+      toast({ title: 'Esta OAB já está cadastrada', variant: 'destructive' }); return;
     }
     setSaving(true);
     try {
-      const { error } = await (supabase as any).from('oab_settings').upsert({
-        user_id: user.id, oab_number: payload.oab_number.trim(), oab_uf: payload.oab_uf.toUpperCase(), active: payload.active,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' });
+      const { data, error } = await (supabase as any).from('oab_settings').insert({
+        user_id: user.id, oab_number: num, oab_uf: uf, active: newOab.active,
+      }).select().single();
       if (error) throw error;
-      toast({ title: payload.active ? 'OAB salva! Sincronização ativa.' : 'OAB salva. Sincronização desativada.' });
+      setOabs(prev => [...prev, { id: data.id, oab_number: data.oab_number, oab_uf: data.oab_uf, active: data.active, last_sync_at: data.last_sync_at }]);
+      setNewOab({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
+      toast({ title: 'OAB adicionada!' });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSaving(false); }
   }
 
-  async function toggleActive() {
-    const next = !oab.active;
-    setOab(o => ({ ...o, active: next }));
-    // Se já existe OAB cadastrada, persiste a mudança imediatamente
-    if (oab.oab_number.trim() && oab.oab_uf.length === 2) {
-      await saveOab({ active: next });
+  async function toggleOabActive(row: OabRow) {
+    if (!row.id) return;
+    const next = !row.active;
+    setOabs(prev => prev.map(o => o.id === row.id ? { ...o, active: next } : o));
+    const { error } = await (supabase as any).from('oab_settings').update({ active: next, updated_at: new Date().toISOString() }).eq('id', row.id);
+    if (error) {
+      setOabs(prev => prev.map(o => o.id === row.id ? { ...o, active: !next } : o));
+      toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
     }
   }
 
+  async function removeOab(row: OabRow) {
+    if (!row.id) return;
+    if (!confirm(`Remover OAB ${row.oab_number}/${row.oab_uf}?`)) return;
+    const { error } = await (supabase as any).from('oab_settings').delete().eq('id', row.id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    setOabs(prev => prev.filter(o => o.id !== row.id));
+    toast({ title: 'OAB removida' });
+  }
+
   async function syncNow() {
+    if (!user?.id) return;
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-djen', { body: {}, method: 'POST' });
+      const { data, error } = await supabase.functions.invoke('sync-djen?manual=1', { body: {}, method: 'POST' });
       if (error) throw error;
-      const r = (data?.results || [])[0];
-      toast({ title: 'Sincronização concluída', description: r ? `${r.inserted} novas / ${r.total} encontradas` : 'Nenhum resultado' });
-      const { data: oabRow } = await (supabase as any).from('oab_settings').select('last_sync_at').eq('user_id', user!.id).maybeSingle();
-      if (oabRow) setOab((o) => ({ ...o, last_sync_at: oabRow.last_sync_at }));
+      const totalInserted = (data?.results || []).reduce((s: number, r: any) => s + (r.inserted || 0), 0);
+      const totalFound = (data?.results || []).reduce((s: number, r: any) => s + (r.total || 0), 0);
+      toast({ title: 'Sincronização concluída', description: `${totalInserted} novas / ${totalFound} encontradas em ${(data?.results || []).length} OAB(s)` });
+      const { data: oabRows } = await (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
+      if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at })));
     } catch (e: any) { toast({ title: 'Erro ao sincronizar', description: e.message, variant: 'destructive' }); }
     finally { setSyncing(false); }
   }
@@ -262,24 +279,54 @@ export default function Configuracoes() {
                 <h2 className="text-lg font-semibold">Intimações automáticas (DJEN/CNJ)</h2>
                 <p className="text-sm text-gray-400">Cadastre sua OAB para receber intimações de todos os tribunais automaticamente. Fonte oficial gratuita do CNJ. Sincroniza a cada 6h.</p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2"><Label>Número OAB</Label><Input className="mt-1" placeholder="Ex: 290702" value={oab.oab_number} onChange={e => setOab(o => ({ ...o, oab_number: e.target.value.replace(/\D/g, '') }))} /></div>
-                <div><Label>UF</Label><Input className="mt-1" maxLength={2} value={oab.oab_uf} onChange={e => setOab(o => ({ ...o, oab_uf: e.target.value.toUpperCase() }))} /></div>
+              {/* Lista de OABs cadastradas */}
+              <div className="space-y-2">
+                {oabs.length === 0 && <p className="text-sm text-gray-500 italic">Nenhuma OAB cadastrada ainda.</p>}
+                {oabs.map((row) => (
+                  <div key={row.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <Scale className="w-4 h-4 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-sm">OAB/{row.oab_uf} {row.oab_number}</p>
+                        {row.last_sync_at && <p className="text-xs text-gray-500">Última sync: {new Date(row.last_sync_at).toLocaleString('pt-BR')}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => toggleOabActive(row)} className={`relative inline-flex h-5 w-9 rounded-full ${row.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                        <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${row.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                      <span className="text-xs text-gray-500 w-12">{row.active ? 'Ativa' : 'Inativa'}</span>
+                      <Button variant="ghost" size="sm" onClick={() => removeOab(row)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={toggleActive} className={`relative inline-flex h-5 w-9 rounded-full ${oab.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                  <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${oab.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </button>
-                <span className="text-sm">Sincronização automática ativa</span>
-              </div>
-              {oab.last_sync_at && <p className="text-xs text-gray-500">Última sincronização: {new Date(oab.last_sync_at).toLocaleString('pt-BR')}</p>}
-              <div className="flex gap-2">
-                <Button onClick={() => saveOab()} disabled={saving || !oab.oab_number.trim() || oab.oab_uf.length !== 2}>
-                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Salvar
-                </Button>
-                <Button variant="outline" onClick={syncNow} disabled={syncing || !oab.oab_number}>
-                  {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}Sincronizar agora
-                </Button>
+
+              {/* Adicionar nova OAB */}
+              <div className="border-t pt-4 space-y-3">
+                <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2"><Plus className="w-4 h-4" />Adicionar inscrição OAB</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Label>Número OAB</Label>
+                    <Input className="mt-1" placeholder="Ex: 290702" value={newOab.oab_number}
+                      onChange={e => setNewOab(o => ({ ...o, oab_number: e.target.value.replace(/\D/g, '') }))} />
+                  </div>
+                  <div>
+                    <Label>UF</Label>
+                    <Input className="mt-1" maxLength={2} placeholder="SP" value={newOab.oab_uf}
+                      onChange={e => setNewOab(o => ({ ...o, oab_uf: e.target.value.toUpperCase() }))} />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={addOab} disabled={saving || !newOab.oab_number.trim() || newOab.oab_uf.length !== 2}>
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}Adicionar OAB
+                  </Button>
+                  <Button variant="outline" onClick={syncNow} disabled={syncing || oabs.filter(o => o.active).length === 0}>
+                    {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}Sincronizar todas
+                  </Button>
+                </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
                 <strong>Sobre AASP:</strong> integração via scraping não foi implementada por risco de bloqueio da conta. O DJEN do CNJ cobre as mesmas intimações eletrônicas que a AASP repassa, oficialmente e sem custo.

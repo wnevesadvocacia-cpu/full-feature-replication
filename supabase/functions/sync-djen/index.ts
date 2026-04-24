@@ -132,11 +132,11 @@ Deno.serve(async (req) => {
         Deno.env.get('SUPABASE_ANON_KEY')!,
         { global: { headers: { Authorization: authHeader } } },
       );
-      const { data: claims } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-      if (!claims?.claims?.sub) {
+      const { data: userData, error: userErr } = await userClient.auth.getUser();
+      if (userErr || !userData?.user?.id) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-      const { data } = await supabase.from('oab_settings').select('*').eq('user_id', claims.claims.sub).eq('active', true);
+      const { data } = await supabase.from('oab_settings').select('*').eq('user_id', userData.user.id).eq('active', true);
       targets = data || [];
     } else {
       // Cron: todos ativos
