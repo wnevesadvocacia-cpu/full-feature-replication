@@ -137,6 +137,7 @@ export default function Auth() {
       setStep('otp');
       setOtp('');
       setCooldown(60);
+      setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
