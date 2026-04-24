@@ -812,6 +812,41 @@ export type Database = {
         }
         Relationships: []
       }
+      task_collaborators: {
+        Row: {
+          added_by: string
+          can_edit: boolean
+          created_at: string
+          id: string
+          task_id: string
+          user_id: string
+        }
+        Insert: {
+          added_by: string
+          can_edit?: boolean
+          created_at?: string
+          id?: string
+          task_id: string
+          user_id: string
+        }
+        Update: {
+          added_by?: string
+          can_edit?: boolean
+          created_at?: string
+          id?: string
+          task_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_collaborators_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assignee: string | null
@@ -949,6 +984,10 @@ export type Database = {
     }
     Functions: {
       can_delete: { Args: { _user_id: string }; Returns: boolean }
+      can_edit_task: {
+        Args: { _task_id: string; _user_id: string }
+        Returns: boolean
+      }
       get_client_portal_data: { Args: { _token: string }; Returns: Json }
       get_portal_signatures: { Args: { _token: string }; Returns: Json }
       has_role: {
