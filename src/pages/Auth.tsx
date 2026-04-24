@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import {
-  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert,
+  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert, KeyRound,
 } from 'lucide-react';
 
 type Step = 'email' | 'otp';
@@ -63,6 +63,7 @@ function clearLastRequest() {
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
   const [email, setEmail]     = useState('');
+  const [password, setPassword] = useState('');
   const [otp, setOtp]         = useState('');
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
@@ -123,10 +124,23 @@ export default function Auth() {
     return m > 0 ? `${m}m ${r.toString().padStart(2, '0')}s` : `${r}s`;
   };
 
-  // Passo 1 — solicita o código por email
-  const sendCode = async (e?: React.FormEvent) => {
+  // Dispara o OTP por email (usado no fluxo de reenvio — senha já validada)
+  const dispatchOtp = async (normalized: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalized,
+      options: { shouldCreateUser: false },
+    });
+    if (error) throw error;
+    setOtp('');
+    setCooldown(RESEND_COOLDOWN_SEC);
+    setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
+    writeLastRequest(normalized);
+  };
+
+  // Passo 1 — valida email + senha; se OK, faz signOut e dispara código por email (2FA)
+  const loginAndSendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     const normalized = email.trim().toLowerCase();
 
     if (honeypot) {
@@ -138,18 +152,18 @@ export default function Auth() {
       return;
     }
 
-    const now = Date.now();
+    const tNow = Date.now();
     const att = readAttempts(SEND_KEY, normalized);
-    if (att.blockedUntil && att.blockedUntil > now) {
+    if (att.blockedUntil && att.blockedUntil > tNow) {
       setBlockedUntil(att.blockedUntil);
-      toast({ title: 'Muitas solicitações', description: `Aguarde ${formatRemain(Math.ceil((att.blockedUntil - now) / 1000))} antes de tentar novamente.`, variant: 'destructive' });
+      toast({ title: 'Muitas solicitações', description: `Aguarde ${formatRemain(Math.ceil((att.blockedUntil - tNow) / 1000))} antes de tentar novamente.`, variant: 'destructive' });
       return;
     }
-    const inWindow = att.first && now - att.first < SEND_WINDOW_MS;
+    const inWindow = att.first && tNow - att.first < SEND_WINDOW_MS;
     const nextCount = inWindow ? att.count + 1 : 1;
-    const first = inWindow ? att.first : now;
+    const first = inWindow ? att.first : tNow;
     if (nextCount > SEND_MAX) {
-      const blockedUntilTs = now + SEND_BLOCK_MS;
+      const blockedUntilTs = tNow + SEND_BLOCK_MS;
       writeAttempts(SEND_KEY, normalized, { count: nextCount, first, blockedUntil: blockedUntilTs });
       setBlockedUntil(blockedUntilTs);
       toast({ title: 'Limite de envios atingido', description: `Máximo de ${SEND_MAX} envios atingido. Tente novamente em ${formatRemain(SEND_BLOCK_MS / 1000)}.`, variant: 'destructive' });
@@ -159,17 +173,34 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: normalized,
-        options: { shouldCreateUser: true },
+      // 1) Valida credenciais
+      const { error: pwErr } = await supabase.auth.signInWithPassword({
+        email: normalized, password,
       });
-      if (error) throw error;
+      if (pwErr) {
+        toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
+        return;
+      }
+      // 2) Encerra a sessão imediatamente — só entra após o OTP
+      await supabase.auth.signOut();
+      // 3) Envia o código por email (2º fator)
+      await dispatchOtp(normalized);
       setStep('otp');
-      setOtp('');
-      setCooldown(RESEND_COOLDOWN_SEC);
-      setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
-      writeLastRequest(normalized);
+      setPassword('');
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally { setLoading(false); }
+  };
+
+  // Reenvio do OTP (na tela do código) — sem revalidar senha
+  const resendCode = async () => {
+    if (!email) return;
+    const normalized = email.trim().toLowerCase();
+    setLoading(true);
+    try {
+      await dispatchOtp(normalized);
+      toast({ title: 'Código reenviado', description: `Novo código enviado para ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
@@ -248,7 +279,7 @@ export default function Auth() {
                   <Lock className="h-6 w-6 text-blue-600" />
                 </div>
                 <h2 className="text-xl font-bold text-gray-900">Entrar com segurança</h2>
-                <p className="text-sm text-gray-500 mt-1">Enviaremos um código de 6 dígitos para o seu email.</p>
+                <p className="text-sm text-gray-500 mt-1">Confirme suas credenciais — enviaremos um código por email para concluir o login.</p>
               </div>
               {blockRemaining > 0 && (
                 <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
@@ -256,14 +287,23 @@ export default function Auth() {
                   <span>Acesso temporariamente bloqueado por segurança. Tente novamente em <strong>{formatRemain(blockRemaining)}</strong>.</span>
                 </div>
               )}
-              <form onSubmit={sendCode} className="space-y-4" autoComplete="on">
+              <form onSubmit={loginAndSendCode} className="space-y-4" autoComplete="on">
                 <div>
                   <Label htmlFor="email">Email</Label>
                   <div className="relative mt-1">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <Input id="email" type="email" placeholder="seu@email.com"
                       value={email} onChange={e => setEmail(e.target.value)}
-                      className="pl-9" required autoFocus />
+                      className="pl-9" required autoFocus autoComplete="email" />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="password">Senha</Label>
+                  <div className="relative mt-1">
+                    <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input id="password" type="password" placeholder="••••••••"
+                      value={password} onChange={e => setPassword(e.target.value)}
+                      className="pl-9" required autoComplete="current-password" />
                   </div>
                 </div>
                 {/* Honeypot — invisível para humanos, atrai bots */}
@@ -279,9 +319,9 @@ export default function Auth() {
                     onChange={e => setHoneypot(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0}>
-                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
-                    : <><ArrowRight className="h-4 w-4 mr-2" />Enviar código</>}
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || !password || blockRemaining > 0}>
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Validando…</>
+                    : <><ArrowRight className="h-4 w-4 mr-2" />Continuar</>}
                 </Button>
               </form>
             </>
@@ -368,7 +408,7 @@ export default function Auth() {
                 </button>
                 <button
                   disabled={cooldown > 0 || loading || blockRemaining > 0 || !email}
-                  onClick={() => sendCode()}
+                  onClick={() => resendCode()}
                   title={cooldown > 0 ? `Aguarde ${cooldown}s para reenviar` : `Reenviar código para ${email}`}
                   className="flex items-center gap-1 text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed">
                   <RotateCcw className="h-3 w-3" />
