@@ -41,7 +41,17 @@ export default function Configuracoes() {
   const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
   const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => { if (user?.email) setPerfil(p => ({ ...p, email: user.email! })); }, [user]);
+  useEffect(() => {
+    if (!user) return;
+    const meta = (user.user_metadata ?? {}) as Record<string, any>;
+    setPerfil(p => ({
+      ...p,
+      email: user.email ?? p.email,
+      nome: meta.full_name ?? meta.name ?? p.nome,
+      oab: meta.oab ?? p.oab,
+      telefone: meta.phone ?? meta.telefone ?? p.telefone,
+    }));
+  }, [user]);
 
   // Carrega escritório e notificações do banco
   useEffect(() => {
@@ -83,11 +93,22 @@ export default function Configuracoes() {
   async function savePerfil() {
     setSaving(true);
     try {
+      const { error: metaErr } = await supabase.auth.updateUser({
+        data: {
+          full_name: perfil.nome,
+          oab: perfil.oab,
+          phone: perfil.telefone,
+        },
+      });
+      if (metaErr) throw metaErr;
+
       if (perfil.email !== user?.email) {
         const { error } = await supabase.auth.updateUser({ email: perfil.email });
         if (error) throw error;
-        toast({ title: 'Email atualizado! Verifique sua caixa de entrada.' });
-      } else { toast({ title: 'Perfil salvo!' }); }
+        toast({ title: 'Perfil salvo! Verifique seu email para confirmar a alteração.' });
+      } else {
+        toast({ title: 'Perfil salvo!' });
+      }
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSaving(false); }
   }
