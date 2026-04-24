@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { z } from 'https://deno.land/x/zod@v3.23.8/mod.ts';
+import { z } from 'https://esm.sh/zod@3.23.8';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -104,7 +104,13 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: Deno.env.get("RESEND_FROM_EMAIL"),
+        from: (() => {
+          const raw = Deno.env.get("RESEND_FROM_EMAIL") ?? "noreply@wnevesbox.com";
+          // Extract email address if formatted as "Name <email@x>" or use raw
+          const match = raw.match(/<([^>]+)>/);
+          const addr = match ? match[1] : raw;
+          return `WnevesBox <${addr}>`;
+        })(),
         to: [email],
         subject,
         html,

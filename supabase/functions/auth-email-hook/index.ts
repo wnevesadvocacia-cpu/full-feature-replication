@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "full-feature-replication"
+const SITE_NAME = "WnevesBox"
 const SENDER_DOMAIN = "notify.wnevesbox.com"
 const ROOT_DOMAIN = "wnevesbox.com"
 const FROM_DOMAIN = "notify.wnevesbox.com" // Domain shown in From address (may be root or sender subdomain)
