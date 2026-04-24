@@ -50,13 +50,13 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
             aria-label={`Prazo legal: ${deadline.label}, ${remainingText}`}
           >
             {style.icon}
-            <span>{deadline.label}</span>
+            <span>{deadline.label}{deadline.isFallback ? ' *' : ''}</span>
             <span className="opacity-70">·</span>
             <span>{deadline.days}{deadline.doubled ? ' (2x)' : ''} {deadline.unit === 'dias_uteis' ? 'd.u.' : 'd.c.'}</span>
-            {deadline.dueDate && (
+            {deadline.startDate && deadline.dueDate && (
               <>
                 <span className="opacity-70">·</span>
-                <span>{formatBR(deadline.dueDate)}</span>
+                <span>{formatBR(deadline.startDate)} → {formatBR(deadline.dueDate)}</span>
               </>
             )}
           </span>
@@ -68,9 +68,15 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
               {deadline.label} — {deadline.source} {deadline.article}
             </div>
             <div><strong>Disponibilizado:</strong> {formatBR(receivedAtISO.slice(0, 10))}</div>
+            {deadline.startDate && (
+              <div><strong>Início da contagem:</strong> {formatBR(deadline.startDate)} (1º dia útil após a publicação — CPC art. 224 §3º)</div>
+            )}
             <div><strong>Contagem:</strong> {deadline.days} {unitLabel}{deadline.doubled ? ' (em dobro – Fazenda/MP/Defensoria, art. 183/186 CPC)' : ''}</div>
             {deadline.dueDate && (
               <div><strong>Vencimento:</strong> {formatBR(deadline.dueDate)} ({remainingText})</div>
+            )}
+            {deadline.isFallback && (
+              <div className="text-warning"><strong>* Regra geral aplicada:</strong> o despacho não fixou prazo expresso, então adotou-se 5 dias úteis (CPC art. 218 §3º).</div>
             )}
             <div className="pt-1 border-t border-border/50 text-[10px] opacity-80">
               Cálculo conforme calendário CNJ (feriados nacionais + recesso 20/12–20/01) e CPC art. 219/224.
