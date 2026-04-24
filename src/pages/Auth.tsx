@@ -39,6 +39,8 @@ function clearAttempts(key: string, scope: string) {
   try { localStorage.removeItem(`${key}:${scope}`); } catch {}
 }
 
+const OTP_TTL_SEC = 300; // 5 min — padrão Supabase
+
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
   const [email, setEmail]     = useState('');
@@ -48,6 +50,8 @@ export default function Auth() {
   const [honeypot, setHoneypot] = useState('');
   const [formMountedAt] = useState(() => Date.now());
   const [blockedUntil, setBlockedUntil] = useState<number>(0);
+  const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0);
+  const [now, setNow] = useState<number>(Date.now());
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -62,23 +66,31 @@ export default function Auth() {
     return () => clearInterval(t);
   }, [cooldown]);
 
-  // Atualiza contador de bloqueio em tempo real
+  // Tick global (1s) — atualiza countdowns de bloqueio e expiração do OTP
   useEffect(() => {
-    if (blockedUntil <= 0) return;
-    const t = setInterval(() => {
-      if (Date.now() >= blockedUntil) setBlockedUntil(0);
-    }, 1000);
+    const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
-  }, [blockedUntil]);
+  }, []);
+
+  useEffect(() => {
+    if (blockedUntil > 0 && now >= blockedUntil) setBlockedUntil(0);
+  }, [now, blockedUntil]);
 
   const blockRemaining = useMemo(() => {
     if (!blockedUntil) return 0;
-    return Math.max(0, Math.ceil((blockedUntil - Date.now()) / 1000));
-  }, [blockedUntil, cooldown]);
+    return Math.max(0, Math.ceil((blockedUntil - now) / 1000));
+  }, [blockedUntil, now]);
+
+  const otpRemaining = useMemo(() => {
+    if (!otpExpiresAt) return 0;
+    return Math.max(0, Math.ceil((otpExpiresAt - now) / 1000));
+  }, [otpExpiresAt, now]);
+
+  const otpExpired = otpExpiresAt > 0 && otpRemaining === 0;
 
   const formatRemain = (s: number) => {
     const m = Math.floor(s / 60); const r = s % 60;
-    return m > 0 ? `${m}m ${r}s` : `${r}s`;
+    return m > 0 ? `${m}m ${r.toString().padStart(2, '0')}s` : `${r}s`;
   };
 
   // Passo 1 — solicita o código por email
