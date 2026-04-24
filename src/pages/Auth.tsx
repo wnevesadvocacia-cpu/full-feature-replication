@@ -421,8 +421,6 @@ export default function Auth() {
                       <InputOTPSlot index={3} className="h-12 w-11 text-xl font-semibold" />
                       <InputOTPSlot index={4} className="h-12 w-11 text-xl font-semibold" />
                       <InputOTPSlot index={5} className="h-12 w-11 text-xl font-semibold" />
-                      <InputOTPSlot index={6} className="h-12 w-11 text-xl font-semibold" />
-                      <InputOTPSlot index={7} className="h-12 w-11 text-xl font-semibold" />
                     </InputOTPGroup>
                   </InputOTP>
                   <p className="text-xs text-gray-400 mt-1">Dica: você pode colar o código copiado do email</p>
