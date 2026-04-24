@@ -262,11 +262,18 @@ export default function Auth() {
                     required
                   />
                 </div>
-                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6}>
+                <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6 || blockRemaining > 0}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando…</>
                     : <><CheckCircle2 className="h-4 w-4 mr-2" />Confirmar e entrar</>}
                 </Button>
               </form>
+
+              {blockRemaining > 0 && (
+                <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Verificação bloqueada por segurança. Tente novamente em <strong>{formatRemain(blockRemaining)}</strong>.</span>
+                </div>
+              )}
 
               <div className="mt-4 flex items-center justify-between text-sm">
                 <button onClick={() => { setStep('email'); setOtp(''); }}
@@ -274,7 +281,7 @@ export default function Auth() {
                   ← Trocar email
                 </button>
                 <button
-                  disabled={cooldown > 0 || loading}
+                  disabled={cooldown > 0 || loading || blockRemaining > 0}
                   onClick={() => sendCode()}
                   className="flex items-center gap-1 text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed">
                   <RotateCcw className="h-3 w-3" />
