@@ -10,12 +10,17 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Trash2, ShieldAlert, UserPlus } from 'lucide-react';
 
-type AppRole = 'admin' | 'advogado' | 'estagiario' | 'financeiro';
-const ROLES: AppRole[] = ['admin', 'advogado', 'estagiario', 'financeiro'];
+type AppRole = 'admin' | 'gerente' | 'advogado' | 'estagiario' | 'financeiro' | 'usuario' | 'assistente_adm';
+const ROLES: AppRole[] = ['admin', 'gerente', 'advogado', 'estagiario', 'financeiro', 'assistente_adm', 'usuario'];
 
 const roleLabel: Record<AppRole, string> = {
-  admin: 'Admin', advogado: 'Advogado',
-  estagiario: 'Estagiário', financeiro: 'Financeiro',
+  admin: 'Administrador',
+  gerente: 'Gerente',
+  advogado: 'Advogado',
+  estagiario: 'Estagiário',
+  financeiro: 'Financeiro',
+  assistente_adm: 'Assistente Administrativo',
+  usuario: 'Usuário',
 };
 
 export default function Equipe() {
