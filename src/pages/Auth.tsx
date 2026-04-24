@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,10 +7,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import {
-  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck,
+  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
 
 type Step = 'email' | 'otp';
+
+// ── Anti-bot / rate limit (lado cliente) ─────────────────────────────
+const SEND_KEY = 'wb_otp_send_attempts';
+const VERIFY_KEY = 'wb_otp_verify_attempts';
+const HONEYPOT_FIELD = 'company_website'; // bots tendem a preencher
+
+const SEND_MAX = 5;            // máx envios em janela
+const SEND_WINDOW_MS = 15 * 60 * 1000; // 15 min
+const SEND_BLOCK_MS = 30 * 60 * 1000;  // bloqueio 30 min
+
+const VERIFY_MAX = 5;          // máx tentativas de código por email
+const VERIFY_BLOCK_MS = 15 * 60 * 1000;
+
+type Attempts = { count: number; first: number; blockedUntil?: number };
+
+function readAttempts(key: string, scope: string): Attempts {
+  try {
+    const raw = localStorage.getItem(`${key}:${scope}`);
+    return raw ? JSON.parse(raw) : { count: 0, first: 0 };
+  } catch { return { count: 0, first: 0 }; }
+}
+function writeAttempts(key: string, scope: string, val: Attempts) {
+  try { localStorage.setItem(`${key}:${scope}`, JSON.stringify(val)); } catch {}
+}
+function clearAttempts(key: string, scope: string) {
+  try { localStorage.removeItem(`${key}:${scope}`); } catch {}
+}
 
 export default function Auth() {
   const [step, setStep]       = useState<Step>('email');
@@ -18,6 +45,9 @@ export default function Auth() {
   const [otp, setOtp]         = useState('');
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [honeypot, setHoneypot] = useState('');
+  const [formMountedAt] = useState(() => Date.now());
+  const [blockedUntil, setBlockedUntil] = useState<number>(0);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -31,6 +61,25 @@ export default function Auth() {
     const t = setInterval(() => setCooldown(c => c - 1), 1000);
     return () => clearInterval(t);
   }, [cooldown]);
+
+  // Atualiza contador de bloqueio em tempo real
+  useEffect(() => {
+    if (blockedUntil <= 0) return;
+    const t = setInterval(() => {
+      if (Date.now() >= blockedUntil) setBlockedUntil(0);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [blockedUntil]);
+
+  const blockRemaining = useMemo(() => {
+    if (!blockedUntil) return 0;
+    return Math.max(0, Math.ceil((blockedUntil - Date.now()) / 1000));
+  }, [blockedUntil, cooldown]);
+
+  const formatRemain = (s: number) => {
+    const m = Math.floor(s / 60); const r = s % 60;
+    return m > 0 ? `${m}m ${r}s` : `${r}s`;
+  };
 
   // Passo 1 — solicita o código por email
   const sendCode = async (e?: React.FormEvent) => {
