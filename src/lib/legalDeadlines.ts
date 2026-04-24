@@ -227,17 +227,34 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     }
   }
 
-  if (!chosen) return null;
+  // 3) FALLBACK: regra geral CPC art. 218 §3º — quando a lei não fixar prazo,
+  // os atos do juiz e da parte serão praticados em 5 dias.
+  let isFallback = false;
+  if (!chosen) {
+    isFallback = true;
+    chosen = {
+      rule: {
+        days: 5,
+        unit: 'dias_uteis',
+        label: 'Manifestação (regra geral)',
+        source: 'CPC',
+        article: 'art. 218 §3º (regra supletiva 5 dias)',
+        pattern: /.*/,
+      },
+      matched: '(prazo não explícito — aplicada regra geral de 5 dias úteis)',
+    };
+  }
 
   const doubled = DOUBLE_PATTERNS.some((p) => p.test(text));
   const effectiveDays = doubled ? chosen.rule.days * 2 : chosen.rule.days;
 
   // CPC art. 224 §3º: publicação = 1º dia útil após disponibilização (received_at)
   // Início da contagem = 1º dia útil após a publicação
-  // Como addBusinessDays já pula o dia inicial, basta: publicação → addBusinessDays(N)
   let dueDate: string | null = null;
+  let startDate: string | null = null;
   if (effectiveDays > 0) {
     const publicacao = nextBusinessDay(receivedAtISO);
+    startDate = nextBusinessDay(publicacao); // 1º dia útil após publicação = início da contagem
     dueDate = chosen.rule.unit === 'dias_uteis'
       ? addBusinessDays(publicacao, effectiveDays)
       : addCalendarDays(publicacao, effectiveDays);
@@ -262,7 +279,9 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     matchedText: chosen.matched,
     doubled,
     dueDate,
+    startDate,
     severity,
     businessDaysLeft,
+    isFallback,
   };
 }
