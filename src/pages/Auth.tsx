@@ -206,6 +206,7 @@ export default function Auth() {
         clearAttempts(VERIFY_KEY, normalized);
         clearAttempts(SEND_KEY, normalized);
         setOtpExpiresAt(0);
+        clearLastRequest();
         navigate('/dashboard', { replace: true });
       }
     } catch (err: any) {
