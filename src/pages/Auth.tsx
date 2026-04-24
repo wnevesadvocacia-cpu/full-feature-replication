@@ -85,17 +85,47 @@ export default function Auth() {
   const sendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!email) return;
+    const normalized = email.trim().toLowerCase();
+
+    if (honeypot) {
+      toast({ title: 'Solicitação bloqueada', description: 'Atividade suspeita detectada.', variant: 'destructive' });
+      return;
+    }
+    if (Date.now() - formMountedAt < 1500) {
+      toast({ title: 'Aguarde um instante', description: 'Tente novamente em alguns segundos.', variant: 'destructive' });
+      return;
+    }
+
+    const now = Date.now();
+    const att = readAttempts(SEND_KEY, normalized);
+    if (att.blockedUntil && att.blockedUntil > now) {
+      setBlockedUntil(att.blockedUntil);
+      toast({ title: 'Muitas solicitações', description: `Aguarde ${formatRemain(Math.ceil((att.blockedUntil - now) / 1000))} antes de tentar novamente.`, variant: 'destructive' });
+      return;
+    }
+    const inWindow = att.first && now - att.first < SEND_WINDOW_MS;
+    const nextCount = inWindow ? att.count + 1 : 1;
+    const first = inWindow ? att.first : now;
+    if (nextCount > SEND_MAX) {
+      const blockedUntilTs = now + SEND_BLOCK_MS;
+      writeAttempts(SEND_KEY, normalized, { count: nextCount, first, blockedUntil: blockedUntilTs });
+      setBlockedUntil(blockedUntilTs);
+      toast({ title: 'Limite de envios atingido', description: `Máximo de ${SEND_MAX} envios atingido. Tente novamente em ${formatRemain(SEND_BLOCK_MS / 1000)}.`, variant: 'destructive' });
+      return;
+    }
+    writeAttempts(SEND_KEY, normalized, { count: nextCount, first });
+
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOtp({
-        email,
+        email: normalized,
         options: { shouldCreateUser: true },
       });
       if (error) throw error;
       setStep('otp');
       setOtp('');
       setCooldown(60);
-      toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${email}` });
+      toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
@@ -108,20 +138,42 @@ export default function Auth() {
       toast({ title: 'Código inválido', description: 'Digite os 6 dígitos.', variant: 'destructive' });
       return;
     }
+    const normalized = email.trim().toLowerCase();
+    const now = Date.now();
+    const att = readAttempts(VERIFY_KEY, normalized);
+    if (att.blockedUntil && att.blockedUntil > now) {
+      setBlockedUntil(att.blockedUntil);
+      toast({ title: 'Muitas tentativas', description: `Verificação bloqueada. Aguarde ${formatRemain(Math.ceil((att.blockedUntil - now) / 1000))}.`, variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     try {
       const { data, error } = await supabase.auth.verifyOtp({
-        email, token: otp, type: 'email',
+        email: normalized, token: otp, type: 'email',
       });
       if (error) throw error;
-      if (data.session) navigate('/dashboard', { replace: true });
+      if (data.session) {
+        clearAttempts(VERIFY_KEY, normalized);
+        clearAttempts(SEND_KEY, normalized);
+        navigate('/dashboard', { replace: true });
+      }
     } catch (err: any) {
-      const msg = err.message?.toLowerCase() ?? '';
-      const friendly =
-        msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
-        msg.includes('invalid') ? 'Código incorreto. Verifique e tente novamente.' :
-        err.message;
-      toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
+      const next = (att.count || 0) + 1;
+      if (next >= VERIFY_MAX) {
+        const blockedUntilTs = now + VERIFY_BLOCK_MS;
+        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || now, blockedUntil: blockedUntilTs });
+        setBlockedUntil(blockedUntilTs);
+        toast({ title: 'Conta bloqueada temporariamente', description: `Após ${VERIFY_MAX} tentativas falhas, aguarde ${formatRemain(VERIFY_BLOCK_MS / 1000)}.`, variant: 'destructive' });
+      } else {
+        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || now });
+        const msg = err.message?.toLowerCase() ?? '';
+        const friendly =
+          msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
+          msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${VERIFY_MAX - next}.` :
+          err.message;
+        toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
+      }
     } finally { setLoading(false); }
   };
 
