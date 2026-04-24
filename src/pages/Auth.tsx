@@ -124,10 +124,23 @@ export default function Auth() {
     return m > 0 ? `${m}m ${r.toString().padStart(2, '0')}s` : `${r}s`;
   };
 
-  // Passo 1 — solicita o código por email
-  const sendCode = async (e?: React.FormEvent) => {
+  // Dispara o OTP por email (usado no fluxo de reenvio — senha já validada)
+  const dispatchOtp = async (normalized: string) => {
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalized,
+      options: { shouldCreateUser: false },
+    });
+    if (error) throw error;
+    setOtp('');
+    setCooldown(RESEND_COOLDOWN_SEC);
+    setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
+    writeLastRequest(normalized);
+  };
+
+  // Passo 1 — valida email + senha; se OK, faz signOut e dispara código por email (2FA)
+  const loginAndSendCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     const normalized = email.trim().toLowerCase();
 
     if (honeypot) {
@@ -139,18 +152,18 @@ export default function Auth() {
       return;
     }
 
-    const now = Date.now();
+    const tNow = Date.now();
     const att = readAttempts(SEND_KEY, normalized);
-    if (att.blockedUntil && att.blockedUntil > now) {
+    if (att.blockedUntil && att.blockedUntil > tNow) {
       setBlockedUntil(att.blockedUntil);
-      toast({ title: 'Muitas solicitações', description: `Aguarde ${formatRemain(Math.ceil((att.blockedUntil - now) / 1000))} antes de tentar novamente.`, variant: 'destructive' });
+      toast({ title: 'Muitas solicitações', description: `Aguarde ${formatRemain(Math.ceil((att.blockedUntil - tNow) / 1000))} antes de tentar novamente.`, variant: 'destructive' });
       return;
     }
-    const inWindow = att.first && now - att.first < SEND_WINDOW_MS;
+    const inWindow = att.first && tNow - att.first < SEND_WINDOW_MS;
     const nextCount = inWindow ? att.count + 1 : 1;
-    const first = inWindow ? att.first : now;
+    const first = inWindow ? att.first : tNow;
     if (nextCount > SEND_MAX) {
-      const blockedUntilTs = now + SEND_BLOCK_MS;
+      const blockedUntilTs = tNow + SEND_BLOCK_MS;
       writeAttempts(SEND_KEY, normalized, { count: nextCount, first, blockedUntil: blockedUntilTs });
       setBlockedUntil(blockedUntilTs);
       toast({ title: 'Limite de envios atingido', description: `Máximo de ${SEND_MAX} envios atingido. Tente novamente em ${formatRemain(SEND_BLOCK_MS / 1000)}.`, variant: 'destructive' });
@@ -160,17 +173,34 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: normalized,
-        options: { shouldCreateUser: true },
+      // 1) Valida credenciais
+      const { error: pwErr } = await supabase.auth.signInWithPassword({
+        email: normalized, password,
       });
-      if (error) throw error;
+      if (pwErr) {
+        toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
+        return;
+      }
+      // 2) Encerra a sessão imediatamente — só entra após o OTP
+      await supabase.auth.signOut();
+      // 3) Envia o código por email (2º fator)
+      await dispatchOtp(normalized);
       setStep('otp');
-      setOtp('');
-      setCooldown(RESEND_COOLDOWN_SEC);
-      setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
-      writeLastRequest(normalized);
+      setPassword('');
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+    } finally { setLoading(false); }
+  };
+
+  // Reenvio do OTP (na tela do código) — sem revalidar senha
+  const resendCode = async () => {
+    if (!email) return;
+    const normalized = email.trim().toLowerCase();
+    setLoading(true);
+    try {
+      await dispatchOtp(normalized);
+      toast({ title: 'Código reenviado', description: `Novo código enviado para ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
