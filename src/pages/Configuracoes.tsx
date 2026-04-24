@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, Scale, RefreshCw } from 'lucide-react';
+import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, Scale, RefreshCw, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -36,7 +36,9 @@ export default function Configuracoes() {
   const [escritorio, setEscritorio] = useState(EMPTY_ESCRITORIO);
   const [notifs, setNotifs] = useState(EMPTY_NOTIFS);
   const [senhaForm, setSenhaForm] = useState({ nova: '', confirmar: '' });
-  const [oab, setOab] = useState({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null as string | null });
+  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null };
+  const [oabs, setOabs] = useState<OabRow[]>([]);
+  const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => { if (user?.email) setPerfil(p => ({ ...p, email: user.email! })); }, [user]);
@@ -48,12 +50,12 @@ export default function Configuracoes() {
     (async () => {
       setLoadingData(true);
       try {
-        const [{ data: office }, { data: prefs }, { data: oabRow }] = await Promise.all([
+        const [{ data: office }, { data: prefs }, { data: oabRows }] = await Promise.all([
           (supabase as any).from('office_settings').select('*').eq('user_id', user.id).maybeSingle(),
           (supabase as any).from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle(),
-          (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).maybeSingle(),
+          (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
         ]);
-        if (oabRow) setOab({ oab_number: oabRow.oab_number, oab_uf: oabRow.oab_uf, active: oabRow.active, last_sync_at: oabRow.last_sync_at });
+        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at })));
         if (cancel) return;
         if (office) {
           setEscritorio({
