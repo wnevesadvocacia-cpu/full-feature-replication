@@ -151,12 +151,17 @@ export default function Auth() {
       toast({ title: 'Código inválido', description: 'Digite os 6 dígitos.', variant: 'destructive' });
       return;
     }
+    // OTP expirado
+    if (otpExpiresAt > 0 && Date.now() >= otpExpiresAt) {
+      toast({ title: 'Código expirado', description: 'Solicite um novo código para continuar.', variant: 'destructive' });
+      return;
+    }
     const normalized = email.trim().toLowerCase();
-    const now = Date.now();
+    const ts = Date.now();
     const att = readAttempts(VERIFY_KEY, normalized);
-    if (att.blockedUntil && att.blockedUntil > now) {
+    if (att.blockedUntil && att.blockedUntil > ts) {
       setBlockedUntil(att.blockedUntil);
-      toast({ title: 'Muitas tentativas', description: `Verificação bloqueada. Aguarde ${formatRemain(Math.ceil((att.blockedUntil - now) / 1000))}.`, variant: 'destructive' });
+      toast({ title: 'Muitas tentativas', description: `Verificação bloqueada. Aguarde ${formatRemain(Math.ceil((att.blockedUntil - ts) / 1000))}.`, variant: 'destructive' });
       return;
     }
 
@@ -169,9 +174,28 @@ export default function Auth() {
       if (data.session) {
         clearAttempts(VERIFY_KEY, normalized);
         clearAttempts(SEND_KEY, normalized);
+        setOtpExpiresAt(0);
         navigate('/dashboard', { replace: true });
       }
     } catch (err: any) {
+      const next = (att.count || 0) + 1;
+      if (next >= VERIFY_MAX) {
+        const blockedUntilTs = ts + VERIFY_BLOCK_MS;
+        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || ts, blockedUntil: blockedUntilTs });
+        setBlockedUntil(blockedUntilTs);
+        toast({ title: 'Conta bloqueada temporariamente', description: `Após ${VERIFY_MAX} tentativas falhas, aguarde ${formatRemain(VERIFY_BLOCK_MS / 1000)}.`, variant: 'destructive' });
+      } else {
+        writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || ts });
+        const msg = err.message?.toLowerCase() ?? '';
+        const friendly =
+          msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
+          msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${VERIFY_MAX - next}.` :
+          err.message;
+        toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
+        if (msg.includes('expired')) setOtpExpiresAt(Date.now() - 1);
+      }
+    } finally { setLoading(false); }
+  };
       const next = (att.count || 0) + 1;
       if (next >= VERIFY_MAX) {
         const blockedUntilTs = now + VERIFY_BLOCK_MS;
