@@ -185,7 +185,7 @@ export default function Configuracoes() {
                 <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
                   <span className="text-blue-600 font-bold text-xl">{(perfil.nome || user?.email || 'U').charAt(0).toUpperCase()}</span>
                 </div>
-                <div><p className="font-medium">{perfil.nome || user?.email}</p><Badge variant="outline" className="text-xs mt-1">Administrador</Badge></div>
+                <div><p className="font-medium">{perfil.nome || user?.email}</p><Badge variant="outline" className="text-xs mt-1">{ROLE_LABELS[primaryRole]}</Badge></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Nome completo</Label><Input className="mt-1" placeholder="Dr. William Neves" value={perfil.nome} onChange={e => setPerfil(p => ({ ...p, nome: e.target.value }))} /></div>
