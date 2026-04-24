@@ -279,24 +279,54 @@ export default function Configuracoes() {
                 <h2 className="text-lg font-semibold">Intimações automáticas (DJEN/CNJ)</h2>
                 <p className="text-sm text-gray-400">Cadastre sua OAB para receber intimações de todos os tribunais automaticamente. Fonte oficial gratuita do CNJ. Sincroniza a cada 6h.</p>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2"><Label>Número OAB</Label><Input className="mt-1" placeholder="Ex: 290702" value={oab.oab_number} onChange={e => setOab(o => ({ ...o, oab_number: e.target.value.replace(/\D/g, '') }))} /></div>
-                <div><Label>UF</Label><Input className="mt-1" maxLength={2} value={oab.oab_uf} onChange={e => setOab(o => ({ ...o, oab_uf: e.target.value.toUpperCase() }))} /></div>
+              {/* Lista de OABs cadastradas */}
+              <div className="space-y-2">
+                {oabs.length === 0 && <p className="text-sm text-gray-500 italic">Nenhuma OAB cadastrada ainda.</p>}
+                {oabs.map((row) => (
+                  <div key={row.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+                    <div className="flex items-center gap-3">
+                      <Scale className="w-4 h-4 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-sm">OAB/{row.oab_uf} {row.oab_number}</p>
+                        {row.last_sync_at && <p className="text-xs text-gray-500">Última sync: {new Date(row.last_sync_at).toLocaleString('pt-BR')}</p>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => toggleOabActive(row)} className={`relative inline-flex h-5 w-9 rounded-full ${row.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                        <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${row.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </button>
+                      <span className="text-xs text-gray-500 w-12">{row.active ? 'Ativa' : 'Inativa'}</span>
+                      <Button variant="ghost" size="sm" onClick={() => removeOab(row)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={toggleActive} className={`relative inline-flex h-5 w-9 rounded-full ${oab.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                  <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${oab.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </button>
-                <span className="text-sm">Sincronização automática ativa</span>
-              </div>
-              {oab.last_sync_at && <p className="text-xs text-gray-500">Última sincronização: {new Date(oab.last_sync_at).toLocaleString('pt-BR')}</p>}
-              <div className="flex gap-2">
-                <Button onClick={() => saveOab()} disabled={saving || !oab.oab_number.trim() || oab.oab_uf.length !== 2}>
-                  {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Salvar
-                </Button>
-                <Button variant="outline" onClick={syncNow} disabled={syncing || !oab.oab_number}>
-                  {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}Sincronizar agora
-                </Button>
+
+              {/* Adicionar nova OAB */}
+              <div className="border-t pt-4 space-y-3">
+                <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2"><Plus className="w-4 h-4" />Adicionar inscrição OAB</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="col-span-2">
+                    <Label>Número OAB</Label>
+                    <Input className="mt-1" placeholder="Ex: 290702" value={newOab.oab_number}
+                      onChange={e => setNewOab(o => ({ ...o, oab_number: e.target.value.replace(/\D/g, '') }))} />
+                  </div>
+                  <div>
+                    <Label>UF</Label>
+                    <Input className="mt-1" maxLength={2} placeholder="SP" value={newOab.oab_uf}
+                      onChange={e => setNewOab(o => ({ ...o, oab_uf: e.target.value.toUpperCase() }))} />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button onClick={addOab} disabled={saving || !newOab.oab_number.trim() || newOab.oab_uf.length !== 2}>
+                    {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}Adicionar OAB
+                  </Button>
+                  <Button variant="outline" onClick={syncNow} disabled={syncing || oabs.filter(o => o.active).length === 0}>
+                    {syncing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}Sincronizar todas
+                  </Button>
+                </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
                 <strong>Sobre AASP:</strong> integração via scraping não foi implementada por risco de bloqueio da conta. O DJEN do CNJ cobre as mesmas intimações eletrônicas que a AASP repassa, oficialmente e sem custo.
