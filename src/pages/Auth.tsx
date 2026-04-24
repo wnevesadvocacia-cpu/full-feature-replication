@@ -188,27 +188,21 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      // 1) Valida credenciais via REST direto (não cria sessão no client)
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`;
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ email: normalized, password }),
-      });
-      if (!resp.ok) {
-        toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
-        return;
+      // Edge function valida senha + envia OTP via Resend (sem criar sessão no client)
+      try {
+        await dispatchOtp(normalized, password);
+      } catch (e: any) {
+        if (e.message === 'invalid_credentials') {
+          toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
+          return;
+        }
+        throw e;
       }
-      // 2) Envia o código por email (2º fator) — sessão nunca foi persistida
-      await dispatchOtp(normalized);
       setStep('otp');
-      setPassword('');
+      // mantemos a senha em memória apenas para reenvio (não persiste em storage)
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: err.message || 'Falha ao enviar código', variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
