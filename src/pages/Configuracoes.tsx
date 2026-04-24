@@ -7,6 +7,17 @@ import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useUserRoles, type AppRole } from '@/hooks/useUserRole';
+
+const ROLE_LABELS: Record<AppRole, string> = {
+  admin: 'Administrador',
+  gerente: 'Gerente',
+  advogado: 'Advogado',
+  estagiario: 'Estagiário',
+  financeiro: 'Financeiro',
+  assistente_adm: 'Assistente Administrativo',
+  usuario: 'Usuário',
+};
 
 type Tab = 'perfil' | 'escritorio' | 'notificacoes' | 'intimacoes' | 'seguranca';
 
@@ -15,6 +26,8 @@ const EMPTY_NOTIFS = { vencimento_processo: true, nova_tarefa: true, tarefa_conc
 
 export default function Configuracoes() {
   const { user } = useAuth();
+  const { data: roles = [] } = useUserRoles();
+  const primaryRole = (roles[0] ?? 'usuario') as AppRole;
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('perfil');
   const [saving, setSaving] = useState(false);
@@ -167,12 +180,12 @@ export default function Configuracoes() {
         <div className="flex-1 bg-white rounded-xl border shadow-sm p-6">
           {tab === 'perfil' && (
             <div className="space-y-6">
-              <div><h2 className="text-lg font-semibold">Meu Perfil</h2><p className="text-sm text-gray-400">Informações pessoais do advogado</p></div>
+              <div><h2 className="text-lg font-semibold">Meu Perfil</h2><p className="text-sm text-gray-400">Suas informações pessoais</p></div>
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center">
                   <span className="text-blue-600 font-bold text-xl">{(perfil.nome || user?.email || 'U').charAt(0).toUpperCase()}</span>
                 </div>
-                <div><p className="font-medium">{perfil.nome || user?.email}</p><Badge variant="outline" className="text-xs mt-1">Administrador</Badge></div>
+                <div><p className="font-medium">{perfil.nome || user?.email}</p><Badge variant="outline" className="text-xs mt-1">{ROLE_LABELS[primaryRole]}</Badge></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div><Label>Nome completo</Label><Input className="mt-1" placeholder="Dr. William Neves" value={perfil.nome} onChange={e => setPerfil(p => ({ ...p, nome: e.target.value }))} /></div>
