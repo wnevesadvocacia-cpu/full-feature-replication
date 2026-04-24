@@ -129,18 +129,32 @@ export default function Configuracoes() {
     finally { setSaving(false); }
   }
 
-  async function saveOab() {
+  async function saveOab(overrides?: Partial<typeof oab>) {
     if (!user?.id) return;
+    const payload = { ...oab, ...overrides };
+    if (!payload.oab_number.trim() || payload.oab_uf.length !== 2) {
+      toast({ title: 'Preencha número da OAB e UF (2 letras)', variant: 'destructive' });
+      return;
+    }
     setSaving(true);
     try {
       const { error } = await (supabase as any).from('oab_settings').upsert({
-        user_id: user.id, oab_number: oab.oab_number, oab_uf: oab.oab_uf.toUpperCase(), active: oab.active,
+        user_id: user.id, oab_number: payload.oab_number.trim(), oab_uf: payload.oab_uf.toUpperCase(), active: payload.active,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'user_id' });
       if (error) throw error;
-      toast({ title: 'OAB salva! Sincronização ativa.' });
+      toast({ title: payload.active ? 'OAB salva! Sincronização ativa.' : 'OAB salva. Sincronização desativada.' });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSaving(false); }
+  }
+
+  async function toggleActive() {
+    const next = !oab.active;
+    setOab(o => ({ ...o, active: next }));
+    // Se já existe OAB cadastrada, persiste a mudança imediatamente
+    if (oab.oab_number.trim() && oab.oab_uf.length === 2) {
+      await saveOab({ active: next });
+    }
   }
 
   async function syncNow() {
@@ -253,14 +267,14 @@ export default function Configuracoes() {
                 <div><Label>UF</Label><Input className="mt-1" maxLength={2} value={oab.oab_uf} onChange={e => setOab(o => ({ ...o, oab_uf: e.target.value.toUpperCase() }))} /></div>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={() => setOab(o => ({ ...o, active: !o.active }))} className={`relative inline-flex h-5 w-9 rounded-full ${oab.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                <button onClick={toggleActive} className={`relative inline-flex h-5 w-9 rounded-full ${oab.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
                   <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${oab.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
                 </button>
                 <span className="text-sm">Sincronização automática ativa</span>
               </div>
               {oab.last_sync_at && <p className="text-xs text-gray-500">Última sincronização: {new Date(oab.last_sync_at).toLocaleString('pt-BR')}</p>}
               <div className="flex gap-2">
-                <Button onClick={saveOab} disabled={saving || !oab.oab_number.trim() || !oab.oab_uf.trim() || oab.oab_uf.length !== 2}>
+                <Button onClick={() => saveOab()} disabled={saving || !oab.oab_number.trim() || oab.oab_uf.length !== 2}>
                   {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Salvar
                 </Button>
                 <Button variant="outline" onClick={syncNow} disabled={syncing || !oab.oab_number}>
