@@ -408,7 +408,7 @@ export default function Auth() {
                 </button>
                 <button
                   disabled={cooldown > 0 || loading || blockRemaining > 0 || !email}
-                  onClick={() => sendCode()}
+                  onClick={() => resendCode()}
                   title={cooldown > 0 ? `Aguarde ${cooldown}s para reenviar` : `Reenviar código para ${email}`}
                   className="flex items-center gap-1 text-blue-600 hover:underline disabled:text-gray-400 disabled:no-underline disabled:cursor-not-allowed">
                   <RotateCcw className="h-3 w-3" />
