@@ -260,7 +260,7 @@ export default function Configuracoes() {
               </div>
               {oab.last_sync_at && <p className="text-xs text-gray-500">Última sincronização: {new Date(oab.last_sync_at).toLocaleString('pt-BR')}</p>}
               <div className="flex gap-2">
-                <Button onClick={saveOab} disabled={saving || !oab.oab_number || !oab.oab_uf}>
+                <Button onClick={saveOab} disabled={saving || !oab.oab_number.trim() || !oab.oab_uf.trim() || oab.oab_uf.length !== 2}>
                   {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Salvar
                 </Button>
                 <Button variant="outline" onClick={syncNow} disabled={syncing || !oab.oab_number}>
