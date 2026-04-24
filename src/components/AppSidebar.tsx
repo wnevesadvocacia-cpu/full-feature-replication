@@ -56,8 +56,9 @@ const mainNav = [
   { title: 'Clientes', url: '/clientes', icon: Users },
 ];
 
-const secondaryNav = [
+const secondaryNav: { title: string; url: string; icon: any; disabled?: boolean }[] = [
   { title: 'Gerador de Peças (IA)', url: '/gerador-pecas', icon: Sparkles },
+  { title: 'Peticionamento Eletrônico (em breve)', url: '#peticionamento', icon: Send, disabled: true },
   { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Modelos', url: '/modelos', icon: FileSignature },
   { title: 'Documentos', url: '/documentos', icon: FileText },
@@ -70,7 +71,6 @@ const secondaryNav = [
   { title: 'Personalizar Kanban', url: '/kanban-config', icon: Settings2 },
   { title: 'Importar Informações', url: '/importar', icon: Database },
   { title: 'Auditoria', url: '/auditoria', icon: ShieldCheck },
-  { title: 'Peticionamento Eletrônico (em breve)', url: '#peticionamento', icon: Send, disabled: true },
 ];
 
 export function AppSidebar() {
