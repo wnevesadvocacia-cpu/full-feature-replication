@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import {
   Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
@@ -282,21 +283,38 @@ export default function Auth() {
                 </div>
               )}
               <form onSubmit={verifyCode} className="space-y-4">
-                <div>
-                  <Label htmlFor="otp">Código de verificação</Label>
-                  <Input
+                <div className="flex flex-col items-center gap-2">
+                  <Label htmlFor="otp" className="self-start">Código de verificação</Label>
+                  <InputOTP
                     id="otp"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
                     maxLength={6}
-                    placeholder="000000"
                     value={otp}
-                    onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="mt-1 text-center text-2xl font-mono tracking-[0.5em]"
+                    onChange={(v) => {
+                      const clean = v.replace(/\D/g, '').slice(0, 6);
+                      setOtp(clean);
+                      // Auto-submit ao completar 6 dígitos
+                      if (clean.length === 6 && !loading && !otpExpired && blockRemaining === 0) {
+                        setTimeout(() => verifyCode(), 50);
+                      }
+                    }}
+                    onComplete={() => { /* tratado em onChange */ }}
+                    disabled={otpExpired || loading}
                     autoFocus
-                    required
-                    disabled={otpExpired}
-                  />
+                    containerClassName="justify-center"
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} className="h-12 w-11 text-xl font-semibold" />
+                      <InputOTPSlot index={1} className="h-12 w-11 text-xl font-semibold" />
+                      <InputOTPSlot index={2} className="h-12 w-11 text-xl font-semibold" />
+                    </InputOTPGroup>
+                    <InputOTPSeparator />
+                    <InputOTPGroup>
+                      <InputOTPSlot index={3} className="h-12 w-11 text-xl font-semibold" />
+                      <InputOTPSlot index={4} className="h-12 w-11 text-xl font-semibold" />
+                      <InputOTPSlot index={5} className="h-12 w-11 text-xl font-semibold" />
+                    </InputOTPGroup>
+                  </InputOTP>
+                  <p className="text-xs text-gray-400 mt-1">Dica: você pode colar o código copiado do email</p>
                 </div>
                 <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading || otp.length !== 6 || blockRemaining > 0 || otpExpired}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verificando…</>
