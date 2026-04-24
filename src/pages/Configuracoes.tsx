@@ -26,6 +26,8 @@ const EMPTY_NOTIFS = { vencimento_processo: true, nova_tarefa: true, tarefa_conc
 
 export default function Configuracoes() {
   const { user } = useAuth();
+  const { data: roles = [] } = useUserRoles();
+  const primaryRole = (roles[0] ?? 'usuario') as AppRole;
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('perfil');
   const [saving, setSaving] = useState(false);
