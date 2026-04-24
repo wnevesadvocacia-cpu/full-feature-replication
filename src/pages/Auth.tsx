@@ -198,7 +198,13 @@ export default function Auth() {
                 <h2 className="text-xl font-bold text-gray-900">Entrar com segurança</h2>
                 <p className="text-sm text-gray-500 mt-1">Enviaremos um código de 6 dígitos para o seu email.</p>
               </div>
-              <form onSubmit={sendCode} className="space-y-4">
+              {blockRemaining > 0 && (
+                <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <ShieldAlert className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Acesso temporariamente bloqueado por segurança. Tente novamente em <strong>{formatRemain(blockRemaining)}</strong>.</span>
+                </div>
+              )}
+              <form onSubmit={sendCode} className="space-y-4" autoComplete="on">
                 <div>
                   <Label htmlFor="email">Email</Label>
                   <div className="relative mt-1">
@@ -208,7 +214,20 @@ export default function Auth() {
                       className="pl-9" required autoFocus />
                   </div>
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email}>
+                {/* Honeypot — invisível para humanos, atrai bots */}
+                <div aria-hidden="true" style={{ position: 'absolute', left: '-10000px', top: 'auto', width: 1, height: 1, overflow: 'hidden' }}>
+                  <label htmlFor={HONEYPOT_FIELD}>Não preencha este campo</label>
+                  <input
+                    id={HONEYPOT_FIELD}
+                    name={HONEYPOT_FIELD}
+                    type="text"
+                    tabIndex={-1}
+                    autoComplete="off"
+                    value={honeypot}
+                    onChange={e => setHoneypot(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
                     : <><ArrowRight className="h-4 w-4 mr-2" />Enviar código</>}
                 </Button>
