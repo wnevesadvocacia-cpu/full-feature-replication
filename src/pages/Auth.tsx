@@ -40,8 +40,8 @@ function clearAttempts(key: string, scope: string) {
   try { localStorage.removeItem(`${key}:${scope}`); } catch {}
 }
 
-const OTP_LENGTH = 8;
-const OTP_TTL_SEC = 300; // 5 min — padrão Supabase
+const OTP_LENGTH = 6;
+const OTP_TTL_SEC = 300; // 5 min
 const RESEND_COOLDOWN_SEC = 60;
 const LAST_REQUEST_KEY = 'wb_otp_last_request'; // { email, requestedAt }
 
@@ -125,13 +125,27 @@ export default function Auth() {
     return m > 0 ? `${m}m ${r.toString().padStart(2, '0')}s` : `${r}s`;
   };
 
-  // Dispara o OTP por email (usado no fluxo de reenvio — senha já validada)
-  const dispatchOtp = async (normalized: string) => {
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalized,
-      options: { shouldCreateUser: false },
+  // Dispara o OTP por email via edge function customizada (Resend)
+  const dispatchOtp = async (normalized: string, password?: string) => {
+    const { data, error } = await supabase.functions.invoke('otp-request', {
+      body: { email: normalized, password },
     });
-    if (error) throw error;
+    if (error) {
+      // Tenta extrair o erro estruturado da response
+      const ctx: any = (error as any).context;
+      let detail = error.message;
+      try {
+        if (ctx && typeof ctx.json === 'function') {
+          const j = await ctx.json();
+          if (j?.error === 'invalid_credentials') throw new Error('invalid_credentials');
+          detail = j?.error || detail;
+        }
+      } catch (e: any) {
+        if (e.message === 'invalid_credentials') throw e;
+      }
+      throw new Error(detail);
+    }
+    if (data?.error) throw new Error(data.error);
     setOtp('');
     setCooldown(RESEND_COOLDOWN_SEC);
     setOtpExpiresAt(Date.now() + OTP_TTL_SEC * 1000);
@@ -174,51 +188,47 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      // 1) Valida credenciais via REST direto (não cria sessão no client)
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`;
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({ email: normalized, password }),
-      });
-      if (!resp.ok) {
-        toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
-        return;
+      // Edge function valida senha + envia OTP via Resend (sem criar sessão no client)
+      try {
+        await dispatchOtp(normalized, password);
+      } catch (e: any) {
+        if (e.message === 'invalid_credentials') {
+          toast({ title: 'Credenciais inválidas', description: 'Verifique seu email e senha.', variant: 'destructive' });
+          return;
+        }
+        throw e;
       }
-      // 2) Envia o código por email (2º fator) — sessão nunca foi persistida
-      await dispatchOtp(normalized);
       setStep('otp');
-      setPassword('');
+      // mantemos a senha em memória apenas para reenvio (não persiste em storage)
       toast({ title: 'Código enviado!', description: `Verifique a caixa de entrada de ${normalized}` });
     } catch (err: any) {
-      toast({ title: 'Erro', description: err.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: err.message || 'Falha ao enviar código', variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
-  // Reenvio do OTP (na tela do código) — sem revalidar senha
+  // Reenvio do OTP (na tela do código) — usa senha em memória
   const resendCode = async () => {
-    if (!email) return;
+    if (!email || !password) {
+      toast({ title: 'Sessão expirada', description: 'Volte e faça login novamente.', variant: 'destructive' });
+      return;
+    }
     const normalized = email.trim().toLowerCase();
     setLoading(true);
     try {
-      await dispatchOtp(normalized);
+      await dispatchOtp(normalized, password);
       toast({ title: 'Código reenviado', description: `Novo código enviado para ${normalized}` });
     } catch (err: any) {
       toast({ title: 'Erro', description: err.message, variant: 'destructive' });
     } finally { setLoading(false); }
   };
 
-  // Passo 2 — valida o código de 6 dígitos
+  // Passo 2 — valida o código de 6 dígitos via edge function customizada
   const verifyCode = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (otp.length !== OTP_LENGTH) {
       toast({ title: 'Código inválido', description: `Digite os ${OTP_LENGTH} dígitos.`, variant: 'destructive' });
       return;
     }
-    // OTP expirado
     if (otpExpiresAt > 0 && Date.now() >= otpExpiresAt) {
       toast({ title: 'Código expirado', description: 'Solicite um novo código para continuar.', variant: 'destructive' });
       return;
@@ -234,16 +244,38 @@ export default function Auth() {
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: normalized, token: otp, type: 'email',
+      // 1) Valida o código numérico via edge function
+      const { data, error } = await supabase.functions.invoke('otp-verify', {
+        body: { email: normalized, code: otp },
       });
-      if (error) throw error;
-      if (data.session) {
+
+      let payload: any = data;
+      if (error) {
+        const ctx: any = (error as any).context;
+        try {
+          if (ctx && typeof ctx.json === 'function') payload = await ctx.json();
+        } catch { /* ignore */ }
+        const errCode = payload?.error || error.message;
+        const remaining = payload?.remaining_attempts;
+        throw Object.assign(new Error(errCode), { remaining });
+      }
+      if (!payload?.ok || !payload?.token_hash) throw new Error(payload?.error || 'verify_failed');
+
+      // 2) Troca o token_hash por uma sessão real no client
+      const { data: sessData, error: sessError } = await supabase.auth.verifyOtp({
+        type: 'magiclink',
+        token_hash: payload.token_hash,
+      });
+      if (sessError) throw sessError;
+      if (sessData.session) {
         clearAttempts(VERIFY_KEY, normalized);
         clearAttempts(SEND_KEY, normalized);
         setOtpExpiresAt(0);
         clearLastRequest();
+        setPassword('');
         navigate('/dashboard', { replace: true });
+      } else {
+        throw new Error('no_session');
       }
     } catch (err: any) {
       const next = (att.count || 0) + 1;
@@ -254,13 +286,14 @@ export default function Auth() {
         toast({ title: 'Conta bloqueada temporariamente', description: `Após ${VERIFY_MAX} tentativas falhas, aguarde ${formatRemain(VERIFY_BLOCK_MS / 1000)}.`, variant: 'destructive' });
       } else {
         writeAttempts(VERIFY_KEY, normalized, { count: next, first: att.first || ts });
-        const msg = err.message?.toLowerCase() ?? '';
+        const msg = (err.message || '').toLowerCase();
         const friendly =
-          msg.includes('expired') ? 'Código expirado. Solicite um novo.' :
-          msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${VERIFY_MAX - next}.` :
-          err.message;
+          msg.includes('expired') || msg.includes('not_found') ? 'Código expirado. Solicite um novo.' :
+          msg.includes('too_many') ? 'Muitas tentativas. Solicite um novo código.' :
+          msg.includes('invalid_code') || msg.includes('invalid') ? `Código incorreto. Tentativas restantes: ${err.remaining ?? (VERIFY_MAX - next)}.` :
+          err.message || 'Falha na verificação';
         toast({ title: 'Falha na verificação', description: friendly, variant: 'destructive' });
-        if (msg.includes('expired')) setOtpExpiresAt(Date.now() - 1);
+        if (msg.includes('expired') || msg.includes('not_found')) setOtpExpiresAt(Date.now() - 1);
       }
     } finally { setLoading(false); }
   };
@@ -388,8 +421,6 @@ export default function Auth() {
                       <InputOTPSlot index={3} className="h-12 w-11 text-xl font-semibold" />
                       <InputOTPSlot index={4} className="h-12 w-11 text-xl font-semibold" />
                       <InputOTPSlot index={5} className="h-12 w-11 text-xl font-semibold" />
-                      <InputOTPSlot index={6} className="h-12 w-11 text-xl font-semibold" />
-                      <InputOTPSlot index={7} className="h-12 w-11 text-xl font-semibold" />
                     </InputOTPGroup>
                   </InputOTP>
                   <p className="text-xs text-gray-400 mt-1">Dica: você pode colar o código copiado do email</p>
