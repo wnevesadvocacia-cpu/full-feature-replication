@@ -94,7 +94,12 @@ Deno.serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: RESEND_FROM_EMAIL,
+        from: (() => {
+          const raw = RESEND_FROM_EMAIL ?? 'noreply@wnevesbox.com';
+          const match = raw.match(/<([^>]+)>/);
+          const addr = match ? match[1] : raw;
+          return `WnevesBox <${addr}>`;
+        })(),
         to: [normalized],
         subject: `Seu código WnevesBox: ${code}`,
         html: emailHtml(code),
