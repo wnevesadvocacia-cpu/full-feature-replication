@@ -235,7 +235,7 @@ export default function Auth() {
     try {
       // 1) Valida o código numérico via edge function
       const { data, error } = await supabase.functions.invoke('verify-otp-resend', {
-        body: { email: normalized, code: otp },
+        body: { email: normalized, code: codeToVerify },
       });
 
       let payload: any = data;
