@@ -127,6 +127,7 @@ async function handlePreview(req: Request): Promise<Response> {
 
 // Webhook handler - verifies signature and sends email
 async function handleWebhook(req: Request): Promise<Response> {
+  const corsHeaders = corsHeadersFor(req)
   const apiKey = Deno.env.get('LOVABLE_API_KEY')
 
   if (!apiKey) {
@@ -288,11 +289,11 @@ async function handleWebhook(req: Request): Promise<Response> {
 
 Deno.serve(async (req) => {
   const url = new URL(req.url)
+  const corsHeaders = corsHeadersFor(req)
 
   // Handle CORS preflight for main endpoint
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
-  }
+  const preflight = handleCorsPreflight(req)
+  if (preflight) return preflight
 
   // Route to preview handler for /preview path
   if (url.pathname.endsWith('/preview')) {
