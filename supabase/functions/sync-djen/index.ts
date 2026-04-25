@@ -254,13 +254,15 @@ function cleanHtml(raw: string): string {
     .trim();
 }
 
-function extractDeadline(text: string, receivedAt: string): string | null {
+function extractDeadline(text: string, receivedAt: string, tribunal?: string | null): string | null {
   const match = text.match(/prazo[\s\S]{0,40}?(\d{1,3})(?:\s*\([^)]+\))?\s*dias/i);
   if (!match) return null;
   const days = parseInt(match[1], 10);
   if (!days || days > 365) return null;
-  // CPC art. 219: prazos processuais em DIAS ÚTEIS
-  return addBusinessDays(receivedAt, days);
+  // CPC art. 224 §3º: publicação = 1º dia útil após disponibilização
+  // CPC art. 224 §1º: prazo só inicia em dia útil; vencimento em não-útil prorroga
+  const publicacao = nextBusinessDay(receivedAt, tribunal);
+  return addBusinessDays(publicacao, days, tribunal);
 }
 
 // ============= Batch lookup (elimina N+1) =============
