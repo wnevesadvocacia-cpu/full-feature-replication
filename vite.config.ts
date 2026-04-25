@@ -17,4 +17,20 @@ export default defineConfig(() => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "ui-vendor": ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu", "@radix-ui/react-popover", "@radix-ui/react-select", "@radix-ui/react-tabs", "@radix-ui/react-toast", "@radix-ui/react-tooltip"],
+          "charts": ["recharts"],
+          "pdf": ["jspdf", "jspdf-autotable"],
+          "excel": ["xlsx"],
+          "supabase": ["@supabase/supabase-js"],
+          "query": ["@tanstack/react-query"],
+        },
+      },
+    },
+  },
 }));
