@@ -15,6 +15,8 @@
 // 11. Cálculo de prazo em DIAS ÚTEIS (calendário CNJ)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
+import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
+import { captureException } from '../_shared/sentry.ts';
 
 interface DjenItem {
   id?: number | string;
@@ -451,10 +453,14 @@ Deno.serve(async (req) => {
   if (reject) return reject;
   const corsHeaders = corsHeadersFor(req);
 
-  // Sprint1.6: advisory lock + cron_runs (apenas para execuções automáticas/cron;
-  // execuções manuais por usuário autenticado não bloqueiam entre si).
+  // S12: CSRF check apenas para execuções manuais (browser).
+  // Cron interno chama sem Origin/Referer e passa pelo helper.
   const url = new URL(req.url);
   const isManual = url.searchParams.get('manual') === '1';
+  if (isManual) {
+    const csrfBlock = rejectIfCsrfBlocked(req, corsHeaders);
+    if (csrfBlock) return csrfBlock;
+  }
   const runId = crypto.randomUUID();
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -526,6 +532,7 @@ Deno.serve(async (req) => {
     });
   } catch (e: any) {
     console.error('sync-djen fatal:', e);
+    await captureException(e, { fn: 'sync-djen', extra: { run_id: runId } });
     if (cronRunId) {
       await supabase.from('cron_runs').update({
         status: 'failed', ended_at: new Date().toISOString(), error_message: String(e?.message || e).slice(0, 1000),
