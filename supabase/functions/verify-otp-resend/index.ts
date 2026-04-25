@@ -1,8 +1,10 @@
 // Verify OTP via Resend pipeline — valida código numérico e devolve token_hash p/ verifyOtp no client.
-// S13: CORS allowlist. S22: comparação constant-time.
+// S13: CORS allowlist. S22: comparação constant-time via crypto.subtle em buffer hex fixo.
+// S2 + S8: integra auth_lockouts — registra falha e reseta em sucesso.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { z } from 'https://esm.sh/zod@3.23.8';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
+import { maskEmail, timingSafeEqualHex } from '../_shared/security.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -16,14 +18,6 @@ const BodySchema = z.object({
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
-}
-
-/** S22: comparação constant-time entre dois strings hex de mesmo tamanho. */
-function timingSafeEqualHex(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
 }
 
 Deno.serve(async (req) => {
@@ -78,13 +72,18 @@ Deno.serve(async (req) => {
     const expectedHash = await sha256(`${email}:${code}`);
     if (!timingSafeEqualHex(expectedHash, otpRow.code_hash)) {
       await admin.from('otp_codes').update({ attempts: otpRow.attempts + 1 }).eq('id', otpRow.id);
+      // S2+S8: registra falha no lockout (15min após 5 falhas)
+      await admin.rpc('register_otp_failure', { _email: email, _max: 5, _block_minutes: 15 });
       const remaining = MAX_ATTEMPTS - (otpRow.attempts + 1);
+      console.warn('verify-otp-resend invalid code', { email_masked: maskEmail(email) });
       return new Response(JSON.stringify({ error: 'invalid_code', remaining_attempts: Math.max(0, remaining) }), {
         status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
     await admin.from('otp_codes').update({ used: true }).eq('id', otpRow.id);
+    // S2+S8: sucesso — reseta lockout
+    await admin.rpc('reset_otp_lockout', { _email: email });
 
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'magiclink', email,
