@@ -1,7 +1,15 @@
 // SprintClosure Item 1 (híbrido) — Background reconciliation de prazos.
-// Sprint Jurídico Crítico: além de reconciliar deadline com a RPC canônica,
-// agora também grava peca_sugerida, base_legal, confianca_classificacao e
-// classificacao_status — exceto quando registro já foi 'revisada_advogado'.
+// Sprint Jurídico Crítico (revisão final):
+//   * Quando confianca >= 0.8 → grava deadline canônico (calculado pela RPC).
+//   * Quando confianca <  0.8 OU classificacao_status = 'ambigua_urgente' / 'auto_baixa'
+//     → deadline = NULL (zera valor antigo se houver) e a sugestão automática
+//       vai SOMENTE para `deadline_sugerido_inseguro` (auditoria, não renderizado).
+//       Razão: exibir prazo presumido cria risco de malpractice. UI deve mostrar
+//       apenas o banner vermelho "PRAZO NÃO IDENTIFICADO — REVISE URGENTE".
+//   * Sempre grava peca_sugerida, base_legal, confianca, classificacao_status.
+//   * Nunca sobrescreve registros já marcados como 'revisada_advogado'.
+//   * Quando o registro vira 'inseguro' pela primeira vez, dispara push interno
+//     (insert em notifications) para o usuário dono.
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +18,7 @@ import { calculateDeadlineRPC } from '@/lib/calculateDeadlineRPC';
 
 interface IntimForReconcile {
   id: string;
+  user_id?: string;
   content: string;
   received_at: string;
   deadline: string | null;
@@ -19,6 +28,7 @@ interface IntimForReconcile {
 
 const RECONCILED = new Set<string>();
 const CONCURRENCY = 10;
+const CONFIDENCE_THRESHOLD = 0.8;
 
 async function runWithLimit<T>(items: T[], limit: number, worker: (it: T) => Promise<void>): Promise<void> {
   const queue = [...items];
@@ -59,30 +69,58 @@ export function useDeadlineReconciliation(items: IntimForReconcile[] | undefined
       const detected = detectDeadline(it.content, it.received_at.slice(0, 10), new Date().toISOString().slice(0, 10));
       if (!detected) return;
 
-      let canonical: string | null = null;
-      if (detected.dueDate && detected.days > 0) {
-        canonical = await calculateDeadlineRPC({
-          start: it.received_at.slice(0, 10),
-          days: detected.days,
-          tribunal: tribunalFromCourt(it.court),
-          unit: detected.unit,
-        });
-      }
+      const isUnsafe =
+        detected.confianca < CONFIDENCE_THRESHOLD ||
+        detected.classificacaoStatus === 'ambigua_urgente' ||
+        detected.classificacaoStatus === 'auto_baixa';
 
-      const stored = it.deadline?.slice(0, 10) ?? null;
       const patch: Record<string, unknown> = {
         peca_sugerida: detected.pecaSugerida,
         base_legal: detected.baseLegal,
         confianca_classificacao: detected.confianca,
         classificacao_status: detected.classificacaoStatus,
       };
-      if (canonical && stored !== canonical) patch.deadline = canonical;
+
+      if (isUnsafe) {
+        // Política de segurança jurídica: NÃO renderizar prazo presumido.
+        // Limpa o campo oficial e move a sugestão para coluna de auditoria.
+        patch.deadline = null;
+        patch.deadline_sugerido_inseguro = {
+          due_date: detected.dueDate,
+          start_date: detected.startDate,
+          days: detected.days,
+          unit: detected.unit,
+          label: detected.label,
+          confianca: detected.confianca,
+          classificacao_status: detected.classificacaoStatus,
+          calculated_at: new Date().toISOString(),
+        };
+      } else if (detected.dueDate && detected.days > 0) {
+        const canonical = await calculateDeadlineRPC({
+          start: it.received_at.slice(0, 10),
+          days: detected.days,
+          tribunal: tribunalFromCourt(it.court),
+          unit: detected.unit,
+        });
+        const stored = it.deadline?.slice(0, 10) ?? null;
+        if (canonical && stored !== canonical) patch.deadline = canonical;
+        // Limpa qualquer sugestão antiga marcada como insegura.
+        patch.deadline_sugerido_inseguro = null;
+      }
 
       const { error } = await (supabase as any).from('intimations').update(patch).eq('id', it.id);
       if (!error) {
         updated++;
-        if (canonical && stored !== canonical) {
-          console.info(`[reconcile] intimação ${it.id} ajustada: ${stored} -> ${canonical} (${detected.classificacaoStatus})`);
+        // Push imediato apenas na primeira vez que o registro vira 'inseguro'.
+        const wasUnsafe = it.classificacao_status === 'ambigua_urgente' || it.classificacao_status === 'auto_baixa';
+        if (isUnsafe && !wasUnsafe && it.user_id) {
+          await (supabase as any).from('notifications').insert({
+            user_id: it.user_id,
+            title: '⚠ PRAZO NÃO IDENTIFICADO — REVISE URGENTE',
+            message: `Intimação ${it.court ? `(${it.court}) ` : ''}sem classificação confiável. Confira manualmente antes de qualquer protocolo.`,
+            type: 'destructive',
+            link: '/intimacoes',
+          });
         }
       }
     }).then(() => {
