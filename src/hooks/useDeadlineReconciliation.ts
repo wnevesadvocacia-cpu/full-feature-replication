@@ -1,7 +1,8 @@
 // SprintClosure Item 1 (híbrido) — Background reconciliation de prazos.
-// Sprint Jurídico Crítico: além de reconciliar deadline com a RPC canônica,
-// agora também grava peca_sugerida, base_legal, confianca_classificacao e
-// classificacao_status — exceto quando registro já foi 'revisada_advogado'.
+// Sprint Jurídico Crítico (POLICY FINAL): quando confiança < 0.8 OU status
+// 'ambigua_urgente' / 'auto_baixa' → deadline = NULL (evita malpractice).
+// A sugestão automática vai para deadline_sugerido_inseguro (jsonb, audit only).
+// Push notification é disparada na primeira detecção de status inseguro.
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +11,7 @@ import { calculateDeadlineRPC } from '@/lib/calculateDeadlineRPC';
 
 interface IntimForReconcile {
   id: string;
+  user_id?: string;
   content: string;
   received_at: string;
   deadline: string | null;
@@ -19,6 +21,7 @@ interface IntimForReconcile {
 
 const RECONCILED = new Set<string>();
 const CONCURRENCY = 10;
+const UNSAFE_STATUSES = new Set(['ambigua_urgente', 'auto_baixa']);
 
 async function runWithLimit<T>(items: T[], limit: number, worker: (it: T) => Promise<void>): Promise<void> {
   const queue = [...items];
@@ -59,8 +62,10 @@ export function useDeadlineReconciliation(items: IntimForReconcile[] | undefined
       const detected = detectDeadline(it.content, it.received_at.slice(0, 10), new Date().toISOString().slice(0, 10));
       if (!detected) return;
 
+      const isUnsafe = detected.confianca < 0.8 || UNSAFE_STATUSES.has(detected.classificacaoStatus);
+
       let canonical: string | null = null;
-      if (detected.dueDate && detected.days > 0) {
+      if (!isUnsafe && detected.dueDate && detected.days > 0) {
         canonical = await calculateDeadlineRPC({
           start: it.received_at.slice(0, 10),
           days: detected.days,
@@ -76,13 +81,36 @@ export function useDeadlineReconciliation(items: IntimForReconcile[] | undefined
         confianca_classificacao: detected.confianca,
         classificacao_status: detected.classificacaoStatus,
       };
-      if (canonical && stored !== canonical) patch.deadline = canonical;
+
+      if (isUnsafe) {
+        // POLÍTICA DE SEGURANÇA JURÍDICA: nunca exibir prazo presumido
+        patch.deadline = null;
+        patch.deadline_sugerido_inseguro = {
+          due_date: detected.dueDate,
+          start_date: detected.startDate,
+          days: detected.days,
+          unit: detected.unit,
+          label: detected.label,
+          confianca: detected.confianca,
+          classificacao_status: detected.classificacaoStatus,
+          calculated_at: new Date().toISOString(),
+        };
+      } else if (canonical && stored !== canonical) {
+        patch.deadline = canonical;
+      }
 
       const { error } = await (supabase as any).from('intimations').update(patch).eq('id', it.id);
       if (!error) {
         updated++;
-        if (canonical && stored !== canonical) {
-          console.info(`[reconcile] intimação ${it.id} ajustada: ${stored} -> ${canonical} (${detected.classificacaoStatus})`);
+        // Push notification quando virou ambigua_urgente pela primeira vez
+        if (isUnsafe && it.classificacao_status !== detected.classificacaoStatus && it.user_id) {
+          await (supabase as any).from('notifications').insert({
+            user_id: it.user_id,
+            title: '⚠️ Prazo NÃO identificado — revisão urgente',
+            message: `Intimação ${it.court ?? ''}: classificação automática não tem confiança suficiente. Defina o prazo manualmente.`,
+            type: 'destructive',
+            link: '/intimacoes',
+          });
         }
       }
     }).then(() => {
