@@ -98,7 +98,7 @@ function cleanHtml(raw: string): string {
 }
 
 function extractDeadline(text: string, receivedAt: string): string | null {
-  const match = text.match(/prazo[\s\S]{0,30}?(\d{1,3})\s*dias/i);
+  const match = text.match(/prazo[\s\S]{0,40}?(\d{1,3})(?:\s*\([^)]+\))?\s*dias/i);
   if (!match) return null;
   const days = parseInt(match[1], 10);
   if (!days || days > 365) return null;
