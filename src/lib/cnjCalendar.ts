@@ -132,6 +132,12 @@ export function formatBR(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR');
 }
 
+/** Sprint1.8: "hoje" no timezone America/Sao_Paulo (não no TZ do navegador).
+ *  Crítico: usuário em viagem no exterior continua vendo prazos do fuso BR. */
 export function todayISO(): string {
-  return fmt(new Date());
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  });
+  return fmt.format(new Date()); // en-CA já entrega YYYY-MM-DD
 }
