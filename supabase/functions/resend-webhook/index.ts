@@ -30,12 +30,13 @@ async function verifySvixSignature(req: Request, body: string, secret: string): 
 
   // Secret no formato "whsec_<base64>" → decodifica
   const cleanSecret = secret.startsWith('whsec_') ? secret.slice(6) : secret;
-  let secretBytes: Uint8Array;
+  let secretBytes: ArrayBuffer;
   try {
-    secretBytes = Uint8Array.from(atob(cleanSecret), (c) => c.charCodeAt(0));
+    const arr = Uint8Array.from(atob(cleanSecret), (c) => c.charCodeAt(0));
+    secretBytes = arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength) as ArrayBuffer;
   } catch {
-    // fallback: trata como utf-8 cru
-    secretBytes = new TextEncoder().encode(cleanSecret);
+    const arr = new TextEncoder().encode(cleanSecret);
+    secretBytes = arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength) as ArrayBuffer;
   }
 
   const key = await crypto.subtle.importKey(
