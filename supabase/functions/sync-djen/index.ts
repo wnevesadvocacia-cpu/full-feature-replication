@@ -14,11 +14,7 @@
 // 10. Batch lookup de processes (sem N+1) → escala com volume
 // 11. Cálculo de prazo em DIAS ÚTEIS (calendário CNJ)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 
 interface DjenItem {
   id?: number | string;

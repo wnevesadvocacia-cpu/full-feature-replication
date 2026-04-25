@@ -1,11 +1,8 @@
+// Verify OTP via Resend pipeline — valida código numérico e devolve token_hash p/ verifyOtp no client.
+// S13: CORS allowlist. S22: comparação constant-time.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { z } from 'https://esm.sh/zod@3.23.8';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -21,17 +18,26 @@ async function sha256(text: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** S22: comparação constant-time entre dois strings hex de mesmo tamanho. */
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const blocked = rejectIfDisallowedOrigin(req);
+  if (blocked) return blocked;
+  const cors = corsHeadersFor(req);
 
   try {
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
       return new Response(JSON.stringify({ error: 'invalid_input', details: parsed.error.flatten().fieldErrors }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
@@ -51,15 +57,13 @@ Deno.serve(async (req) => {
     if (selectError) {
       console.error('select otp error', selectError);
       return new Response(JSON.stringify({ error: 'db_error' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
     if (!rows || rows.length === 0) {
       return new Response(JSON.stringify({ error: 'code_expired_or_not_found' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
@@ -67,46 +71,40 @@ Deno.serve(async (req) => {
     if (otpRow.attempts >= MAX_ATTEMPTS) {
       await admin.from('otp_codes').update({ used: true }).eq('id', otpRow.id);
       return new Response(JSON.stringify({ error: 'too_many_attempts' }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 429, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
     const expectedHash = await sha256(`${email}:${code}`);
-    if (expectedHash !== otpRow.code_hash) {
+    if (!timingSafeEqualHex(expectedHash, otpRow.code_hash)) {
       await admin.from('otp_codes').update({ attempts: otpRow.attempts + 1 }).eq('id', otpRow.id);
       const remaining = MAX_ATTEMPTS - (otpRow.attempts + 1);
       return new Response(JSON.stringify({ error: 'invalid_code', remaining_attempts: Math.max(0, remaining) }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
     await admin.from('otp_codes').update({ used: true }).eq('id', otpRow.id);
 
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: 'magiclink',
-      email,
+      type: 'magiclink', email,
     });
 
     if (linkError || !linkData) {
       console.error('generateLink error', linkError);
       return new Response(JSON.stringify({ error: 'link_generation_failed' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
       });
     }
 
     const props = linkData.properties as { hashed_token?: string };
     return new Response(JSON.stringify({ ok: true, email, token_hash: props.hashed_token }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('verify-otp-resend error', error);
-    return new Response(JSON.stringify({ error: 'internal_error', message: String(error) }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: 'internal_error' }), {
+      status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
     });
   }
 });

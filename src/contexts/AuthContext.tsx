@@ -66,7 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // S5+S18: revoga refresh token server-side em TODOS os devices.
+    await supabase.auth.signOut({ scope: 'global' });
   };
 
   return (

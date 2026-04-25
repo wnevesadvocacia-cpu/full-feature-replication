@@ -1,11 +1,7 @@
-// OTP Request - valida senha, gera código de 6 dígitos e envia DIRETAMENTE via Resend API
+// OTP Request - valida senha, gera código de 6 dígitos e envia via Resend.
+// S13: CORS allowlist.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
@@ -44,33 +40,41 @@ function emailHtml(code: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const blocked = rejectIfDisallowedOrigin(req);
+  if (blocked) return blocked;
+  const cors = corsHeadersFor(req);
 
   try {
     if (!RESEND_API_KEY) {
-      console.error('missing RESEND_API_KEY');
-      return new Response(JSON.stringify({ error: 'config_missing_resend_api_key' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'config_missing_resend_api_key' }), {
+        status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
     }
     if (!RESEND_FROM_EMAIL) {
-      console.error('missing RESEND_FROM_EMAIL');
-      return new Response(JSON.stringify({ error: 'config_missing_from_email' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'config_missing_from_email' }), {
+        status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
     }
 
     const { email, password } = await req.json();
     if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
-      return new Response(JSON.stringify({ error: 'invalid_input' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'invalid_input' }), {
+        status: 400, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
     }
     const normalized = email.trim().toLowerCase();
 
-    // 1) Valida credenciais
     const anonClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
     const { data: signInData, error: signInError } = await anonClient.auth.signInWithPassword({ email: normalized, password });
     if (signInError || !signInData.user) {
-      return new Response(JSON.stringify({ error: 'invalid_credentials' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'invalid_credentials' }), {
+        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
     }
     await anonClient.auth.signOut();
 
-    // 2) Gera código + hash, salva
     const code = generateCode();
     const codeHash = await sha256(`${normalized}:${code}`);
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60_000).toISOString();
@@ -82,17 +86,14 @@ Deno.serve(async (req) => {
       email: normalized, code_hash: codeHash, expires_at: expiresAt,
     });
     if (insertError) {
-      console.error('insert otp_codes error', insertError);
-      return new Response(JSON.stringify({ error: 'db_error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'db_error' }), {
+        status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
     }
 
-    // 3) Envia DIRETAMENTE via Resend API
     const resendResp = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: (() => {
           const raw = RESEND_FROM_EMAIL ?? 'noreply@wnevesbox.com';
@@ -106,16 +107,21 @@ Deno.serve(async (req) => {
       }),
     });
 
-    const resendBody = await resendResp.text();
     if (!resendResp.ok) {
-      console.error('resend send failed', resendResp.status, resendBody);
-      return new Response(JSON.stringify({ error: 'email_send_failed', status: resendResp.status, detail: resendBody }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      const detail = await resendResp.text();
+      console.error('resend send failed', resendResp.status, detail);
+      return new Response(JSON.stringify({ error: 'email_send_failed', status: resendResp.status }), {
+        status: 502, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
     }
-    console.log('resend ok', resendBody);
 
-    return new Response(JSON.stringify({ success: true, expires_at: expiresAt }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ success: true, expires_at: expiresAt }), {
+      status: 200, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
   } catch (e) {
     console.error('otp-request error', e);
-    return new Response(JSON.stringify({ error: 'internal_error', message: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'internal_error' }), {
+      status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
+    });
   }
 });
