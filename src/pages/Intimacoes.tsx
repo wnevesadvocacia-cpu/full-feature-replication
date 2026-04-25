@@ -90,6 +90,11 @@ export default function Intimacoes() {
     refetchInterval: 60_000, // Sprint1.7: poll de segurança 60s
   });
 
+  // SprintClosure Item 1 (híbrido): reconciliação em background do prazo armazenado
+  // contra a RPC canônica calculate_deadline (fonte única SQL). UI continua usando
+  // o cálculo síncrono local — sem flicker, sem loading state extra.
+  useDeadlineReconciliation(items);
+
   // Membros da equipe (papéis atribuídos) para preencher o seletor de responsável
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members'],
