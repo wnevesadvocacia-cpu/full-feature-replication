@@ -270,41 +270,52 @@ export default function Intimacoes() {
         </div>
       ) : (
         <div className="space-y-2">
-          {filtered.map((it) => (
-            <div key={it.id} className="bg-card rounded-lg p-4 border shadow-card hover:shadow-card-hover flex gap-3">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
-                  <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
+          {filtered.map((it) => {
+            const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO());
+
+            return (
+              <div key={it.id} className="bg-card rounded-lg p-4 border shadow-card hover:shadow-card-hover flex gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
+                    <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
+                    {detectedDeadline && (
+                      <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
+                    )}
+                    {it.deadline && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
+                  </div>
+                  {detectedDeadline?.startDate && detectedDeadline?.dueDate && (
+                    <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                      <span className="font-medium">Prazo:</span>
+                      <span>início {formatBR(detectedDeadline.startDate)}</span>
+                      <span>•</span>
+                      <span>vencimento {formatBR(detectedDeadline.dueDate)}</span>
+                    </div>
+                  )}
                   {(() => {
-                    const det = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO());
-                    return det ? <DeadlineBadge deadline={det} receivedAtISO={it.received_at.slice(0, 10)} /> : null;
+                    const r = renderIntimContent(it.content);
+                    return r.html
+                      ? <div className="text-sm mt-2 break-words intim-content prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
+                      : <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.text}</p>;
                   })()}
-                  {it.deadline && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
+                  <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
                 </div>
-                {(() => {
-                  const r = renderIntimContent(it.content);
-                  return r.html
-                    ? <div className="text-sm mt-2 break-words intim-content prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
-                    : <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.text}</p>;
-                })()}
-                <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
-              </div>
-              <div className="flex flex-col gap-1 shrink-0">
-                <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
-                  <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
-                </Button>
-                {it.status !== 'tratada' && (
-                  <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
-                )}
-                <DeleteGuard>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(it.id)}>
-                    <Trash2 className="h-3 w-3" />
+                <div className="flex flex-col gap-1 shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
+                    <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
                   </Button>
-                </DeleteGuard>
+                  {it.status !== 'tratada' && (
+                    <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
+                  )}
+                  <DeleteGuard>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(it.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </DeleteGuard>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
