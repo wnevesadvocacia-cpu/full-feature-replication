@@ -207,9 +207,14 @@ export default function Auth() {
   };
 
   // Passo 2 — valida o código de 6 dígitos via edge function customizada
-  const verifyCode = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (otp.length !== OTP_LENGTH) {
+  const verifyCode = async (eOrCode?: React.FormEvent | string) => {
+    let codeToVerify = otp;
+    if (typeof eOrCode === 'string') {
+      codeToVerify = eOrCode;
+    } else if (eOrCode && typeof (eOrCode as React.FormEvent).preventDefault === 'function') {
+      (eOrCode as React.FormEvent).preventDefault();
+    }
+    if (codeToVerify.length !== OTP_LENGTH) {
       toast({ title: 'Código inválido', description: `Digite os ${OTP_LENGTH} dígitos.`, variant: 'destructive' });
       return;
     }
@@ -230,7 +235,7 @@ export default function Auth() {
     try {
       // 1) Valida o código numérico via edge function
       const { data, error } = await supabase.functions.invoke('verify-otp-resend', {
-        body: { email: normalized, code: otp },
+        body: { email: normalized, code: codeToVerify },
       });
 
       let payload: any = data;
@@ -375,9 +380,9 @@ export default function Auth() {
                     onChange={(v) => {
                       const clean = v.replace(/\D/g, '').slice(0, OTP_LENGTH);
                       setOtp(clean);
-                      // Auto-submit ao completar o código
+                      // Auto-submit ao completar o código (passa o valor diretamente p/ evitar race com setState)
                       if (clean.length === OTP_LENGTH && !loading && !otpExpired && blockRemaining === 0) {
-                        setTimeout(() => verifyCode(), 50);
+                        setTimeout(() => verifyCode(clean), 50);
                       }
                     }}
                     onComplete={() => { /* tratado em onChange */ }}
