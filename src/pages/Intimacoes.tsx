@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
 import { detectDeadline } from '@/lib/legalDeadlines';
@@ -17,7 +17,19 @@ import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 
-interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
+interface Intim {
+  id: string;
+  court: string | null;
+  content: string;
+  deadline: string | null;
+  status: string;
+  received_at: string;
+  process_id: string | null;
+  classificacao_status?: string | null;
+  confianca_classificacao?: number | null;
+}
+
+const UNSAFE_STATUSES = new Set(['ambigua_urgente', 'auto_baixa']);
 
 // Títulos comuns da praxis jurídica para tarefas delegadas a partir de intimações
 const PRAXIS_TASK_TITLES = [
@@ -138,6 +150,23 @@ export default function Intimacoes() {
   const markDone = useMutation({
     mutationFn: async (id: string) => { const { error } = await (supabase as any).from('intimations').update({ status: 'tratada' }).eq('id', id); if (error) throw error; },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intimations'] }),
+  });
+
+  // Marca classificação como revisada pelo advogado + grava prazo manual.
+  // Após isso, o reconciliation hook pula este registro (não sobrescreve mais).
+  const markReviewed = useMutation({
+    mutationFn: async ({ id, deadline }: { id: string; deadline: string }) => {
+      const { error } = await (supabase as any).from('intimations').update({
+        deadline,
+        classificacao_status: 'revisada_advogado',
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+      toast({ title: 'Prazo definido manualmente', description: 'Classificação marcada como revisada pelo advogado.' });
+    },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
   const toTask = useMutation({
@@ -277,6 +306,7 @@ export default function Intimacoes() {
         <div className="space-y-2">
           {filtered.map((it) => {
             const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO());
+            const isUnsafe = !!it.classificacao_status && UNSAFE_STATUSES.has(it.classificacao_status);
 
             return (
               <div key={it.id} className="bg-card rounded-lg p-4 border shadow-card hover:shadow-card-hover flex gap-3">
@@ -284,12 +314,41 @@ export default function Intimacoes() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                     <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
-                    {detectedDeadline && (
+                    {!isUnsafe && detectedDeadline && (
                       <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
                     )}
-                    {it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
+                    {!isUnsafe && it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
                   </div>
-                  {detectedDeadline?.startDate && detectedDeadline?.dueDate && (
+
+                  {isUnsafe && (
+                    <div className="mt-3 rounded-md border-2 border-destructive bg-destructive/10 p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-destructive font-bold uppercase text-sm">
+                        <AlertTriangle className="h-4 w-4" />
+                        PRAZO NÃO IDENTIFICADO — REVISE URGENTE
+                      </div>
+                      <p className="text-xs text-destructive/90">
+                        Classificação automática com confiança {((it.confianca_classificacao ?? 0) * 100).toFixed(0)}%
+                        {' '}({it.classificacao_status?.replace('_', ' ')}). Por segurança jurídica, NENHUM prazo presumido é exibido.
+                        O advogado responsável deve confirmar manualmente o prazo cabível conforme o teor da decisão.
+                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Input
+                          type="date"
+                          className="h-8 w-40 text-xs"
+                          min={it.received_at.slice(0, 10)}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v) markReviewed.mutate({ id: it.id, deadline: v });
+                          }}
+                        />
+                        <span className="text-[11px] text-muted-foreground">
+                          Selecione a data e o prazo será gravado como revisado.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isUnsafe && detectedDeadline?.startDate && detectedDeadline?.dueDate && (
                     <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                       <span className="font-medium">Prazo:</span>
                       <span>início {formatBR(detectedDeadline.startDate)}</span>
