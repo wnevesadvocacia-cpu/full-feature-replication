@@ -56,6 +56,39 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_lockouts: {
+        Row: {
+          blocked_until: string | null
+          created_at: string
+          email: string
+          failed_count: number
+          id: string
+          ip_hash: string | null
+          last_attempt_at: string
+          updated_at: string
+        }
+        Insert: {
+          blocked_until?: string | null
+          created_at?: string
+          email: string
+          failed_count?: number
+          id?: string
+          ip_hash?: string | null
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Update: {
+          blocked_until?: string | null
+          created_at?: string
+          email?: string
+          failed_count?: number
+          id?: string
+          ip_hash?: string | null
+          last_attempt_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       client_portal_tokens: {
         Row: {
           active: boolean
@@ -602,6 +635,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      ip_rate_limits: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          ip_hash: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          ip_hash: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          ip_hash?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
       }
       judicial_suspensions: {
         Row: {
@@ -1297,6 +1357,15 @@ export type Database = {
         Args: { _task_id: string; _user_id: string }
         Returns: boolean
       }
+      check_and_increment_rate_limit: {
+        Args: {
+          _endpoint: string
+          _ip_hash: string
+          _max: number
+          _window_minutes: number
+        }
+        Returns: Json
+      }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -1315,6 +1384,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_email_locked: { Args: { _email: string }; Returns: boolean }
       is_office_member: { Args: { _user_id: string }; Returns: boolean }
       move_to_dlq: {
         Args: {
@@ -1333,7 +1403,12 @@ export type Database = {
           read_ct: number
         }[]
       }
+      register_otp_failure: {
+        Args: { _block_minutes?: number; _email: string; _max?: number }
+        Returns: Json
+      }
       release_cron_lock: { Args: { _job_name: string }; Returns: boolean }
+      reset_otp_lockout: { Args: { _email: string }; Returns: undefined }
       sign_portal_document: {
         Args: {
           _request_id: string
