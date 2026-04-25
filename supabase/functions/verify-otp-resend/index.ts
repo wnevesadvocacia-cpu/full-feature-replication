@@ -73,7 +73,38 @@ Deno.serve(async (req) => {
     if (!timingSafeEqualHex(expectedHash, otpRow.code_hash)) {
       await admin.from('otp_codes').update({ attempts: otpRow.attempts + 1 }).eq('id', otpRow.id);
       // S2+S8: registra falha no lockout (15min após 5 falhas)
-      await admin.rpc('register_otp_failure', { _email: email, _max: 5, _block_minutes: 15 });
+      const { data: lockResult } = await admin.rpc('register_otp_failure', {
+        _email: email, _max: 5, _block_minutes: 15,
+      });
+
+      // Se acabou de bloquear, enfileira email de notificação na fila auth_emails
+      if (lockResult && (lockResult as any).blocked === true) {
+        const messageId = crypto.randomUUID();
+        const html = `<!doctype html><html><body style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f4f6fa;margin:0;padding:32px;"><table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;"><tr><td style="padding:28px 32px;background:#7c2d12;color:#ffffff;"><h1 style="margin:0;font-size:18px;font-weight:600;">⚠ Conta bloqueada temporariamente</h1></td></tr><tr><td style="padding:32px;color:#0f172a;"><p style="margin:0 0 16px;font-size:14px;line-height:1.5;">Detectamos múltiplas tentativas inválidas de login na sua conta. Por segurança, bloqueamos novas tentativas pelos próximos <strong>15 minutos</strong>.</p><p style="margin:0 0 16px;font-size:14px;line-height:1.5;">Se não foi você, recomendamos monitorar acessos suspeitos.</p><p style="margin:0;font-size:12px;color:#94a3b8;">WnevesBox · Notificação automática de segurança.</p></td></tr></table></body></html>`;
+        await admin.from('email_send_log').insert({
+          message_id: messageId,
+          template_name: 'lockout_notice',
+          recipient_email: email,
+          status: 'pending',
+        });
+        await admin.rpc('enqueue_email', {
+          queue_name: 'auth_emails',
+          payload: {
+            message_id: messageId,
+            to: email,
+            from: 'WnevesBox <noreply@notify.wnevesbox.com>',
+            sender_domain: 'notify.wnevesbox.com',
+            subject: 'Conta bloqueada temporariamente',
+            html,
+            text: 'Detectamos múltiplas tentativas inválidas. Sua conta foi bloqueada por 15 minutos.',
+            purpose: 'transactional',
+            label: 'lockout_notice',
+            queued_at: new Date().toISOString(),
+          },
+        });
+        console.warn('lockout email enqueued', { email_masked: maskEmail(email) });
+      }
+
       const remaining = MAX_ATTEMPTS - (otpRow.attempts + 1);
       console.warn('verify-otp-resend invalid code', { email_masked: maskEmail(email) });
       return new Response(JSON.stringify({ error: 'invalid_code', remaining_attempts: Math.max(0, remaining) }), {
