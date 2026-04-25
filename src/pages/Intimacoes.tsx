@@ -98,6 +98,7 @@ export default function Intimacoes() {
       if (error) throw error;
       return data as Intim[];
     },
+    refetchInterval: 60_000, // Sprint1.7: poll de segurança 60s
   });
 
   // Membros da equipe (papéis atribuídos) para preencher o seletor de responsável

@@ -19,6 +19,7 @@ export function useTasks() {
       return data;
     },
     enabled: !!user,
+    refetchInterval: 60_000, // Sprint1.7: poll de segurança 60s
   });
 }
 

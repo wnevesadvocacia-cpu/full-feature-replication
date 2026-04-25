@@ -445,16 +445,40 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  const corsPreflight = handleCorsPreflight(req);
+  if (corsPreflight) return corsPreflight;
+  const reject = rejectIfDisallowedOrigin(req);
+  if (reject) return reject;
+  const corsHeaders = corsHeadersFor(req);
+
+  // Sprint1.6: advisory lock + cron_runs (apenas para execuções automáticas/cron;
+  // execuções manuais por usuário autenticado não bloqueiam entre si).
+  const url = new URL(req.url);
+  const isManual = url.searchParams.get('manual') === '1';
+  const runId = crypto.randomUUID();
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  );
+
+  let lockAcquired = false;
+  let cronRunId: string | null = null;
+  if (!isManual) {
+    const { data: lockOk } = await supabase.rpc('try_acquire_cron_lock', { _job_name: 'sync-djen' });
+    lockAcquired = lockOk === true;
+    if (!lockAcquired) {
+      console.warn('[sync-djen] outra execução em andamento — abortando este disparo');
+      return new Response(JSON.stringify({ success: false, skipped: true, reason: 'another_run_in_progress' }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const { data: cronRow } = await supabase.from('cron_runs').insert({
+      job_name: 'sync-djen', run_id: runId, status: 'running', triggered_by: 'cron',
+    }).select('id').single();
+    cronRunId = cronRow?.id ?? null;
+  }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    const url = new URL(req.url);
-    const isManual = url.searchParams.get('manual') === '1';
     const authHeader = req.headers.get('Authorization');
     const triggeredBy = isManual ? 'manual' : 'cron';
 
@@ -477,7 +501,6 @@ Deno.serve(async (req) => {
       targets = data || [];
     }
 
-    // GAP 2 + 3: hidrata calendário legal (suspensões + feriados de tribunal) UMA vez por execução
     await loadLegalCalendar(supabase);
 
     const CONCURRENCY = 5;
@@ -491,14 +514,30 @@ Deno.serve(async (req) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, results }), {
+    if (cronRunId) {
+      await supabase.from('cron_runs').update({
+        status: 'success', ended_at: new Date().toISOString(),
+        metadata: { targets: targets.length, results: results.length },
+      }).eq('id', cronRunId);
+    }
+
+    return new Response(JSON.stringify({ success: true, run_id: runId, results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
     console.error('sync-djen fatal:', e);
+    if (cronRunId) {
+      await supabase.from('cron_runs').update({
+        status: 'failed', ended_at: new Date().toISOString(), error_message: String(e?.message || e).slice(0, 1000),
+      }).eq('id', cronRunId);
+    }
     return new Response(JSON.stringify({ success: false, error: e.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
+  } finally {
+    if (lockAcquired) {
+      await supabase.rpc('release_cron_lock', { _job_name: 'sync-djen' });
+    }
   }
 });

@@ -59,9 +59,16 @@ const KanbanConfig = lazy(() => import("./pages/KanbanConfig"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+// Sprint1.7: refetchOnWindowFocus global + auto-refresh para que abas reabertas
+// reflitam dados frescos sem ação manual (perda de prazo = malpractice).
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+    },
   },
 });
 
