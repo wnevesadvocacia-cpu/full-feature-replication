@@ -1,5 +1,7 @@
 // Calendário oficial CNJ — feriados nacionais + recesso forense (20/12 a 20/01) + sábados/domingos.
-// Base: Lei 5.010/66 art. 62 + feriados nacionais fixos. Não inclui feriados estaduais/municipais.
+// Base: Lei 5.010/66 art. 62 + Lei 14.759/2023 (Consciência Negra).
+// Suporte a feriados estaduais por tribunal (tabela tribunal_holidays) e suspensões
+// excepcionais (tabela judicial_suspensions) — carregadas via setSuspensionWindow / setTribunalHolidaySet.
 
 const FIXED: Array<[number, number]> = [
   [1, 1],   // Confraternização Universal
@@ -14,7 +16,6 @@ const FIXED: Array<[number, number]> = [
   [12, 8],  // Dia da Justiça (recesso forense, art. 62 V Lei 5.010/66)
 ];
 
-// Páscoa (algoritmo de Meeus/Jones/Butcher) → calcula Carnaval, Sexta Santa, Corpus Christi
 function easterSunday(year: number): Date {
   const a = year % 19;
   const b = Math.floor(year / 100);
@@ -41,7 +42,6 @@ function fmt(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-// Retorna conjunto de strings YYYY-MM-DD considerados não-úteis
 export function getCnjHolidays(year: number): Set<string> {
   const set = new Set<string>();
   FIXED.forEach(([m, d]) => set.add(fmt(new Date(Date.UTC(year, m - 1, d)))));
@@ -64,30 +64,70 @@ function inRecesso(iso: string): boolean {
 import type { CityKey } from './cityHolidays';
 import { getCityHolidays } from './cityHolidays';
 
-export function isBusinessDay(iso: string, location?: CityKey): boolean {
+// ============= GAP 2 + 3: integração suspensões + feriados de tribunal =============
+// O frontend hidrata esses sets via hook (useLegalCalendar) que faz select nas tabelas
+// judicial_suspensions e tribunal_holidays. Mantemos APIs síncronas para não quebrar
+// o resto do código.
+let suspendedDates = new Set<string>();
+let tribunalHolidaySets = new Map<string, Set<string>>(); // tribunal -> set ISO
+
+export function setSuspensionWindow(dates: Iterable<string>) {
+  suspendedDates = new Set(dates);
+}
+export function setTribunalHolidaySet(tribunal: string, dates: Iterable<string>) {
+  tribunalHolidaySets.set(tribunal.toUpperCase(), new Set(dates));
+}
+export function clearLegalCalendarCache() {
+  suspendedDates.clear();
+  tribunalHolidaySets.clear();
+}
+
+export interface BusinessDayContext {
+  location?: CityKey;
+  tribunal?: string; // ex.: 'TJSP', 'TJRJ', 'TRF3'
+}
+
+export function isBusinessDay(iso: string, ctx?: CityKey | BusinessDayContext): boolean {
   const d = new Date(iso + 'T12:00:00Z');
   const dow = d.getUTCDay();
   if (dow === 0 || dow === 6) return false;
   if (inRecesso(iso)) return false;
   const year = d.getUTCFullYear();
   if (getCnjHolidays(year).has(iso)) return false;
-  if (location && getCityHolidays(year, location).has(iso)) return false;
+
+  // GAP 2: suspensão geral (CNJ ou específica do tribunal)
+  if (suspendedDates.has(iso)) return false;
+
+  // Backwards-compat: ctx pode ser CityKey antigo
+  const c: BusinessDayContext = ctx && 'uf' in (ctx as any) ? { location: ctx as CityKey } : ((ctx as BusinessDayContext) ?? {});
+
+  if (c.location && getCityHolidays(year, c.location).has(iso)) return false;
+
+  // GAP 3: feriados estaduais por tribunal
+  if (c.tribunal) {
+    const tset = tribunalHolidaySets.get(c.tribunal.toUpperCase());
+    if (tset?.has(iso)) return false;
+  }
   return true;
 }
 
-export function nextBusinessDay(iso: string, location?: CityKey): string {
+export function nextBusinessDay(iso: string, ctx?: CityKey | BusinessDayContext): string {
   let d = new Date(iso + 'T12:00:00Z');
-  do { d = addDays(d, 1); } while (!isBusinessDay(fmt(d), location));
+  do { d = addDays(d, 1); } while (!isBusinessDay(fmt(d), ctx));
   return fmt(d);
 }
 
-export function previousBusinessDay(iso: string, location?: CityKey): string {
+export function previousBusinessDay(iso: string, ctx?: CityKey | BusinessDayContext): string {
   let d = new Date(iso + 'T12:00:00Z');
-  do { d = addDays(d, -1); } while (!isBusinessDay(fmt(d), location));
+  do { d = addDays(d, -1); } while (!isBusinessDay(fmt(d), ctx));
   return fmt(d);
 }
 
-// Formata YYYY-MM-DD em pt-BR sem timezone shift
+/** GAP 1 / CPC art. 224 §1º: se data cair em sab/dom/feriado/recesso/suspensão, prorroga p/ próximo dia útil. */
+export function ensureBusinessDay(iso: string, ctx?: CityKey | BusinessDayContext): string {
+  return isBusinessDay(iso, ctx) ? iso : nextBusinessDay(iso, ctx);
+}
+
 export function formatBR(iso: string): string {
   return new Date(iso + 'T12:00:00').toLocaleDateString('pt-BR');
 }
