@@ -547,6 +547,7 @@ export type Database = {
           court: string | null
           created_at: string
           deadline: string | null
+          deadline_sugerido_inseguro: Json | null
           external_id: string | null
           id: string
           peca_sugerida: Json | null
@@ -567,6 +568,7 @@ export type Database = {
           court?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_sugerido_inseguro?: Json | null
           external_id?: string | null
           id?: string
           peca_sugerida?: Json | null
@@ -587,6 +589,7 @@ export type Database = {
           court?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_sugerido_inseguro?: Json | null
           external_id?: string | null
           id?: string
           peca_sugerida?: Json | null
