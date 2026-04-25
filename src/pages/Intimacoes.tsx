@@ -306,6 +306,7 @@ export default function Intimacoes() {
         <div className="space-y-2">
           {filtered.map((it) => {
             const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO());
+            const isUnsafe = !!it.classificacao_status && UNSAFE_STATUSES.has(it.classificacao_status);
 
             return (
               <div key={it.id} className="bg-card rounded-lg p-4 border shadow-card hover:shadow-card-hover flex gap-3">
@@ -313,12 +314,41 @@ export default function Intimacoes() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                     <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
-                    {detectedDeadline && (
+                    {!isUnsafe && detectedDeadline && (
                       <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
                     )}
-                    {it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
+                    {!isUnsafe && it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
                   </div>
-                  {detectedDeadline?.startDate && detectedDeadline?.dueDate && (
+
+                  {isUnsafe && (
+                    <div className="mt-3 rounded-md border-2 border-destructive bg-destructive/10 p-3 space-y-2">
+                      <div className="flex items-center gap-2 text-destructive font-bold uppercase text-sm">
+                        <AlertTriangle className="h-4 w-4" />
+                        PRAZO NÃO IDENTIFICADO — REVISE URGENTE
+                      </div>
+                      <p className="text-xs text-destructive/90">
+                        Classificação automática com confiança {((it.confianca_classificacao ?? 0) * 100).toFixed(0)}%
+                        {' '}({it.classificacao_status?.replace('_', ' ')}). Por segurança jurídica, NENHUM prazo presumido é exibido.
+                        O advogado responsável deve confirmar manualmente o prazo cabível conforme o teor da decisão.
+                      </p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Input
+                          type="date"
+                          className="h-8 w-40 text-xs"
+                          min={it.received_at.slice(0, 10)}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v) markReviewed.mutate({ id: it.id, deadline: v });
+                          }}
+                        />
+                        <span className="text-[11px] text-muted-foreground">
+                          Selecione a data e o prazo será gravado como revisado.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isUnsafe && detectedDeadline?.startDate && detectedDeadline?.dueDate && (
                     <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                       <span className="font-medium">Prazo:</span>
                       <span>início {formatBR(detectedDeadline.startDate)}</span>
@@ -326,6 +356,18 @@ export default function Intimacoes() {
                       <span>vencimento {formatBR(detectedDeadline.dueDate)}</span>
                     </div>
                   )}
+                  {(() => {
+                    const r = renderSafeContent(it.content);
+                    return r.html
+                      ? <div className="text-sm mt-2 break-words intim-content prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
+                      : <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.text}</p>;
+                  })()}
+                  <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
+                </div>
+                <div className="flex flex-col gap-1 shrink-0">
+                  <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
+                    <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
+                  </Button>
                   {(() => {
                     const r = renderSafeContent(it.content);
                     return r.html
