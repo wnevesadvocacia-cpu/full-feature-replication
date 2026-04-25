@@ -87,26 +87,71 @@ function inRecesso(iso: string): boolean {
   return false;
 }
 
-function isBusinessDay(iso: string): boolean {
+// GAP 2 + 3: cache em memória de suspensões + feriados de tribunal carregados do banco
+let suspendedSet = new Set<string>();
+const tribunalHolidaySets = new Map<string, Set<string>>();
+
+async function loadLegalCalendar(supabase: any) {
+  suspendedSet = new Set();
+  tribunalHolidaySets.clear();
+  const { data: sus } = await supabase.from('judicial_suspensions').select('start_date,end_date,tribunal_codigo');
+  (sus || []).forEach((s: any) => {
+    const start = new Date(s.start_date + 'T12:00:00Z');
+    const end = new Date(s.end_date + 'T12:00:00Z');
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      // tribunal_codigo NULL => suspensão geral; específica vai no set do tribunal
+      if (!s.tribunal_codigo) suspendedSet.add(fmtISO(d));
+      else {
+        const tset = tribunalHolidaySets.get(s.tribunal_codigo) ?? new Set<string>();
+        tset.add(fmtISO(d));
+        tribunalHolidaySets.set(s.tribunal_codigo, tset);
+      }
+    }
+  });
+  const { data: th } = await supabase.from('tribunal_holidays').select('tribunal_codigo,holiday_date');
+  (th || []).forEach((h: any) => {
+    const tset = tribunalHolidaySets.get(h.tribunal_codigo) ?? new Set<string>();
+    tset.add(h.holiday_date);
+    tribunalHolidaySets.set(h.tribunal_codigo, tset);
+  });
+}
+
+function isBusinessDay(iso: string, tribunal?: string | null): boolean {
   const d = new Date(iso + 'T12:00:00Z');
   const dow = d.getUTCDay();
   if (dow === 0 || dow === 6) return false;
   if (inRecesso(iso)) return false;
   if (getHolidays(d.getUTCFullYear()).has(iso)) return false;
+  if (suspendedSet.has(iso)) return false; // GAP 2
+  if (tribunal) {
+    const tset = tribunalHolidaySets.get(tribunal.toUpperCase());
+    if (tset?.has(iso)) return false; // GAP 3
+  }
   return true;
 }
 
-function addBusinessDays(startIso: string, days: number): string {
+function nextBusinessDay(iso: string, tribunal?: string | null): string {
+  let d = new Date(iso + 'T12:00:00Z');
+  do { d = addDaysUTC(d, 1); } while (!isBusinessDay(fmtISO(d), tribunal));
+  return fmtISO(d);
+}
+
+/** GAP 1 / CPC art. 224 §1º: prorroga p/ próximo dia útil se cair em data não-útil. */
+function ensureBusinessDay(iso: string, tribunal?: string | null): string {
+  return isBusinessDay(iso, tribunal) ? iso : nextBusinessDay(iso, tribunal);
+}
+
+function addBusinessDays(startIso: string, days: number, tribunal?: string | null): string {
   let d = new Date(startIso + 'T12:00:00Z');
   let added = 0;
   while (added < days) {
     d = addDaysUTC(d, 1);
-    if (isBusinessDay(fmtISO(d))) added++;
+    if (isBusinessDay(fmtISO(d), tribunal)) added++;
   }
-  return fmtISO(d);
+  return ensureBusinessDay(fmtISO(d), tribunal); // GAP 1: prorrogação final
 }
 
-function businessDaysUntil(targetIso: string): number {
+function businessDaysUntil(targetIso: string, tribunal?: string | null): number {
   const today = fmtISO(new Date());
   if (targetIso <= today) return 0;
   let count = 0;
@@ -114,7 +159,7 @@ function businessDaysUntil(targetIso: string): number {
   const target = new Date(targetIso + 'T12:00:00Z').getTime();
   while (d.getTime() < target) {
     d = addDaysUTC(d, 1);
-    if (isBusinessDay(fmtISO(d))) count++;
+    if (isBusinessDay(fmtISO(d), tribunal)) count++;
   }
   return count;
 }
