@@ -65,6 +65,7 @@ export type Database = {
           id: string
           ip_hash: string | null
           last_attempt_at: string
+          recent_failures: number
           updated_at: string
         }
         Insert: {
@@ -75,6 +76,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           last_attempt_at?: string
+          recent_failures?: number
           updated_at?: string
         }
         Update: {
@@ -85,6 +87,7 @@ export type Database = {
           id?: string
           ip_hash?: string | null
           last_attempt_at?: string
+          recent_failures?: number
           updated_at?: string
         }
         Relationships: []
@@ -726,6 +729,36 @@ export type Database = {
         }
         Relationships: []
       }
+      known_devices: {
+        Row: {
+          first_seen_at: string
+          id: string
+          ip_hash: string
+          last_seen_at: string
+          ua_hash: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          first_seen_at?: string
+          id?: string
+          ip_hash: string
+          last_seen_at?: string
+          ua_hash: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          first_seen_at?: string
+          id?: string
+          ip_hash?: string
+          last_seen_at?: string
+          ua_hash?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       notification_preferences: {
         Row: {
           created_at: string
@@ -832,6 +865,33 @@ export type Database = {
           last_sync_at?: string | null
           oab_number?: string
           oab_uf?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      oab_sync_cursor: {
+        Row: {
+          id: string
+          last_seen_disponibilizacao: string | null
+          oab: string
+          oab_settings_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          last_seen_disponibilizacao?: string | null
+          oab: string
+          oab_settings_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          last_seen_disponibilizacao?: string | null
+          oab?: string
+          oab_settings_id?: string
           updated_at?: string
           user_id?: string
         }
@@ -1103,8 +1163,10 @@ export type Database = {
           oab_number: string | null
           oab_settings_id: string | null
           oab_uf: string | null
+          pages_fetched: number | null
           status: string
           triggered_by: string | null
+          truncated: boolean
           user_id: string
         }
         Insert: {
@@ -1118,8 +1180,10 @@ export type Database = {
           oab_number?: string | null
           oab_settings_id?: string | null
           oab_uf?: string | null
+          pages_fetched?: number | null
           status: string
           triggered_by?: string | null
+          truncated?: boolean
           user_id: string
         }
         Update: {
@@ -1133,8 +1197,10 @@ export type Database = {
           oab_number?: string | null
           oab_settings_id?: string | null
           oab_uf?: string | null
+          pages_fetched?: number | null
           status?: string
           triggered_by?: string | null
+          truncated?: boolean
           user_id?: string
         }
         Relationships: []
@@ -1386,6 +1452,10 @@ export type Database = {
       }
       is_email_locked: { Args: { _email: string }; Returns: boolean }
       is_office_member: { Args: { _user_id: string }; Returns: boolean }
+      log_auth_event: {
+        Args: { _event: string; _metadata?: Json }
+        Returns: undefined
+      }
       move_to_dlq: {
         Args: {
           dlq_name: string
@@ -1403,11 +1473,23 @@ export type Database = {
           read_ct: number
         }[]
       }
+      record_intimation: {
+        Args: { p_external_id: string; p_payload: Json; p_user_id: string }
+        Returns: Json
+      }
+      register_device: {
+        Args: { _ip_hash: string; _ua_hash: string; _user_agent?: string }
+        Returns: Json
+      }
       register_otp_failure: {
         Args: { _block_minutes?: number; _email: string; _max?: number }
         Returns: Json
       }
       release_cron_lock: { Args: { _job_name: string }; Returns: boolean }
+      reset_mfa_grace: {
+        Args: { _days?: number; target_user_id: string }
+        Returns: Json
+      }
       reset_otp_lockout: { Args: { _email: string }; Returns: undefined }
       sign_portal_document: {
         Args: {

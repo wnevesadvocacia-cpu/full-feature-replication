@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
+import { TurnstileWidget } from '@/components/TurnstileWidget';
 import {
   Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert,
 } from 'lucide-react';
@@ -72,6 +73,8 @@ export default function Auth() {
   const [blockedUntil, setBlockedUntil] = useState<number>(0);
   const [otpExpiresAt, setOtpExpiresAt] = useState<number>(0);
   const [now, setNow] = useState<number>(Date.now());
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [needsCaptcha, setNeedsCaptcha] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -127,22 +130,23 @@ export default function Auth() {
   // Dispara o OTP por email via edge function customizada (Resend)
   const dispatchOtp = async (normalized: string) => {
     const { data, error } = await supabase.functions.invoke('send-otp-resend', {
-      body: { email: normalized },
+      body: { email: normalized, captcha_token: captchaToken },
     });
     if (error) {
-      // Tenta extrair o erro estruturado da response
       const ctx: any = (error as any).context;
       let detail = error.message;
       try {
         if (ctx && typeof ctx.json === 'function') {
           const j = await ctx.json();
           detail = j?.error || detail;
+          if (j?.captcha_required) setNeedsCaptcha(true);
         }
       } catch {}
       throw new Error(detail);
     }
     if (data?.error) throw new Error(data.error);
     setOtp('');
+    setCaptchaToken(null);
     setCooldown(RESEND_COOLDOWN_SEC);
     const expiresAt = data?.expires_at ? new Date(data.expires_at).getTime() : Date.now() + OTP_TTL_SEC * 1000;
     setOtpExpiresAt(expiresAt);
@@ -336,7 +340,13 @@ export default function Auth() {
                     onChange={e => setHoneypot(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0}>
+                {needsCaptcha && !captchaToken && (
+                  <div className="text-xs text-muted-foreground">
+                    <TurnstileWidget onToken={(t) => setCaptchaToken(t)} onError={() => setNeedsCaptcha(true)} />
+                    Verificação de segurança em andamento…
+                  </div>
+                )}
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0 || (needsCaptcha && !captchaToken)}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
                     : <><ArrowRight className="h-4 w-4 mr-2" />Continuar</>}
                 </Button>
