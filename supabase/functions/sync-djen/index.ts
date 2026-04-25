@@ -565,7 +565,20 @@ Deno.serve(async (req) => {
         status: 'failed', ended_at: new Date().toISOString(), error_message: String(e?.message || e).slice(0, 1000),
       }).eq('id', cronRunId);
     }
-    return new Response(JSON.stringify({ success: false, error: e.message }), {
+    // Detecta instabilidade upstream do DJEN/CNJ (504/502/timeout) e devolve 200
+    // com payload estruturado para a UI exibir mensagem amigável em vez do erro
+    // genérico "non-2xx status code" do supabase-js.
+    const msg = String(e?.message || e);
+    const isUpstream = /DJEN\s+(502|503|504)|timeout|aborted|ETIMEDOUT|ECONNRESET/i.test(msg);
+    if (isUpstream) {
+      return new Response(JSON.stringify({
+        success: false,
+        upstream_unavailable: true,
+        error: 'O Diário Eletrônico (CNJ/DJEN) está temporariamente instável. Tente novamente em alguns minutos.',
+        detail: msg.slice(0, 200),
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ success: false, error: msg }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
