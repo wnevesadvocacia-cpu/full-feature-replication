@@ -5,6 +5,8 @@
 // S13: CORS allowlist via _shared/cors.ts.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
+import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
+import { captureException } from '../_shared/sentry.ts';
 
 const SYSTEM_PROMPT = `Você é um(a) ADVOGADO(A) SÊNIOR brasileiro(a), com mais de 20 anos de experiência forense em todas as áreas do Direito (Civil, Penal, Trabalhista, Tributário, Administrativo, Empresarial, Família, Consumidor, Previdenciário).
 
@@ -33,6 +35,8 @@ Deno.serve(async (req) => {
   const blocked = rejectIfDisallowedOrigin(req);
   if (blocked) return blocked;
   const cors = corsHeadersFor(req);
+  const csrfBlock = rejectIfCsrfBlocked(req, cors);
+  if (csrfBlock) return csrfBlock;
 
   try {
     // S29: autenticação obrigatória — extrai user_id do JWT
@@ -132,6 +136,7 @@ Produza a peça completa, pronta para revisão final e protocolo.`;
     });
   } catch (e) {
     console.error("gerar-peca error:", e);
+    await captureException(e, { fn: 'gerar-peca' });
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
       { status: 500, headers: { ...cors, "Content-Type": "application/json" } },

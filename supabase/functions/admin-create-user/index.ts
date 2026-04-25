@@ -2,6 +2,8 @@
 // S13: CORS allowlist.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
+import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
+import { captureException } from '../_shared/sentry.ts';
 
 type AppRole = 'admin' | 'advogado' | 'estagiario' | 'financeiro' | 'gerente';
 
@@ -11,6 +13,9 @@ Deno.serve(async (req) => {
   const blocked = rejectIfDisallowedOrigin(req);
   if (blocked) return blocked;
   const cors = corsHeadersFor(req);
+  // S12: defense-in-depth CSRF — Sec-Fetch-Site/Origin/Referer
+  const csrfBlock = rejectIfCsrfBlocked(req, cors);
+  if (csrfBlock) return csrfBlock;
 
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -77,6 +82,7 @@ Deno.serve(async (req) => {
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (e) {
+    await captureException(e, { fn: 'admin-create-user' });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500, headers: { ...cors, 'Content-Type': 'application/json' },
     });

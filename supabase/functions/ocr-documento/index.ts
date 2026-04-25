@@ -3,6 +3,8 @@
 // S13: CORS allowlist.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
+import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
+import { captureException } from '../_shared/sentry.ts';
 
 Deno.serve(async (req) => {
   const preflight = handleCorsPreflight(req);
@@ -10,6 +12,8 @@ Deno.serve(async (req) => {
   const blocked = rejectIfDisallowedOrigin(req);
   if (blocked) return blocked;
   const cors = corsHeadersFor(req);
+  const csrfBlock = rejectIfCsrfBlocked(req, cors);
+  if (csrfBlock) return csrfBlock;
 
   try {
     // S29: autenticação obrigatória
@@ -78,6 +82,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ text }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("[ocr-documento]", e);
+    await captureException(e, { fn: 'ocr-documento' });
     return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 });
