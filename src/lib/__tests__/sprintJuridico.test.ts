@@ -60,8 +60,9 @@ describe('Sprint Jurídico — REJEITO embargos de declaração', () => {
     expect(det!.classificacaoStatus).toBe('auto_media');
   });
 
-  it('Condenação envolvendo Fazenda Pública → prazo em dobro', () => {
-    const det = detectDeadline('Sentença: julgo procedente o pedido para condenar a Fazenda Pública do Estado de São Paulo ao pagamento.', '2026-04-28', '2026-04-28');
+  it('Condenação envolvendo Fazenda Pública → prazo em dobro (CPC 183)', () => {
+    // "Apresente apelação" garante a regra de 15 d.u.; "condeno a Fazenda" ativa o dobro.
+    const det = detectDeadline('Apresente apelação. Condeno a Fazenda Pública do Estado de São Paulo ao pagamento.', '2026-04-28', '2026-04-28');
     expect(det!.doubled).toBe(true);
     expect(det!.days).toBe(30); // 15 * 2
   });
