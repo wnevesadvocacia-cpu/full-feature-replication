@@ -538,12 +538,18 @@ export type Database = {
       }
       intimations: {
         Row: {
+          base_legal: string | null
+          classificacao_status:
+            | Database["public"]["Enums"]["intimation_classification_status"]
+            | null
+          confianca_classificacao: number | null
           content: string
           court: string | null
           created_at: string
           deadline: string | null
           external_id: string | null
           id: string
+          peca_sugerida: Json | null
           process_id: string | null
           received_at: string
           source: string | null
@@ -552,12 +558,18 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          base_legal?: string | null
+          classificacao_status?:
+            | Database["public"]["Enums"]["intimation_classification_status"]
+            | null
+          confianca_classificacao?: number | null
           content: string
           court?: string | null
           created_at?: string
           deadline?: string | null
           external_id?: string | null
           id?: string
+          peca_sugerida?: Json | null
           process_id?: string | null
           received_at?: string
           source?: string | null
@@ -566,12 +578,18 @@ export type Database = {
           user_id: string
         }
         Update: {
+          base_legal?: string | null
+          classificacao_status?:
+            | Database["public"]["Enums"]["intimation_classification_status"]
+            | null
+          confianca_classificacao?: number | null
           content?: string
           court?: string | null
           created_at?: string
           deadline?: string | null
           external_id?: string | null
           id?: string
+          peca_sugerida?: Json | null
           process_id?: string | null
           received_at?: string
           source?: string | null
@@ -1512,6 +1530,12 @@ export type Database = {
         | "gerente"
         | "usuario"
         | "assistente_adm"
+      intimation_classification_status:
+        | "auto_alta"
+        | "auto_media"
+        | "auto_baixa"
+        | "revisada_advogado"
+        | "ambigua_urgente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1647,6 +1671,13 @@ export const Constants = {
         "gerente",
         "usuario",
         "assistente_adm",
+      ],
+      intimation_classification_status: [
+        "auto_alta",
+        "auto_media",
+        "auto_baixa",
+        "revisada_advogado",
+        "ambigua_urgente",
       ],
     },
   },
