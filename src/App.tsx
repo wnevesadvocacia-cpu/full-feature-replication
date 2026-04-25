@@ -1,5 +1,10 @@
 import React, { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { installGlobalHandlers, captureException } from "@/lib/sentryStub";
+
+// SprintClosure Item 4 (stub): instala handlers globais para erros não-tratados.
+// Loga em audit_logs via RPC log_auth_event sem PII.
+installGlobalHandlers();
 
 // Normalize malformed hash routes and redirect auth token hashes to the correct HashRouter route
 if (typeof window !== 'undefined') {
@@ -85,6 +90,7 @@ class PageErrorBoundary extends React.Component<{ children: React.ReactNode }, E
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[PageErrorBoundary]', error, info);
+    captureException(error, { source: 'boundary', componentStack: info.componentStack ?? undefined });
   }
   render() {
     if (this.state.hasError) {

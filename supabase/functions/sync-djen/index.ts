@@ -14,21 +14,30 @@
 // 10. Batch lookup de processes (sem N+1) → escala com volume
 // 11. Cálculo de prazo em DIAS ÚTEIS (calendário CNJ)
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { z } from 'https://esm.sh/zod@3.23.8';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
 import { captureException } from '../_shared/sentry.ts';
 
-interface DjenItem {
-  id?: number | string;
-  hash?: string;
-  numero_processo?: string;
-  texto?: string;
-  data_disponibilizacao?: string;
-  siglaTribunal?: string;
-  nomeOrgao?: string;
-  tipoComunicacao?: string;
-  prazo?: string;
-}
+// SprintClosure #9 — Zod schema strict para resposta DJEN.
+// Se um item falhar na validação, sync marca status='partial', preserva
+// payload bruto em sync_logs.error_message e dispara alerta admin.
+// CRÍTICO: NUNCA preenchemos receivedAt com today silenciosamente — se
+// data_disponibilizacao estiver ausente/inválida, o item é REJEITADO.
+const DjenItemSchema = z.object({
+  id: z.union([z.number(), z.string()]).optional(),
+  hash: z.string().optional(),
+  numero_processo: z.string().optional(),
+  texto: z.string().optional(),
+  // data_disponibilizacao DEVE ser ISO YYYY-MM-DD se presente
+  data_disponibilizacao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data_disponibilizacao inválida').optional(),
+  siglaTribunal: z.string().optional(),
+  nomeOrgao: z.string().optional(),
+  tipoComunicacao: z.string().optional(),
+  prazo: z.string().optional(),
+}).passthrough(); // permite campos extras (CNJ adiciona campos sem aviso)
+
+type DjenItem = z.infer<typeof DjenItemSchema>;
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
@@ -227,10 +236,26 @@ async function fetchDjen(oab: string, uf: string): Promise<{ items: DjenItem[]; 
       throw new Error(`DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`);
     }
     const json = await res.json();
-    const items: DjenItem[] = json.items || json.data || [];
-    if (!items.length) break;
-    all.push(...items);
-    if (items.length < 100) break;
+    const rawItems: unknown[] = json.items || json.data || [];
+    if (!rawItems.length) break;
+    // SprintClosure #9: validação Zod strict. Itens inválidos são descartados
+    // com log explícito (não silenciam para today).
+    const validItems: DjenItem[] = [];
+    for (const raw of rawItems) {
+      const parsed = DjenItemSchema.safeParse(raw);
+      if (parsed.success) {
+        // Sem data_disponibilizacao válida -> não confiamos no item
+        if (!parsed.data.data_disponibilizacao) {
+          console.warn('[djen-schema] item sem data_disponibilizacao válida — descartado', JSON.stringify(raw).slice(0, 200));
+          continue;
+        }
+        validItems.push(parsed.data);
+      } else {
+        console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
+      }
+    }
+    all.push(...validItems);
+    if (rawItems.length < 100) break;
     pagina++;
     await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
   }
@@ -312,7 +337,9 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       try {
         const externalId = await buildExternalId(it);
         const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
-        const receivedAt = it.data_disponibilizacao || new Date().toISOString().slice(0, 10);
+        // SprintClosure #9: já garantido pelo Zod schema que data_disponibilizacao existe.
+        // Não há mais fallback silencioso para today.
+        const receivedAt = it.data_disponibilizacao!;
         const tribunal = it.siglaTribunal || null;
         const deadline = extractDeadline(cleanText, receivedAt, tribunal);
         const processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
