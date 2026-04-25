@@ -60,6 +60,16 @@ describe('legalDeadlines — datas de início e vencimento', () => {
     expect(det!.dueDate).toBe('2025-05-30');
   });
 
+  it('Reconhece prazo expresso com numeral por extenso entre parênteses: 30 (trinta) dias', () => {
+    const det = detectDeadline('Aguarde-se a apresentação de eventuais requerimentos nos autos pelo prazo de 30 (trinta) dias.', '2026-04-24', '2026-04-24');
+    expect(det).not.toBeNull();
+    expect(det!.isFallback).toBe(false);
+    expect(det!.days).toBe(30);
+    expect(det!.label).toBe('Manifestação (30 dias)');
+    expect(det!.startDate).toBe('2026-04-28');
+    expect(det!.dueDate).toBe('2026-06-10');
+  });
+
   it('Vencimento em dia não-útil prorroga para próximo útil', () => {
     // Manifestação 10 dias disponibilizada 06/05/2025 (terça) → publicação 07/05 (quarta)
     // addBusinessDays(07/05, 10): 08 (1) 09 (2) 12 (3) 13 (4) 14 (5) 15 (6) 16 (7) 19 (8) 20 (9) 21 (10) → 21/05 (quarta, útil) ✓

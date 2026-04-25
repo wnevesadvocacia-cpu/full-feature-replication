@@ -76,10 +76,10 @@ const RULES: Rule[] = [
   { pattern: /\bquesitos?\b.*\bperic/, days: 15, unit: 'dias_uteis', label: 'Quesitos Perícia', source: 'CPC', article: 'art. 465 §1º' },
   { pattern: /\bemende(?:-se)? a inicial\b|\bemenda a inicial\b/, days: 15, unit: 'dias_uteis', label: 'Emenda à Inicial', source: 'CPC', article: 'art. 321' },
   { pattern: /\b(custas|preparo) (recursais?|processuais?)\b/, days: 5, unit: 'dias_uteis', label: 'Recolhimento Custas', source: 'CPC', article: 'art. 290' },
-  { pattern: /\b(?:no )?prazo de 5 (?:cinco )?dias\b/, days: 5, unit: 'dias_uteis', label: 'Manifestação (5 dias)', source: 'CPC', article: 'art. 218' },
-  { pattern: /\b(?:no )?prazo de 10 (?:dez )?dias\b/, days: 10, unit: 'dias_uteis', label: 'Manifestação (10 dias)', source: 'CPC', article: 'art. 218' },
-  { pattern: /\b(?:no )?prazo de 15 (?:quinze )?dias\b/, days: 15, unit: 'dias_uteis', label: 'Manifestação (15 dias)', source: 'CPC', article: 'art. 218' },
-  { pattern: /\b(?:no )?prazo de 30 (?:trinta )?dias\b/, days: 30, unit: 'dias_uteis', label: 'Manifestação (30 dias)', source: 'CPC', article: 'art. 218' },
+  { pattern: /\b(?:no )?prazo de (?:(?:5(?:\s*\(cinco\))?)|cinco) dias\b/, days: 5, unit: 'dias_uteis', label: 'Manifestação (5 dias)', source: 'CPC', article: 'art. 218' },
+  { pattern: /\b(?:no )?prazo de (?:(?:10(?:\s*\(dez\))?)|dez) dias\b/, days: 10, unit: 'dias_uteis', label: 'Manifestação (10 dias)', source: 'CPC', article: 'art. 218' },
+  { pattern: /\b(?:no )?prazo de (?:(?:15(?:\s*\(quinze\))?)|quinze) dias\b/, days: 15, unit: 'dias_uteis', label: 'Manifestação (15 dias)', source: 'CPC', article: 'art. 218' },
+  { pattern: /\b(?:no )?prazo de (?:(?:30(?:\s*\(trinta\))?)|trinta) dias\b/, days: 30, unit: 'dias_uteis', label: 'Manifestação (30 dias)', source: 'CPC', article: 'art. 218' },
 
   // ===== Trabalhista (CLT) — prazos em dias úteis após Lei 13.467/17 =====
   { pattern: /\b(reclamacao trabalhista|defesa).*\b(audiencia|juizo)\b/, days: 5, unit: 'dias_uteis', label: 'Defesa Trabalhista', source: 'CLT', article: 'art. 847 CLT' },
@@ -120,7 +120,7 @@ const DOUBLE_PATTERNS = [
 ];
 
 // Detector explícito do número de dias quando texto traz "prazo de N dias"
-const EXPLICIT_DAYS = /\bprazo (?:legal )?de (\d{1,3}) (?:dias?|dias? uteis|dias? corridos)\b/;
+const EXPLICIT_DAYS = /\bprazo (?:legal )?de (\d{1,3})(?:\s*\([^)]+\))?\s+dias?(?:\s+(uteis|corridos))?\b/;
 
 function normalize(text: string): string {
   return text
@@ -202,14 +202,15 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   const explicit = text.match(EXPLICIT_DAYS);
   if (explicit) {
     const n = parseInt(explicit[1], 10);
+    const explicitUnit: DeadlineUnit = explicit[2] === 'corridos' ? 'dias_corridos' : 'dias_uteis';
     if (n > 0 && n <= 180) {
       // Tenta refinar com label do contexto, senão usa rótulo genérico
-      const ctxRule = RULES.find((r) => r.pattern.test(text) && r.days === n);
+      const ctxRule = RULES.find((r) => r.pattern.test(text) && r.days === n && r.unit === explicitUnit);
       chosen = {
         rule: ctxRule ?? {
           days: n,
-          unit: 'dias_uteis',
-          label: `Manifestação (${n} dias)`,
+          unit: explicitUnit,
+          label: `Manifestação (${n} ${explicitUnit === 'dias_corridos' ? 'dias corridos' : 'dias'})`,
           source: 'CPC',
           article: 'art. 218 / texto da publicação',
           pattern: EXPLICIT_DAYS,
