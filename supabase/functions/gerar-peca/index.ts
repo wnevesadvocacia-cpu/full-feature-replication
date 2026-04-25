@@ -1,11 +1,7 @@
 // Gerador de Peças Jurídicas - estilo "Advogado(a) Sênior"
 // Usa Lovable AI Gateway (Gemini) com streaming SSE
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 
 const SYSTEM_PROMPT = `Você é um(a) ADVOGADO(A) SÊNIOR brasileiro(a), com mais de 20 anos de experiência forense em todas as áreas do Direito (Civil, Penal, Trabalhista, Tributário, Administrativo, Empresarial, Família, Consumidor, Previdenciário).
 

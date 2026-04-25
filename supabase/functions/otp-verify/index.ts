@@ -1,11 +1,6 @@
 // OTP Verify - valida código numérico e gera link de sessão (magic link admin) para o cliente trocar por sessão
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
