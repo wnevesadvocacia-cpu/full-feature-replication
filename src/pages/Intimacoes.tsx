@@ -368,14 +368,6 @@ export default function Intimacoes() {
                   <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
                     <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
                   </Button>
-                  {(() => {
-                    const r = renderSafeContent(it.content);
-                    return r.html
-                      ? <div className="text-sm mt-2 break-words intim-content prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
-                      : <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.text}</p>;
-                  })()}
-                  <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
-                </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
                     <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
