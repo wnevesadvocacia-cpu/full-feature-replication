@@ -564,6 +564,36 @@ export type Database = {
           },
         ]
       }
+      judicial_suspensions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          reason: string
+          start_date: string
+          tribunal_codigo: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          reason: string
+          start_date: string
+          tribunal_codigo?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          reason?: string
+          start_date?: string
+          tribunal_codigo?: string | null
+        }
+        Relationships: []
+      }
       kanban_columns: {
         Row: {
           color: string
@@ -1152,6 +1182,30 @@ export type Database = {
           process_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      tribunal_holidays: {
+        Row: {
+          created_at: string
+          description: string
+          holiday_date: string
+          id: string
+          tribunal_codigo: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          holiday_date: string
+          id?: string
+          tribunal_codigo: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          holiday_date?: string
+          id?: string
+          tribunal_codigo?: string
         }
         Relationships: []
       }

@@ -87,26 +87,71 @@ function inRecesso(iso: string): boolean {
   return false;
 }
 
-function isBusinessDay(iso: string): boolean {
+// GAP 2 + 3: cache em memória de suspensões + feriados de tribunal carregados do banco
+let suspendedSet = new Set<string>();
+const tribunalHolidaySets = new Map<string, Set<string>>();
+
+async function loadLegalCalendar(supabase: any) {
+  suspendedSet = new Set();
+  tribunalHolidaySets.clear();
+  const { data: sus } = await supabase.from('judicial_suspensions').select('start_date,end_date,tribunal_codigo');
+  (sus || []).forEach((s: any) => {
+    const start = new Date(s.start_date + 'T12:00:00Z');
+    const end = new Date(s.end_date + 'T12:00:00Z');
+    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+      // tribunal_codigo NULL => suspensão geral; específica vai no set do tribunal
+      if (!s.tribunal_codigo) suspendedSet.add(fmtISO(d));
+      else {
+        const tset = tribunalHolidaySets.get(s.tribunal_codigo) ?? new Set<string>();
+        tset.add(fmtISO(d));
+        tribunalHolidaySets.set(s.tribunal_codigo, tset);
+      }
+    }
+  });
+  const { data: th } = await supabase.from('tribunal_holidays').select('tribunal_codigo,holiday_date');
+  (th || []).forEach((h: any) => {
+    const tset = tribunalHolidaySets.get(h.tribunal_codigo) ?? new Set<string>();
+    tset.add(h.holiday_date);
+    tribunalHolidaySets.set(h.tribunal_codigo, tset);
+  });
+}
+
+function isBusinessDay(iso: string, tribunal?: string | null): boolean {
   const d = new Date(iso + 'T12:00:00Z');
   const dow = d.getUTCDay();
   if (dow === 0 || dow === 6) return false;
   if (inRecesso(iso)) return false;
   if (getHolidays(d.getUTCFullYear()).has(iso)) return false;
+  if (suspendedSet.has(iso)) return false; // GAP 2
+  if (tribunal) {
+    const tset = tribunalHolidaySets.get(tribunal.toUpperCase());
+    if (tset?.has(iso)) return false; // GAP 3
+  }
   return true;
 }
 
-function addBusinessDays(startIso: string, days: number): string {
+function nextBusinessDay(iso: string, tribunal?: string | null): string {
+  let d = new Date(iso + 'T12:00:00Z');
+  do { d = addDaysUTC(d, 1); } while (!isBusinessDay(fmtISO(d), tribunal));
+  return fmtISO(d);
+}
+
+/** GAP 1 / CPC art. 224 §1º: prorroga p/ próximo dia útil se cair em data não-útil. */
+function ensureBusinessDay(iso: string, tribunal?: string | null): string {
+  return isBusinessDay(iso, tribunal) ? iso : nextBusinessDay(iso, tribunal);
+}
+
+function addBusinessDays(startIso: string, days: number, tribunal?: string | null): string {
   let d = new Date(startIso + 'T12:00:00Z');
   let added = 0;
   while (added < days) {
     d = addDaysUTC(d, 1);
-    if (isBusinessDay(fmtISO(d))) added++;
+    if (isBusinessDay(fmtISO(d), tribunal)) added++;
   }
-  return fmtISO(d);
+  return ensureBusinessDay(fmtISO(d), tribunal); // GAP 1: prorrogação final
 }
 
-function businessDaysUntil(targetIso: string): number {
+function businessDaysUntil(targetIso: string, tribunal?: string | null): number {
   const today = fmtISO(new Date());
   if (targetIso <= today) return 0;
   let count = 0;
@@ -114,7 +159,7 @@ function businessDaysUntil(targetIso: string): number {
   const target = new Date(targetIso + 'T12:00:00Z').getTime();
   while (d.getTime() < target) {
     d = addDaysUTC(d, 1);
-    if (isBusinessDay(fmtISO(d))) count++;
+    if (isBusinessDay(fmtISO(d), tribunal)) count++;
   }
   return count;
 }
@@ -209,13 +254,15 @@ function cleanHtml(raw: string): string {
     .trim();
 }
 
-function extractDeadline(text: string, receivedAt: string): string | null {
+function extractDeadline(text: string, receivedAt: string, tribunal?: string | null): string | null {
   const match = text.match(/prazo[\s\S]{0,40}?(\d{1,3})(?:\s*\([^)]+\))?\s*dias/i);
   if (!match) return null;
   const days = parseInt(match[1], 10);
   if (!days || days > 365) return null;
-  // CPC art. 219: prazos processuais em DIAS ÚTEIS
-  return addBusinessDays(receivedAt, days);
+  // CPC art. 224 §3º: publicação = 1º dia útil após disponibilização
+  // CPC art. 224 §1º: prazo só inicia em dia útil; vencimento em não-útil prorroga
+  const publicacao = nextBusinessDay(receivedAt, tribunal);
+  return addBusinessDays(publicacao, days, tribunal);
 }
 
 // ============= Batch lookup (elimina N+1) =============
@@ -256,15 +303,23 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
     const processIndex = await buildProcessIndex(supabase, row.user_id, numeros);
 
+    // GAP 5: pega email do usuário UMA vez para enfileirar alertas urgentes
+    let userEmail: string | null = null;
+    try {
+      const { data: u } = await supabase.auth.admin.getUserById(row.user_id);
+      userEmail = u?.user?.email ?? null;
+    } catch (_) { /* segue sem email */ }
+
     for (const it of items) {
       try {
         const externalId = await buildExternalId(it);
         const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
         const receivedAt = it.data_disponibilizacao || new Date().toISOString().slice(0, 10);
-        const deadline = extractDeadline(cleanText, receivedAt);
+        const tribunal = it.siglaTribunal || null;
+        const deadline = extractDeadline(cleanText, receivedAt, tribunal);
         const processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
 
-        const { error } = await supabase.from('intimations').insert({
+        const { data: insertedRow, error } = await supabase.from('intimations').insert({
           user_id: row.user_id,
           external_id: externalId,
           source: 'djen',
@@ -274,21 +329,59 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           deadline,
           process_id: processId,
           status: 'pendente',
-        });
+        }).select('id').single();
 
-        if (!error) {
+        if (!error && insertedRow) {
           inserted++;
-          // URGENTE se prazo ≤ 5 dias ÚTEIS (CPC)
-          const isUrgent = deadline && businessDaysUntil(deadline) <= 5;
+          const isUrgent = !!(deadline && businessDaysUntil(deadline, tribunal) <= 5);
           if (isUrgent) urgentDeadlines++;
+
           await supabase.from('notifications').insert({
             user_id: row.user_id,
-            title: isUrgent ? '⚠️ Intimação URGENTE' : 'Nova intimação DJEN',
-            message: `OAB/${row.oab_uf} ${row.oab_number} — ${it.siglaTribunal || 'Tribunal'} - ${it.numero_processo || 'Processo'}${deadline ? ` (prazo: ${deadline})` : ''}`,
+            title: isUrgent ? '⚠️ Intimação URGENTE — prazo ≤ 5 dias úteis' : 'Nova intimação DJEN',
+            message: `OAB/${row.oab_uf} ${row.oab_number} — ${it.siglaTribunal || 'Tribunal'} - ${it.numero_processo || 'Processo'}${deadline ? ` (vence ${deadline})` : ''}`,
             type: isUrgent ? 'destructive' : 'warning',
             link: '/intimacoes',
           });
-        } else if (error.code !== '23505') {
+
+          // GAP 5: enfileira email instantâneo se prazo ≤ 5 dias úteis
+          if (isUrgent && userEmail && deadline) {
+            const diasUteis = businessDaysUntil(deadline, tribunal);
+            const subject = `🚨 PRAZO CRÍTICO: ${diasUteis} dia(s) útil(eis) — vence ${deadline}`;
+            const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#fff;color:#111;padding:24px">
+<div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+  <div style="background:#dc2626;color:#fff;padding:14px 20px;font-weight:bold;font-size:16px">⚠️ Prazo processual crítico</div>
+  <div style="padding:20px">
+    <p style="margin:0 0 12px"><strong>Tribunal:</strong> ${it.siglaTribunal || '—'}</p>
+    <p style="margin:0 0 12px"><strong>Processo:</strong> ${it.numero_processo || '—'}</p>
+    <p style="margin:0 0 12px"><strong>Vencimento:</strong> ${deadline} (${diasUteis} dia(s) útil(eis) restante(s))</p>
+    <p style="margin:0 0 12px"><strong>OAB:</strong> ${row.oab_number}/${row.oab_uf}</p>
+    <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0">
+    <p style="margin:0 0 12px;font-size:13px;color:#374151">Conteúdo:</p>
+    <p style="margin:0;font-size:13px;color:#111;white-space:pre-wrap">${cleanText.slice(0,1500).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'} as any)[c])}</p>
+    <p style="margin:24px 0 0;font-size:12px;color:#6b7280">Acesse o sistema para tratar esta intimação.</p>
+  </div>
+</div></body></html>`;
+            const messageId = `djen-urgent-${insertedRow.id}`;
+            try {
+              await supabase.rpc('enqueue_email', {
+                queue_name: 'transactional_emails',
+                payload: {
+                  to: userEmail,
+                  subject,
+                  html,
+                  label: 'prazo-critico-djen',
+                  purpose: 'transactional',
+                  message_id: messageId,
+                  idempotency_key: messageId,
+                  queued_at: new Date().toISOString(),
+                },
+              });
+            } catch (mailErr) {
+              console.error('enqueue urgent email failed:', mailErr);
+            }
+          }
+        } else if (error && error.code !== '23505') {
           console.error('insert intimation error:', error);
           status = 'partial';
         }
@@ -387,6 +480,9 @@ Deno.serve(async (req) => {
       const { data } = await supabase.from('oab_settings').select('*').eq('active', true);
       targets = data || [];
     }
+
+    // GAP 2 + 3: hidrata calendário legal (suspensões + feriados de tribunal) UMA vez por execução
+    await loadLegalCalendar(supabase);
 
     const CONCURRENCY = 5;
     const results: any[] = [];
