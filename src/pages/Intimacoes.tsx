@@ -71,6 +71,15 @@ export default function Intimacoes() {
     try {
       const { data, error } = await supabase.functions.invoke('sync-djen', { body: {}, method: 'POST' });
       if (error) throw error;
+      // Upstream do CNJ instável: edge devolve 200 + upstream_unavailable
+      if (data?.upstream_unavailable) {
+        toast({
+          title: 'CNJ/DJEN indisponível',
+          description: data.error || 'O Diário Eletrônico está instável. Tente novamente em alguns minutos.',
+          variant: 'destructive',
+        });
+        return;
+      }
       const r = (data?.results || [])[0];
       if (!r) toast({ title: 'Cadastre sua OAB em Configurações → Intimações', variant: 'destructive' });
       else toast({ title: 'Sincronizado', description: `${r.inserted} novas / ${r.total} encontradas` });
