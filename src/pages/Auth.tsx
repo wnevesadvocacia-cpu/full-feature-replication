@@ -207,9 +207,14 @@ export default function Auth() {
   };
 
   // Passo 2 — valida o código de 6 dígitos via edge function customizada
-  const verifyCode = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (otp.length !== OTP_LENGTH) {
+  const verifyCode = async (eOrCode?: React.FormEvent | string) => {
+    let codeToVerify = otp;
+    if (typeof eOrCode === 'string') {
+      codeToVerify = eOrCode;
+    } else if (eOrCode && typeof (eOrCode as React.FormEvent).preventDefault === 'function') {
+      (eOrCode as React.FormEvent).preventDefault();
+    }
+    if (codeToVerify.length !== OTP_LENGTH) {
       toast({ title: 'Código inválido', description: `Digite os ${OTP_LENGTH} dígitos.`, variant: 'destructive' });
       return;
     }
