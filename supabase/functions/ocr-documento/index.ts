@@ -1,14 +1,48 @@
+// OCR jurídico via Lovable AI Gateway (Gemini multimodal).
+// S29: extrai user_id do JWT.
+// S13: CORS allowlist.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const blocked = rejectIfDisallowedOrigin(req);
+  if (blocked) return blocked;
+  const cors = corsHeadersFor(req);
 
   try {
-    const { imageBase64, mimeType, prompt } = await req.json();
+    // S29: autenticação obrigatória
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+    const sb = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: claimsErr } = await sb.auth.getClaims(token);
+    if (claimsErr || !claims?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+    const userId = claims.claims.sub;
+
+    const body = await req.json();
+    if (body.user_id && body.user_id !== userId) {
+      return new Response(JSON.stringify({ error: 'forbidden_user_mismatch' }), {
+        status: 403, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+    const { imageBase64, mimeType, prompt } = body;
     if (!imageBase64 || !mimeType) {
       return new Response(JSON.stringify({ error: "imageBase64 e mimeType são obrigatórios" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
@@ -32,8 +66,8 @@ Deno.serve(async (req) => {
       }),
     });
 
-    if (resp.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições. Tente em alguns instantes." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    if (resp.status === 402) return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos em Configurações." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (resp.status === 429) return new Response(JSON.stringify({ error: "Limite de requisições. Tente em alguns instantes." }), { status: 429, headers: { ...cors, "Content-Type": "application/json" } });
+    if (resp.status === 402) return new Response(JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos em Configurações." }), { status: 402, headers: { ...cors, "Content-Type": "application/json" } });
     if (!resp.ok) {
       const txt = await resp.text();
       throw new Error(`AI gateway error: ${resp.status} ${txt}`);
@@ -41,9 +75,9 @@ Deno.serve(async (req) => {
 
     const data = await resp.json();
     const text = data?.choices?.[0]?.message?.content || "";
-    return new Response(JSON.stringify({ text }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ text }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e: any) {
     console.error("[ocr-documento]", e);
-    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: e.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 });

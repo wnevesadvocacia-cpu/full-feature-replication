@@ -1,5 +1,8 @@
 // Gerador de Peças Jurídicas - estilo "Advogado(a) Sênior"
 // Usa Lovable AI Gateway (Gemini) com streaming SSE
+//
+// S29: extrai user_id do JWT, NUNCA do body. Retorna 401 sem auth.
+// S13: CORS allowlist via _shared/cors.ts.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 
@@ -25,10 +28,42 @@ DIRETRIZES OBRIGATÓRIAS DE REDAÇÃO:
 10. Saída: APENAS a peça pronta para protocolo, sem comentários meta ("aqui está sua peça", etc.).`;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const preflight = handleCorsPreflight(req);
+  if (preflight) return preflight;
+  const blocked = rejectIfDisallowedOrigin(req);
+  if (blocked) return blocked;
+  const cors = corsHeadersFor(req);
 
   try {
-    const { tipo, area, fatos, pedidos, partes, contexto, instrucoes } = await req.json();
+    // S29: autenticação obrigatória — extrai user_id do JWT
+    const authHeader = req.headers.get('Authorization') ?? '';
+    if (!authHeader.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const token = authHeader.replace('Bearer ', '');
+    const { data: claims, error: claimsErr } = await supabase.auth.getClaims(token);
+    if (claimsErr || !claims?.claims?.sub) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+        status: 401, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+    const userId = claims.claims.sub;
+
+    const body = await req.json();
+    // S29: se body.user_id presente e diferente do JWT, rejeita
+    if (body.user_id && body.user_id !== userId) {
+      return new Response(JSON.stringify({ error: 'forbidden_user_mismatch' }), {
+        status: 403, headers: { ...cors, 'Content-Type': 'application/json' },
+      });
+    }
+    const { tipo, area, fatos, pedidos, partes, contexto, instrucoes } = body;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY ausente");
@@ -75,31 +110,31 @@ Produza a peça completa, pronta para revisão final e protocolo.`;
       if (resp.status === 429) {
         return new Response(
           JSON.stringify({ error: "Limite de requisições atingido. Aguarde alguns instantes." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          { status: 429, headers: { ...cors, "Content-Type": "application/json" } },
         );
       }
       if (resp.status === 402) {
         return new Response(
           JSON.stringify({ error: "Créditos de IA esgotados. Adicione créditos no workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          { status: 402, headers: { ...cors, "Content-Type": "application/json" } },
         );
       }
       const t = await resp.text();
       console.error("AI gateway error:", resp.status, t);
       return new Response(JSON.stringify({ error: "Erro no gateway de IA" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...cors, "Content-Type": "application/json" },
       });
     }
 
     return new Response(resp.body, {
-      headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      headers: { ...cors, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
     console.error("gerar-peca error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: 500, headers: { ...cors, "Content-Type": "application/json" } },
     );
   }
 });
