@@ -17,7 +17,19 @@ import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 
-interface Intim { id: string; court: string | null; content: string; deadline: string | null; status: string; received_at: string; process_id: string | null; }
+interface Intim {
+  id: string;
+  court: string | null;
+  content: string;
+  deadline: string | null;
+  status: string;
+  received_at: string;
+  process_id: string | null;
+  classificacao_status?: string | null;
+  confianca_classificacao?: number | null;
+}
+
+const UNSAFE_STATUSES = new Set(['ambigua_urgente', 'auto_baixa']);
 
 // Títulos comuns da praxis jurídica para tarefas delegadas a partir de intimações
 const PRAXIS_TASK_TITLES = [
