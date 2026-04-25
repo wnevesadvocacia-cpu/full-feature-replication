@@ -1,5 +1,10 @@
 import React, { Suspense, lazy } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { installGlobalHandlers, captureException } from "@/lib/sentryStub";
+
+// SprintClosure Item 4 (stub): instala handlers globais para erros não-tratados.
+// Loga em audit_logs via RPC log_auth_event sem PII.
+installGlobalHandlers();
 
 // Normalize malformed hash routes and redirect auth token hashes to the correct HashRouter route
 if (typeof window !== 'undefined') {
