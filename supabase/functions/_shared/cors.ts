@@ -17,7 +17,7 @@ const ALLOWED_HOSTS = new Set([
   'www.wnevesbox.com',
   'full-feature-replication.lovable.app',
 ]);
-const ALLOWED_HOST_SUFFIXES = ['.lovable.app', '.lovable.dev'];
+const ALLOWED_HOST_SUFFIXES = ['.lovable.app', '.lovable.dev', '.lovableproject.com', '.sandbox.lovable.dev'];
 const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 const BASE_HEADERS: Record<string, string> = {
