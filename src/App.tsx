@@ -85,6 +85,7 @@ class PageErrorBoundary extends React.Component<{ children: React.ReactNode }, E
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[PageErrorBoundary]', error, info);
+    captureException(error, { source: 'boundary', componentStack: info.componentStack ?? undefined });
   }
   render() {
     if (this.state.hasError) {
