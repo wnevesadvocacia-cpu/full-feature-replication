@@ -368,10 +368,6 @@ export default function Intimacoes() {
                   <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
                     <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
                   </Button>
-                <div className="flex flex-col gap-1 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
-                    <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
-                  </Button>
                   {it.status !== 'tratada' && (
                     <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
                   )}
