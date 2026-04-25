@@ -30,38 +30,38 @@ const CASES: ParityCase[] = [
   // --- Início em sexta (publicação = segunda, contagem terça) ---
   { name: 'publicação em sexta-feira', start: '2026-03-06', days: 15, unit: 'dias_uteis', expectedDue: '2026-03-30' },
   // --- Início em sábado/domingo (prorroga publicação para segunda) ---
-  { name: 'disponibilizado sábado', start: '2026-03-07', days: 5, unit: 'dias_uteis', expectedDue: '2026-03-17' },
-  { name: 'disponibilizado domingo', start: '2026-03-08', days: 5, unit: 'dias_uteis', expectedDue: '2026-03-17' },
+  { name: 'disponibilizado sábado', start: '2026-03-07', days: 5, unit: 'dias_uteis', expectedDue: '2026-03-16' },
+  { name: 'disponibilizado domingo', start: '2026-03-08', days: 5, unit: 'dias_uteis', expectedDue: '2026-03-16' },
   // --- Atravessando feriados nacionais ---
   { name: 'atravessa Tiradentes (21/04)', start: '2026-04-13', days: 10, unit: 'dias_uteis', expectedDue: '2026-04-29' },
-  { name: 'atravessa 1º Maio', start: '2026-04-27', days: 5, unit: 'dias_uteis', expectedDue: '2026-05-07' },
-  { name: 'atravessa Independência (07/09)', start: '2026-08-31', days: 10, unit: 'dias_uteis', expectedDue: '2026-09-15' },
+  { name: 'atravessa 1º Maio', start: '2026-04-27', days: 5, unit: 'dias_uteis', expectedDue: '2026-05-06' },
+  { name: 'atravessa Independência (07/09)', start: '2026-08-31', days: 10, unit: 'dias_uteis', expectedDue: '2026-09-16' },
   { name: 'atravessa Finados (02/11)', start: '2026-10-26', days: 10, unit: 'dias_uteis', expectedDue: '2026-11-11' },
-  { name: 'atravessa Proclamação (15/11)', start: '2026-11-09', days: 5, unit: 'dias_uteis', expectedDue: '2026-11-19' },
+  { name: 'atravessa Proclamação (15/11)', start: '2026-11-09', days: 5, unit: 'dias_uteis', expectedDue: '2026-11-17' },
   // --- Recesso forense 20/12 a 20/01 ---
-  { name: 'inicia logo antes do recesso (15/12)', start: '2026-12-15', days: 5, unit: 'dias_uteis', expectedDue: '2027-01-28' },
+  { name: 'inicia logo antes do recesso (15/12)', start: '2026-12-15', days: 5, unit: 'dias_uteis', expectedDue: '2027-01-25' },
   { name: 'tenta iniciar dentro do recesso (22/12)', start: '2026-12-22', days: 5, unit: 'dias_uteis', expectedDue: '2027-01-28' },
   { name: 'tenta iniciar em 20/01 (último do recesso)', start: '2027-01-20', days: 5, unit: 'dias_uteis', expectedDue: '2027-01-28' },
   // --- Prazos curtos críticos ---
   { name: 'embargos declaração (5 dias)', start: '2026-04-06', days: 5, unit: 'dias_uteis', expectedDue: '2026-04-14' },
-  { name: 'agravo interno (15 dias)', start: '2026-04-06', days: 15, unit: 'dias_uteis', expectedDue: '2026-04-28' },
+  { name: 'agravo interno (15 dias)', start: '2026-04-06', days: 15, unit: 'dias_uteis', expectedDue: '2026-04-29' },
   // --- Prazo em dobro (Fazenda Pública - art. 183 CPC) ---
   { name: 'contestação Fazenda 30 dias úteis', start: '2026-03-02', days: 30, unit: 'dias_uteis', expectedDue: '2026-04-15' },
-  { name: 'apelação Defensoria 30 dias úteis', start: '2026-04-13', days: 30, unit: 'dias_uteis', expectedDue: '2026-05-29' },
+  { name: 'apelação Defensoria 30 dias úteis', start: '2026-04-13', days: 30, unit: 'dias_uteis', expectedDue: '2026-05-28' },
   // --- Prazos longos (180 dias úteis = ~ 9 meses corridos) ---
   { name: 'prazo de 60 dias úteis', start: '2026-03-02', days: 60, unit: 'dias_uteis', expectedDue: '2026-05-29' },
   { name: 'prazo de 90 dias úteis', start: '2026-03-02', days: 90, unit: 'dias_uteis', expectedDue: '2026-07-13' },
   // --- Dias corridos (CPP/CTN) ---
   { name: 'impugnação fiscal 30 dias corridos', start: '2026-03-02', days: 30, unit: 'dias_corridos', expectedDue: '2026-04-02' },
   { name: 'impugnação 30 dias corridos vence em domingo', start: '2026-03-08', days: 30, unit: 'dias_corridos', expectedDue: '2026-04-08' },
-  // --- Vencimento que cai em feriado prorroga ---
-  { name: 'vencimento em 25/12 prorroga', start: '2026-11-30', days: 15, unit: 'dias_uteis', expectedDue: '2026-12-19' },
+  // --- Vencimento que cai em recesso prorroga para fim de janeiro ---
+  { name: 'vencimento em pleno recesso prorroga para 21/01', start: '2026-11-30', days: 15, unit: 'dias_uteis', expectedDue: '2027-01-25' },
   // --- Início próximo ao réveillon ---
   { name: 'inicia em 19/12 (último útil antes do recesso)', start: '2026-12-18', days: 5, unit: 'dias_uteis', expectedDue: '2027-01-28' },
   // --- Carnaval e Páscoa ---
   { name: 'atravessa Páscoa 2026', start: '2026-03-30', days: 10, unit: 'dias_uteis', expectedDue: '2026-04-15' },
-  { name: 'atravessa Quarta de cinzas', start: '2026-02-09', days: 5, unit: 'dias_uteis', expectedDue: '2026-02-25' },
-  { name: 'atravessa Corpus Christi 2026', start: '2026-05-25', days: 10, unit: 'dias_uteis', expectedDue: '2026-06-15' },
+  { name: 'atravessa Quarta de cinzas', start: '2026-02-09', days: 5, unit: 'dias_uteis', expectedDue: '2026-02-19' },
+  { name: 'atravessa Corpus Christi 2026', start: '2026-05-25', days: 10, unit: 'dias_uteis', expectedDue: '2026-06-10' },
   // --- Casos de canto: 1 dia útil ---
   { name: 'prazo de 1 dia útil', start: '2026-03-09', days: 1, unit: 'dias_uteis', expectedDue: '2026-03-11' },
   { name: 'prazo de 2 dias úteis', start: '2026-03-09', days: 2, unit: 'dias_uteis', expectedDue: '2026-03-12' },
