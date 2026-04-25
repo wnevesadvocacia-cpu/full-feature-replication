@@ -70,6 +70,20 @@ describe('legalDeadlines — datas de início e vencimento', () => {
     expect(det!.dueDate).toBe('2026-06-10');
   });
 
+  it('Reconhece "dentro do prazo de quinze (15) dias"', () => {
+    const det = detectDeadline('Manifeste-se dentro do prazo de quinze (15) dias.', '2025-05-22', '2025-05-22');
+    expect(det!.isFallback).toBe(false);
+    expect(det!.days).toBe(15);
+    expect(det!.dueDate).toBe('2025-06-13');
+  });
+
+  it('Reconhece "em até 30 dias corridos" como dias corridos', () => {
+    const det = detectDeadline('A parte deverá comprovar em até 30 dias corridos.', '2025-05-22', '2025-05-22');
+    expect(det!.isFallback).toBe(false);
+    expect(det!.days).toBe(30);
+    expect(det!.unit).toBe('dias_corridos');
+  });
+
   it('Vencimento em dia não-útil prorroga para próximo útil', () => {
     // Manifestação 10 dias disponibilizada 06/05/2025 (terça) → publicação 07/05 (quarta)
     // addBusinessDays(07/05, 10): 08 (1) 09 (2) 12 (3) 13 (4) 14 (5) 15 (6) 16 (7) 19 (8) 20 (9) 21 (10) → 21/05 (quarta, útil) ✓

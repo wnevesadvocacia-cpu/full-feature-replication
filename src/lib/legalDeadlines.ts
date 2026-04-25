@@ -119,8 +119,25 @@ const DOUBLE_PATTERNS = [
   /\bcaixa economica federal\b/,
 ];
 
-// Detector explícito do número de dias quando texto traz "prazo de N dias"
-const EXPLICIT_DAYS = /\bprazo (?:legal )?de (\d{1,3})(?:\s*\([^)]+\))?\s+dias?(?:\s+(uteis|corridos))?\b/;
+// Detector explícito do número de dias. Cobre as principais formas usadas em
+// despachos/decisões: "prazo de", "no prazo de", "dentro do prazo de",
+// "dentro de", "em até", "no decêndio de", aceitando o número em algarismos
+// (com possível "(extenso)") OU integralmente por extenso.
+const NUM_BY_EXTENSO: Record<string, number> = {
+  'um': 1, 'dois': 2, 'tres': 3, 'quatro': 4, 'cinco': 5, 'seis': 6, 'sete': 7,
+  'oito': 8, 'nove': 9, 'dez': 10, 'onze': 11, 'doze': 12, 'treze': 13,
+  'quatorze': 14, 'catorze': 14, 'quinze': 15, 'dezesseis': 16, 'dezessete': 17,
+  'dezoito': 18, 'dezenove': 19, 'vinte': 20, 'trinta': 30, 'quarenta': 40,
+  'cinquenta': 50, 'sessenta': 60, 'setenta': 70, 'oitenta': 80, 'noventa': 90,
+  'cem': 100, 'cento e vinte': 120, 'cento e oitenta': 180,
+};
+const EXTENSO_RX = Object.keys(NUM_BY_EXTENSO)
+  .sort((a, b) => b.length - a.length) // mais longos primeiro (cento e vinte > cento)
+  .join('|');
+const TRIGGER = '(?:no\\s+)?(?:dentro\\s+(?:do\\s+)?)?prazo(?:\\s+legal)?\\s+de|dentro\\s+de|em\\s+ate|no\\s+decendio\\s+de|no\\s+quinquenio\\s+de';
+const EXPLICIT_DAYS = new RegExp(
+  `\\b(?:${TRIGGER})\\s+(?:(\\d{1,3})(?:\\s*\\([^)]+\\))?|(${EXTENSO_RX})(?:\\s*\\(\\d{1,3}\\))?)\\s+dias?(?:\\s+(uteis|corridos))?\\b`,
+);
 
 function normalize(text: string): string {
   return text
@@ -201,8 +218,10 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let chosen: { rule: Rule; matched: string } | null = null;
   const explicit = text.match(EXPLICIT_DAYS);
   if (explicit) {
-    const n = parseInt(explicit[1], 10);
-    const explicitUnit: DeadlineUnit = explicit[2] === 'corridos' ? 'dias_corridos' : 'dias_uteis';
+    const n = explicit[1]
+      ? parseInt(explicit[1], 10)
+      : (explicit[2] ? NUM_BY_EXTENSO[explicit[2]] ?? 0 : 0);
+    const explicitUnit: DeadlineUnit = explicit[3] === 'corridos' ? 'dias_corridos' : 'dias_uteis';
     if (n > 0 && n <= 180) {
       // Tenta refinar com label do contexto, senão usa rótulo genérico
       const ctxRule = RULES.find((r) => r.pattern.test(text) && r.days === n && r.unit === explicitUnit);
