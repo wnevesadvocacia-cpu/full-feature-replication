@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import DOMPurify from 'dompurify';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -13,6 +12,8 @@ import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, Chevr
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
 import { detectDeadline } from '@/lib/legalDeadlines';
+import { renderSafeContent } from '@/lib/sanitizeHtml';
+import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 
@@ -46,18 +47,6 @@ const PRAXIS_TASK_TITLES = [
   'Realizar audiência de conciliação',
   'Verificar publicação no DJE',
 ];
-
-// Detecta se o conteúdo é HTML (tags ou entidades) e prepara para render seguro.
-function renderIntimContent(raw: string) {
-  const looksHtml = /<[a-z!/][^>]*>|&[a-z]+;|&#\d+;/i.test(raw);
-  if (!looksHtml) return { html: null as string | null, text: raw };
-  const clean = DOMPurify.sanitize(raw, {
-    ALLOWED_TAGS: ['p','br','b','strong','i','em','u','span','div','section','article','header','footer','table','thead','tbody','tr','td','th','ul','ol','li','hr','h1','h2','h3','h4','h5','h6','small','sup','sub'],
-    ALLOWED_ATTR: ['align','colspan','rowspan'],
-  });
-  return { html: clean, text: null as string | null };
-}
-
 
 export default function Intimacoes() {
   const { user } = useAuth();
@@ -295,7 +284,7 @@ export default function Intimacoes() {
                     </div>
                   )}
                   {(() => {
-                    const r = renderIntimContent(it.content);
+                    const r = renderSafeContent(it.content);
                     return r.html
                       ? <div className="text-sm mt-2 break-words intim-content prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
                       : <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.text}</p>;
