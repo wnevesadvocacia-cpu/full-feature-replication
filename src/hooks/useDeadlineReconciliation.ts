@@ -1,16 +1,7 @@
 // SprintClosure Item 1 (híbrido) — Background reconciliation de prazos.
-// Estratégia:
-//   1. UI continua usando detectDeadline() síncrono (legalDeadlines.ts) para
-//      renderização instantânea — zero mudança visual.
-//   2. Em background, este hook chama a RPC public.calculate_deadline (fonte
-//      única de verdade SQL) para cada intimação carregada e, se divergir de
-//      intimations.deadline armazenado, atualiza o registro.
-//   3. Reconciliação é idempotente, rate-limited (10 RPCs paralelas) e
-//      silenciosa em caso de erro (não bloqueia UX).
-//
-// Por que importa: garante que o vencimento exibido na UI sempre converge para
-// o cálculo canônico do Postgres (que usa judicial_suspensions e
-// tribunal_holidays do banco), sem forçar refactor async em todo lugar.
+// Sprint Jurídico Crítico: além de reconciliar deadline com a RPC canônica,
+// agora também grava peca_sugerida, base_legal, confianca_classificacao e
+// classificacao_status — exceto quando registro já foi 'revisada_advogado'.
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,9 +14,10 @@ interface IntimForReconcile {
   received_at: string;
   deadline: string | null;
   court?: string | null;
+  classificacao_status?: string | null;
 }
 
-const RECONCILED = new Set<string>(); // memoiza por sessão para não retrabalhar
+const RECONCILED = new Set<string>();
 const CONCURRENCY = 10;
 
 async function runWithLimit<T>(items: T[], limit: number, worker: (it: T) => Promise<void>): Promise<void> {
@@ -45,7 +37,6 @@ async function runWithLimit<T>(items: T[], limit: number, worker: (it: T) => Pro
 
 function tribunalFromCourt(court?: string | null): string | null {
   if (!court) return null;
-  // Court vem como "TJSP - 2ª Vara Cível" ou só "TJSP"
   const m = court.match(/^([A-Z]{2,5})/);
   return m ? m[1] : null;
 }
@@ -56,43 +47,46 @@ export function useDeadlineReconciliation(items: IntimForReconcile[] | undefined
 
   useEffect(() => {
     if (!items || items.length === 0) return;
-    // Roda apenas uma vez por mount — invalida cache no final para refetch fresh
     if (ranRef.current) return;
     ranRef.current = true;
 
-    const todo = items.filter((it) => !RECONCILED.has(it.id));
+    const todo = items.filter((it) => !RECONCILED.has(it.id) && it.classificacao_status !== 'revisada_advogado');
     if (!todo.length) return;
 
     let updated = 0;
     runWithLimit(todo, CONCURRENCY, async (it) => {
       RECONCILED.add(it.id);
       const detected = detectDeadline(it.content, it.received_at.slice(0, 10), new Date().toISOString().slice(0, 10));
-      if (!detected || !detected.dueDate || detected.days <= 0) return;
+      if (!detected) return;
 
-      const canonical = await calculateDeadlineRPC({
-        start: it.received_at.slice(0, 10),
-        days: detected.days,
-        tribunal: tribunalFromCourt(it.court),
-        unit: detected.unit,
-      });
-      if (!canonical) return;
+      let canonical: string | null = null;
+      if (detected.dueDate && detected.days > 0) {
+        canonical = await calculateDeadlineRPC({
+          start: it.received_at.slice(0, 10),
+          days: detected.days,
+          tribunal: tribunalFromCourt(it.court),
+          unit: detected.unit,
+        });
+      }
 
       const stored = it.deadline?.slice(0, 10) ?? null;
-      if (stored === canonical) return; // já está canônico
+      const patch: Record<string, unknown> = {
+        peca_sugerida: detected.pecaSugerida,
+        base_legal: detected.baseLegal,
+        confianca_classificacao: detected.confianca,
+        classificacao_status: detected.classificacaoStatus,
+      };
+      if (canonical && stored !== canonical) patch.deadline = canonical;
 
-      // Divergência detectada — atualiza no DB
-      const { error } = await supabase
-        .from('intimations')
-        .update({ deadline: canonical })
-        .eq('id', it.id);
+      const { error } = await (supabase as any).from('intimations').update(patch).eq('id', it.id);
       if (!error) {
         updated++;
-        console.info(`[reconcile] intimação ${it.id} ajustada: ${stored} -> ${canonical}`);
+        if (canonical && stored !== canonical) {
+          console.info(`[reconcile] intimação ${it.id} ajustada: ${stored} -> ${canonical} (${detected.classificacaoStatus})`);
+        }
       }
     }).then(() => {
-      if (updated > 0) {
-        qc.invalidateQueries({ queryKey: ['intimations'] });
-      }
+      if (updated > 0) qc.invalidateQueries({ queryKey: ['intimations'] });
     });
   }, [items, qc]);
 }
