@@ -182,5 +182,5 @@ Deno.serve(async (req) => {
   }
 });
 
-// Exportado p/ uso em verify-otp-resend (notificação de bloqueio)
+// Helpers de notificação reutilizáveis em outras funções (export para tree-shake).
 export { lockoutEmailHtml, sendResendEmail };
