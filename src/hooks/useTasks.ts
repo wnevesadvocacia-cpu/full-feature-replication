@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { taskCreateSchema, taskUpdateSchema, stripServerOnly } from '@/lib/validationSchemas';
 
 export function useTasks() {
   const { user } = useAuth();
@@ -28,9 +29,11 @@ export function useCreateTask() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (task: { title: string; description?: string; process_id?: string; assignee?: string; priority?: string; due_date?: string }) => {
+      // S28: valida + bloqueia campos server-only
+      const parsed = taskCreateSchema.parse(stripServerOnly(task as any));
       const { data, error } = await supabase
         .from('tasks')
-        .insert({ ...task, user_id: user!.id })
+        .insert({ ...parsed, user_id: user!.id })
         .select()
         .single();
       if (error) throw error;
@@ -44,9 +47,12 @@ export function useUpdateTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; completed?: boolean; status?: string; [key: string]: any }) => {
+      // S28: valida payload + remove server-only
+      const parsed = taskUpdateSchema.parse(stripServerOnly({ id, ...updates }));
+      const { id: _id, ...rest } = parsed;
       const { data, error } = await supabase
         .from('tasks')
-        .update(updates as any)
+        .update(rest as any)
         .eq('id', id)
         .select()
         .single();

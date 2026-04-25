@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { processCreateSchema, processUpdateSchema, stripServerOnly } from '@/lib/validationSchemas';
 
 export const PROCESSES_PAGE_SIZE = 50;
 
@@ -30,9 +31,11 @@ export function useCreateProcess() {
   const { user } = useAuth();
   return useMutation({
     mutationFn: async (process: { number: string; title: string; type?: string; status?: string; due_date?: string; lawyer?: string; value?: number; client_id?: string }) => {
+      // S28: valida + bloqueia campos server-only
+      const parsed = processCreateSchema.parse(stripServerOnly(process as any));
       const { data, error } = await supabase
         .from('processes')
-        .insert({ ...process, user_id: user!.id })
+        .insert({ ...parsed, user_id: user!.id })
         .select()
         .single();
       if (error) throw error;
@@ -46,9 +49,12 @@ export function useUpdateProcess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: { id: string; status?: string; title?: string; [key: string]: any }) => {
+      // S28: valida payload (passthrough p/ campos legítimos extras) + remove server-only
+      const parsed = processUpdateSchema.parse(stripServerOnly({ id, ...updates }));
+      const { id: _id, ...rest } = parsed;
       const { data, error } = await supabase
         .from('processes')
-        .update(updates as any)
+        .update(rest as any)
         .eq('id', id)
         .select()
         .single();
