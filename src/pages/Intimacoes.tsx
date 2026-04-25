@@ -167,12 +167,13 @@ export default function Intimacoes() {
 
   const openTaskDialog = (it: Intim) => {
     const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO());
     setTaskForm({
       title: '', // usuário escolhe / digita
       description: plain,
       assignee: '',
       priority: 'alta',
-      due_date: it.deadline ? it.deadline.slice(0, 10) : '',
+      due_date: (it.deadline || detectedDeadline?.dueDate || '').slice(0, 10),
       start_time: '',
       location: it.court || '',
     });
@@ -282,7 +283,7 @@ export default function Intimacoes() {
                     {detectedDeadline && (
                       <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
                     )}
-                    {it.deadline && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
+                    {it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
                   </div>
                   {detectedDeadline?.startDate && detectedDeadline?.dueDate && (
                     <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
