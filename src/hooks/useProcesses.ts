@@ -35,7 +35,7 @@ export function useCreateProcess() {
       const parsed = processCreateSchema.parse(stripServerOnly(process as any));
       const { data, error } = await supabase
         .from('processes')
-        .insert({ ...parsed, user_id: user!.id })
+        .insert({ ...parsed, user_id: user!.id } as any)
         .select()
         .single();
       if (error) throw error;

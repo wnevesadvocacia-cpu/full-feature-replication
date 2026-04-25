@@ -28,7 +28,7 @@ export function useCreateClient() {
       const parsed = clientCreateSchema.parse(stripServerOnly(client as any));
       const { data, error } = await supabase
         .from('clients')
-        .insert({ ...parsed, user_id: user!.id })
+        .insert({ ...parsed, user_id: user!.id } as any)
         .select()
         .single();
       if (error) throw error;
@@ -50,7 +50,7 @@ export function useImportClients() {
       });
       const { data, error } = await supabase
         .from('clients')
-        .insert(rows)
+        .insert(rows as any)
         .select();
       if (error) throw error;
       return data;

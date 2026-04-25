@@ -33,7 +33,7 @@ export function useCreateTask() {
       const parsed = taskCreateSchema.parse(stripServerOnly(task as any));
       const { data, error } = await supabase
         .from('tasks')
-        .insert({ ...parsed, user_id: user!.id })
+        .insert({ ...parsed, user_id: user!.id } as any)
         .select()
         .single();
       if (error) throw error;
