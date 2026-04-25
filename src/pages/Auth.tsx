@@ -380,9 +380,9 @@ export default function Auth() {
                     onChange={(v) => {
                       const clean = v.replace(/\D/g, '').slice(0, OTP_LENGTH);
                       setOtp(clean);
-                      // Auto-submit ao completar o código
+                      // Auto-submit ao completar o código (passa o valor diretamente p/ evitar race com setState)
                       if (clean.length === OTP_LENGTH && !loading && !otpExpired && blockRemaining === 0) {
-                        setTimeout(() => verifyCode(), 50);
+                        setTimeout(() => verifyCode(clean), 50);
                       }
                     }}
                     onComplete={() => { /* tratado em onChange */ }}
