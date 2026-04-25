@@ -479,10 +479,12 @@ Deno.serve(async (req) => {
     } else {
       const { data } = await supabase.from('oab_settings').select('*').eq('active', true);
       targets = data || [];
+    }
+
     // GAP 2 + 3: hidrata calendário legal (suspensões + feriados de tribunal) UMA vez por execução
     await loadLegalCalendar(supabase);
 
-
+    const CONCURRENCY = 5;
     const results: any[] = [];
     for (let i = 0; i < targets.length; i += CONCURRENCY) {
       const batch = targets.slice(i, i + CONCURRENCY);
