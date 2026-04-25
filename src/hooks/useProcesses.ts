@@ -21,6 +21,7 @@ export function useProcesses(page: number = 0, pageSize: number = PROCESSES_PAGE
     },
     enabled: !!user,
     placeholderData: keepPreviousData,
+    refetchInterval: 60_000, // Sprint1.7: poll de segurança 60s
   });
 }
 
