@@ -140,6 +140,45 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_runs: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          error_message: string | null
+          id: string
+          job_name: string
+          metadata: Json | null
+          run_id: string
+          started_at: string
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_name: string
+          metadata?: Json | null
+          run_id: string
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          error_message?: string | null
+          id?: string
+          job_name?: string
+          metadata?: Json | null
+          run_id?: string
+          started_at?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       document_templates: {
         Row: {
           category: string | null
@@ -1235,6 +1274,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _easter_sunday: { Args: { _year: number }; Returns: string }
+      _is_business_day: {
+        Args: { _d: string; _tribunal?: string }
+        Returns: boolean
+      }
+      _next_business_day: {
+        Args: { _d: string; _tribunal?: string }
+        Returns: string
+      }
+      calculate_deadline: {
+        Args: {
+          _days: number
+          _start_date: string
+          _tribunal?: string
+          _unit?: string
+        }
+        Returns: string
+      }
       can_delete: { Args: { _user_id: string }; Returns: boolean }
       can_edit_task: {
         Args: { _task_id: string; _user_id: string }
@@ -1276,6 +1333,7 @@ export type Database = {
           read_ct: number
         }[]
       }
+      release_cron_lock: { Args: { _job_name: string }; Returns: boolean }
       sign_portal_document: {
         Args: {
           _request_id: string
@@ -1285,6 +1343,7 @@ export type Database = {
         }
         Returns: Json
       }
+      try_acquire_cron_lock: { Args: { _job_name: string }; Returns: boolean }
     }
     Enums: {
       app_role:
