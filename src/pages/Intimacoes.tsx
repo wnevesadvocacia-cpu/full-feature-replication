@@ -152,6 +152,23 @@ export default function Intimacoes() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['intimations'] }),
   });
 
+  // Marca classificação como revisada pelo advogado + grava prazo manual.
+  // Após isso, o reconciliation hook pula este registro (não sobrescreve mais).
+  const markReviewed = useMutation({
+    mutationFn: async ({ id, deadline }: { id: string; deadline: string }) => {
+      const { error } = await (supabase as any).from('intimations').update({
+        deadline,
+        classificacao_status: 'revisada_advogado',
+      }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+      toast({ title: 'Prazo definido manualmente', description: 'Classificação marcada como revisada pelo advogado.' });
+    },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
+  });
+
   const toTask = useMutation({
     mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
       const { intim, form: tf } = payload;
