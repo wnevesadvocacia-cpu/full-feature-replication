@@ -15,7 +15,22 @@ const OTP_TTL_MINUTES = 10;
 const IP_RATE_MAX = 10;          // máx 10 reqs por IP
 const IP_RATE_WINDOW_MIN = 60;   // janela 60min
 
-const BodySchema = z.object({ email: z.string().trim().email() });
+const BodySchema = z.object({ email: z.string().trim().email(), captcha_token: z.string().nullish() });
+const TURNSTILE_SECRET = Deno.env.get('TURNSTILE_SECRET_KEY') ?? '';
+const CAPTCHA_THRESHOLD = 3; // exigir captcha após N falhas recentes
+
+async function verifyTurnstile(token: string | null | undefined, ip: string): Promise<boolean> {
+  if (!token || !TURNSTILE_SECRET) return false;
+  try {
+    const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ secret: TURNSTILE_SECRET, response: token, remoteip: ip }),
+    });
+    const j = await r.json();
+    return !!j.success;
+  } catch { return false; }
+}
 
 async function sha256(text: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
@@ -139,6 +154,18 @@ Deno.serve(async (req) => {
     if (locked === true) {
       console.warn('send-otp-resend email locked', { email_masked: maskEmail(email) });
       return uniformOk();
+    }
+
+    // Sec-3.4 — exige Turnstile se houver falhas recentes
+    const { data: lockoutRow } = await admin.from('auth_lockouts').select('recent_failures').eq('email', email).maybeSingle();
+    const recentFails = (lockoutRow as any)?.recent_failures ?? 0;
+    if (recentFails >= CAPTCHA_THRESHOLD) {
+      const ok = await verifyTurnstile(parsed.data.captcha_token, ip);
+      if (!ok) {
+        return new Response(JSON.stringify({ error: 'captcha_required', captcha_required: true }), {
+          status: 429, headers: { ...cors, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     // S25: se email não existe, devolve uniforme + sem enviar
