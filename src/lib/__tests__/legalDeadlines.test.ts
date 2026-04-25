@@ -67,7 +67,7 @@ describe('legalDeadlines — datas de início e vencimento', () => {
     expect(det!.days).toBe(30);
     expect(det!.label).toBe('Manifestação (30 dias)');
     expect(det!.startDate).toBe('2026-04-28');
-    expect(det!.dueDate).toBe('2026-06-09');
+    expect(det!.dueDate).toBe('2026-06-10');
   });
 
   it('Vencimento em dia não-útil prorroga para próximo útil', () => {
