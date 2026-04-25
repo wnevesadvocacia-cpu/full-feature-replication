@@ -340,7 +340,13 @@ export default function Auth() {
                     onChange={e => setHoneypot(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0}>
+                {needsCaptcha && !captchaToken && (
+                  <div className="text-xs text-muted-foreground">
+                    <TurnstileWidget onToken={(t) => setCaptchaToken(t)} onError={() => setNeedsCaptcha(true)} />
+                    Verificação de segurança em andamento…
+                  </div>
+                )}
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || blockRemaining > 0 || (needsCaptcha && !captchaToken)}>
                   {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Enviando…</>
                     : <><ArrowRight className="h-4 w-4 mr-2" />Continuar</>}
                 </Button>
