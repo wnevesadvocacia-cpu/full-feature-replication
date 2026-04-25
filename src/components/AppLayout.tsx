@@ -7,9 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Search, LogOut } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { useLegalCalendar } from '@/hooks/useLegalCalendar';
+import { useRealtimeIntimacoes } from '@/hooks/useRealtimeIntimacoes';
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
+  // Hidrata calendário legal global (suspensões + feriados de tribunal) e ativa Realtime
+  useLegalCalendar();
+  useRealtimeIntimacoes();
 
   return (
     <SidebarProvider>
