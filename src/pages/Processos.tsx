@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { DeleteGuard } from '@/components/DeleteGuard';
+import { SearchAutocomplete } from '@/components/SearchAutocomplete';
 
 interface Process {
   id: string;
