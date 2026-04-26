@@ -553,7 +553,7 @@ export default function Processos() {
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
   const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null);
   const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
-  const [detailTab, setDetailTab] = useState<'details' | 'movs' | 'docs' | 'tasks' | 'history'>('details');
+  const [detailTab, setDetailTab] = useState<'details' | 'docs' | 'tasks' | 'history'>('details');
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -873,9 +873,8 @@ export default function Processos() {
                   <div className="flex gap-1 border-b pb-2 mb-4">
                     {([
                       { id: 'details', label: 'Detalhes' },
-                      { id: 'movs',    label: `Movimentações (${procMovs.length})` },
+                      { id: 'tasks',   label: `Andamentos (${procMovs.length})` },
                       { id: 'docs',    label: `Documentos (${procDocs.length})` },
-                      { id: 'tasks',   label: `Andamentos (${tasks.length})` },
                       { id: 'history', label: 'Histórico' },
                     ] as { id: typeof detailTab; label: string }[]).map(({ id, label }) => (
                       <button key={id} onClick={() => { setDetailTab(id); setShowTaskForm(false); }}
@@ -1009,11 +1008,11 @@ export default function Processos() {
                   )}
                   </div>} {/* end details tab */}
 
-                  {/* ── Tab: Andamentos ── */}
+                  {/* ── Tab: Andamentos (process_comments completos) ── */}
                   {detailTab === 'tasks' && <div>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-semibold flex items-center gap-1">
-                        <MessageSquare className="h-4 w-4" /> Andamentos ({tasks.length})
+                        <MessageSquare className="h-4 w-4" /> Andamentos ({procMovs.length})
                       </p>
                       <Button size="sm" variant="outline" onClick={() => setShowTaskForm((v) => !v)}>
                         <Plus className="h-3 w-3 mr-1" /> Adicionar
@@ -1049,52 +1048,34 @@ export default function Processos() {
                       </div>
                     )}
 
-                    <div className="space-y-2 max-h-52 overflow-y-auto">
-                      {tasks.length === 0 ? (
+                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                      {procMovs.length === 0 ? (
                         <p className="text-xs text-gray-400">Sem andamentos registrados.</p>
-                      ) : tasks.map((t) => (
-                        <div key={t.id} className="text-sm border rounded-md p-2 bg-white flex items-start gap-2 group/task">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium">{t.title}</p>
-                            {t.description && <p className="text-xs text-gray-500 mt-0.5">{t.description}</p>}
-                            {t.due_date && <p className="text-xs text-gray-400 mt-1">{formatDate(t.due_date)}</p>}
+                      ) : procMovs.map((m: any) => (
+                        <div key={m.id} className="border rounded-md p-3 bg-card text-sm">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
+                              {MOV_TIPOS[m.title] ?? m.title}
+                            </span>
+                            {m.author_name && (
+                              <span className="text-xs font-medium text-foreground">{m.author_name}</span>
+                            )}
+                            {m.created_at && (
+                              <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(m.created_at).toLocaleString('pt-BR')}
+                              </span>
+                            )}
                           </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-6 w-6 shrink-0 text-red-400 opacity-0 group-hover/task:opacity-100 transition-opacity"
-                            onClick={() => deleteTask.mutate(t.id)}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {m.description && (
+                            <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
+                              {m.description}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>}
-
-                  {/* ── Tab: Movimentações ── */}
-                  {detailTab === 'movs' && (
-                    <div className="space-y-2">
-                      {procMovs.length === 0 ? (
-                        <p className="text-sm text-gray-400 text-center py-8">Sem movimentações registradas para este processo.</p>
-                      ) : procMovs.map((m: any) => (
-                        <div key={m.id} className="border rounded-md p-3 bg-white text-sm">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
-                              {MOV_TIPOS[m.title] ?? m.title}
-                            </span>
-                            {m.due_date && (
-                              <span className="text-xs text-gray-400 flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {new Date(m.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                              </span>
-                            )}
-                          </div>
-                          {m.description && <p className="text-xs text-gray-600 whitespace-pre-wrap">{m.description}</p>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   {/* ── Tab: Documentos ── */}
                   {detailTab === 'docs' && (
