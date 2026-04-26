@@ -298,7 +298,7 @@ export default function Clientes() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-display font-bold">Clientes</h1>
-          <p className="text-muted-foreground text-sm mt-1">{(clients as any[]).length} clientes cadastrados</p>
+          <p className="text-muted-foreground text-sm mt-1">{(clientsAll as any[]).length} clientes cadastrados</p>
         </div>
         <div className="flex gap-2">
           <CsvImportDialog />
