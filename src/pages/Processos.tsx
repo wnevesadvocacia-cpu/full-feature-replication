@@ -236,33 +236,26 @@ const MOV_TIPOS: Record<string, string> = {
   andamento: 'Andamento', comentario: 'Comentário', publicacao: 'Publicação',
   conclusao: 'Conclusão', documento: 'Documento',
 };
-function useProcessMovimentacoes(processId: string | null, processNumber?: string | null) {
-  return useQuery({
-    queryKey: ['proc-movs', processId, processNumber],
-    enabled: !!(processId || processNumber),
-    queryFn: async () => {
-      let targetProcessId = processId;
-      if (processNumber) {
-        const { data: processRow, error: processError } = await supabase
-          .from('processes')
-          .select('id')
-          .eq('number', processNumber)
-          .maybeSingle();
-        if (processError) throw processError;
-        targetProcessId = processRow?.id ?? targetProcessId;
-      }
-      if (!targetProcessId) return [];
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-      // Lê TODOS os registros de process_comments do processo, sem filtro por type/author/category.
+function isValidUuid(value: string | null | undefined): value is string {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
+
+function useProcessMovimentacoes(processId: string | null) {
+  const validProcessId = isValidUuid(processId) ? processId : null;
+
+  return useQuery({
+    queryKey: ['proc-movs', validProcessId],
+    enabled: !!validProcessId,
+    queryFn: async () => {
       const { data, error } = await supabase
         .from('process_comments' as any)
-        .select('id, content, author_name, type, created_at')
-        .eq('process_id', targetProcessId)
-        .order('created_at', { ascending: false })
-        .limit(5000);
+        .select('*')
+        .eq('process_id', validProcessId);
       if (error) throw error;
       // Normaliza para o shape esperado pela UI (title/description/due_date)
-      return (data ?? []).map((c: any) => ({
+      return (data ?? []).sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at))).map((c: any) => ({
         id: c.id,
         title: c.type || 'movimentacao',
         description: c.content,
