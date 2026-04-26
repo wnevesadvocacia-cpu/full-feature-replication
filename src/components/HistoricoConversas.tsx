@@ -173,13 +173,15 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
                 {initialsFor(c.author_name)}
               </div>
               {/* card */}
-              <div className="flex-1 min-w-0 bg-card border rounded-md p-3 shadow-sm">
+              <div className="flex-1 min-w-0 bg-card border rounded-md p-3 shadow-sm overflow-visible">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="text-sm font-semibold truncate">{c.author_name}</span>
+                  <span className="text-sm font-semibold break-words">{c.author_name}</span>
                   <Badge variant="outline" className={`${tipo.className} text-[10px] px-1.5 py-0`}>{tipo.label}</Badge>
-                  <span className="text-xs text-muted-foreground ml-auto">{formatDateTime(c.created_at)}</span>
+                  <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">{formatDateTime(c.created_at)}</span>
                 </div>
-                <p className="text-sm text-foreground whitespace-pre-wrap break-words">{c.content}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
+                  {c.content}
+                </p>
               </div>
             </div>
           );
