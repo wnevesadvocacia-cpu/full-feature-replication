@@ -69,7 +69,7 @@ export default function Clientes() {
   const [saving, setSaving] = useState(false);
 
   const { data: clientsAll = [], isLoading } = useClients();
-  // Busca server-side dedicada (cobre casos com >1000 clientes que ficam fora do cache local)
+  // Busca server-side dedicada e paginada: cobre toda a base, inclusive inativos/arquivados.
   const { data: searchHits = [] } = useQuery({
     queryKey: ['clients-search', search, typeFilter],
     enabled: !!search.trim(),
@@ -84,11 +84,22 @@ export default function Clientes() {
         orParts.push(`document.ilike.%${digits}%`);
         orParts.push(`phone.ilike.%${digits}%`);
       }
-      let q = supabase.from('clients').select('*').or(orParts.join(',')).limit(500);
-      if (typeFilter) q = q.eq('type', typeFilter);
-      const { data, error } = await q;
-      if (error) throw error;
-      return data ?? [];
+
+      const rows: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        let q = supabase
+          .from('clients')
+          .select('*')
+          .or(orParts.join(','))
+          .order('created_at', { ascending: false })
+          .range(from, from + 999);
+        if (typeFilter) q = q.eq('type', typeFilter);
+        const { data, error } = await q;
+        if (error) throw error;
+        rows.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return rows;
     },
   });
   // Quando há busca, usa resultados server-side (mais completos); senão lista cacheada
