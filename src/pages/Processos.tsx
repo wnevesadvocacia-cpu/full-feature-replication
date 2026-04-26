@@ -233,19 +233,33 @@ const MOV_TIPOS: Record<string, string> = {
   despacho: 'Despacho', decisao: 'Decisão', audiencia: 'Audiência',
   sentenca: 'Sentença', recurso: 'Recurso', peticao: 'Petição',
   citacao: 'Citação', intimacao: 'Intimação', outros: 'Outros',
+  andamento: 'Andamento', comentario: 'Comentário', publicacao: 'Publicação',
+  conclusao: 'Conclusão', documento: 'Documento',
 };
-function useProcessMovimentacoes(processId: string | null) {
+function useProcessMovimentacoes(processId: string | null, processNumber?: string | null) {
   return useQuery({
-    queryKey: ['proc-movs', processId],
-    enabled: !!processId,
+    queryKey: ['proc-movs', processId, processNumber],
+    enabled: !!(processId || processNumber),
     queryFn: async () => {
-      // Lê de process_comments (fonte real das movimentações importadas do ADVBOX)
+      let targetProcessId = processId;
+      if (processNumber) {
+        const { data: processRow, error: processError } = await supabase
+          .from('processes')
+          .select('id')
+          .eq('number', processNumber)
+          .maybeSingle();
+        if (processError) throw processError;
+        targetProcessId = processRow?.id ?? targetProcessId;
+      }
+      if (!targetProcessId) return [];
+
+      // Lê TODOS os registros de process_comments do processo, sem filtro por type/author/category.
       const { data, error } = await supabase
         .from('process_comments' as any)
         .select('id, content, author_name, type, created_at')
-        .eq('process_id', processId!)
+        .eq('process_id', targetProcessId)
         .order('created_at', { ascending: false })
-        .limit(2000);
+        .limit(5000);
       if (error) throw error;
       // Normaliza para o shape esperado pela UI (title/description/due_date)
       return (data ?? []).map((c: any) => ({
