@@ -148,12 +148,31 @@ function useProcesses(search: string, status: string, type: string, page: number
   return useQuery({
     queryKey: ['processes', search, status, type, page],
     queryFn: async () => {
+      let clientIds: string[] = [];
+      if (search) {
+        const { data: cli } = await supabase
+          .from('clients')
+          .select('id')
+          .ilike('name', `%${search}%`)
+          .limit(500);
+        clientIds = (cli ?? []).map((c: any) => c.id);
+      }
       let q = supabase
         .from('processes')
         .select(FULL_SELECT, { count: 'exact' })
         .order('updated_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%,opponent.ilike.%${search}%,comarca.ilike.%${search}%`);
+      if (search) {
+        const orParts = [
+          `number.ilike.%${search}%`,
+          `title.ilike.%${search}%`,
+          `client_name.ilike.%${search}%`,
+          `opponent.ilike.%${search}%`,
+          `comarca.ilike.%${search}%`,
+        ];
+        if (clientIds.length) orParts.push(`client_id.in.(${clientIds.join(',')})`);
+        q = q.or(orParts.join(','));
+      }
       if (status) q = q.eq('status', status);
       if (type) q = q.eq('type', type);
       const { data, error, count } = await q;
