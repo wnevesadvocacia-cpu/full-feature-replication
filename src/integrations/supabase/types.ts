@@ -993,6 +993,54 @@ export type Database = {
         }
         Relationships: []
       }
+      process_comments: {
+        Row: {
+          author_name: string
+          content: string
+          created_at: string
+          id: string
+          process_id: string | null
+          task_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          author_name: string
+          content: string
+          created_at?: string
+          id?: string
+          process_id?: string | null
+          task_id?: string | null
+          type?: string
+          user_id: string
+        }
+        Update: {
+          author_name?: string
+          content?: string
+          created_at?: string
+          id?: string
+          process_id?: string | null
+          task_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "process_comments_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "processes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "process_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       processes: {
         Row: {
           cause_value: number | null
