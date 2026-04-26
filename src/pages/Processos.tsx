@@ -150,12 +150,16 @@ function useProcesses(search: string, status: string, type: string, page: number
     queryFn: async () => {
       let clientIds: string[] = [];
       if (search) {
-        const { data: cli } = await supabase
-          .from('clients')
-          .select('id')
-          .ilike('name', `%${search}%`)
-          .limit(500);
-        clientIds = (cli ?? []).map((c: any) => c.id);
+        for (let from = 0; ; from += 1000) {
+          const { data: cli, error: cliError } = await supabase
+            .from('clients')
+            .select('id')
+            .ilike('name', `%${search}%`)
+            .range(from, from + 999);
+          if (cliError) throw cliError;
+          clientIds.push(...((cli ?? []).map((c: any) => c.id)));
+          if (!cli || cli.length < 1000) break;
+        }
       }
       let q = supabase
         .from('processes')
@@ -538,8 +542,16 @@ export default function Processos() {
       let off = 0;
       let clientIds: string[] = [];
       if (search) {
-        const { data: cli } = await supabase.from('clients').select('id').ilike('name', `%${search}%`).limit(500);
-        clientIds = (cli ?? []).map((c: any) => c.id);
+        for (let from = 0; ; from += 1000) {
+          const { data: cli, error: cliError } = await supabase
+            .from('clients')
+            .select('id')
+            .ilike('name', `%${search}%`)
+            .range(from, from + 999);
+          if (cliError) throw cliError;
+          clientIds.push(...((cli ?? []).map((c: any) => c.id)));
+          if (!cli || cli.length < 1000) break;
+        }
       }
       while (true) {
         let q = supabase.from('processes').select(FULL_SELECT)
