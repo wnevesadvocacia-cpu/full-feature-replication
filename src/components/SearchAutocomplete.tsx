@@ -228,9 +228,9 @@ export function SearchAutocomplete({
                   )}
                 >
                   {s.kind === 'client' ? (
-                    <User className="h-4 w-4 mt-0.5 text-blue-600 shrink-0" />
+                    <User className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                   ) : (
-                    <FileText className="h-4 w-4 mt-0.5 text-purple-600 shrink-0" />
+                    <FileText className="h-4 w-4 mt-0.5 text-primary shrink-0" />
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="font-medium truncate">{s.primary}</div>
