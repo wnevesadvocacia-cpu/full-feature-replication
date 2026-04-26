@@ -82,7 +82,42 @@ function mapProcess(row: Record<string, string>) {
   };
 }
 
-type ImportType = 'clientes' | 'processos';
+function parseDateBR(s: string): string | null {
+  if (!s) return null;
+  const t = s.trim();
+  // ISO yyyy-mm-dd
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // dd/mm/yyyy ou dd-mm-yyyy
+  const br = t.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return null;
+}
+
+function mapTask(row: Record<string, string>) {
+  // Mensagens/comentários/histórico → concatenados na descrição
+  const descParts = [
+    pick(row, 'descricao', 'descrição', 'description', 'detalhes', 'observacao', 'observação', 'observacoes', 'observações'),
+    pick(row, 'mensagem', 'mensagens', 'comentario', 'comentário', 'comentarios', 'comentários', 'historico', 'histórico', 'andamento', 'andamentos'),
+    pick(row, 'publicacao', 'publicação', 'publicacoes', 'publicações', 'movimentacao', 'movimentação'),
+  ].filter(Boolean);
+
+  return {
+    title: pick(row, 'titulo', 'título', 'tarefa', 'title', 'assunto', 'atividade') || 'Tarefa importada',
+    description: descParts.length ? descParts.join('\n\n---\n\n') : null,
+    due_date: parseDateBR(pick(row, 'prazo', 'data', 'vencimento', 'due_date', 'data_prazo')),
+    status: pick(row, 'status', 'situacao', 'situação').toLowerCase() || 'pendente',
+    priority: pick(row, 'prioridade', 'priority').toLowerCase() || 'media',
+    assignee: pick(row, 'responsavel', 'responsável', 'assignee', 'advogado') || null,
+    completed: ['concluida', 'concluída', 'concluido', 'concluído', 'feita', 'feito', 'done', 'true', '1'].includes(
+      pick(row, 'concluida', 'concluído', 'completed', 'feita').toLowerCase()
+    ),
+    event_type: pick(row, 'tipo', 'event_type', 'categoria') || null,
+    location: pick(row, 'local', 'location') || null,
+  };
+}
+
+type ImportType = 'clientes' | 'processos' | 'tarefas';
 
 export default function ImportarAdvbox() {
   const { user } = useAuth();
@@ -109,15 +144,20 @@ export default function ImportarAdvbox() {
     const errors: string[] = [];
 
     const batchSize = 50;
-    const items = preview.rows.map(r => type === 'clientes' ? mapClient(r) : mapProcess(r));
+    const items = preview.rows.map(r =>
+      type === 'clientes' ? mapClient(r) : type === 'processos' ? mapProcess(r) : mapTask(r)
+    );
     const valid = items.filter(it =>
-      type === 'clientes' ? !!(it as any).name : !!(it as any).number
+      type === 'clientes' ? !!(it as any).name :
+      type === 'processos' ? !!(it as any).number :
+      !!(it as any).title
     );
     skipped = items.length - valid.length;
 
+    const table = type === 'clientes' ? 'clients' : type === 'processos' ? 'processes' : 'tasks';
     for (let i = 0; i < valid.length; i += batchSize) {
       const chunk = valid.slice(i, i + batchSize).map(v => ({ ...v, user_id: user.id }));
-      const { error, data } = await supabase.from(type === 'clientes' ? 'clients' : 'processes').insert(chunk).select('id');
+      const { error, data } = await supabase.from(table).insert(chunk).select('id');
       if (error) {
         errors.push(`Lote ${Math.floor(i / batchSize) + 1}: ${error.message}`);
       } else {
@@ -136,7 +176,9 @@ export default function ImportarAdvbox() {
 
   const expectedCols = type === 'clientes'
     ? ['nome / cliente / name', 'email / e-mail', 'telefone / celular', 'cpf / cnpj / documento', 'tipo (PF/PJ)']
-    : ['numero / cnj', 'titulo / assunto', 'cliente / parte', 'tipo / area', 'tribunal', 'vara', 'comarca', 'status', 'valor'];
+    : type === 'processos'
+    ? ['numero / cnj', 'titulo / assunto', 'cliente / parte', 'tipo / area', 'tribunal', 'vara', 'comarca', 'status', 'valor']
+    : ['titulo / tarefa / atividade', 'descricao / detalhes', 'mensagem / comentario / historico', 'publicacao / movimentacao', 'prazo / data / vencimento', 'status', 'prioridade', 'responsavel'];
 
   return (
     <div className="space-y-6">
@@ -153,6 +195,7 @@ export default function ImportarAdvbox() {
         <TabsList>
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
           <TabsTrigger value="processos">Processos</TabsTrigger>
+          <TabsTrigger value="tarefas">Tarefas / Publicações</TabsTrigger>
         </TabsList>
 
         <TabsContent value={type} className="space-y-4">
