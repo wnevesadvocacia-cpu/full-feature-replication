@@ -18,6 +18,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { SearchAutocomplete } from '@/components/SearchAutocomplete';
+import { HistoricoConversas } from '@/components/HistoricoConversas';
 
 interface Process {
   id: string;
