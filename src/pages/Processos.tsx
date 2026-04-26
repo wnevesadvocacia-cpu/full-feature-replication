@@ -1109,6 +1109,13 @@ export default function Processos() {
                       })}
                     </div>
                   )}
+
+                  {/* ── Tab: Histórico ── */}
+                  {detailTab === 'history' && (
+                    <div className="h-[60vh] flex flex-col">
+                      <HistoricoConversas processId={selected.id} />
+                    </div>
+                  )}
                 </div>
               )}
             </>
