@@ -323,9 +323,23 @@ export default function Tarefas() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader><DialogTitle>Editar Tarefa</DialogTitle></DialogHeader>
-          <TaskFormFields />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1">
+            <div>
+              <TaskFormFields />
+            </div>
+            <div className="border-l md:pl-4 flex flex-col min-h-[400px]">
+              <p className="text-sm font-semibold mb-2 flex items-center gap-1">
+                Histórico de conversas
+              </p>
+              {editTarget?.id && (
+                <div className="flex-1">
+                  <HistoricoConversas taskId={editTarget.id} />
+                </div>
+              )}
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
             <Button onClick={handleEdit} disabled={!form.title || saving}>
