@@ -144,15 +144,20 @@ export default function ImportarAdvbox() {
     const errors: string[] = [];
 
     const batchSize = 50;
-    const items = preview.rows.map(r => type === 'clientes' ? mapClient(r) : mapProcess(r));
+    const items = preview.rows.map(r =>
+      type === 'clientes' ? mapClient(r) : type === 'processos' ? mapProcess(r) : mapTask(r)
+    );
     const valid = items.filter(it =>
-      type === 'clientes' ? !!(it as any).name : !!(it as any).number
+      type === 'clientes' ? !!(it as any).name :
+      type === 'processos' ? !!(it as any).number :
+      !!(it as any).title
     );
     skipped = items.length - valid.length;
 
+    const table = type === 'clientes' ? 'clients' : type === 'processos' ? 'processes' : 'tasks';
     for (let i = 0; i < valid.length; i += batchSize) {
       const chunk = valid.slice(i, i + batchSize).map(v => ({ ...v, user_id: user.id }));
-      const { error, data } = await supabase.from(type === 'clientes' ? 'clients' : 'processes').insert(chunk).select('id');
+      const { error, data } = await supabase.from(table).insert(chunk).select('id');
       if (error) {
         errors.push(`Lote ${Math.floor(i / batchSize) + 1}: ${error.message}`);
       } else {
@@ -171,7 +176,9 @@ export default function ImportarAdvbox() {
 
   const expectedCols = type === 'clientes'
     ? ['nome / cliente / name', 'email / e-mail', 'telefone / celular', 'cpf / cnpj / documento', 'tipo (PF/PJ)']
-    : ['numero / cnj', 'titulo / assunto', 'cliente / parte', 'tipo / area', 'tribunal', 'vara', 'comarca', 'status', 'valor'];
+    : type === 'processos'
+    ? ['numero / cnj', 'titulo / assunto', 'cliente / parte', 'tipo / area', 'tribunal', 'vara', 'comarca', 'status', 'valor']
+    : ['titulo / tarefa / atividade', 'descricao / detalhes', 'mensagem / comentario / historico', 'publicacao / movimentacao', 'prazo / data / vencimento', 'status', 'prioridade', 'responsavel'];
 
   return (
     <div className="space-y-6">
