@@ -536,11 +536,26 @@ export default function Processos() {
     try {
       let all: Process[] = [];
       let off = 0;
+      let clientIds: string[] = [];
+      if (search) {
+        const { data: cli } = await supabase.from('clients').select('id').ilike('name', `%${search}%`).limit(500);
+        clientIds = (cli ?? []).map((c: any) => c.id);
+      }
       while (true) {
         let q = supabase.from('processes').select(FULL_SELECT)
           .order('updated_at', { ascending: false })
           .range(off, off + 999);
-        if (search) q = q.or(`number.ilike.%${search}%,title.ilike.%${search}%,client_name.ilike.%${search}%,opponent.ilike.%${search}%,comarca.ilike.%${search}%`);
+        if (search) {
+          const orParts = [
+            `number.ilike.%${search}%`,
+            `title.ilike.%${search}%`,
+            `client_name.ilike.%${search}%`,
+            `opponent.ilike.%${search}%`,
+            `comarca.ilike.%${search}%`,
+          ];
+          if (clientIds.length) orParts.push(`client_id.in.(${clientIds.join(',')})`);
+          q = q.or(orParts.join(','));
+        }
         if (statusFilter) q = q.eq('status', statusFilter);
         if (typeFilter) q = q.eq('type', typeFilter);
         const { data, error } = await q;
