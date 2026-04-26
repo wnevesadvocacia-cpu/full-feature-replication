@@ -104,13 +104,16 @@ export default function Clientes() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
+  const norm = (s: string) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const onlyDigits = (s: string) => (s || '').replace(/\D/g, '');
   const filtered = (clients as any[]).filter((c: any) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      c.name.toLowerCase().includes(q) ||
-      (c.email || '').toLowerCase().includes(q) ||
-      (c.document || '').includes(q) ||
-      (c.phone || '').includes(q);
+    const q = norm(search.trim());
+    if (!q && !typeFilter) return true;
+    const qDigits = onlyDigits(search);
+    const matchSearch = !q ||
+      norm(c.name).includes(q) ||
+      norm(c.email || '').includes(q) ||
+      (qDigits && (onlyDigits(c.document || '').includes(qDigits) || onlyDigits(c.phone || '').includes(qDigits)));
     const matchType = !typeFilter || c.type === typeFilter;
     return matchSearch && matchType;
   });
