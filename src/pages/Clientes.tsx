@@ -68,7 +68,31 @@ export default function Clientes() {
   const [form, setForm] = useState<ClientForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
-  const { data: clients = [], isLoading } = useClients();
+  const { data: clientsAll = [], isLoading } = useClients();
+  // Busca server-side dedicada (cobre casos com >1000 clientes que ficam fora do cache local)
+  const { data: searchHits = [] } = useQuery({
+    queryKey: ['clients-search', search, typeFilter],
+    enabled: !!search.trim(),
+    queryFn: async () => {
+      const term = search.trim();
+      const digits = term.replace(/\D/g, '');
+      const orParts = [
+        `name.ilike.%${term}%`,
+        `email.ilike.%${term}%`,
+      ];
+      if (digits) {
+        orParts.push(`document.ilike.%${digits}%`);
+        orParts.push(`phone.ilike.%${digits}%`);
+      }
+      let q = supabase.from('clients').select('*').or(orParts.join(',')).limit(500);
+      if (typeFilter) q = q.eq('type', typeFilter);
+      const { data, error } = await q;
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  // Quando há busca, usa resultados server-side (mais completos); senão lista cacheada
+  const clients = search.trim() ? searchHits : clientsAll;
   // Direct query for selected client's processes (avoids pagination limits)
   const { data: clientProcs = [] } = useQuery({
     queryKey: ['client-processes', selected?.id],
