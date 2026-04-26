@@ -250,7 +250,7 @@ function useProcessMovimentacoes(processId: string | null) {
     enabled: !!validProcessId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('process_comments' as any)
+        .from('process_comments')
         .select('*')
         .eq('process_id', validProcessId);
       if (error) throw error;
