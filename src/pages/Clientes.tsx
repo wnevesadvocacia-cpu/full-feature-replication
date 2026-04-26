@@ -321,9 +321,12 @@ export default function Clientes() {
       {/* Filtros */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar nome, email, CPF/CNPJ…" value={search}
-            onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <SearchAutocomplete
+            value={search}
+            onChange={setSearch}
+            sources={['client']}
+            placeholder="Buscar nome, e-mail, CPF/CNPJ…"
+          />
         </div>
         <div className="flex gap-1">
           {(['', 'PF', 'PJ'] as const).map(t => (
