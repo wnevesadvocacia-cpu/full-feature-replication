@@ -532,7 +532,7 @@ export default function Processos() {
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
   const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null);
   const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
-  const [detailTab, setDetailTab] = useState<'details' | 'movs' | 'docs' | 'tasks'>('details');
+  const [detailTab, setDetailTab] = useState<'details' | 'movs' | 'docs' | 'tasks' | 'history'>('details');
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -855,6 +855,7 @@ export default function Processos() {
                       { id: 'movs',    label: `Movimentações (${procMovs.length})` },
                       { id: 'docs',    label: `Documentos (${procDocs.length})` },
                       { id: 'tasks',   label: `Andamentos (${tasks.length})` },
+                      { id: 'history', label: 'Histórico' },
                     ] as { id: typeof detailTab; label: string }[]).map(({ id, label }) => (
                       <button key={id} onClick={() => { setDetailTab(id); setShowTaskForm(false); }}
                         className={`text-xs px-3 py-1.5 rounded-md font-medium transition-colors ${
