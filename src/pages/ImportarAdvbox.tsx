@@ -195,6 +195,7 @@ export default function ImportarAdvbox() {
         <TabsList>
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
           <TabsTrigger value="processos">Processos</TabsTrigger>
+          <TabsTrigger value="tarefas">Tarefas / Publicações</TabsTrigger>
         </TabsList>
 
         <TabsContent value={type} className="space-y-4">
