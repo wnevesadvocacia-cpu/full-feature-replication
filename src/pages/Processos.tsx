@@ -239,15 +239,23 @@ function useProcessMovimentacoes(processId: string | null) {
     queryKey: ['proc-movs', processId],
     enabled: !!processId,
     queryFn: async () => {
+      // Lê de process_comments (fonte real das movimentações importadas do ADVBOX)
       const { data, error } = await supabase
-        .from('tasks')
-        .select('id, title, description, due_date, created_at')
+        .from('process_comments' as any)
+        .select('id, content, author_name, type, created_at')
         .eq('process_id', processId!)
-        .eq('assignee', 'movimentacao')
-        .order('due_date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(2000);
       if (error) throw error;
-      return data ?? [];
+      // Normaliza para o shape esperado pela UI (title/description/due_date)
+      return (data ?? []).map((c: any) => ({
+        id: c.id,
+        title: c.type || 'movimentacao',
+        description: c.content,
+        due_date: c.created_at?.split('T')[0] ?? null,
+        created_at: c.created_at,
+        author_name: c.author_name,
+      }));
     },
   });
 }
@@ -257,14 +265,19 @@ function useProcessDocumentos(processId: string | null) {
     enabled: !!processId,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('tasks')
-        .select('id, title, description, due_date, created_at')
+        .from('documents')
+        .select('id, name, description, created_at')
         .eq('process_id', processId!)
-        .eq('assignee', 'documento')
         .order('created_at', { ascending: false })
         .limit(2000);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((d: any) => ({
+        id: d.id,
+        title: d.name,
+        description: d.description,
+        due_date: d.created_at?.split('T')[0] ?? null,
+        created_at: d.created_at,
+      }));
     },
   });
 }
