@@ -551,7 +551,7 @@ export default function Processos() {
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
-  const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null, selected?.number ?? null);
+  const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null);
   const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
   const [detailTab, setDetailTab] = useState<'details' | 'movs' | 'docs' | 'tasks' | 'history'>('details');
 
