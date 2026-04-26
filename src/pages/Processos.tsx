@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { DeleteGuard } from '@/components/DeleteGuard';
+import { SearchAutocomplete } from '@/components/SearchAutocomplete';
 
 interface Process {
   id: string;
@@ -693,13 +694,12 @@ export default function Processos() {
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            placeholder="Buscar número, título, cliente, parte contrária…"
+        <div className="relative flex-1 min-w-[260px] max-w-md">
+          <SearchAutocomplete
             value={search}
-            onChange={(e) => handleSearch(e.target.value)}
-            className="pl-9"
+            onChange={handleSearch}
+            sources={['process', 'client']}
+            placeholder="Buscar nº processo, cliente, CPF/CNPJ, título…"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
