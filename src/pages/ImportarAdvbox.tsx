@@ -82,7 +82,42 @@ function mapProcess(row: Record<string, string>) {
   };
 }
 
-type ImportType = 'clientes' | 'processos';
+function parseDateBR(s: string): string | null {
+  if (!s) return null;
+  const t = s.trim();
+  // ISO yyyy-mm-dd
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  // dd/mm/yyyy ou dd-mm-yyyy
+  const br = t.match(/^(\d{2})[\/\-](\d{2})[\/\-](\d{4})/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  return null;
+}
+
+function mapTask(row: Record<string, string>) {
+  // Mensagens/comentários/histórico → concatenados na descrição
+  const descParts = [
+    pick(row, 'descricao', 'descrição', 'description', 'detalhes', 'observacao', 'observação', 'observacoes', 'observações'),
+    pick(row, 'mensagem', 'mensagens', 'comentario', 'comentário', 'comentarios', 'comentários', 'historico', 'histórico', 'andamento', 'andamentos'),
+    pick(row, 'publicacao', 'publicação', 'publicacoes', 'publicações', 'movimentacao', 'movimentação'),
+  ].filter(Boolean);
+
+  return {
+    title: pick(row, 'titulo', 'título', 'tarefa', 'title', 'assunto', 'atividade') || 'Tarefa importada',
+    description: descParts.length ? descParts.join('\n\n---\n\n') : null,
+    due_date: parseDateBR(pick(row, 'prazo', 'data', 'vencimento', 'due_date', 'data_prazo')),
+    status: pick(row, 'status', 'situacao', 'situação').toLowerCase() || 'pendente',
+    priority: pick(row, 'prioridade', 'priority').toLowerCase() || 'media',
+    assignee: pick(row, 'responsavel', 'responsável', 'assignee', 'advogado') || null,
+    completed: ['concluida', 'concluída', 'concluido', 'concluído', 'feita', 'feito', 'done', 'true', '1'].includes(
+      pick(row, 'concluida', 'concluído', 'completed', 'feita').toLowerCase()
+    ),
+    event_type: pick(row, 'tipo', 'event_type', 'categoria') || null,
+    location: pick(row, 'local', 'location') || null,
+  };
+}
+
+type ImportType = 'clientes' | 'processos' | 'tarefas';
 
 export default function ImportarAdvbox() {
   const { user } = useAuth();
