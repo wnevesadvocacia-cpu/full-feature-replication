@@ -1,0 +1,1 @@
+UPDATE public.processes SET last_update = '2026-02-27' WHERE number = '1005489-38.2023.8.26.0020';
