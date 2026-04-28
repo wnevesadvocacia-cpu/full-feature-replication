@@ -858,6 +858,9 @@ export type Database = {
           last_error: string | null
           last_success_at: string | null
           last_sync_at: string | null
+          lawyer_name: string | null
+          name_match_threshold: number
+          name_variations: string[]
           oab_number: string
           oab_uf: string
           updated_at: string
@@ -871,6 +874,9 @@ export type Database = {
           last_error?: string | null
           last_success_at?: string | null
           last_sync_at?: string | null
+          lawyer_name?: string | null
+          name_match_threshold?: number
+          name_variations?: string[]
           oab_number: string
           oab_uf: string
           updated_at?: string
@@ -884,6 +890,9 @@ export type Database = {
           last_error?: string | null
           last_success_at?: string | null
           last_sync_at?: string | null
+          lawyer_name?: string | null
+          name_match_threshold?: number
+          name_variations?: string[]
           oab_number?: string
           oab_uf?: string
           updated_at?: string
