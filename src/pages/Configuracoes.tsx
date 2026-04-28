@@ -233,9 +233,8 @@ export default function Configuracoes() {
     finally { setSyncing(false); }
   }
 
-  // Carrega config do proxy DJEN (apenas admin)
+  // Carrega config do proxy DJEN (backend valida admin; falha silenciosa se não for)
   useEffect(() => {
-    if (!isAdmin) return;
     let cancel = false;
     (async () => {
       try {
@@ -247,7 +246,7 @@ export default function Configuracoes() {
       } catch (e) { /* silent */ }
     })();
     return () => { cancel = true; };
-  }, [isAdmin]);
+  }, []);
 
   async function validateProxy() {
     setProxyValidating(true);
