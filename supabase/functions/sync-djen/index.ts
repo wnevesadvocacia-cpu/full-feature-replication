@@ -315,8 +315,9 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
 
   // Base URL da API CNJ — usa proxy BR (Cloudflare Worker) se configurado para
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
-  // Configure o secret DJEN_PROXY_URL com algo como: https://djen-proxy.SEU.workers.dev
-  const PROXY = Deno.env.get('DJEN_PROXY_URL')?.replace(/\/$/, '');
+  // Prioridade: 1) RESOLVED_PROXY_URL (configurado pela UI em djen_proxy_config),
+  //             2) secret DJEN_PROXY_URL, 3) URL direta do CNJ.
+  const PROXY = (RESOLVED_PROXY_URL || Deno.env.get('DJEN_PROXY_URL') || '').replace(/\/$/, '');
   const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
 
   // Constrói lista de queries: 1) sempre por OAB; 2) por nome se configurado.
