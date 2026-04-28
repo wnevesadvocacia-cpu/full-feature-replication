@@ -313,12 +313,18 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
   const seen = new Set<string>();
   let totalAttempts = 0;
 
+  // Base URL da API CNJ — usa proxy BR (Cloudflare Worker) se configurado para
+  // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
+  // Configure o secret DJEN_PROXY_URL com algo como: https://djen-proxy.SEU.workers.dev
+  const PROXY = Deno.env.get('DJEN_PROXY_URL')?.replace(/\/$/, '');
+  const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
+
   // Constrói lista de queries: 1) sempre por OAB; 2) por nome se configurado.
   const queries: Array<(p: number) => string> = [
-    (p) => `https://comunicaapi.pje.jus.br/api/v1/comunicacao?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
+    (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
   ];
   if (lawyerName && lawyerName.trim().length >= 5) {
-    queries.push((p) => `https://comunicaapi.pje.jus.br/api/v1/comunicacao?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+    queries.push((p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
   }
 
   for (const buildUrl of queries) {
