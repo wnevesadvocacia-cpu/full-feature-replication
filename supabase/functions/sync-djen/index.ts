@@ -575,6 +575,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     total: items.length,
     inserted,
     urgent: urgentDeadlines,
+    name_rejected: nameRejected,
     attempts,
     duration_ms: duration,
     error: errorMessage,
