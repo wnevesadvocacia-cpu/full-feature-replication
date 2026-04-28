@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, Scale, RefreshCw, Plus, Trash2 } from 'lucide-react';
+import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, Scale, RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Cloud, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
