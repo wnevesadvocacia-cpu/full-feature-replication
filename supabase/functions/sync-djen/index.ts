@@ -221,14 +221,101 @@ async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
   }
 }
 
-async function fetchDjen(oab: string, uf: string): Promise<{ items: DjenItem[]; attempts: number }> {
+// ============= Fuzzy match de nome (Levenshtein normalizado) =============
+function normalizeName(s: string): string {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function levenshtein(a: string, b: string): number {
+  if (a === b) return 0;
+  if (!a.length) return b.length;
+  if (!b.length) return a.length;
+  const v0 = new Array(b.length + 1);
+  const v1 = new Array(b.length + 1);
+  for (let i = 0; i <= b.length; i++) v0[i] = i;
+  for (let i = 0; i < a.length; i++) {
+    v1[0] = i + 1;
+    for (let j = 0; j < b.length; j++) {
+      const cost = a[i] === b[j] ? 0 : 1;
+      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
+    }
+    for (let j = 0; j <= b.length; j++) v0[j] = v1[j];
+  }
+  return v1[b.length];
+}
+
+function similarity(a: string, b: string): number {
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  if (!na || !nb) return 0;
+  const maxLen = Math.max(na.length, nb.length);
+  return 1 - levenshtein(na, nb) / maxLen;
+}
+
+/**
+ * Extrai possíveis nomes de destinatários/advogados do payload DJEN.
+ * Cobre: destinatarios[].nome, destinatarioadvogados[].advogado.nome, texto livre,
+ * advogados[].nome, intimado, autor/reu (best-effort).
+ */
+function extractDjenNames(it: any): string[] {
+  const names: string[] = [];
+  const push = (v: any) => { if (typeof v === 'string' && v.trim().length > 3) names.push(v); };
+  if (Array.isArray(it.destinatarios)) it.destinatarios.forEach((d: any) => push(d?.nome));
+  if (Array.isArray(it.destinatarioadvogados)) it.destinatarioadvogados.forEach((d: any) => push(d?.advogado?.nome ?? d?.nome));
+  if (Array.isArray(it.advogados)) it.advogados.forEach((a: any) => push(a?.nome));
+  push(it.nomeAdvogado);
+  push(it.intimado);
+  return names;
+}
+
+/**
+ * Decide se a publicação é compatível com o(s) nome(s) configurado(s).
+ * - Se nenhum nome configurado: aceita (compatibilidade retro).
+ * - Se nomes do payload contiverem qualquer referência com similaridade ≥ threshold
+ *   a algum dos nomes configurados, aceita.
+ * - Se houver nomes no payload mas NENHUM bater: rejeita (publicação direcionada a outro advogado).
+ * - Se o payload não trouxer nomes estruturados: aceita (não temos como rejeitar com segurança).
+ */
+function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number): { ok: boolean; bestScore: number; reason: string } {
+  if (!refNames.length) return { ok: true, bestScore: 1, reason: 'no-ref' };
+  const candidates = extractDjenNames(it);
+  if (!candidates.length) return { ok: true, bestScore: 0, reason: 'no-candidates' };
+  let best = 0;
+  for (const c of candidates) {
+    for (const r of refNames) {
+      const s = similarity(c, r);
+      if (s > best) best = s;
+      if (s >= threshold) return { ok: true, bestScore: s, reason: 'match' };
+    }
+  }
+  return { ok: false, bestScore: best, reason: 'mismatch' };
+}
+
+async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): Promise<{ items: DjenItem[]; attempts: number }> {
   const dataInicio = new Date(Date.now() - DAYS_BACK * 86400_000).toISOString().slice(0, 10);
   const dataFim = new Date().toISOString().slice(0, 10);
   const all: DjenItem[] = [];
-  let pagina = 1;
+  const seen = new Set<string>();
   let totalAttempts = 0;
-  while (pagina <= 20) {
-    const url = `https://comunicaapi.pje.jus.br/api/v1/comunicacao?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${pagina}&itensPorPagina=100`;
+
+  // Constrói lista de queries: 1) sempre por OAB; 2) por nome se configurado.
+  const queries: Array<(p: number) => string> = [
+    (p) => `https://comunicaapi.pje.jus.br/api/v1/comunicacao?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
+  ];
+  if (lawyerName && lawyerName.trim().length >= 5) {
+    queries.push((p) => `https://comunicaapi.pje.jus.br/api/v1/comunicacao?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+  }
+
+  for (const buildUrl of queries) {
+    let pagina = 1;
+    while (pagina <= 20) {
+      const url = buildUrl(pagina);
     const res = await fetchWithRetry(url);
     totalAttempts++;
     if (!res.ok) {
