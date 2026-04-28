@@ -306,6 +306,10 @@ function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number)
   return { ok: false, bestScore: best, reason: 'mismatch' };
 }
 
+// Proxy resolvido na inicialização do handler (lê djen_proxy_config). Module-level
+// para evitar refazer query a cada chamada de fetchDjen dentro de um run.
+let RESOLVED_PROXY_URL: string | null = null;
+
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): Promise<{ items: DjenItem[]; attempts: number }> {
   const dataInicio = new Date(Date.now() - DAYS_BACK * 86400_000).toISOString().slice(0, 10);
   const dataFim = new Date().toISOString().slice(0, 10);
@@ -315,8 +319,9 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
 
   // Base URL da API CNJ — usa proxy BR (Cloudflare Worker) se configurado para
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
-  // Configure o secret DJEN_PROXY_URL com algo como: https://djen-proxy.SEU.workers.dev
-  const PROXY = Deno.env.get('DJEN_PROXY_URL')?.replace(/\/$/, '');
+  // Prioridade: 1) RESOLVED_PROXY_URL (configurado pela UI em djen_proxy_config),
+  //             2) secret DJEN_PROXY_URL, 3) URL direta do CNJ.
+  const PROXY = (RESOLVED_PROXY_URL || Deno.env.get('DJEN_PROXY_URL') || '').replace(/\/$/, '');
   const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
 
   // Constrói lista de queries: 1) sempre por OAB; 2) por nome se configurado.
@@ -617,6 +622,16 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
+
+  // Resolve proxy URL configurado pela UI (tabela djen_proxy_config). Falha silenciosa
+  // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.
+  try {
+    const { data: cfg } = await supabase.from('djen_proxy_config').select('proxy_url').eq('id', 1).maybeSingle();
+    RESOLVED_PROXY_URL = ((cfg as { proxy_url?: string } | null)?.proxy_url) ?? null;
+  } catch (e) {
+    console.warn('[sync-djen] não foi possível ler djen_proxy_config:', (e as Error).message);
+    RESOLVED_PROXY_URL = null;
+  }
 
   let lockAcquired = false;
   let cronRunId: string | null = null;
