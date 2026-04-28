@@ -215,6 +215,36 @@ export type Database = {
         }
         Relationships: []
       }
+      djen_proxy_config: {
+        Row: {
+          id: number
+          last_error: string | null
+          last_status: string | null
+          proxy_url: string | null
+          updated_at: string
+          validated_at: string | null
+          validated_by: string | null
+        }
+        Insert: {
+          id?: number
+          last_error?: string | null
+          last_status?: string | null
+          proxy_url?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Update: {
+          id?: number
+          last_error?: string | null
+          last_status?: string | null
+          proxy_url?: string | null
+          updated_at?: string
+          validated_at?: string | null
+          validated_by?: string | null
+        }
+        Relationships: []
+      }
       document_templates: {
         Row: {
           category: string | null
