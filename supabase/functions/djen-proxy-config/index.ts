@@ -80,9 +80,11 @@ Deno.serve(async (req) => {
   if (userErr || !userData?.user) return json({ error: 'unauthorized' }, 401, req);
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-  const { data: roleData } = await admin
-    .from('user_roles').select('role').eq('user_id', userData.user.id).eq('role', 'admin').maybeSingle();
-  if (!roleData) return json({ error: 'forbidden: admin only' }, 403, req);
+  const { data: roleRows } = await admin
+    .from('user_roles').select('role').eq('user_id', userData.user.id);
+  const roles = (roleRows ?? []).map((r: any) => r.role);
+  const isAdmin = roles.includes('admin');
+  const canManage = isAdmin || roles.includes('gerente');
 
   let action = new URL(req.url).searchParams.get('action');
   let url: string | undefined;
@@ -92,6 +94,15 @@ Deno.serve(async (req) => {
       action = body.action ?? action;
       url = body.url;
     } catch { /* ignore */ }
+  }
+
+  // GET é permitido para qualquer membro do escritório (apenas leitura da config).
+  // Mutações (validate/save/clear) exigem admin ou gerente.
+  if (action !== 'get' && !canManage) {
+    return json({ error: 'forbidden: admin or manager only' }, 403, req);
+  }
+  if (roles.length === 0) {
+    return json({ error: 'forbidden: not an office member' }, 403, req);
   }
 
   if (action === 'get') {
