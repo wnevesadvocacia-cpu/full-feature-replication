@@ -553,7 +553,9 @@ export default function Processos() {
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
   const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null);
   const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
-  const [detailTab, setDetailTab] = useState<'details' | 'docs' | 'tasks' | 'history'>('details');
+  const procAndamentos = (procMovs as any[]).filter((m: any) => m.title !== 'comentario');
+  const procComents = (procMovs as any[]).filter((m: any) => m.title === 'comentario');
+  const [detailTab, setDetailTab] = useState<'details' | 'docs' | 'tasks' | 'comments' | 'history'>('details');
 
   const [isExporting, setIsExporting] = useState(false);
 
@@ -629,6 +631,32 @@ export default function Processos() {
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
+
+
+  const addComment = useMutation({
+    mutationFn: async (payload: { title: string; description: string }) => {
+      const { error } = await supabase.from('process_comments').insert({
+        content: payload.description || payload.title,
+        author_name: user?.email?.split('@')[0] ?? 'Advogado',
+        process_id: selected?.id,
+        user_id: user?.id!,
+        type: 'comentario',
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
+      toast({ title: 'Comentário adicionado.' });
+      setNewTask({ title: '', description: '', due_date: '' });
+      setShowTaskForm(false);
+    },
+    onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
+  const submitComment = () => {
+    if (!newTask.description.trim() && !newTask.title.trim()) return;
+    addComment.mutate(newTask);
+  };
 
   // Delete individual andamento task
   const deleteTask = useMutation({
@@ -873,8 +901,9 @@ export default function Processos() {
                   <div className="flex gap-1 border-b pb-2 mb-4">
                     {([
                       { id: 'details', label: 'Detalhes' },
-                      { id: 'tasks',   label: `Andamentos (${procMovs.length})` },
+                      { id: 'tasks',   label: `Andamentos (${procAndamentos.length})` },
                       { id: 'docs',    label: `Documentos (${procDocs.length})` },
+                      { id: 'comments', label: `Comentários (${procComents.length})` },
                       { id: 'history', label: 'Histórico' },
                     ] as { id: typeof detailTab; label: string }[]).map(({ id, label }) => (
                       <button key={id} onClick={() => { setDetailTab(id); setShowTaskForm(false); }}
@@ -1012,7 +1041,7 @@ export default function Processos() {
                   {detailTab === 'tasks' && <div>
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-semibold flex items-center gap-1">
-                        <MessageSquare className="h-4 w-4" /> Andamentos ({procMovs.length})
+                        <MessageSquare className="h-4 w-4" /> Andamentos ({procAndamentos.length})
                       </p>
                       <Button size="sm" variant="outline" onClick={() => setShowTaskForm((v) => !v)}>
                         <Plus className="h-3 w-3 mr-1" /> Adicionar
@@ -1049,9 +1078,9 @@ export default function Processos() {
                     )}
 
                     <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-                      {procMovs.length === 0 ? (
+                      {procAndamentos.length === 0 ? (
                         <p className="text-xs text-gray-400">Sem andamentos registrados.</p>
-                      ) : procMovs.map((m: any) => (
+                      ) : procAndamentos.map((m: any) => (
                         <div key={m.id} className="border rounded-md p-3 bg-card text-sm">
                           <div className="flex flex-wrap items-center gap-2 mb-1">
                             <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">
@@ -1111,6 +1140,70 @@ export default function Processos() {
                       })}
                     </div>
                   )}
+
+                  {/* ── Tab: Comentários ── */}
+                  {detailTab === 'comments' && <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-semibold flex items-center gap-1">
+                        <MessageSquare className="h-4 w-4" /> Comentários Internos ({procComents.length})
+                      </p>
+                      <Button size="sm" variant="outline" onClick={() => setShowTaskForm((v) => !v)}>
+                        <Plus className="h-3 w-3 mr-1" /> Adicionar
+                      </Button>
+                    </div>
+
+                    {showTaskForm && (
+                      <div className="border rounded-md p-3 space-y-2 mb-3 bg-gray-50">
+                        <Input
+                          placeholder="Título do comentário"
+                          value={newTask.title}
+                          onChange={(e) => setNewTask((p) => ({ ...p, title: e.target.value }))}
+                        />
+                        <Textarea
+                          placeholder="Conteúdo do comentário"
+                          value={newTask.description}
+                          onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))}
+                          rows={3}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={submitComment} disabled={addComment.isPending}>
+                            {addComment.isPending ? 'Salvando…' : 'Salvar'}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setShowTaskForm(false)}>
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                      {procComents.length === 0 ? (
+                        <p className="text-xs text-gray-400">Nenhum comentário interno registrado.</p>
+                      ) : procComents.map((m: any) => (
+                        <div key={m.id} className="border rounded-md p-3 bg-yellow-50 text-sm">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <span className="text-[10px] bg-yellow-200 text-yellow-800 px-2 py-0.5 rounded font-medium">
+                              Comentário
+                            </span>
+                            {m.author_name && (
+                              <span className="text-xs font-medium text-foreground">{m.author_name}</span>
+                            )}
+                            {m.created_at && (
+                              <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {new Date(m.created_at).toLocaleString('pt-BR')}
+                              </span>
+                            )}
+                          </div>
+                          {m.description && (
+                            <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
+                              {m.description}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>}
 
                   {/* ── Tab: Histórico ── */}
                   {detailTab === 'history' && (
