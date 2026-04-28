@@ -316,35 +316,37 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
     let pagina = 1;
     while (pagina <= 20) {
       const url = buildUrl(pagina);
-    const res = await fetchWithRetry(url);
-    totalAttempts++;
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`);
-    }
-    const json = await res.json();
-    const rawItems: unknown[] = json.items || json.data || [];
-    if (!rawItems.length) break;
-    // SprintClosure #9: validação Zod strict. Itens inválidos são descartados
-    // com log explícito (não silenciam para today).
-    const validItems: DjenItem[] = [];
-    for (const raw of rawItems) {
-      const parsed = DjenItemSchema.safeParse(raw);
-      if (parsed.success) {
-        // Sem data_disponibilizacao válida -> não confiamos no item
-        if (!parsed.data.data_disponibilizacao) {
-          console.warn('[djen-schema] item sem data_disponibilizacao válida — descartado', JSON.stringify(raw).slice(0, 200));
-          continue;
-        }
-        validItems.push(parsed.data);
-      } else {
-        console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
+      const res = await fetchWithRetry(url);
+      totalAttempts++;
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`);
       }
+      const json = await res.json();
+      const rawItems: unknown[] = json.items || json.data || [];
+      if (!rawItems.length) break;
+      const validItems: DjenItem[] = [];
+      for (const raw of rawItems) {
+        const parsed = DjenItemSchema.safeParse(raw);
+        if (parsed.success) {
+          if (!parsed.data.data_disponibilizacao) {
+            console.warn('[djen-schema] item sem data_disponibilizacao válida — descartado', JSON.stringify(raw).slice(0, 200));
+            continue;
+          }
+          // Dedup entre as duas queries (OAB + nomeAdvogado) usando hash/id quando disponível
+          const dedupKey = parsed.data.hash || String(parsed.data.id || '') || JSON.stringify(raw).slice(0, 200);
+          if (seen.has(dedupKey)) continue;
+          seen.add(dedupKey);
+          validItems.push(parsed.data);
+        } else {
+          console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
+        }
+      }
+      all.push(...validItems);
+      if (rawItems.length < 100) break;
+      pagina++;
+      await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
     }
-    all.push(...validItems);
-    if (rawItems.length < 100) break;
-    pagina++;
-    await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
   }
   return { items: all, attempts: totalAttempts };
 }
