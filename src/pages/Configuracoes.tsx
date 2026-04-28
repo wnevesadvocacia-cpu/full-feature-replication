@@ -36,9 +36,9 @@ export default function Configuracoes() {
   const [escritorio, setEscritorio] = useState(EMPTY_ESCRITORIO);
   const [notifs, setNotifs] = useState(EMPTY_NOTIFS);
   const [senhaForm, setSenhaForm] = useState({ nova: '', confirmar: '' });
-  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null; last_success_at?: string | null; consecutive_failures?: number; last_error?: string | null };
+  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null; last_success_at?: string | null; consecutive_failures?: number; last_error?: string | null; lawyer_name?: string | null; name_variations?: string[]; name_match_threshold?: number };
   const [oabs, setOabs] = useState<OabRow[]>([]);
-  const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
+  const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null, lawyer_name: '', name_variations: [], name_match_threshold: 0.85 });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
