@@ -314,7 +314,7 @@ export default function Intimacoes() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                     <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
-                    {!isUnsafe && detectedDeadline && (
+                    {!isUnsafe && detectedDeadline && !detectedDeadline.isFallback && (
                       <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
                     )}
                     {!isUnsafe && it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
