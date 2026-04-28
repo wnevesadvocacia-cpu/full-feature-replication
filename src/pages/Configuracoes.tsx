@@ -41,6 +41,14 @@ export default function Configuracoes() {
   const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null, lawyer_name: '', name_variations: [], name_match_threshold: 0.85 });
   const [syncing, setSyncing] = useState(false);
 
+  // Proxy DJEN (Cloudflare Worker) — só admin enxerga
+  const isAdmin = roles.includes('admin');
+  const [proxyUrl, setProxyUrl] = useState('');
+  const [proxyConfig, setProxyConfig] = useState<{ proxy_url: string | null; validated_at: string | null; last_status: string | null } | null>(null);
+  const [proxyValidating, setProxyValidating] = useState(false);
+  const [proxySaving, setProxySaving] = useState(false);
+  const [proxyResult, setProxyResult] = useState<{ ok: boolean; message: string; latencyMs?: number; sample?: string } | null>(null);
+
   useEffect(() => {
     if (!user) return;
     const meta = (user.user_metadata ?? {}) as Record<string, any>;
