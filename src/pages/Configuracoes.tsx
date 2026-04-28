@@ -65,7 +65,7 @@ export default function Configuracoes() {
           (supabase as any).from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle(),
           (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
         ]);
-        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error })));
+        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error, lawyer_name: r.lawyer_name ?? '', name_variations: r.name_variations ?? [], name_match_threshold: r.name_match_threshold ?? 0.85 })));
         if (cancel) return;
         if (office) {
           setEscritorio({
