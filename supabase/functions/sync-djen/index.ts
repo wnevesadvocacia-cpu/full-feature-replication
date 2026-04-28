@@ -398,11 +398,19 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   let attempts = 0;
   let inserted = 0;
   let urgentDeadlines = 0;
+  let nameRejected = 0;
   let errorMessage: string | null = null;
   let status: 'success' | 'partial' | 'failed' = 'success';
 
+  // Nomes de referência para fuzzy match: lawyer_name + variações.
+  const refNames: string[] = [
+    ...(row.lawyer_name ? [String(row.lawyer_name)] : []),
+    ...(Array.isArray(row.name_variations) ? row.name_variations.filter(Boolean).map(String) : []),
+  ];
+  const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.85;
+
   try {
-    const result = await fetchDjen(row.oab_number, row.oab_uf);
+    const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name);
     items = result.items;
     attempts = result.attempts;
   } catch (e: any) {
@@ -411,11 +419,22 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   }
 
   if (status !== 'failed' && items.length > 0) {
+    // Filtro server-side: descarta publicações dirigidas a outros advogados quando
+    // existir lista de nomes configurada e o payload trouxer destinatários.
+    if (refNames.length) {
+      const filtered: DjenItem[] = [];
+      for (const it of items) {
+        const m = matchesConfiguredLawyer(it as any, refNames, threshold);
+        if (m.ok) filtered.push(it);
+        else { nameRejected++; console.info(`[name-filter] descartado (score=${m.bestScore.toFixed(2)} < ${threshold})`); }
+      }
+      items = filtered;
+    }
+
     // Batch lookup de processes
     const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
     const processIndex = await buildProcessIndex(supabase, row.user_id, numeros);
 
-    // GAP 5: pega email do usuário UMA vez para enfileirar alertas urgentes
     let userEmail: string | null = null;
     try {
       const { data: u } = await supabase.auth.admin.getUserById(row.user_id);
