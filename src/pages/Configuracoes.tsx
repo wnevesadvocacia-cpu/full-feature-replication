@@ -374,6 +374,18 @@ export default function Configuracoes() {
                       onChange={e => setNewOab(o => ({ ...o, oab_uf: e.target.value.toUpperCase() }))} />
                   </div>
                 </div>
+                <div>
+                  <Label>Nome completo do(a) advogado(a) <span className="text-xs text-gray-500">(opcional, recomendado)</span></Label>
+                  <Input className="mt-1" placeholder="Ex: William Robson das Neves" value={newOab.lawyer_name ?? ''}
+                    onChange={e => setNewOab(o => ({ ...o, lawyer_name: e.target.value }))} />
+                  <p className="text-xs text-gray-500 mt-1">Filtra publicações por nome no DJEN com tolerância a typos (ex: "Willian" casa com "William"). Evita publicações de outros advogados.</p>
+                </div>
+                <div>
+                  <Label>Variações do nome <span className="text-xs text-gray-500">(opcional, separe por vírgula)</span></Label>
+                  <Input className="mt-1" placeholder="Ex: William R. das Neves, W. R. das Neves"
+                    value={(newOab.name_variations ?? []).join(', ')}
+                    onChange={e => setNewOab(o => ({ ...o, name_variations: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))} />
+                </div>
                 <div className="flex gap-2">
                   <Button onClick={addOab} disabled={saving || !newOab.oab_number.trim() || newOab.oab_uf.length !== 2}>
                     {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Plus className="w-4 h-4 mr-2" />}Adicionar OAB
