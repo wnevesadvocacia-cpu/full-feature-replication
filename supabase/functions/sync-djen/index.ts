@@ -203,16 +203,15 @@ async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
     const res = await fetch(url, {
       headers: {
         'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': 'https://comunica.pje.jus.br/',
-        'Origin': 'https://comunica.pje.jus.br',
       },
       signal: controller.signal,
     });
     clearTimeout(timer);
-    // 403/406 do WAF do PJE também merecem retry com backoff (pode ser rate limit silencioso)
-    if ((res.status >= 500 || res.status === 429 || res.status === 403 || res.status === 406) && attempt < MAX_RETRIES) {
+    // CloudFront do CNJ bloqueia por geo (403). Edge runtime Supabase está em eu-central-1.
+    // Solução: configurar PROXY_BR_URL apontando para proxy reverso hospedado no Brasil.
+    if ((res.status >= 500 || res.status === 429) && attempt < MAX_RETRIES) {
       const wait = 2 ** attempt * 1000 + Math.random() * 500;
       console.warn(`DJEN ${res.status} — tentativa ${attempt}/${MAX_RETRIES}, aguardando ${Math.round(wait)}ms`);
       await new Promise(r => setTimeout(r, wait));
