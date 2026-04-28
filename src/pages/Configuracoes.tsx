@@ -504,6 +504,86 @@ export default function Configuracoes() {
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
                 <strong>Sobre AASP:</strong> integração via scraping não foi implementada por risco de bloqueio da conta. O DJEN do CNJ cobre as mesmas intimações eletrônicas que a AASP repassa, oficialmente e sem custo.
               </div>
+
+              {/* Proxy Cloudflare DJEN */}
+              <div className="border-t pt-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-blue-600" /> Proxy Cloudflare (geo-block CNJ)
+                    </h3>
+                    <p className="text-xs text-gray-500 mt-1 max-w-2xl">
+                      A API do CNJ rejeita requisições fora do Brasil. Configure um Cloudflare Worker grátis para rotear pelo Brasil.{' '}
+                      <a href="https://github.com/wnevesadvocacia-cpu/full-feature-replication/blob/main/docs/cloudflare-worker-djen.md"
+                         target="_blank" rel="noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
+                        Guia passo a passo <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </p>
+                  </div>
+                  {proxyConfig?.proxy_url && (
+                    <span className="text-[10px] px-2 py-1 rounded-full bg-green-100 text-green-700 font-medium whitespace-nowrap">
+                      ATIVO
+                    </span>
+                  )}
+                </div>
+
+                {proxyConfig?.proxy_url && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs space-y-1">
+                    <div className="flex items-center gap-2 text-green-800">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span className="font-medium">Proxy configurado:</span>
+                      <code className="font-mono">{proxyConfig.proxy_url}</code>
+                    </div>
+                    {proxyConfig.validated_at && (
+                      <p className="text-green-700 ml-6">Validado em {new Date(proxyConfig.validated_at).toLocaleString('pt-BR')}</p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <Label>URL do Worker</Label>
+                  <Input className="mt-1 font-mono text-sm"
+                    placeholder="https://djen-proxy.SEU-USUARIO.workers.dev"
+                    value={proxyUrl}
+                    onChange={e => { setProxyUrl(e.target.value); setProxyResult(null); }} />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cole apenas o domínio do Worker. Vamos testar uma chamada real ao CNJ por ele antes de salvar.
+                  </p>
+                </div>
+
+                {proxyResult && (
+                  <div className={`rounded-lg p-3 text-xs flex items-start gap-2 ${proxyResult.ok ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+                    {proxyResult.ok ? <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" /> : <XCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{proxyResult.message}</p>
+                      {proxyResult.sample && (
+                        <p className="text-[10px] font-mono mt-1 truncate opacity-75" title={proxyResult.sample}>
+                          Amostra: {proxyResult.sample}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2 flex-wrap">
+                  <Button variant="outline" onClick={validateProxy}
+                    disabled={proxyValidating || proxySaving || !proxyUrl.trim()}>
+                    {proxyValidating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Shield className="w-4 h-4 mr-2" />}
+                    Validar acesso
+                  </Button>
+                  <Button onClick={saveProxy}
+                    disabled={proxyValidating || proxySaving || !proxyUrl.trim()}>
+                    {proxySaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                    Validar e salvar
+                  </Button>
+                  {proxyConfig?.proxy_url && (
+                    <Button variant="ghost" onClick={clearProxy} disabled={proxySaving}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700">
+                      <Trash2 className="w-4 h-4 mr-2" /> Remover
+                    </Button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
           {tab === 'seguranca' && (
