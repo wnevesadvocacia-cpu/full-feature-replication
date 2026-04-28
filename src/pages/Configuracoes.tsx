@@ -162,15 +162,32 @@ export default function Configuracoes() {
     }
     setSaving(true);
     try {
+      const lawyerName = (newOab.lawyer_name || '').trim() || null;
+      const variations = (newOab.name_variations || []).map(v => v.trim()).filter(Boolean);
       const { data, error } = await (supabase as any).from('oab_settings').insert({
         user_id: user.id, oab_number: num, oab_uf: uf, active: newOab.active,
+        lawyer_name: lawyerName, name_variations: variations,
+        name_match_threshold: newOab.name_match_threshold ?? 0.85,
       }).select().single();
       if (error) throw error;
-      setOabs(prev => [...prev, { id: data.id, oab_number: data.oab_number, oab_uf: data.oab_uf, active: data.active, last_sync_at: data.last_sync_at }]);
-      setNewOab({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
+      setOabs(prev => [...prev, { id: data.id, oab_number: data.oab_number, oab_uf: data.oab_uf, active: data.active, last_sync_at: data.last_sync_at, lawyer_name: data.lawyer_name, name_variations: data.name_variations ?? [], name_match_threshold: data.name_match_threshold ?? 0.85 }]);
+      setNewOab({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null, lawyer_name: '', name_variations: [], name_match_threshold: 0.85 });
       toast({ title: 'OAB adicionada!' });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSaving(false); }
+  }
+
+  async function saveOabName(row: OabRow) {
+    if (!row.id) return;
+    const variations = (row.name_variations || []).map(v => v.trim()).filter(Boolean);
+    const { error } = await (supabase as any).from('oab_settings').update({
+      lawyer_name: (row.lawyer_name || '').trim() || null,
+      name_variations: variations,
+      name_match_threshold: row.name_match_threshold ?? 0.85,
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Nome do(a) advogado(a) salvo' });
   }
 
   async function toggleOabActive(row: OabRow) {
