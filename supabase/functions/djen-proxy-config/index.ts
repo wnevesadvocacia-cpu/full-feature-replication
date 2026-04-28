@@ -10,10 +10,10 @@ import { corsHeadersFor, handleCorsPreflight } from '../_shared/cors.ts';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-function json(body: unknown, status = 200, origin: string | null = null) {
+function json(body: unknown, status: number, req: Request) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...corsHeadersFor(origin), 'Content-Type': 'application/json' },
+    headers: { ...corsHeadersFor(req), 'Content-Type': 'application/json' },
   });
 }
 
