@@ -306,6 +306,10 @@ function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number)
   return { ok: false, bestScore: best, reason: 'mismatch' };
 }
 
+// Proxy resolvido na inicialização do handler (lê djen_proxy_config). Module-level
+// para evitar refazer query a cada chamada de fetchDjen dentro de um run.
+let RESOLVED_PROXY_URL: string | null = null;
+
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): Promise<{ items: DjenItem[]; attempts: number }> {
   const dataInicio = new Date(Date.now() - DAYS_BACK * 86400_000).toISOString().slice(0, 10);
   const dataFim = new Date().toISOString().slice(0, 10);
