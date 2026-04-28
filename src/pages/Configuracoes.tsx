@@ -233,6 +233,76 @@ export default function Configuracoes() {
     finally { setSyncing(false); }
   }
 
+  // Carrega config do proxy DJEN (apenas admin)
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancel = false;
+    (async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke('djen-proxy-config?action=get', { method: 'GET' });
+        if (cancel || error) return;
+        const cfg = (data as any)?.config ?? null;
+        setProxyConfig(cfg);
+        if (cfg?.proxy_url) setProxyUrl(cfg.proxy_url);
+      } catch (e) { /* silent */ }
+    })();
+    return () => { cancel = true; };
+  }, [isAdmin]);
+
+  async function validateProxy() {
+    setProxyValidating(true);
+    setProxyResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('djen-proxy-config', {
+        body: { action: 'validate', url: proxyUrl }, method: 'POST',
+      });
+      if (error) throw error;
+      const r = data as any;
+      setProxyResult({
+        ok: !!r.ok,
+        message: r.ok ? `Proxy OK — HTTP ${r.status} em ${r.latencyMs}ms` : (r.error || 'Falha na validação'),
+        latencyMs: r.latencyMs, sample: r.sample,
+      });
+    } catch (e: any) {
+      setProxyResult({ ok: false, message: e.message ?? 'Erro de rede' });
+    } finally { setProxyValidating(false); }
+  }
+
+  async function saveProxy() {
+    setProxySaving(true);
+    setProxyResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('djen-proxy-config', {
+        body: { action: 'save', url: proxyUrl }, method: 'POST',
+      });
+      if (error) throw error;
+      const r = data as any;
+      if (!r.ok) {
+        setProxyResult({ ok: false, message: r.error || 'Falha ao salvar' });
+        toast({ title: 'Não foi possível salvar', description: r.error, variant: 'destructive' });
+        return;
+      }
+      setProxyResult({ ok: true, message: `Salvo e ativo — latência ${r.latencyMs}ms`, latencyMs: r.latencyMs });
+      const { data: refreshed } = await supabase.functions.invoke('djen-proxy-config?action=get', { method: 'GET' });
+      setProxyConfig((refreshed as any)?.config ?? null);
+      toast({ title: 'Proxy DJEN salvo', description: 'Próxima sincronização já vai usar o proxy.' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setProxySaving(false); }
+  }
+
+  async function clearProxy() {
+    if (!confirm('Remover URL do proxy? A sincronização DJEN voltará a falhar com geo-block até que outra URL seja configurada.')) return;
+    setProxySaving(true);
+    try {
+      await supabase.functions.invoke('djen-proxy-config', { body: { action: 'clear' }, method: 'POST' });
+      setProxyConfig(null); setProxyUrl(''); setProxyResult(null);
+      toast({ title: 'Proxy removido' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally { setProxySaving(false); }
+  }
+
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: 'perfil', label: 'Meu Perfil', icon: User },
     { id: 'escritorio', label: 'Escritório', icon: Building2 },
