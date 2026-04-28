@@ -36,9 +36,9 @@ export default function Configuracoes() {
   const [escritorio, setEscritorio] = useState(EMPTY_ESCRITORIO);
   const [notifs, setNotifs] = useState(EMPTY_NOTIFS);
   const [senhaForm, setSenhaForm] = useState({ nova: '', confirmar: '' });
-  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null; last_success_at?: string | null; consecutive_failures?: number; last_error?: string | null };
+  type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null; last_success_at?: string | null; consecutive_failures?: number; last_error?: string | null; lawyer_name?: string | null; name_variations?: string[]; name_match_threshold?: number };
   const [oabs, setOabs] = useState<OabRow[]>([]);
-  const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
+  const [newOab, setNewOab] = useState<OabRow>({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null, lawyer_name: '', name_variations: [], name_match_threshold: 0.85 });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function Configuracoes() {
           (supabase as any).from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle(),
           (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
         ]);
-        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error })));
+        if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error, lawyer_name: r.lawyer_name ?? '', name_variations: r.name_variations ?? [], name_match_threshold: r.name_match_threshold ?? 0.85 })));
         if (cancel) return;
         if (office) {
           setEscritorio({
@@ -162,15 +162,32 @@ export default function Configuracoes() {
     }
     setSaving(true);
     try {
+      const lawyerName = (newOab.lawyer_name || '').trim() || null;
+      const variations = (newOab.name_variations || []).map(v => v.trim()).filter(Boolean);
       const { data, error } = await (supabase as any).from('oab_settings').insert({
         user_id: user.id, oab_number: num, oab_uf: uf, active: newOab.active,
+        lawyer_name: lawyerName, name_variations: variations,
+        name_match_threshold: newOab.name_match_threshold ?? 0.85,
       }).select().single();
       if (error) throw error;
-      setOabs(prev => [...prev, { id: data.id, oab_number: data.oab_number, oab_uf: data.oab_uf, active: data.active, last_sync_at: data.last_sync_at }]);
-      setNewOab({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null });
+      setOabs(prev => [...prev, { id: data.id, oab_number: data.oab_number, oab_uf: data.oab_uf, active: data.active, last_sync_at: data.last_sync_at, lawyer_name: data.lawyer_name, name_variations: data.name_variations ?? [], name_match_threshold: data.name_match_threshold ?? 0.85 }]);
+      setNewOab({ oab_number: '', oab_uf: 'SP', active: true, last_sync_at: null, lawyer_name: '', name_variations: [], name_match_threshold: 0.85 });
       toast({ title: 'OAB adicionada!' });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSaving(false); }
+  }
+
+  async function saveOabName(row: OabRow) {
+    if (!row.id) return;
+    const variations = (row.name_variations || []).map(v => v.trim()).filter(Boolean);
+    const { error } = await (supabase as any).from('oab_settings').update({
+      lawyer_name: (row.lawyer_name || '').trim() || null,
+      name_variations: variations,
+      name_match_threshold: row.name_match_threshold ?? 0.85,
+      updated_at: new Date().toISOString(),
+    }).eq('id', row.id);
+    if (error) { toast({ title: 'Erro', description: error.message, variant: 'destructive' }); return; }
+    toast({ title: 'Nome do(a) advogado(a) salvo' });
   }
 
   async function toggleOabActive(row: OabRow) {
@@ -203,7 +220,7 @@ export default function Configuracoes() {
       const totalFound = (data?.results || []).reduce((s: number, r: any) => s + (r.total || 0), 0);
       toast({ title: 'Sincronização concluída', description: `${totalInserted} novas / ${totalFound} encontradas em ${(data?.results || []).length} OAB(s)` });
       const { data: oabRows } = await (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
-      if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error })));
+      if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error, lawyer_name: r.lawyer_name ?? '', name_variations: r.name_variations ?? [], name_match_threshold: r.name_match_threshold ?? 0.85 })));
     } catch (e: any) { toast({ title: 'Erro ao sincronizar', description: e.message, variant: 'destructive' }); }
     finally { setSyncing(false); }
   }
@@ -312,30 +329,58 @@ export default function Configuracoes() {
                   const statusColor = !row.active ? 'bg-gray-400' : isCritical ? 'bg-red-500' : isWarning ? 'bg-yellow-500' : 'bg-green-500';
                   const statusLabel = !row.active ? 'Inativa' : isCritical ? `${failures} falha(s)` : isWarning ? 'Atrasada' : 'Saudável';
                   return (
-                    <div key={row.id} className={`flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 ${isCritical && row.active ? 'border-red-300 bg-red-50/50' : ''}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <Scale className="w-4 h-4 text-blue-600" />
-                          <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${statusColor}`} />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-medium text-sm">OAB/{row.oab_uf} {row.oab_number}</p>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full text-white ${statusColor}`}>{statusLabel}</span>
+                    <div key={row.id} className={`p-3 border rounded-lg ${isCritical && row.active ? 'border-red-300 bg-red-50/50' : 'hover:bg-gray-50'}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="relative">
+                            <Scale className="w-4 h-4 text-blue-600" />
+                            <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${statusColor}`} />
                           </div>
-                          {row.last_success_at && <p className="text-xs text-gray-500">Última sync OK: {new Date(row.last_success_at).toLocaleString('pt-BR')}</p>}
-                          {row.active && isCritical && row.last_error && (
-                            <p className="text-xs text-red-600 mt-0.5 truncate max-w-md" title={row.last_error}>⚠️ {row.last_error}</p>
-                          )}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm">OAB/{row.oab_uf} {row.oab_number}</p>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full text-white ${statusColor}`}>{statusLabel}</span>
+                            </div>
+                            {row.last_success_at && <p className="text-xs text-gray-500">Última sync OK: {new Date(row.last_success_at).toLocaleString('pt-BR')}</p>}
+                            {row.active && isCritical && row.last_error && (
+                              <p className="text-xs text-red-600 mt-0.5 truncate max-w-md" title={row.last_error}>⚠️ {row.last_error}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => toggleOabActive(row)} className={`relative inline-flex h-5 w-9 rounded-full ${row.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
+                            <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${row.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                          </button>
+                          <Button variant="ghost" size="sm" onClick={() => removeOab(row)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <button onClick={() => toggleOabActive(row)} className={`relative inline-flex h-5 w-9 rounded-full ${row.active ? 'bg-blue-600' : 'bg-gray-200'}`}>
-                          <span className={`inline-block h-4 w-4 mt-0.5 transform rounded-full bg-white shadow transition-transform ${row.active ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                        </button>
-                        <Button variant="ghost" size="sm" onClick={() => removeOab(row)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                      {/* Filtro por nome do(a) advogado(a) */}
+                      <div className="mt-3 pt-3 border-t border-dashed grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">Nome do(a) advogado(a)</Label>
+                          <Input className="mt-1 h-8 text-sm" placeholder="Ex: William Robson das Neves"
+                            value={row.lawyer_name ?? ''}
+                            onChange={e => setOabs(prev => prev.map(o => o.id === row.id ? { ...o, lawyer_name: e.target.value } : o))} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Variações (separe por vírgula)</Label>
+                          <Input className="mt-1 h-8 text-sm" placeholder="Willian Robson das Neves, W. R. das Neves"
+                            value={(row.name_variations ?? []).join(', ')}
+                            onChange={e => setOabs(prev => prev.map(o => o.id === row.id ? { ...o, name_variations: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } : o))} />
+                        </div>
+                        <div className="md:col-span-2 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <span>Tolerância:</span>
+                            <input type="range" min={0.7} max={0.98} step={0.01}
+                              value={row.name_match_threshold ?? 0.85}
+                              onChange={e => setOabs(prev => prev.map(o => o.id === row.id ? { ...o, name_match_threshold: parseFloat(e.target.value) } : o))} />
+                            <span className="tabular-nums w-10">{((row.name_match_threshold ?? 0.85) * 100).toFixed(0)}%</span>
+                            <span className="text-gray-400">(maior = mais estrito)</span>
+                          </div>
+                          <Button size="sm" variant="outline" onClick={() => saveOabName(row)}>Salvar nome</Button>
+                        </div>
                       </div>
                     </div>
                   );
@@ -356,6 +401,18 @@ export default function Configuracoes() {
                     <Input className="mt-1" maxLength={2} placeholder="SP" value={newOab.oab_uf}
                       onChange={e => setNewOab(o => ({ ...o, oab_uf: e.target.value.toUpperCase() }))} />
                   </div>
+                </div>
+                <div>
+                  <Label>Nome completo do(a) advogado(a) <span className="text-xs text-gray-500">(opcional, recomendado)</span></Label>
+                  <Input className="mt-1" placeholder="Ex: William Robson das Neves" value={newOab.lawyer_name ?? ''}
+                    onChange={e => setNewOab(o => ({ ...o, lawyer_name: e.target.value }))} />
+                  <p className="text-xs text-gray-500 mt-1">Filtra publicações por nome no DJEN com tolerância a typos (ex: "Willian" casa com "William"). Evita publicações de outros advogados.</p>
+                </div>
+                <div>
+                  <Label>Variações do nome <span className="text-xs text-gray-500">(opcional, separe por vírgula)</span></Label>
+                  <Input className="mt-1" placeholder="Ex: William R. das Neves, W. R. das Neves"
+                    value={(newOab.name_variations ?? []).join(', ')}
+                    onChange={e => setNewOab(o => ({ ...o, name_variations: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))} />
                 </div>
                 <div className="flex gap-2">
                   <Button onClick={addOab} disabled={saving || !newOab.oab_number.trim() || newOab.oab_uf.length !== 2}>
