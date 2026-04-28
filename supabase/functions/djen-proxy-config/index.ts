@@ -65,24 +65,24 @@ async function validateProxy(url: string): Promise<{ ok: boolean; status: number
 }
 
 Deno.serve(async (req) => {
-  const origin = req.headers.get('origin');
+  
   const pre = handleCorsPreflight(req); if (pre) return pre;
 
   // Auth: precisa de JWT do usuário (admin)
   const authz = req.headers.get('authorization') ?? '';
-  if (!authz.toLowerCase().startsWith('bearer ')) return json({ error: 'unauthorized' }, 401, origin);
+  if (!authz.toLowerCase().startsWith('bearer ')) return json({ error: 'unauthorized' }, 401, req);
   const userJwt = authz.slice(7);
 
   const userClient = createClient(SUPABASE_URL, SERVICE_ROLE, {
     global: { headers: { Authorization: `Bearer ${userJwt}` } },
   });
   const { data: userData, error: userErr } = await userClient.auth.getUser();
-  if (userErr || !userData?.user) return json({ error: 'unauthorized' }, 401, origin);
+  if (userErr || !userData?.user) return json({ error: 'unauthorized' }, 401, req);
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
   const { data: roleData } = await admin
     .from('user_roles').select('role').eq('user_id', userData.user.id).eq('role', 'admin').maybeSingle();
-  if (!roleData) return json({ error: 'forbidden: admin only' }, 403, origin);
+  if (!roleData) return json({ error: 'forbidden: admin only' }, 403, req);
 
   let action = new URL(req.url).searchParams.get('action');
   let url: string | undefined;
@@ -96,21 +96,21 @@ Deno.serve(async (req) => {
 
   if (action === 'get') {
     const { data } = await admin.from('djen_proxy_config').select('*').eq('id', 1).maybeSingle();
-    return json({ ok: true, config: data ?? null }, 200, origin);
+    return json({ ok: true, config: data ?? null }, 200, req);
   }
 
   if (action === 'validate' || action === 'save') {
-    if (!url) return json({ error: 'missing url' }, 400, origin);
+    if (!url) return json({ error: 'missing url' }, 400, req);
     const norm = normalizeUrl(url);
-    if (!norm) return json({ error: 'URL inválida (use https://nome.workers.dev)' }, 400, origin);
+    if (!norm) return json({ error: 'URL inválida (use https://nome.workers.dev)' }, 400, req);
 
     const result = await validateProxy(norm);
     if (action === 'validate') {
-      return json({ ok: result.ok, normalized: norm, ...result }, 200, origin);
+      return json({ ok: result.ok, normalized: norm, ...result }, 200, req);
     }
     // save: só persiste se OK
     if (!result.ok) {
-      return json({ ok: false, normalized: norm, ...result, error: `Validação falhou: ${result.error}` }, 400, origin);
+      return json({ ok: false, normalized: norm, ...result, error: `Validação falhou: ${result.error}` }, 400, req);
     }
     const { error: upErr } = await admin.from('djen_proxy_config').update({
       proxy_url: norm,
@@ -120,13 +120,13 @@ Deno.serve(async (req) => {
       last_error: null,
       updated_at: new Date().toISOString(),
     }).eq('id', 1);
-    if (upErr) return json({ ok: false, error: upErr.message }, 500, origin);
+    if (upErr) return json({ ok: false, error: upErr.message }, 500, req);
     await admin.from('audit_logs').insert({
       user_id: userData.user.id, user_email: userData.user.email,
       action: 'DJEN_PROXY_CONFIGURED', table_name: 'djen_proxy_config',
       new_data: { proxy_url: norm, latency_ms: result.latencyMs },
     });
-    return json({ ok: true, normalized: norm, latencyMs: result.latencyMs }, 200, origin);
+    return json({ ok: true, normalized: norm, latencyMs: result.latencyMs }, 200, req);
   }
 
   if (action === 'clear') {
@@ -138,8 +138,8 @@ Deno.serve(async (req) => {
       user_id: userData.user.id, user_email: userData.user.email,
       action: 'DJEN_PROXY_CLEARED', table_name: 'djen_proxy_config', new_data: {},
     });
-    return json({ ok: true }, 200, origin);
+    return json({ ok: true }, 200, req);
   }
 
-  return json({ error: 'unknown action' }, 400, origin);
+  return json({ error: 'unknown action' }, 400, req);
 });
