@@ -15,3 +15,5 @@ project_id = "coyqbspjryohkccxnkti"
     verify_jwt = false
   [functions.resend-webhook]
     verify_jwt = false
+  [functions.import-sql]
+    verify_jwt = false
