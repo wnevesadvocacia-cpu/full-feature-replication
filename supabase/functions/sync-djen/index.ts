@@ -623,6 +623,16 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
 
+  // Resolve proxy URL configurado pela UI (tabela djen_proxy_config). Falha silenciosa
+  // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.
+  try {
+    const { data: cfg } = await supabase.from('djen_proxy_config').select('proxy_url').eq('id', 1).maybeSingle();
+    RESOLVED_PROXY_URL = ((cfg as { proxy_url?: string } | null)?.proxy_url) ?? null;
+  } catch (e) {
+    console.warn('[sync-djen] não foi possível ler djen_proxy_config:', (e as Error).message);
+    RESOLVED_PROXY_URL = null;
+  }
+
   let lockAcquired = false;
   let cronRunId: string | null = null;
   if (!isManual) {
