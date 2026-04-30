@@ -1,35 +1,62 @@
-# 🇧🇷 Cloudflare Worker — Proxy DJEN (grátis)
+# 🇧🇷 Cloudflare Worker — Proxy DJEN
 
-A API do CNJ (`comunicaapi.pje.jus.br`) tem **CloudFront geo-block** e rejeita
-qualquer request de fora do Brasil. As Edge Functions do Lovable Cloud rodam em
-Frankfurt (eu-central-1) → daí os 75+ erros 403 consecutivos.
+A API do CNJ (`comunicaapi.pje.jus.br`) está atrás de **CloudFront com geo-block**
+e rejeita qualquer request fora do Brasil com `HTTP 403 — "configured to block
+access from your country"`.
 
-A solução mais barata, rápida e profissional é um **Cloudflare Worker**:
-plano gratuito permite **100.000 requisições/dia** (mais que suficiente — usamos
-~50/dia), roteia automaticamente pelo POP do Brasil (GIG/GRU) e leva 5 min para
-configurar.
+As Edge Functions do Lovable Cloud rodam em Frankfurt (eu-central-1). Daí o 403.
+
+A solução é usar um **proxy hospedado em IP brasileiro**.
 
 ---
 
-## Passo a passo (5 minutos)
+## ⚠️ Aviso importante sobre Cloudflare Workers no plano Free
 
-### 1. Criar conta Cloudflare (se não tiver)
-https://dash.cloudflare.com/sign-up — grátis, só precisa de email.
+O Cloudflare Worker Free **NÃO garante saída por POP brasileiro**. O Worker
+roda no POP mais próximo do request — se o request vem do Frankfurt (caso das
+Edge Functions Supabase), o Worker também sai de Frankfurt e o CNJ continua
+bloqueando com 403.
 
-### 2. Criar Worker
-1. No dashboard → **Workers & Pages** → **Create application** → **Create Worker**
-2. Nome sugerido: `djen-proxy`
-3. Clique em **Deploy** (ele cria com o código padrão "Hello World")
-4. Depois clique em **Edit code**
+### Sintoma típico de roteamento errado
+Resposta do Worker contém:
+```
+The Amazon CloudFront distribution is configured to block access from your country.
+```
 
-### 3. Colar este código
+### Soluções (escolher uma)
+
+**Opção A — Cloudflare Workers Paid + Smart Placement / Regional Services**
+Plano Workers Paid (US$ 5/mês) habilita **Regional Services** — você pode
+forçar a saída por SAM (`sam-bra` = Brasil). Adicione no `wrangler.toml`:
+```toml
+[placement]
+mode = "smart"
+```
+ou na config do Worker no dashboard, defina `Regional Service: South America`.
+
+**Opção B — VPS/proxy reverso em provedor brasileiro**
+- AWS Lightsail São Paulo (US$ 3.50/mês)
+- Oracle Cloud Free Tier São Paulo (grátis para sempre, 2 VMs)
+- Magalu Cloud (BR puro)
+
+Subir um nginx simples com `proxy_pass https://comunicaapi.pje.jus.br`.
+
+**Opção C — Vercel Functions com região `gru1` (São Paulo)**
+Grátis até 100GB de transferência. Crie uma função serverless com:
+```js
+export const config = { runtime: 'edge', regions: ['gru1'] };
+```
+
+---
+
+## Código do Worker (referência)
+
+Útil mesmo no plano pago — os headers HTTP corretos são essenciais:
 
 ```js
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-
-    // Aceita qualquer path /api/v1/comunicacao?...
     const target = `https://comunicaapi.pje.jus.br${url.pathname}${url.search}`;
 
     const upstream = await fetch(target, {
@@ -41,11 +68,9 @@ export default {
         'Referer': 'https://comunica.pje.jus.br/',
         'Origin': 'https://comunica.pje.jus.br',
       },
-      // CF respeita region routing automático; o request sai de um POP BR
       cf: { cacheTtl: 60, cacheEverything: false },
     });
 
-    // Devolve com CORS aberto (só nossa edge function usa, mas evita problemas)
     const body = await upstream.arrayBuffer();
     return new Response(body, {
       status: upstream.status,
@@ -59,30 +84,17 @@ export default {
 };
 ```
 
-### 4. Deploy
-Botão **Deploy** no canto superior direito. Em ~10 segundos você terá uma URL tipo:
-
-```
-https://djen-proxy.SEU-USUARIO.workers.dev
-```
-
-### 5. Testar (opcional)
-No navegador, abra:
-```
-https://djen-proxy.SEU-USUARIO.workers.dev/api/v1/comunicacao?numeroOab=290702&ufOab=SP&dataDisponibilizacaoInicio=2026-04-20&dataDisponibilizacaoFim=2026-04-28&pagina=1&itensPorPagina=10
-```
-
-Deve retornar JSON com as comunicações (não mais 403).
-
-### 6. Configurar no WnevesBox
-Me mande a URL do seu Worker (`https://djen-proxy.XXX.workers.dev`) que eu cadastro
-o secret `DJEN_PROXY_URL` automaticamente. A edge function `sync-djen` já está
-preparada para usar esse proxy quando o secret existir, e cai pra URL direta
-caso contrário (sem quebrar nada).
-
 ---
 
-## Custos
-- **Zero.** O free tier da Cloudflare cobre 100k requisições/dia.
-- Nosso uso real: 4 sincronizações/dia × ~10 chamadas = 40 req/dia.
-- Margem: 2.500x o necessário.
+## Como diagnosticar
+Teste o seu proxy direto pelo curl:
+```
+curl -i "https://SEU-PROXY/api/v1/comunicacao?numeroOab=290702&ufOab=SP&dataDisponibilizacaoInicio=2026-04-25&dataDisponibilizacaoFim=2026-04-30&pagina=1&itensPorPagina=5"
+```
+- ✅ JSON com `items: [...]` → proxy OK
+- ❌ HTML com "block access from your country" → o proxy está saindo por IP NÃO brasileiro
+- ❌ HTTP 5xx → CNJ instável (raro)
+
+## Como cadastrar no WnevesBox
+Vá em **Configurações → Integrações DJEN** e cole a URL do proxy. O sistema
+valida automaticamente antes de salvar.
