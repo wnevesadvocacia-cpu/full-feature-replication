@@ -340,6 +340,14 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
       totalAttempts++;
       if (!res.ok) {
         const t = await res.text();
+        // Detecta geo-block do CloudFront do CNJ — mensagem acionável em vez de HTML cru
+        if (res.status === 403 && /block access from your country/i.test(t)) {
+          throw new Error(
+            `DJEN 403 GEO-BLOCK: o proxy configurado (${PROXY || 'direto'}) está saindo por IP fora do Brasil. ` +
+            `Solução: use proxy hospedado em região BR (ver docs/cloudflare-worker-djen.md). ` +
+            `Tribunal CNJ bloqueia CloudFront por geolocalização.`
+          );
+        }
         throw new Error(`DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`);
       }
       const json = await res.json();
