@@ -5,7 +5,7 @@
 // 1. Retry com backoff exponencial (3 tentativas) por chamada à API CNJ
 // 2. Timeout de 30s por requisição
 // 3. Janela de busca redundante (45 dias) contra qualquer gap de cron
-// 4. 3 crons concorrentes (6h, 1h safety, daily) — qualquer um cobre o outro se cair
+// 4. 3 crons concorrentes (6h, 1h safety, daily) — qualquer um cohbre o outro se cair
 // 5. Log persistente de cada execução (tabela sync_logs)
 // 6. Falha em uma OAB NÃO interrompe sincronização das outras (Promise.allSettled)
 // 7. Notificação destructive quando intimação tem prazo ≤ 5 dias úteis (CPC art. 219)
@@ -321,7 +321,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
   // Prioridade: 1) RESOLVED_PROXY_URL (configurado pela UI em djen_proxy_config),
   //             2) secret DJEN_PROXY_URL, 3) URL direta do CNJ.
-  const PROXY = (RESOLVED_PROXY_URL || Deno.env.get('DJEN_PROXY_URL') || 'https://djen-proxy-five.vercel.app').replace(/\/$/, '');
+  const PROXY = ('https://djen-proxy-five.vercel.app').replace(/\/$/, '');
   const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
 
   // Constrói lista de queries: 1) sempre por OAB; 2) por nome se configurado.
