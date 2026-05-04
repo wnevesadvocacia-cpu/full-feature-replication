@@ -163,7 +163,7 @@ export default function Financeiro() {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
-  const FormFields = () => (
+  const formFields = (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -327,7 +327,7 @@ export default function Financeiro() {
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Nova Fatura</DialogTitle></DialogHeader>
-          <FormFields />
+          {formFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.number || !form.amount || saving}>
@@ -341,7 +341,7 @@ export default function Financeiro() {
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Editar Fatura</DialogTitle></DialogHeader>
-          <FormFields />
+          {formFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
             <Button onClick={handleEdit} disabled={!form.amount || saving}>
