@@ -169,7 +169,7 @@ export default function Tarefas() {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
-  const TaskFormFields = () => (
+  const taskFormFields = (
     <div className="space-y-4">
       <div>
         <Label>Título *</Label>
@@ -312,7 +312,7 @@ export default function Tarefas() {
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Nova Tarefa</DialogTitle></DialogHeader>
-          <TaskFormFields />
+          {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.title || saving}>
@@ -328,7 +328,7 @@ export default function Tarefas() {
           <DialogHeader><DialogTitle>Editar Tarefa</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1">
             <div>
-              <TaskFormFields />
+              {taskFormFields}
             </div>
             <div className="border-l md:pl-4 flex flex-col min-h-[400px]">
               <p className="text-sm font-semibold mb-2 flex items-center gap-1">
