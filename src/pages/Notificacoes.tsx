@@ -61,25 +61,17 @@ export default function Notificacoes() {
   const delAll = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-      let deletedTotal = 0;
-      while (true) {
-        const { data: ids, error: selErr } = await (supabase as any)
-          .from('notifications')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(500);
-        if (selErr) throw selErr;
-        if (!ids || ids.length === 0) break;
-        const { data: rows, error } = await (supabase as any)
-          .from('notifications')
-          .delete()
-          .in('id', ids.map((r: any) => r.id))
-          .select('id');
-        if (error) throw error;
-        deletedTotal += rows?.length ?? 0;
-        if (ids.length < 500) break;
-      }
-      return deletedTotal;
+      const { count: before, error: cErr } = await (supabase as any)
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+      if (cErr) throw cErr;
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .delete()
+        .eq('user_id', user.id);
+      if (error) throw error;
+      return before ?? 0;
     },
     onSuccess: (n) => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
