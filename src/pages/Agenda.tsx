@@ -681,7 +681,7 @@ export default function Agenda() {
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Novo compromisso</DialogTitle></DialogHeader>
-          <FormBody />
+          {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
