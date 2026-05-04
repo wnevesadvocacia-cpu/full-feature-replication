@@ -266,7 +266,7 @@ export default function Agenda() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] }),
   });
 
-  const FormBody = ({ isEdit = false }) => (
+  const formBody = (
     <div className="space-y-4">
       <div>
         <Label>Título *</Label>
@@ -681,7 +681,7 @@ export default function Agenda() {
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Novo compromisso</DialogTitle></DialogHeader>
-          <FormBody />
+          {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
@@ -695,7 +695,7 @@ export default function Agenda() {
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Editar compromisso</DialogTitle></DialogHeader>
-          <FormBody isEdit />
+          {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
             <Button onClick={handleEdit} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
