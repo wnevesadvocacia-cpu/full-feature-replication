@@ -107,16 +107,32 @@ export default function Notificacoes() {
           <h1 className="text-2xl font-display font-bold">Notificações</h1>
           <p className="text-muted-foreground text-sm mt-1">{data.filter((n) => !n.read).length} não lidas</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => markAllRead.mutate()}
-          disabled={markAllRead.isPending || data.every((n: any) => n.read)}
-        >
-          {markAllRead.isPending
-            ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Marcando…</>
-            : <><Check className="h-4 w-4 mr-1" /> Marcar tudo lido</>}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => markAllRead.mutate()}
+            disabled={markAllRead.isPending || data.every((n: any) => n.read)}
+          >
+            {markAllRead.isPending
+              ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Marcando…</>
+              : <><Check className="h-4 w-4 mr-1" /> Marcar tudo lido</>}
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (confirm('Apagar TODAS as notificações? Esta ação não pode ser desfeita.')) {
+                delAll.mutate();
+              }
+            }}
+            disabled={delAll.isPending || data.length === 0}
+          >
+            {delAll.isPending
+              ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Apagando…</>
+              : <><Trash className="h-4 w-4 mr-1" /> Apagar todas</>}
+          </Button>
+        </div>
       </div>
 
       {data.length === 0 ? (
