@@ -47,6 +47,7 @@ const mainNav = [
   { title: 'CRM Kanban', url: '/crm', icon: KanbanSquare },
   { title: 'Processos', url: '/processos', icon: Briefcase },
   { title: 'Intimações', url: '/intimacoes', icon: Bell },
+  { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Tarefas', url: '/tarefas', icon: CheckSquare },
   { title: 'Timesheet', url: '/timesheet', icon: Clock },
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
@@ -59,7 +60,6 @@ const mainNav = [
 const secondaryNav: { title: string; url: string; icon: any; disabled?: boolean }[] = [
   { title: 'Gerador de Peças (IA)', url: '/gerador-pecas', icon: Sparkles },
   { title: 'Peticionamento Eletrônico (em breve)', url: '#peticionamento', icon: Send, disabled: true },
-  { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Modelos', url: '/modelos', icon: FileSignature },
   { title: 'Documentos', url: '/documentos', icon: FileText },
   { title: 'Movimentações', url: '/movimentacoes', icon: Activity },
