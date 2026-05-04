@@ -22,24 +22,26 @@ export default function Notificacoes() {
   });
 
   const markRead = useMutation({
-    mutationFn: async (id: string) => { await (supabase as any).from('notifications').update({ read: true }).eq('id', id); },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from('notifications').update({ read: true }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+    },
   });
   const markAllRead = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-      // Conta antes
       const { count: before, error: cErr } = await (supabase as any)
         .from('notifications')
         .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
         .eq('read', false);
       if (cErr) throw cErr;
-      // Atualiza por filtro (sem IN — sem limite de URL)
       const { error } = await (supabase as any)
         .from('notifications')
         .update({ read: true })
-        .eq('user_id', user.id)
         .eq('read', false);
       if (error) throw error;
       return before ?? 0;
@@ -55,21 +57,25 @@ export default function Notificacoes() {
     },
   });
   const del = useMutation({
-    mutationFn: async (id: string) => { await (supabase as any).from('notifications').delete().eq('id', id); },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    mutationFn: async (id: string) => {
+      const { error } = await (supabase as any).from('notifications').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+    },
   });
   const delAll = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
       const { count: before, error: cErr } = await (supabase as any)
         .from('notifications')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id);
+        .select('id', { count: 'exact', head: true });
       if (cErr) throw cErr;
       const { error } = await (supabase as any)
         .from('notifications')
-        .delete()
-        .eq('user_id', user.id);
+        .delete();
       if (error) throw error;
       return before ?? 0;
     },
