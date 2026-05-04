@@ -45,6 +45,35 @@ const OTP_LENGTH = 6;
 const OTP_TTL_SEC = 600; // 10 min
 const RESEND_COOLDOWN_SEC = 60;
 const LAST_REQUEST_KEY = 'wb_otp_last_request'; // { email, requestedAt }
+const PUBLIC_FUNCTION_TIMEOUT_MS = 15000;
+
+async function invokePublicFunction<T>(name: string, body: unknown): Promise<T> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), PUBLIC_FUNCTION_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload?.error) {
+      throw Object.assign(new Error(payload?.error || 'request_failed'), payload);
+    }
+    return payload as T;
+  } catch (error: any) {
+    if (error?.name === 'AbortError') throw new Error('timeout');
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
 
 function readLastRequest(): { email: string; requestedAt: number } | null {
   try {
@@ -129,22 +158,13 @@ export default function Auth() {
 
   // Dispara o OTP por email via edge function customizada (Resend)
   const dispatchOtp = async (normalized: string) => {
-    const { data, error } = await supabase.functions.invoke('send-otp-resend', {
-      body: { email: normalized, captcha_token: captchaToken },
+    const data = await invokePublicFunction<{ success?: boolean; expires_at?: string; captcha_required?: boolean }>('send-otp-resend', {
+      email: normalized,
+      captcha_token: captchaToken,
+    }).catch((error: any) => {
+      if (error?.captcha_required) setNeedsCaptcha(true);
+      throw error;
     });
-    if (error) {
-      const ctx: any = (error as any).context;
-      let detail = error.message;
-      try {
-        if (ctx && typeof ctx.json === 'function') {
-          const j = await ctx.json();
-          detail = j?.error || detail;
-          if (j?.captcha_required) setNeedsCaptcha(true);
-        }
-      } catch {}
-      throw new Error(detail);
-    }
-    if (data?.error) throw new Error(data.error);
     setOtp('');
     setCaptchaToken(null);
     setCooldown(RESEND_COOLDOWN_SEC);
@@ -238,20 +258,7 @@ export default function Auth() {
     setLoading(true);
     try {
       // 1) Valida o código numérico via edge function
-      const { data, error } = await supabase.functions.invoke('verify-otp-resend', {
-        body: { email: normalized, code: codeToVerify },
-      });
-
-      let payload: any = data;
-      if (error) {
-        const ctx: any = (error as any).context;
-        try {
-          if (ctx && typeof ctx.json === 'function') payload = await ctx.json();
-        } catch { /* ignore */ }
-        const errCode = payload?.error || error.message;
-        const remaining = payload?.remaining_attempts;
-        throw Object.assign(new Error(errCode), { remaining });
-      }
+      const payload = await invokePublicFunction<any>('verify-otp-resend', { email: normalized, code: codeToVerify });
       if (!payload?.ok || !payload?.token_hash) throw new Error(payload?.error || 'verify_failed');
 
       // 2) Troca o token_hash por uma sessão real no client
