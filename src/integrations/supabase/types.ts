@@ -1517,6 +1517,7 @@ export type Database = {
         Args: { _d: string; _tribunal?: string }
         Returns: string
       }
+      auth_user_exists_by_email: { Args: { _email: string }; Returns: boolean }
       calculate_deadline: {
         Args: {
           _days: number
