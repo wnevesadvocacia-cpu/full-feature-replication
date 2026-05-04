@@ -192,7 +192,7 @@ export default function Movimentacoes() {
     } finally { setSaving(false); }
   };
 
-  const FormBody = () => (
+  const formBody = (
     <div className="space-y-4 py-2">
       <div>
         <Label>Processo (opcional)</Label>
