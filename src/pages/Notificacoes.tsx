@@ -27,20 +27,37 @@ export default function Notificacoes() {
   });
   const markAllRead = useMutation({
     mutationFn: async () => {
-      const { error, count } = await (supabase as any)
-        .from('notifications')
-        .update({ read: true }, { count: 'exact' })
-        .eq('user_id', user!.id)
-        .eq('read', false);
-      if (error) throw error;
-      return count ?? 0;
+      if (!user?.id) throw new Error('Usuário não autenticado');
+      // Otimização: em vez de update massivo (que pode timeout com centenas de linhas
+      // e não retorna confirmação visual), processamos em lotes pelos IDs já em cache.
+      const unreadIds = (data as any[]).filter((n) => !n.read).map((n) => n.id);
+      if (unreadIds.length === 0) return 0;
+
+      // Lotes de 200 para evitar payloads grandes
+      const chunkSize = 200;
+      let updated = 0;
+      for (let i = 0; i < unreadIds.length; i += chunkSize) {
+        const slice = unreadIds.slice(i, i + chunkSize);
+        const { data: rows, error } = await (supabase as any)
+          .from('notifications')
+          .update({ read: true })
+          .in('id', slice)
+          .eq('user_id', user.id)
+          .select('id');
+        if (error) throw error;
+        updated += rows?.length ?? 0;
+      }
+      return updated;
     },
     onSuccess: (n) => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
       qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
-      toast({ title: 'Notificações marcadas como lidas', description: `${n} notificações atualizadas.` });
+      toast({ title: 'Notificações marcadas como lidas', description: `${n} notificação(ões) atualizada(s).` });
     },
-    onError: (e: any) => toast({ title: 'Erro ao marcar como lidas', description: e?.message ?? 'Falha desconhecida', variant: 'destructive' }),
+    onError: (e: any) => {
+      console.error('[markAllRead] erro:', e);
+      toast({ title: 'Erro ao marcar como lidas', description: e?.message ?? 'Falha desconhecida', variant: 'destructive' });
+    },
   });
   const del = useMutation({
     mutationFn: async (id: string) => { await (supabase as any).from('notifications').delete().eq('id', id); },
@@ -56,8 +73,15 @@ export default function Notificacoes() {
           <h1 className="text-2xl font-display font-bold">Notificações</h1>
           <p className="text-muted-foreground text-sm mt-1">{data.filter((n) => !n.read).length} não lidas</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => markAllRead.mutate()}>
-          <Check className="h-4 w-4 mr-1" /> Marcar tudo lido
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => markAllRead.mutate()}
+          disabled={markAllRead.isPending || data.every((n: any) => n.read)}
+        >
+          {markAllRead.isPending
+            ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Marcando…</>
+            : <><Check className="h-4 w-4 mr-1" /> Marcar tudo lido</>}
         </Button>
       </div>
 
