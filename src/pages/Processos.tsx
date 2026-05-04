@@ -898,7 +898,7 @@ export default function Processos() {
               ) : (
                 <div className="mt-4 space-y-2">
                   {/* Tabs */}
-                  <div className="flex gap-1 border-b pb-2 mb-4">
+                  <div className="flex gap-1 border-b pb-2 mb-4" translate="no">
                     {([
                       { id: 'details', label: 'Detalhes' },
                       { id: 'tasks',   label: `Andamentos (${procAndamentos.length})` },
