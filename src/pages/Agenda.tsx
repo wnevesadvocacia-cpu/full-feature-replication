@@ -266,7 +266,7 @@ export default function Agenda() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] }),
   });
 
-  const FormBody = ({ isEdit = false }) => (
+  const formBody = (
     <div className="space-y-4">
       <div>
         <Label>Título *</Label>
