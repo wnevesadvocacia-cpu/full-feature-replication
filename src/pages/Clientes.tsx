@@ -534,7 +534,7 @@ export default function Clientes() {
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Novo Cliente</DialogTitle></DialogHeader>
-          <ClientFormFields />
+          {clientFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.name || saving}>
@@ -548,7 +548,7 @@ export default function Clientes() {
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar Cliente</DialogTitle></DialogHeader>
-          <ClientFormFields />
+          {clientFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
             <Button onClick={handleEdit} disabled={!form.name || saving}>
