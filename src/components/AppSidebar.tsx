@@ -47,6 +47,7 @@ const mainNav = [
   { title: 'CRM Kanban', url: '/crm', icon: KanbanSquare },
   { title: 'Processos', url: '/processos', icon: Briefcase },
   { title: 'Intimações', url: '/intimacoes', icon: Bell },
+  { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Tarefas', url: '/tarefas', icon: CheckSquare },
   { title: 'Timesheet', url: '/timesheet', icon: Clock },
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
