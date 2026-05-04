@@ -74,17 +74,14 @@ function lockoutEmailHtml() {
 </body></html>`;
 }
 
-/** S25 — verifica se o email existe em auth.users via admin API. */
+/** S25 — verifica existência por RPC interna, sem paginação lenta de usuários. */
 async function emailExists(admin: any, email: string): Promise<boolean> {
-  let page = 1;
-  while (page <= 10) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 100 });
-    if (error || !data) return false;
-    if (data.users.some((u: any) => u.email?.toLowerCase() === email)) return true;
-    if (data.users.length < 100) return false;
-    page++;
+  const { data, error } = await admin.rpc('auth_user_exists_by_email', { _email: email });
+  if (error) {
+    console.error('auth_user_exists_by_email failed', error);
+    return false;
   }
-  return false;
+  return data === true;
 }
 
 async function sendResendEmail(to: string, subject: string, html: string): Promise<boolean> {
