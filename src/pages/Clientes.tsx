@@ -233,7 +233,7 @@ export default function Clientes() {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
-  const ClientFormFields = () => (
+  const clientFormFields = (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
