@@ -73,8 +73,15 @@ export default function Notificacoes() {
           <h1 className="text-2xl font-display font-bold">Notificações</h1>
           <p className="text-muted-foreground text-sm mt-1">{data.filter((n) => !n.read).length} não lidas</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => markAllRead.mutate()}>
-          <Check className="h-4 w-4 mr-1" /> Marcar tudo lido
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => markAllRead.mutate()}
+          disabled={markAllRead.isPending || data.every((n: any) => n.read)}
+        >
+          {markAllRead.isPending
+            ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Marcando…</>
+            : <><Check className="h-4 w-4 mr-1" /> Marcar tudo lido</>}
         </Button>
       </div>
 
