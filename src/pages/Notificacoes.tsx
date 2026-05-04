@@ -28,27 +28,21 @@ export default function Notificacoes() {
   const markAllRead = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-      // Busca TODOS os ids não lidos no servidor (sem limite de 200)
-      let updatedTotal = 0;
-      while (true) {
-        const { data: ids, error: selErr } = await (supabase as any)
-          .from('notifications')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('read', false)
-          .limit(500);
-        if (selErr) throw selErr;
-        if (!ids || ids.length === 0) break;
-        const { data: rows, error } = await (supabase as any)
-          .from('notifications')
-          .update({ read: true })
-          .in('id', ids.map((r: any) => r.id))
-          .select('id');
-        if (error) throw error;
-        updatedTotal += rows?.length ?? 0;
-        if (ids.length < 500) break;
-      }
-      return updatedTotal;
+      // Conta antes
+      const { count: before, error: cErr } = await (supabase as any)
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      if (cErr) throw cErr;
+      // Atualiza por filtro (sem IN — sem limite de URL)
+      const { error } = await (supabase as any)
+        .from('notifications')
+        .update({ read: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      if (error) throw error;
+      return before ?? 0;
     },
     onSuccess: (n) => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
