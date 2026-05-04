@@ -313,7 +313,7 @@ export default function Movimentacoes() {
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Nova Movimentação</DialogTitle></DialogHeader>
-          <FormBody />
+          {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={saving || !form.description.trim()}>
@@ -327,7 +327,7 @@ export default function Movimentacoes() {
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Editar Movimentação</DialogTitle></DialogHeader>
-          <FormBody />
+          {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
             <Button onClick={handleEdit} disabled={saving || !form.description.trim()}>
