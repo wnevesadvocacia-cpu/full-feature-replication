@@ -430,10 +430,8 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
-  const Field = ({ label, field, type = 'text', colSpan = 1 }: {
-    label: string; field: keyof FormData; type?: string; colSpan?: number;
-  }) => (
-    <div className={colSpan === 2 ? 'col-span-2' : ''}>
+  const renderField = (label: string, field: keyof FormData, type: string = 'text', colSpan: number = 1) => (
+    <div key={field} className={colSpan === 2 ? 'col-span-2' : ''}>
       <Label className="text-xs text-gray-500 uppercase tracking-wide">{label}</Label>
       <Input type={type} value={form[field]} onChange={set(field)} className="mt-1" />
     </div>
@@ -442,7 +440,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Número" field="number" />
+        {renderField('Número', 'number')}
         <div>
           <Label className="text-xs text-gray-500 uppercase tracking-wide">Status</Label>
           <select value={form.status} onChange={set('status')}
@@ -477,34 +475,34 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
             />
           )}
         </div>
-        <Field label="Parte Contrária" field="opponent" />
+        {renderField('Parte Contrária', 'opponent')}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Tipo" field="type" />
-        <Field label="Advogado" field="lawyer" />
+        {renderField('Tipo', 'type')}
+        {renderField('Advogado', 'lawyer')}
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Comarca" field="comarca" />
-        <Field label="Vara" field="vara" />
-        <Field label="Tribunal" field="tribunal" />
+        {renderField('Comarca', 'comarca')}
+        {renderField('Vara', 'vara')}
+        {renderField('Tribunal', 'tribunal')}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Fase" field="phase" />
-        <Field label="Etapa" field="stage" />
+        {renderField('Fase', 'phase')}
+        {renderField('Etapa', 'stage')}
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <Field label="Valor da Causa (R$)" field="cause_value" type="number" />
-        <Field label="Honorários (R$)" field="honorarios_valor" type="number" />
-        <Field label="Honorários (%)" field="honorarios_percent" type="number" />
+        {renderField('Valor da Causa (R$)', 'cause_value', 'number')}
+        {renderField('Honorários (R$)', 'honorarios_valor', 'number')}
+        {renderField('Honorários (%)', 'honorarios_percent', 'number')}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Data de Entrada" field="request_date" type="date" />
-        <Field label="Data de Encerramento" field="closing_date" type="date" />
+        {renderField('Data de Entrada', 'request_date', 'date')}
+        {renderField('Data de Encerramento', 'closing_date', 'date')}
       </div>
 
       <div>
