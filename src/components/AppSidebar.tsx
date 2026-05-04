@@ -60,7 +60,6 @@ const mainNav = [
 const secondaryNav: { title: string; url: string; icon: any; disabled?: boolean }[] = [
   { title: 'Gerador de Peças (IA)', url: '/gerador-pecas', icon: Sparkles },
   { title: 'Peticionamento Eletrônico (em breve)', url: '#peticionamento', icon: Send, disabled: true },
-  { title: 'Agenda', url: '/agenda', icon: Calendar },
   { title: 'Modelos', url: '/modelos', icon: FileSignature },
   { title: 'Documentos', url: '/documentos', icon: FileText },
   { title: 'Movimentações', url: '/movimentacoes', icon: Activity },
