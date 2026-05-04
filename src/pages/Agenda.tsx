@@ -695,7 +695,7 @@ export default function Agenda() {
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Editar compromisso</DialogTitle></DialogHeader>
-          <FormBody isEdit />
+          {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
             <Button onClick={handleEdit} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
