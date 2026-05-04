@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Loader2, Bell, Check, Trash2 } from 'lucide-react';
+import { Loader2, Bell, Check, Trash2, Trash } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 
@@ -28,26 +28,27 @@ export default function Notificacoes() {
   const markAllRead = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Usuário não autenticado');
-      // Otimização: em vez de update massivo (que pode timeout com centenas de linhas
-      // e não retorna confirmação visual), processamos em lotes pelos IDs já em cache.
-      const unreadIds = (data as any[]).filter((n) => !n.read).map((n) => n.id);
-      if (unreadIds.length === 0) return 0;
-
-      // Lotes de 200 para evitar payloads grandes
-      const chunkSize = 200;
-      let updated = 0;
-      for (let i = 0; i < unreadIds.length; i += chunkSize) {
-        const slice = unreadIds.slice(i, i + chunkSize);
+      // Busca TODOS os ids não lidos no servidor (sem limite de 200)
+      let updatedTotal = 0;
+      while (true) {
+        const { data: ids, error: selErr } = await (supabase as any)
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('read', false)
+          .limit(500);
+        if (selErr) throw selErr;
+        if (!ids || ids.length === 0) break;
         const { data: rows, error } = await (supabase as any)
           .from('notifications')
           .update({ read: true })
-          .in('id', slice)
-          .eq('user_id', user.id)
+          .in('id', ids.map((r: any) => r.id))
           .select('id');
         if (error) throw error;
-        updated += rows?.length ?? 0;
+        updatedTotal += rows?.length ?? 0;
+        if (ids.length < 500) break;
       }
-      return updated;
+      return updatedTotal;
     },
     onSuccess: (n) => {
       qc.invalidateQueries({ queryKey: ['notifications'] });
@@ -63,6 +64,39 @@ export default function Notificacoes() {
     mutationFn: async (id: string) => { await (supabase as any).from('notifications').delete().eq('id', id); },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
+  const delAll = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error('Usuário não autenticado');
+      let deletedTotal = 0;
+      while (true) {
+        const { data: ids, error: selErr } = await (supabase as any)
+          .from('notifications')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(500);
+        if (selErr) throw selErr;
+        if (!ids || ids.length === 0) break;
+        const { data: rows, error } = await (supabase as any)
+          .from('notifications')
+          .delete()
+          .in('id', ids.map((r: any) => r.id))
+          .select('id');
+        if (error) throw error;
+        deletedTotal += rows?.length ?? 0;
+        if (ids.length < 500) break;
+      }
+      return deletedTotal;
+    },
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+      toast({ title: 'Notificações apagadas', description: `${n} notificação(ões) removida(s).` });
+    },
+    onError: (e: any) => {
+      console.error('[delAll] erro:', e);
+      toast({ title: 'Erro ao apagar', description: e?.message ?? 'Falha desconhecida', variant: 'destructive' });
+    },
+  });
 
   if (isLoading) return <div className="p-6 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>;
 
@@ -73,16 +107,32 @@ export default function Notificacoes() {
           <h1 className="text-2xl font-display font-bold">Notificações</h1>
           <p className="text-muted-foreground text-sm mt-1">{data.filter((n) => !n.read).length} não lidas</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => markAllRead.mutate()}
-          disabled={markAllRead.isPending || data.every((n: any) => n.read)}
-        >
-          {markAllRead.isPending
-            ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Marcando…</>
-            : <><Check className="h-4 w-4 mr-1" /> Marcar tudo lido</>}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => markAllRead.mutate()}
+            disabled={markAllRead.isPending || data.every((n: any) => n.read)}
+          >
+            {markAllRead.isPending
+              ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Marcando…</>
+              : <><Check className="h-4 w-4 mr-1" /> Marcar tudo lido</>}
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (confirm('Apagar TODAS as notificações? Esta ação não pode ser desfeita.')) {
+                delAll.mutate();
+              }
+            }}
+            disabled={delAll.isPending || data.length === 0}
+          >
+            {delAll.isPending
+              ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Apagando…</>
+              : <><Trash className="h-4 w-4 mr-1" /> Apagar todas</>}
+          </Button>
+        </div>
       </div>
 
       {data.length === 0 ? (
