@@ -26,8 +26,21 @@ export default function Notificacoes() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
   });
   const markAllRead = useMutation({
-    mutationFn: async () => { await (supabase as any).from('notifications').update({ read: true }).eq('user_id', user!.id).eq('read', false); },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['notifications'] }),
+    mutationFn: async () => {
+      const { error, count } = await (supabase as any)
+        .from('notifications')
+        .update({ read: true }, { count: 'exact' })
+        .eq('user_id', user!.id)
+        .eq('read', false);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    onSuccess: (n) => {
+      qc.invalidateQueries({ queryKey: ['notifications'] });
+      qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+      toast({ title: 'Notificações marcadas como lidas', description: `${n} notificações atualizadas.` });
+    },
+    onError: (e: any) => toast({ title: 'Erro ao marcar como lidas', description: e?.message ?? 'Falha desconhecida', variant: 'destructive' }),
   });
   const del = useMutation({
     mutationFn: async (id: string) => { await (supabase as any).from('notifications').delete().eq('id', id); },
