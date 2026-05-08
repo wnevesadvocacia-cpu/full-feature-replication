@@ -815,7 +815,7 @@ export default function Processos() {
                       className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => { setSelected(p); setEditMode(false); setDetailTab('details'); }}
                     >
-                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{p.number || EMPTY}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{displayProcessNumber(p.number)}</td>
                       <td className="px-4 py-3 max-w-[220px] truncate font-medium">{p.title || EMPTY}</td>
                       <td className="px-4 py-3 max-w-[160px] truncate text-gray-600">{val(p.client_name)}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{val(p.comarca)}</td>
