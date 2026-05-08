@@ -873,7 +873,7 @@ export default function Processos() {
               <SheetHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <SheetTitle className="font-mono text-base">{selected.number || selected.title}</SheetTitle>
+                    <SheetTitle className="font-mono text-base">{displayProcessNumber(selected.number) !== EMPTY ? displayProcessNumber(selected.number) : selected.title}</SheetTitle>
                     <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{selected.title}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
