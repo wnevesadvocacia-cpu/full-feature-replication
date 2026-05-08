@@ -23,8 +23,10 @@ const fmtBRL = (v: number | null | undefined) =>
 
 const formatCNJ = (n?: string | null) => {
   if (!n) return '';
-  // Show only the meaningful prefix (NNNNNNN-DD.AAAA) for cleaner cards
-  const clean = n.replace(/\s/g, '');
+  // Remove sufixo de desambiguação " #XXXX" inserido na importação
+  let clean = n.replace(/\s+#[0-9a-fA-F]+$/, '').replace(/\s/g, '');
+  // Placeholders "S/Nº-NAME" não são número real
+  if (/^S\/N[ºo]?/i.test(clean)) return '';
   return clean.length > 25 ? clean.slice(0, 25) + '…' : clean;
 };
 

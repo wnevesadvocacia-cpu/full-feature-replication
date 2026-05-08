@@ -136,6 +136,18 @@ function val(s: string | null | undefined) {
   return s || EMPTY;
 }
 
+/**
+ * Limpa o número do processo para exibição:
+ *  - remove sufixo de desambiguação " #XXXX" inserido na importação
+ *  - placeholders "S/Nº - NAME" viram "—" (não há número real)
+ */
+function displayProcessNumber(n: string | null | undefined): string {
+  if (!n) return EMPTY;
+  const cleaned = n.replace(/\s+#[0-9a-fA-F]+$/, '').trim();
+  if (/^S\/N[ºo]?\b/i.test(cleaned)) return EMPTY;
+  return cleaned || EMPTY;
+}
+
 const FULL_SELECT = [
   'id', 'number', 'title', 'status', 'type',
   'client_id', 'client_name', 'comarca', 'vara', 'tribunal',
@@ -803,7 +815,7 @@ export default function Processos() {
                       className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => { setSelected(p); setEditMode(false); setDetailTab('details'); }}
                     >
-                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{p.number || EMPTY}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{displayProcessNumber(p.number)}</td>
                       <td className="px-4 py-3 max-w-[220px] truncate font-medium">{p.title || EMPTY}</td>
                       <td className="px-4 py-3 max-w-[160px] truncate text-gray-600">{val(p.client_name)}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{val(p.comarca)}</td>
@@ -861,7 +873,7 @@ export default function Processos() {
               <SheetHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <SheetTitle className="font-mono text-base">{selected.number || selected.title}</SheetTitle>
+                    <SheetTitle className="font-mono text-base">{displayProcessNumber(selected.number) !== EMPTY ? displayProcessNumber(selected.number) : selected.title}</SheetTitle>
                     <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{selected.title}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
