@@ -136,6 +136,18 @@ function val(s: string | null | undefined) {
   return s || EMPTY;
 }
 
+/**
+ * Limpa o número do processo para exibição:
+ *  - remove sufixo de desambiguação " #XXXX" inserido na importação
+ *  - placeholders "S/Nº - NAME" viram "—" (não há número real)
+ */
+function displayProcessNumber(n: string | null | undefined): string {
+  if (!n) return EMPTY;
+  const cleaned = n.replace(/\s+#[0-9a-fA-F]+$/, '').trim();
+  if (/^S\/N[ºo]?\b/i.test(cleaned)) return EMPTY;
+  return cleaned || EMPTY;
+}
+
 const FULL_SELECT = [
   'id', 'number', 'title', 'status', 'type',
   'client_id', 'client_name', 'comarca', 'vara', 'tribunal',
