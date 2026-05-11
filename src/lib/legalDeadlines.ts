@@ -399,7 +399,71 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let pecaSugerida: PecaSugerida | null = null;
   let baseLegalExtra = '';
 
-  // ====== CAMADA DE CONTEXTO (precedência sobre regex isoladas) ======
+  // ====== P0 #2: PAUTA DE SESSÃO VIRTUAL (precedência ABSOLUTA) ======
+  // Vencimento = 48h antes da sessão (Res. CNJ 591/24, TJSP 984/2025).
+  // Trava de segurança: dueDate NUNCA pode ser >= sessionDate.
+  const pauta = extractPautaSessao(text);
+  if (pauta && pauta.sessionISO > receivedAtISO) {
+    const dueDate = subCalendarDaysToBusiness(pauta.sessionISO, 2);
+    // Hard guard: se cálculo deu data >= sessão, força para 1 dia útil antes
+    let safeDueDate = dueDate;
+    if (safeDueDate >= pauta.sessionISO) {
+      const x = new Date(pauta.sessionISO + 'T12:00:00Z');
+      x.setUTCDate(x.getUTCDate() - 1);
+      safeDueDate = x.toISOString().slice(0, 10);
+      while (!isBusinessDay(safeDueDate) || safeDueDate >= pauta.sessionISO) {
+        const y = new Date(safeDueDate + 'T12:00:00Z'); y.setUTCDate(y.getUTCDate() - 1);
+        safeDueDate = y.toISOString().slice(0, 10);
+      }
+    }
+    const bdLeft = businessDaysBetween(todayISO, safeDueDate);
+    const sev: DetectedDeadline['severity'] =
+      bdLeft < 0 ? 'expired' : bdLeft <= 2 ? 'critical' : bdLeft <= 5 ? 'warning' : 'normal';
+    const timeLabel = pauta.sessionTime ? ` às ${pauta.sessionTime}` : '';
+    return {
+      days: 0,
+      unit: 'dias_corridos',
+      label: `Pauta sessão virtual — sessão ${pauta.sessionISO.slice(8,10)}/${pauta.sessionISO.slice(5,7)}${timeLabel}`,
+      source: 'CPC',
+      article: 'Res. CNJ 591/2024 art. 9º + TJSP 984/2025',
+      matchedText: pauta.matched,
+      doubled: false,
+      dueDate: safeDueDate,
+      startDate: receivedAtISO,
+      severity: sev,
+      businessDaysLeft: bdLeft,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Pedido de sustentação oral / destaque',
+        fundamento_legal: 'Res. CNJ 591/2024 art. 9º',
+        prazo_dias: 2,
+        observacoes: `Sessão de julgamento virtual em ${pauta.sessionISO.slice(8,10)}/${pauta.sessionISO.slice(5,7)}/${pauta.sessionISO.slice(0,4)}${timeLabel}. Janela para destaque/sustentação oral encerra 48h antes.`,
+      },
+      baseLegal: `Res. CNJ 591/2024 (sessão virtual) — janela de destaque até 48h antes da sessão`,
+      confianca: 0.92,
+      classificacaoStatus: 'auto_alta',
+    };
+  }
+
+  // ====== P0 #3: PARSER LITERAL DE PRAZO (prevalece sobre classificador) ======
+  const literal = extractLiteralDeadline(text);
+  if (literal) {
+    chosen = {
+      rule: {
+        pattern: LITERAL_DEADLINE_RX,
+        days: literal.days,
+        unit: literal.unit,
+        label: `Manifestação (${literal.days} ${literal.unit === 'dias_corridos' ? 'dias corridos' : 'dias'})`,
+        source: 'CPC',
+        article: 'art. 218 / texto da publicação',
+        peca: PECA_GENERICA(`Manifestação (${literal.days} dias)`, literal.days),
+      },
+      matched: literal.matched,
+    };
+    confianca = 0.95;
+    classificacaoStatus = 'auto_alta';
+  }
+
 
   // (A) REJEITO embargos de declaração → reabre prazo recurso original (CPC 1.026 §1º)
   const mRejeita = text.match(REJEITA_EMBARGOS);
