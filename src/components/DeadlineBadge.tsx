@@ -43,28 +43,67 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
       ? 'Vence hoje'
       : `${deadline.businessDaysLeft} dia(s) útil(eis) restante(s)`;
 
+  // Pauta de sessão de julgamento (não é prazo do advogado): badge neutro azul.
+  const isPauta = deadline.triggerSource === 'pauta' || deadline.days === 0;
+  const sessionDateBR = deadline.dueDate ? formatBR(deadline.dueDate) : '';
+
   return (
     <div className="inline-flex flex-wrap items-center gap-1.5">
       <TooltipProvider delayDuration={150}>
         <Tooltip>
           <TooltipTrigger asChild>
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-semibold uppercase tracking-wide ${style.bg} cursor-help select-none`}
-              aria-label={`Prazo legal: ${deadline.label}, ${remainingText}`}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-semibold uppercase tracking-wide cursor-help select-none ${
+                isPauta
+                  ? 'bg-muted text-muted-foreground border-border'
+                  : style.bg
+              }`}
+              aria-label={
+                isPauta
+                  ? `Sessão de julgamento em ${sessionDateBR}`
+                  : `Prazo legal: ${deadline.label}, ${remainingText}`
+              }
             >
-              {style.icon}
-              <span>{deadline.label}{deadline.isFallback ? ' *' : ''}</span>
-              <span className="opacity-70">·</span>
-              <span>{deadline.days}{deadline.doubled ? ' (2x)' : ''} {deadline.unit === 'dias_uteis' ? 'd.u.' : 'd.c.'}</span>
-              {deadline.startDate && deadline.dueDate && (
+              {isPauta ? <CalendarClock className="h-3.5 w-3.5" /> : style.icon}
+              {isPauta ? (
                 <>
+                  <span>Sessão</span>
+                  {sessionDateBR && (
+                    <>
+                      <span className="opacity-70">·</span>
+                      <span>{sessionDateBR}</span>
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span>{deadline.label}{deadline.isFallback ? ' *' : ''}</span>
                   <span className="opacity-70">·</span>
-                  <span>{formatBR(deadline.startDate)} → {formatBR(deadline.dueDate)}</span>
+                  <span>{deadline.days}{deadline.doubled ? ' (2x)' : ''} {deadline.unit === 'dias_uteis' ? 'd.u.' : 'd.c.'}</span>
+                  {deadline.startDate && deadline.dueDate && (
+                    <>
+                      <span className="opacity-70">·</span>
+                      <span>{formatBR(deadline.startDate)} → {formatBR(deadline.dueDate)}</span>
+                    </>
+                  )}
                 </>
               )}
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-md text-xs leading-relaxed">
+            {isPauta ? (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <CalendarClock className="h-3.5 w-3.5 text-primary" />
+                  Sessão de julgamento virtual
+                </div>
+                <div><strong>Data da sessão:</strong> {sessionDateBR}</div>
+                <div className="text-muted-foreground">
+                  Não é prazo processual do advogado. A intimação informa a data de inclusão em pauta;
+                  o prazo recursal só corre após a publicação do acórdão.
+                </div>
+              </div>
+            ) : (
             <div className="space-y-1.5">
               <div className="flex items-center gap-1.5 font-semibold">
                 <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
