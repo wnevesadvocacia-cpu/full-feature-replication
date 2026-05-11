@@ -719,9 +719,16 @@ Deno.serve(async (req) => {
     }
 
     if (cronRunId) {
+      // Telemetria PR3: agrega contagem de triggerSource por execução para
+      // monitorar distribuição diária dos gatilhos do detectDeadline.
+      const aggTriggers: Record<string, number> = {};
+      for (const r of results) {
+        const tc = (r as any)?.trigger_counts as Record<string, number> | undefined;
+        if (tc) for (const [k, v] of Object.entries(tc)) aggTriggers[k] = (aggTriggers[k] || 0) + v;
+      }
       await supabase.from('cron_runs').update({
         status: 'success', ended_at: new Date().toISOString(),
-        metadata: { targets: targets.length, results: results.length },
+        metadata: { targets: targets.length, results: results.length, trigger_counts: aggTriggers },
       }).eq('id', cronRunId);
     }
 
