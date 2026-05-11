@@ -18,6 +18,8 @@ import { z } from 'https://esm.sh/zod@3.23.8';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
 import { captureException } from '../_shared/sentry.ts';
+// PR2 — edge unificada: detectDeadline canônico (mesma engine do frontend).
+import { detectDeadline } from '../_shared/legalDeadlines.ts';
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
 // Se um item falhar na validação, sync marca status='partial', preserva
