@@ -127,6 +127,7 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
                 Confirme sempre com o diploma processual aplicável.
               </div>
             </div>
+            )}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
