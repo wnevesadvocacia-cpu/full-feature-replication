@@ -473,6 +473,8 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
         // SprintClosure #9: já garantido pelo Zod schema que data_disponibilizacao existe.
         // Não há mais fallback silencioso para today.
+        const receivedAt = it.data_disponibilizacao!;
+        const tribunal = it.siglaTribunal || null;
         // PR2 — fonte única: detectDeadline canônico.
         // Política de segurança jurídica:
         //   * auto_alta (≥0.9): grava deadline canônico.
