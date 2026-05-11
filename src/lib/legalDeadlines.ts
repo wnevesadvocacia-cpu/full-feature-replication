@@ -74,6 +74,8 @@ export interface DetectedDeadline {
   confianca: number;
   /** Classificação consolidada para o DB. */
   classificacaoStatus: ClassificationStatus;
+  /** Fonte do trigger acionado (telemetria PR3). */
+  triggerSource: 'literal_dispositivo' | 'literal_strong' | 'literal_weak' | 'pauta' | 'context_rejeita' | 'context_acolhe' | 'context_homolog' | 'explicit' | 'rules' | 'fallback';
 }
 
 interface Rule {
