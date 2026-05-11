@@ -1,0 +1,1 @@
+ALTER TABLE public.intimations ADD COLUMN IF NOT EXISTS classification_meta jsonb;

@@ -427,6 +427,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   let nameRejected = 0;
   let errorMessage: string | null = null;
   let status: 'success' | 'partial' | 'failed' = 'success';
+  const triggerCounts: Record<string, number> = {};
 
   // Nomes de referência para fuzzy match: lawyer_name + variações.
   const refNames: string[] = [
@@ -480,6 +481,8 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         //   * auto_alta (≥0.9): grava deadline canônico.
         //   * demais (auto_media/baixa/ambigua_urgente): deadline=null + dump em deadline_sugerido_inseguro.
         const detected = classifyIntimation(cleanText, receivedAt);
+        const trigKey = detected?.triggerSource ?? 'none';
+        triggerCounts[trigKey] = (triggerCounts[trigKey] || 0) + 1;
         const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;
         const deadline = isSafe ? detected!.dueDate : null;
         const deadlineSugeridoInseguro = (detected && !isSafe) ? {
@@ -627,6 +630,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     attempts,
     duration_ms: duration,
     error: errorMessage,
+    trigger_counts: triggerCounts,
   };
 }
 
@@ -715,9 +719,16 @@ Deno.serve(async (req) => {
     }
 
     if (cronRunId) {
+      // Telemetria PR3: agrega contagem de triggerSource por execução para
+      // monitorar distribuição diária dos gatilhos do detectDeadline.
+      const aggTriggers: Record<string, number> = {};
+      for (const r of results) {
+        const tc = (r as any)?.trigger_counts as Record<string, number> | undefined;
+        if (tc) for (const [k, v] of Object.entries(tc)) aggTriggers[k] = (aggTriggers[k] || 0) + v;
+      }
       await supabase.from('cron_runs').update({
         status: 'success', ended_at: new Date().toISOString(),
-        metadata: { targets: targets.length, results: results.length },
+        metadata: { targets: targets.length, results: results.length, trigger_counts: aggTriggers },
       }).eq('id', cronRunId);
     }
 
