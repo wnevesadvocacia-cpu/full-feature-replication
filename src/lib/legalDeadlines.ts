@@ -766,5 +766,6 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     baseLegal,
     confianca: Math.round(confianca * 100) / 100,
     classificacaoStatus,
+    triggerSource,
   };
 }
