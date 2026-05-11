@@ -250,38 +250,125 @@ const EXPLICIT_DAYS = new RegExp(
 
 // ====================================================================
 // PARSER LITERAL DE PRAZO — P0 #3 (prevalece sobre classificador/contexto).
-// Cobre formatos da praxis forense que o EXPLICIT_DAYS não pegava:
-//   "Prazo: 5 (cinco) dias"   "Prazo - 10 dias"   "PRAZO: 15 dias"
-//   "preparo recursal em 5 (cinco) dias, sob pena de deserção"
-//   "recolha o preparo em 5 dias"   "junte em 10 dias"
-//   "no prazo de quinze (15) dias"  "em quinze dias"
+//
+// Hierarquia (PR1 unificação edge↔frontend):
+//   1. literal_dispositivo (após marcador "ANTE O EXPOSTO" etc.) → 0.95
+//   2. literal_strong (verbos + "em N dias" / "prazo de N dias" / extenso) → 0.92
+//   3. literal_weak (delta 1: "em N dias" puro, sem verbo) → 0.85
+//   * Literal SEMPRE trava override de RULES e contexto (REJEITO/ACOLHE/HOMOLOG).
+//   * Dobra Fazenda Pública NÃO se aplica a literal — texto literal já é a vontade
+//     do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra.
 // ====================================================================
+
+// Marcadores de parte dispositiva (Delta 3 refinado).
+// "Considerando o exposto" e similares também caem aqui.
+const DISPOSITIVO_MARKER_RX = /\b(ante o exposto|isso posto|posto isso|pelo exposto|por todo o exposto|por tudo (?:o\s+)?(?:que\s+foi\s+)?exposto|considerando o exposto|do exposto|dispositivo|decisao monocratica|decido|determino|defiro|indefiro|julgo (?:procedente|improcedente|parcialmente|extinto)|condeno|absolvo|extingo (?:o )?(?:processo|feito)|homologo|rejeito|acolho)\b/g;
+
+function findLastDispositivoIndex(text: string): number {
+  let last = -1;
+  for (const m of text.matchAll(DISPOSITIVO_MARKER_RX)) {
+    if (m.index !== undefined) last = m.index;
+  }
+  return last;
+}
+
 const LITERAL_TRIGGERS_PRE = [
-  // "prazo:" / "prazo -" / "prazo de"
+  // "prazo:" / "prazo -" / "prazo de" / "no prazo de"
   '(?:no\\s+)?prazo(?:\\s+legal)?\\s*(?:[:\\-–]|de)\\s*',
   // "dentro do prazo de"
   'dentro\\s+(?:do\\s+)?prazo\\s+de\\s*',
-  // ações que costumam vir com "em N dias" sob pena de algo
-  '(?:preparo\\s+\\w+|recolh[a-z]+|comprov[a-z]+|protocol[a-z]+|junt[a-z]+|manifest[a-z]+|cumpr[a-z]+|apresent[a-z]+|emend[a-z]+|recolha\\s+o\\s+preparo)[^.;\\n]{0,60}?\\bem\\s+',
+  // ações que costumam vir com "em N dias"
+  '(?:preparo\\s+\\w+|recolh[a-z]+|comprov[a-z]+|protocol[a-z]+|junt[a-z]+|manifest[a-z]+|cumpr[a-z]+|apresent[a-z]+|emend[a-z]+|recolha\\s+o\\s+preparo|pague|pagar|deposit[a-z]+|efetu[a-z]+\\s+o\\s+(?:preparo|recolhimento))[^.;\\n]{0,60}?\\bem\\s+',
   // "em ate N dias"
   'em\\s+ate\\s+',
 ].join('|');
 
 const LITERAL_NUM = `(?:(\\d{1,3})(?:\\s*\\([^)]+\\))?|(${EXTENSO_RX})(?:\\s*\\(\\d{1,3}\\))?)`;
-const LITERAL_DEADLINE_RX = new RegExp(
+
+const LITERAL_STRONG_RX = new RegExp(
   `(?:${LITERAL_TRIGGERS_PRE})\\s*${LITERAL_NUM}\\s+dias?(?:\\s+(uteis|corridos))?`,
+  'g',
 );
 
-interface LiteralMatch { days: number; unit: DeadlineUnit; matched: string; }
+// Delta 1: "em N dias" puro, sem verbo de gatilho. Mais propenso a falso-positivo.
+const LITERAL_WEAK_RX = new RegExp(
+  `\\bem\\s+${LITERAL_NUM}\\s+dias?(?:\\s+(uteis|corridos))?\\b`,
+  'g',
+);
 
-function extractLiteralDeadline(normText: string): LiteralMatch | null {
-  const m = normText.match(LITERAL_DEADLINE_RX);
-  if (!m) return null;
+export type LiteralKind = 'dispositivo' | 'strong' | 'weak';
+export interface LiteralMatch {
+  days: number;
+  unit: DeadlineUnit;
+  matched: string;
+  confidence: number;
+  kind: LiteralKind;
+}
+
+function parseMatch(m: RegExpExecArray): { days: number; unit: DeadlineUnit } | null {
   const n = m[1] ? parseInt(m[1], 10) : (m[2] ? NUM_BY_EXTENSO[m[2]] ?? 0 : 0);
   if (!n || n > 365) return null;
   const unit: DeadlineUnit = m[3] === 'corridos' ? 'dias_corridos' : 'dias_uteis';
-  return { days: n, unit, matched: m[0] };
+  return { days: n, unit };
 }
+
+function collectMatches(rx: RegExp, text: string): RegExpExecArray[] {
+  const out: RegExpExecArray[] = [];
+  const re = new RegExp(rx.source, rx.flags.includes('g') ? rx.flags : rx.flags + 'g');
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    out.push(m);
+    if (m[0].length === 0) re.lastIndex++;
+  }
+  return out;
+}
+
+/**
+ * Extrai prazo literal aplicando heurística de dispositivo:
+ *  - Se houver marcador ("ANTE O EXPOSTO" etc.), aplica trigger SOMENTE depois →
+ *    primeiro match após o marcador → kind='dispositivo' (0.95).
+ *  - Caso contrário, usa heurística "último match no texto" → kind='strong' (0.92).
+ *  - Se nenhum strong, tenta WEAK ("em N dias" puro) com mesma heurística → 0.85.
+ */
+export function extractLiteralDeadline(normText: string): LiteralMatch | null {
+  const dispIdx = findLastDispositivoIndex(normText);
+  const haystack = dispIdx >= 0 ? normText.slice(dispIdx) : normText;
+
+  // 1) STRONG dentro do dispositivo (ou no texto inteiro, último match).
+  const strong = collectMatches(LITERAL_STRONG_RX, haystack);
+  if (strong.length) {
+    const pick = dispIdx >= 0 ? strong[0] : strong[strong.length - 1];
+    const parsed = parseMatch(pick);
+    if (parsed) {
+      return {
+        ...parsed,
+        matched: pick[0],
+        confidence: dispIdx >= 0 ? 0.95 : 0.92,
+        kind: dispIdx >= 0 ? 'dispositivo' : 'strong',
+      };
+    }
+  }
+
+  // 2) WEAK fallback (delta 1).
+  const weak = collectMatches(LITERAL_WEAK_RX, haystack);
+  if (weak.length) {
+    const pick = dispIdx >= 0 ? weak[0] : weak[weak.length - 1];
+    const parsed = parseMatch(pick);
+    if (parsed) {
+      return {
+        ...parsed,
+        matched: pick[0],
+        confidence: 0.85,
+        kind: 'weak',
+      };
+    }
+  }
+
+  return null;
+}
+
+// Compat: alias do regex antigo (testes externos podem importá-lo).
+export const LITERAL_DEADLINE_RX = LITERAL_STRONG_RX;
 
 // ====================================================================
 // PAUTA DE SESSÃO VIRTUAL — P0 #2 (Resolução CNJ 591/24, TJSP 984/2025).
