@@ -213,19 +213,32 @@ export default function Intimacoes() {
     setTaskIntim(it);
   };
 
-  // Contagem por dia (para mostrar badges no seletor)
+  // P0 #4: dedup defensivo no frontend (admin vê rows de outros usuários via RLS)
+  const dedupedItems = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Intim[] = [];
+    for (const it of items) {
+      const key = (it as any).external_id
+        ?? `manual:${it.received_at}:${it.court ?? ''}:${(it.content || '').slice(0, 200)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(it);
+    }
+    return out;
+  }, [items]);
+
   const countsByDate = useMemo(() => {
     const m = new Map<string, number>();
-    items.forEach((it) => {
+    dedupedItems.forEach((it) => {
       const d = it.received_at?.slice(0, 10);
       if (d) m.set(d, (m.get(d) ?? 0) + 1);
     });
     return m;
-  }, [items]);
+  }, [dedupedItems]);
 
   const dayItems = useMemo(
-    () => items.filter((i) => i.received_at?.slice(0, 10) === selectedDate),
-    [items, selectedDate]
+    () => dedupedItems.filter((i) => i.received_at?.slice(0, 10) === selectedDate),
+    [dedupedItems, selectedDate]
   );
 
   const filtered = dayItems.filter((i) => filter === 'todas' || i.status === filter);
@@ -242,7 +255,8 @@ export default function Intimacoes() {
   };
 
   const isHoliday = !isBusinessDay(selectedDate);
-  const totalDay = dayItems.length;
+  // P0 #1: contador == itens renderizados (mesma fonte da lista)
+  const totalDay = filtered.length;
 
   if (isLoading) return <div className="p-6 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>;
 
