@@ -678,6 +678,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
           matched: explicit[0],
         };
         confianca = ctxRule?.confianca ?? 0.78;
+        triggerSource = 'explicit';
       }
     }
   }
