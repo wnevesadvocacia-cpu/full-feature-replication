@@ -473,9 +473,24 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
         // SprintClosure #9: já garantido pelo Zod schema que data_disponibilizacao existe.
         // Não há mais fallback silencioso para today.
-        const receivedAt = it.data_disponibilizacao!;
-        const tribunal = it.siglaTribunal || null;
-        const deadline = extractDeadline(cleanText, receivedAt, tribunal);
+        // PR2 — fonte única: detectDeadline canônico.
+        // Política de segurança jurídica:
+        //   * auto_alta (≥0.9): grava deadline canônico.
+        //   * demais (auto_media/baixa/ambigua_urgente): deadline=null + dump em deadline_sugerido_inseguro.
+        const detected = classifyIntimation(cleanText, receivedAt);
+        const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;
+        const deadline = isSafe ? detected!.dueDate : null;
+        const deadlineSugeridoInseguro = (detected && !isSafe) ? {
+          due_date: detected.dueDate,
+          start_date: detected.startDate,
+          days: detected.days,
+          unit: detected.unit,
+          label: detected.label,
+          confianca: detected.confianca,
+          classificacao_status: detected.classificacaoStatus,
+          trigger_source: detected.triggerSource,
+          calculated_at: new Date().toISOString(),
+        } : null;
         const processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
 
         const { data: insertedRow, error } = await supabase.from('intimations').insert({
@@ -486,6 +501,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           content: cleanText,
           received_at: receivedAt,
           deadline,
+          deadline_sugerido_inseguro: deadlineSugeridoInseguro,
+          peca_sugerida: detected?.pecaSugerida ?? null,
+          base_legal: detected?.baseLegal ?? null,
+          confianca_classificacao: detected?.confianca ?? null,
+          classificacao_status: detected?.classificacaoStatus ?? null,
           process_id: processId,
           status: 'pendente',
         }).select('id').single();
