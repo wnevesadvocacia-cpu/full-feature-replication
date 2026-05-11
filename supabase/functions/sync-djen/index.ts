@@ -481,6 +481,8 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         //   * auto_alta (≥0.9): grava deadline canônico.
         //   * demais (auto_media/baixa/ambigua_urgente): deadline=null + dump em deadline_sugerido_inseguro.
         const detected = classifyIntimation(cleanText, receivedAt);
+        const trigKey = detected?.triggerSource ?? 'none';
+        triggerCounts[trigKey] = (triggerCounts[trigKey] || 0) + 1;
         const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;
         const deadline = isSafe ? detected!.dueDate : null;
         const deadlineSugeridoInseguro = (detected && !isSafe) ? {
