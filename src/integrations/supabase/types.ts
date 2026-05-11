@@ -573,6 +573,7 @@ export type Database = {
             | Database["public"]["Enums"]["intimation_classification_status"]
             | null
           classification_canonical_v2: Json | null
+          classification_meta: Json | null
           confianca_classificacao: number | null
           content: string
           court: string | null
@@ -596,6 +597,7 @@ export type Database = {
             | Database["public"]["Enums"]["intimation_classification_status"]
             | null
           classification_canonical_v2?: Json | null
+          classification_meta?: Json | null
           confianca_classificacao?: number | null
           content: string
           court?: string | null
@@ -619,6 +621,7 @@ export type Database = {
             | Database["public"]["Enums"]["intimation_classification_status"]
             | null
           classification_canonical_v2?: Json | null
+          classification_meta?: Json | null
           confianca_classificacao?: number | null
           content?: string
           court?: string | null
