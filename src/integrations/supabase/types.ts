@@ -572,11 +572,13 @@ export type Database = {
           classificacao_status:
             | Database["public"]["Enums"]["intimation_classification_status"]
             | null
+          classification_canonical_v2: Json | null
           confianca_classificacao: number | null
           content: string
           court: string | null
           created_at: string
           deadline: string | null
+          deadline_canonical_v2: string | null
           deadline_sugerido_inseguro: Json | null
           external_id: string | null
           id: string
@@ -593,11 +595,13 @@ export type Database = {
           classificacao_status?:
             | Database["public"]["Enums"]["intimation_classification_status"]
             | null
+          classification_canonical_v2?: Json | null
           confianca_classificacao?: number | null
           content: string
           court?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_canonical_v2?: string | null
           deadline_sugerido_inseguro?: Json | null
           external_id?: string | null
           id?: string
@@ -614,11 +618,13 @@ export type Database = {
           classificacao_status?:
             | Database["public"]["Enums"]["intimation_classification_status"]
             | null
+          classification_canonical_v2?: Json | null
           confianca_classificacao?: number | null
           content?: string
           court?: string | null
           created_at?: string
           deadline?: string | null
+          deadline_canonical_v2?: string | null
           deadline_sugerido_inseguro?: Json | null
           external_id?: string | null
           id?: string
