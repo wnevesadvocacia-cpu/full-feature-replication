@@ -396,15 +396,11 @@ function cleanHtml(raw: string): string {
     .trim();
 }
 
-function extractDeadline(text: string, receivedAt: string, tribunal?: string | null): string | null {
-  const match = text.match(/prazo[\s\S]{0,40}?(\d{1,3})(?:\s*\([^)]+\))?\s*dias/i);
-  if (!match) return null;
-  const days = parseInt(match[1], 10);
-  if (!days || days > 365) return null;
-  // CPC art. 224 §3º: publicação = 1º dia útil após disponibilização
-  // CPC art. 224 §1º: prazo só inicia em dia útil; vencimento em não-útil prorroga
-  const publicacao = nextBusinessDay(receivedAt, tribunal);
-  return addBusinessDays(publicacao, days, tribunal);
+// PR2 — fonte única de verdade. Wrapper sobre detectDeadline (Deno port).
+// Retorna o objeto completo para que o insert decida deadline canônico vs sugestão insegura.
+function classifyIntimation(text: string, receivedAt: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  return detectDeadline(text, receivedAt, today);
 }
 
 // ============= Batch lookup (elimina N+1) =============
