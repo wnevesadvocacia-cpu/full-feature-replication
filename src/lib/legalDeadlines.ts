@@ -541,6 +541,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       baseLegal: `Res. CNJ 591/2024 (sessão virtual) — janela de destaque até 48h antes da sessão`,
       confianca: 0.92,
       classificacaoStatus: 'auto_alta',
+      triggerSource: 'pauta',
     };
   }
 
