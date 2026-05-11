@@ -583,6 +583,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       };
       confianca = 0.85;
       classificacaoStatus = 'auto_media';
+      triggerSource = 'context_rejeita';
       pecaSugerida = { ...PECA_APELACAO, observacoes: 'Embargos de declaração foram REJEITADOS. Prazo do recurso original (apelação) foi REABERTO — CPC art. 1.026 §1º. Conferir natureza da decisão embargada.' };
       baseLegalExtra = 'CPC art. 1.026 §1º (rejeição de EDcl reabre prazo recursal)';
     } else if (isInterloc && !isSentenca) {
@@ -592,6 +593,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       };
       confianca = 0.82;
       classificacaoStatus = 'auto_media';
+      triggerSource = 'context_rejeita';
       pecaSugerida = { ...PECA_AGRAVO_INSTR, observacoes: 'EDcl rejeitados. Prazo do AI reaberto — CPC art. 1.026 §1º. Verificar se a decisão embargada está no rol do art. 1.015.' };
       baseLegalExtra = 'CPC art. 1.026 §1º (rejeição de EDcl reabre prazo recursal)';
     } else {
@@ -602,6 +604,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       };
       confianca = 0.55;
       classificacaoStatus = 'ambigua_urgente';
+      triggerSource = 'context_rejeita';
       pecaSugerida = {
         peca: 'Apelação Cível (presumido)',
         fundamento_legal: 'CPC art. 1.009 c/c 1.003 §5º + 1.026 §1º',
@@ -612,6 +615,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       baseLegalExtra = 'CPC art. 1.026 §1º (rejeição de EDcl reabre prazo recursal — natureza recursal a confirmar)';
     }
   }
+  } // fim do guard if(!chosen) do REJEITO
 
   // (B) ACOLHE embargos de declaração → também reabre prazo (CPC 1.026 §1º)
   if (!chosen) {
