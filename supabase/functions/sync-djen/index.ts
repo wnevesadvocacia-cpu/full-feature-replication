@@ -18,6 +18,8 @@ import { z } from 'https://esm.sh/zod@3.23.8';
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
 import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
 import { captureException } from '../_shared/sentry.ts';
+// PR2 — edge unificada: detectDeadline canônico (mesma engine do frontend).
+import { detectDeadline } from '../_shared/legalDeadlines.ts';
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
 // Se um item falhar na validação, sync marca status='partial', preserva
@@ -394,15 +396,11 @@ function cleanHtml(raw: string): string {
     .trim();
 }
 
-function extractDeadline(text: string, receivedAt: string, tribunal?: string | null): string | null {
-  const match = text.match(/prazo[\s\S]{0,40}?(\d{1,3})(?:\s*\([^)]+\))?\s*dias/i);
-  if (!match) return null;
-  const days = parseInt(match[1], 10);
-  if (!days || days > 365) return null;
-  // CPC art. 224 §3º: publicação = 1º dia útil após disponibilização
-  // CPC art. 224 §1º: prazo só inicia em dia útil; vencimento em não-útil prorroga
-  const publicacao = nextBusinessDay(receivedAt, tribunal);
-  return addBusinessDays(publicacao, days, tribunal);
+// PR2 — fonte única de verdade. Wrapper sobre detectDeadline (Deno port).
+// Retorna o objeto completo para que o insert decida deadline canônico vs sugestão insegura.
+function classifyIntimation(text: string, receivedAt: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  return detectDeadline(text, receivedAt, today);
 }
 
 // ============= Batch lookup (elimina N+1) =============
@@ -477,7 +475,24 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         // Não há mais fallback silencioso para today.
         const receivedAt = it.data_disponibilizacao!;
         const tribunal = it.siglaTribunal || null;
-        const deadline = extractDeadline(cleanText, receivedAt, tribunal);
+        // PR2 — fonte única: detectDeadline canônico.
+        // Política de segurança jurídica:
+        //   * auto_alta (≥0.9): grava deadline canônico.
+        //   * demais (auto_media/baixa/ambigua_urgente): deadline=null + dump em deadline_sugerido_inseguro.
+        const detected = classifyIntimation(cleanText, receivedAt);
+        const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;
+        const deadline = isSafe ? detected!.dueDate : null;
+        const deadlineSugeridoInseguro = (detected && !isSafe) ? {
+          due_date: detected.dueDate,
+          start_date: detected.startDate,
+          days: detected.days,
+          unit: detected.unit,
+          label: detected.label,
+          confianca: detected.confianca,
+          classificacao_status: detected.classificacaoStatus,
+          trigger_source: detected.triggerSource,
+          calculated_at: new Date().toISOString(),
+        } : null;
         const processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
 
         const { data: insertedRow, error } = await supabase.from('intimations').insert({
@@ -488,6 +503,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           content: cleanText,
           received_at: receivedAt,
           deadline,
+          deadline_sugerido_inseguro: deadlineSugeridoInseguro,
+          peca_sugerida: detected?.pecaSugerida ?? null,
+          base_legal: detected?.baseLegal ?? null,
+          confianca_classificacao: detected?.confianca ?? null,
+          classificacao_status: detected?.classificacaoStatus ?? null,
           process_id: processId,
           status: 'pendente',
         }).select('id').single();
