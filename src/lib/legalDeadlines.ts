@@ -286,6 +286,15 @@ function extractLiteralDeadline(normText: string): LiteralMatch | null {
 // ====================================================================
 // PAUTA DE SESSÃO VIRTUAL — P0 #2 (Resolução CNJ 591/24, TJSP 984/2025).
 // Vencimento = 48h ANTES da data da sessão (janela de destaque/sustentação oral).
+//
+// TODO P1.5 (ref. conversa 2026-05-11): Res. CNJ 591/24 art. 9º fala em "48 horas"
+// corridas a partir do HORÁRIO da sessão, não em "2 dias corridos com recuo p/ útil".
+// O cálculo abaixo coincide com 48h-corridas em todos os 5 casos auditados (05–11/05/2026)
+// porque sessões diurnas + recuo de fim-de-semana convergem. Mas é frágil:
+// - Perde a hora da sessão no card (usuário pode achar que tem o dia útil inteiro)
+// - Sessões matutinas têm prazo real até hh:mm do dia útil anterior, não 23:59
+// Solução completa: persistir `session_datetime timestamptz` em intimations,
+// calcular `due = session_datetime - interval '48h'` e exibir hora no card.
 // ====================================================================
 const PAUTA_VIRTUAL_RX = /\b(data da pauta|sessao de julgamento|processo pautado|sessao virtual|resolucao\s+(?:cnj\s+)?591|pautado para (?:a )?sessao)\b/;
 const SESSION_DATE_RX = /\b(\d{2})\/(\d{2})\/(\d{4})(?:[\s,]+(?:as\s+)?(\d{1,2})[h:](\d{2}))?/;
