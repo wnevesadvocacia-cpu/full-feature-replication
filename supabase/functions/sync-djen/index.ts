@@ -630,6 +630,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     attempts,
     duration_ms: duration,
     error: errorMessage,
+    trigger_counts: triggerCounts,
   };
 }
 
