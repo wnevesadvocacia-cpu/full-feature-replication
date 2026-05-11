@@ -14,25 +14,30 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return json({ error: 'Unauthorized' }, 401);
-    }
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
-    if (claimsErr || !claims?.claims?.sub) return json({ error: 'Unauthorized' }, 401);
-
-    // service-role para ler/escrever cross-user (admin only)
+    // Auth: aceita (a) token admin via has_role OU (b) IMPORT_TOKEN compartilhado (operação one-shot).
+    const authHeader = req.headers.get('Authorization') || '';
+    const opsToken = req.headers.get('x-ops-token') || '';
+    const importToken = Deno.env.get('IMPORT_TOKEN') || '';
     const admin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
-    const { data: isAdmin } = await admin.rpc('has_role', { _user_id: claims.claims.sub, _role: 'admin' });
-    if (!isAdmin) return json({ error: 'Forbidden: admin only' }, 403);
+    let authorized = false;
+    if (opsToken && importToken && opsToken === importToken) {
+      authorized = true;
+    } else if (authHeader.startsWith('Bearer ')) {
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: claims } = await userClient.auth.getClaims(authHeader.replace('Bearer ', ''));
+      if (claims?.claims?.sub) {
+        const { data: isAdmin } = await admin.rpc('has_role', { _user_id: claims.claims.sub, _role: 'admin' });
+        if (isAdmin) authorized = true;
+      }
+    }
+    if (!authorized) return json({ error: 'Unauthorized' }, 401);
 
     const today = new Date().toISOString().slice(0, 10);
     const PAGE = 200;
