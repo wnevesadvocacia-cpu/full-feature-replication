@@ -248,6 +248,74 @@ const EXPLICIT_DAYS = new RegExp(
   `\\b(?:${TRIGGER})\\s+(?:(\\d{1,3})(?:\\s*\\([^)]+\\))?|(${EXTENSO_RX})(?:\\s*\\(\\d{1,3}\\))?)\\s+dias?(?:\\s+(uteis|corridos))?\\b`,
 );
 
+// ====================================================================
+// PARSER LITERAL DE PRAZO — P0 #3 (prevalece sobre classificador/contexto).
+// Cobre formatos da praxis forense que o EXPLICIT_DAYS não pegava:
+//   "Prazo: 5 (cinco) dias"   "Prazo - 10 dias"   "PRAZO: 15 dias"
+//   "preparo recursal em 5 (cinco) dias, sob pena de deserção"
+//   "recolha o preparo em 5 dias"   "junte em 10 dias"
+//   "no prazo de quinze (15) dias"  "em quinze dias"
+// ====================================================================
+const LITERAL_TRIGGERS_PRE = [
+  // "prazo:" / "prazo -" / "prazo de"
+  '(?:no\\s+)?prazo(?:\\s+legal)?\\s*(?:[:\\-–]|de)\\s*',
+  // "dentro do prazo de"
+  'dentro\\s+(?:do\\s+)?prazo\\s+de\\s*',
+  // ações que costumam vir com "em N dias" sob pena de algo
+  '(?:preparo\\s+\\w+|recolh[a-z]+|comprov[a-z]+|protocol[a-z]+|junt[a-z]+|manifest[a-z]+|cumpr[a-z]+|apresent[a-z]+|emend[a-z]+|recolha\\s+o\\s+preparo)[^.;\\n]{0,60}?\\bem\\s+',
+  // "em ate N dias"
+  'em\\s+ate\\s+',
+].join('|');
+
+const LITERAL_NUM = `(?:(\\d{1,3})(?:\\s*\\([^)]+\\))?|(${EXTENSO_RX})(?:\\s*\\(\\d{1,3}\\))?)`;
+const LITERAL_DEADLINE_RX = new RegExp(
+  `(?:${LITERAL_TRIGGERS_PRE})\\s*${LITERAL_NUM}\\s+dias?(?:\\s+(uteis|corridos))?`,
+);
+
+interface LiteralMatch { days: number; unit: DeadlineUnit; matched: string; }
+
+function extractLiteralDeadline(normText: string): LiteralMatch | null {
+  const m = normText.match(LITERAL_DEADLINE_RX);
+  if (!m) return null;
+  const n = m[1] ? parseInt(m[1], 10) : (m[2] ? NUM_BY_EXTENSO[m[2]] ?? 0 : 0);
+  if (!n || n > 365) return null;
+  const unit: DeadlineUnit = m[3] === 'corridos' ? 'dias_corridos' : 'dias_uteis';
+  return { days: n, unit, matched: m[0] };
+}
+
+// ====================================================================
+// PAUTA DE SESSÃO VIRTUAL — P0 #2 (Resolução CNJ 591/24, TJSP 984/2025).
+// Vencimento = 48h ANTES da data da sessão (janela de destaque/sustentação oral).
+// ====================================================================
+const PAUTA_VIRTUAL_RX = /\b(data da pauta|sessao de julgamento|processo pautado|sessao virtual|resolucao\s+(?:cnj\s+)?591|pautado para (?:a )?sessao)\b/;
+const SESSION_DATE_RX = /\b(\d{2})\/(\d{2})\/(\d{4})(?:[\s,]+(?:as\s+)?(\d{1,2})[h:](\d{2}))?/;
+
+interface PautaMatch { sessionISO: string; sessionTime: string | null; matched: string; }
+
+function extractPautaSessao(normText: string): PautaMatch | null {
+  if (!PAUTA_VIRTUAL_RX.test(normText)) return null;
+  // Busca primeira data DD/MM/AAAA próxima do gatilho ou no texto inteiro
+  const dm = normText.match(SESSION_DATE_RX);
+  if (!dm) return null;
+  const [, dd, mm, yyyy, hh, mi] = dm;
+  const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  const time = hh ? `${hh.padStart(2, '0')}:${mi}` : null;
+  return { sessionISO: iso, sessionTime: time, matched: dm[0] };
+}
+
+/** Subtrai N dias corridos de uma data ISO; recua para dia útil anterior se cair em não-útil. */
+function subCalendarDaysToBusiness(iso: string, days: number): string {
+  const d = new Date(iso + 'T12:00:00Z');
+  d.setUTCDate(d.getUTCDate() - days);
+  let out = d.toISOString().slice(0, 10);
+  // recua para dia útil anterior (não pode passar para depois da sessão)
+  while (!isBusinessDay(out)) {
+    const x = new Date(out + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() - 1);
+    out = x.toISOString().slice(0, 10);
+  }
+  return out;
+}
+
 function normalize(text: string): string {
   return text
     .normalize('NFD')
