@@ -687,7 +687,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   if (!chosen) {
     for (const rule of RULES) {
       const m = text.match(rule.pattern);
-      if (m) { chosen = { rule, matched: m[0] }; confianca = rule.confianca ?? 0.8; break; }
+      if (m) { chosen = { rule, matched: m[0] }; confianca = rule.confianca ?? 0.8; triggerSource = 'rules'; break; }
     }
   }
 
