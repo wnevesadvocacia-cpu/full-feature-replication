@@ -649,6 +649,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       };
       confianca = 0.88;
       classificacaoStatus = 'auto_media';
+      triggerSource = 'context_homolog';
       pecaSugerida = { ...PECA_APELACAO, observacoes: 'Sentença homologatória (acordo/transação/partilha) → cabe apelação se houver interesse recursal.' };
       baseLegalExtra = 'Sentença homologatória (CPC art. 487, III)';
     }
