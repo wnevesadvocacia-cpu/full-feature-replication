@@ -427,6 +427,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   let nameRejected = 0;
   let errorMessage: string | null = null;
   let status: 'success' | 'partial' | 'failed' = 'success';
+  const triggerCounts: Record<string, number> = {};
 
   // Nomes de referência para fuzzy match: lawyer_name + variações.
   const refNames: string[] = [
