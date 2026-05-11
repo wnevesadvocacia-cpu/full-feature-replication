@@ -627,6 +627,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       };
       confianca = 0.65;
       classificacaoStatus = 'ambigua_urgente';
+      triggerSource = 'context_acolhe';
       pecaSugerida = {
         peca: 'Recurso a definir (presumido: Apelação)',
         fundamento_legal: 'CPC art. 1.026 §1º',
