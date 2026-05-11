@@ -496,6 +496,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let classificacaoStatus: ClassificationStatus = 'auto_media';
   let pecaSugerida: PecaSugerida | null = null;
   let baseLegalExtra = '';
+  let triggerSource: DetectedDeadline['triggerSource'] = 'fallback';
 
   // ====== P0 #2: PAUTA DE SESSÃO VIRTUAL (precedência ABSOLUTA) ======
   // Vencimento = 48h antes da sessão (Res. CNJ 591/24, TJSP 984/2025).
