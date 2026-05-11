@@ -213,32 +213,23 @@ export default function Intimacoes() {
     setTaskIntim(it);
   };
 
-  // P0 #4: dedup defensivo no frontend (admin vê rows de outros usuários via RLS)
-  const dedupedItems = useMemo(() => {
-    const seen = new Set<string>();
-    const out: Intim[] = [];
-    for (const it of items) {
-      const key = (it as any).external_id
-        ?? `manual:${it.received_at}:${it.court ?? ''}:${(it.content || '').slice(0, 200)}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(it);
-    }
-    return out;
-  }, [items]);
-
+  // Dedup frontend REMOVIDO em 2026-05-11.
+  // Garantia agora é a UNIQUE parcial (user_id, external_id) WHERE external_id IS NOT NULL
+  // + UNIQUE parcial (user_id, received_at, court, md5(content)) WHERE external_id IS NULL.
+  // Bug de prefixo legado `djen:hash:` corrigido na migration de normalização de external_id.
+  // Se duplicatas voltarem a aparecer aqui, é sinal de que a constraint está quebrada — NÃO mascarar.
   const countsByDate = useMemo(() => {
     const m = new Map<string, number>();
-    dedupedItems.forEach((it) => {
+    items.forEach((it) => {
       const d = it.received_at?.slice(0, 10);
       if (d) m.set(d, (m.get(d) ?? 0) + 1);
     });
     return m;
-  }, [dedupedItems]);
+  }, [items]);
 
   const dayItems = useMemo(
-    () => dedupedItems.filter((i) => i.received_at?.slice(0, 10) === selectedDate),
-    [dedupedItems, selectedDate]
+    () => items.filter((i) => i.received_at?.slice(0, 10) === selectedDate),
+    [items, selectedDate]
   );
 
   const filtered = dayItems.filter((i) => filter === 'todas' || i.status === filter);
