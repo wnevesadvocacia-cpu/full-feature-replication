@@ -712,8 +712,11 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   if (!pecaSugerida) pecaSugerida = chosen.rule.peca;
 
-  const doubled = DOUBLE_PATTERNS.some((p) => p.test(text));
-  const fazendaCondenada = FAZENDA_NA_LIDE.test(text);
+  // PR1: dobra Fazenda Pública restrita a triggers RULES (literal/contexto/fallback nunca dobram —
+  // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
+  const allowsDoubling = triggerSource === 'rules';
+  const doubled = allowsDoubling && DOUBLE_PATTERNS.some((p) => p.test(text));
+  const fazendaCondenada = allowsDoubling && FAZENDA_NA_LIDE.test(text);
   const effectiveDays = (doubled || fazendaCondenada) ? chosen.rule.days * 2 : chosen.rule.days;
 
   // CPC art. 224 §3º
