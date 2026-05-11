@@ -545,12 +545,12 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     };
   }
 
-  // ====== P0 #3: PARSER LITERAL DE PRAZO (prevalece sobre classificador) ======
+  // ====== P0 #3: PARSER LITERAL DE PRAZO (TRAVA OVERRIDE de RULES e contexto) ======
   const literal = extractLiteralDeadline(text);
   if (literal) {
     chosen = {
       rule: {
-        pattern: LITERAL_DEADLINE_RX,
+        pattern: LITERAL_STRONG_RX,
         days: literal.days,
         unit: literal.unit,
         label: `Manifestação (${literal.days} ${literal.unit === 'dias_corridos' ? 'dias corridos' : 'dias'})`,
@@ -560,12 +560,17 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       },
       matched: literal.matched,
     };
-    confianca = 0.95;
-    classificacaoStatus = 'auto_alta';
+    confianca = literal.confidence;
+    classificacaoStatus = literal.confidence >= 0.9 ? 'auto_alta' : 'auto_media';
+    triggerSource =
+      literal.kind === 'dispositivo' ? 'literal_dispositivo'
+      : literal.kind === 'strong' ? 'literal_strong'
+      : 'literal_weak';
   }
 
-
-  // (A) REJEITO embargos de declaração → reabre prazo recurso original (CPC 1.026 §1º)
+  // (A) REJEITO embargos de declaração → reabre prazo recurso original (CPC 1.026 §1º).
+  // GUARDA: literal vence — só aplica se nenhum literal foi detectado.
+  if (!chosen) {
   const mRejeita = text.match(REJEITA_EMBARGOS);
   if (mRejeita) {
     const isSentenca = TERMO_SENTENCA.test(text);
