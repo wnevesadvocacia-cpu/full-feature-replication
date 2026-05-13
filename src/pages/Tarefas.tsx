@@ -30,11 +30,11 @@ const priorityConfig: Record<TaskPriority, { label: string; className: string }>
 
 interface TaskForm {
   title: string; description: string; assignee: string;
-  priority: string; due_date: string; process_id: string;
+  priority: string; due_date: string; start_date: string; process_id: string;
 }
 const EMPTY_FORM: TaskForm = {
   title: '', description: '', assignee: '',
-  priority: 'media', due_date: '', process_id: '',
+  priority: 'media', due_date: '', start_date: '', process_id: '',
 };
 
 
