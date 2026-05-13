@@ -66,6 +66,7 @@ export const taskCreateSchema = z.object({
   assignee: z.string().trim().max(255).optional(),
   priority: z.enum(['baixa', 'media', 'alta', 'urgente']).optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 }).strict();
 
 export const taskUpdateSchema = z.object({
