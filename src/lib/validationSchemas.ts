@@ -78,4 +78,5 @@ export const taskUpdateSchema = z.object({
   priority: z.enum(['baixa', 'media', 'alta', 'urgente']).optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
   assignee: z.string().trim().max(255).optional(),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 }).strict().passthrough();
