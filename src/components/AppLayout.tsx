@@ -42,11 +42,19 @@ export default function AppLayout() {
               <ThemeToggle />
               <NotificationBell />
 
-              <div className="flex items-center gap-3 ml-2 pl-3 border-l border-hairline">
-                <div className="h-8 w-8 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold">
+              <div className="flex items-center gap-2.5 ml-2 pl-3 border-l border-hairline">
+                <div className="h-8 w-8 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold shrink-0">
                   <span className="text-primary-foreground text-xs font-semibold">
-                    {user?.user_metadata?.full_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+                    {((user?.user_metadata as any)?.full_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
                   </span>
+                </div>
+                <div className="hidden md:flex flex-col leading-tight max-w-[180px]">
+                  <span className="text-xs font-semibold text-foreground truncate">
+                    {(user?.user_metadata as any)?.full_name || user?.email?.split('@')[0] || 'Usuário'}
+                  </span>
+                  {user?.email && (
+                    <span className="text-[10px] text-muted-foreground truncate">{user.email}</span>
+                  )}
                 </div>
                 <Button variant="ghost" size="icon" onClick={signOut} className="hover:bg-accent" aria-label="Sair">
                   <LogOut className="h-4 w-4" />
