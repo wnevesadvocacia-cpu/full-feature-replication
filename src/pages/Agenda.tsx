@@ -33,6 +33,7 @@ interface Task {
   title: string;
   description?: string;
   due_date?: string;
+  start_date?: string | null;
   priority?: string;
   completed: boolean;
   process_id?: string;
@@ -47,7 +48,7 @@ interface Task {
 interface Process { id: string; number: string; title: string; }
 
 interface AgendaForm {
-  title: string; description: string; due_date: string;
+  title: string; description: string; due_date: string; start_date: string;
   priority: string; process_id: string; assignee: string;
   start_time: string; end_time: string; event_type: string; location: string;
 }
@@ -55,7 +56,7 @@ interface AgendaForm {
 const EVENT_TYPES = ['Audiência','Prazo Fatal','Reunião','Despacho','Diligência','Sustentação Oral','Outro'];
 
 const EMPTY_FORM = (date: string): AgendaForm => ({
-  title: '', description: '', due_date: date, priority: 'media', process_id: '', assignee: '',
+  title: '', description: '', due_date: date, start_date: date, priority: 'media', process_id: '', assignee: '',
   start_time: '', end_time: '', event_type: 'Audiência', location: '',
 });
 
