@@ -16,7 +16,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, Calendar, Clock,
   CheckCircle2, Circle, Pencil, Trash2, AlertTriangle,
-  MapPin, User, Briefcase, FileText, Tag, RotateCcw,
+  MapPin, User, Briefcase, FileText, Tag, RotateCcw, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
