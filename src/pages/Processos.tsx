@@ -644,6 +644,7 @@ export default function Processos() {
       // 1) Cria a tarefa (aparece em /tarefas e /agenda)
       const { error: taskErr } = await supabase.from('tasks').insert({
         ...payload,
+        start_date: new Date().toISOString().split('T')[0],
         process_id: selected?.id,
         completed: false,
         user_id: user?.id,
