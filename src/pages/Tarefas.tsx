@@ -190,18 +190,14 @@ export default function Tarefas() {
       </div>
       <div>
         <Label>Processo vinculado</Label>
-        <select
-          className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+        <ProcessSearchSelect
+          processes={processList}
           value={form.process_id}
-          onChange={set('process_id')}
-        >
-          <option value="">— Nenhum processo —</option>
-          {processList.map(p => (
-            <option key={p.id} value={p.id}>
-              {p.number} — {p.title}
-            </option>
-          ))}
-        </select>
+          onChange={(id) => setForm(f => ({ ...f, process_id: id }))}
+        />
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Digite o número do processo ou CPF/CNPJ do cliente para localizar.
+        </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
