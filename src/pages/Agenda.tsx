@@ -123,12 +123,18 @@ export default function Agenda() {
   const [saving, setSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [view, setView] = useState<'day' | 'week' | 'month'>('month');
+  const [processFilter, setProcessFilter] = useState<string>('all');
 
   const { data: tasks = [] } = useAgendaTasks();
   const { data: processes = [] } = useProcessList();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Filtra por processo selecionado (filtro de tela). RLS já filtra por user_id no servidor.
+  const filteredTasks = processFilter === 'all'
+    ? tasks
+    : tasks.filter(t => t.process_id === processFilter);
 
   // Calendar helpers
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
@@ -140,7 +146,7 @@ export default function Agenda() {
 
   // Agenda usa start_date como referência (cai do due_date apenas como fallback antigo)
   const tasksByDate: Record<string, Task[]> = {};
-  tasks.forEach((t) => {
+  filteredTasks.forEach((t) => {
     const ref = dateOnly(t.start_date || t.due_date);
     if (!ref) return;
     if (!tasksByDate[ref]) tasksByDate[ref] = [];
