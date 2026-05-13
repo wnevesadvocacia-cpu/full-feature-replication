@@ -97,7 +97,7 @@ export default function Auditoria() {
 
   const { data: todayTasks = [], isLoading: isLoadingTasks } = useQuery({
     queryKey: ['audit_today_tasks', user?.id, todayStart],
-    enabled: !!user && activeTab === 'tasks',
+    enabled: !!user && (canView ? activeTab === 'tasks' : true),
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('tasks')
@@ -125,17 +125,8 @@ export default function Auditoria() {
     });
   }, [logs, search, tableFilter, actionFilter]);
 
-  if (!canView) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3">
-        <ShieldCheck className="h-10 w-10 mx-auto text-muted-foreground" />
-        <h1 className="text-xl font-display font-bold">Acesso restrito</h1>
-        <p className="text-sm text-muted-foreground">
-          Apenas administradores e gerentes podem acessar o registro de auditoria.
-        </p>
-      </div>
-    );
-  }
+  // Se não for admin/gerente, força a aba de tarefas (única acessível)
+  const effectiveTab = !canView ? 'tasks' : activeTab;
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
@@ -150,20 +141,22 @@ export default function Auditoria() {
 
       {/* Tab switcher */}
       <div className="flex gap-2 border-b border-hairline pb-0">
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === 'logs'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ClipboardList className="h-4 w-4" /> Logs de Auditoria
-        </button>
+        {canView && (
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              effectiveTab === 'logs'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ClipboardList className="h-4 w-4" /> Logs de Auditoria
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('tasks')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === 'tasks'
+            effectiveTab === 'tasks'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
@@ -173,7 +166,7 @@ export default function Auditoria() {
       </div>
 
       {/* LOGS TAB */}
-      {activeTab === 'logs' && (
+      {effectiveTab === 'logs' && canView && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="relative md:col-span-1">
@@ -257,7 +250,7 @@ export default function Auditoria() {
       )}
 
       {/* TASKS TAB */}
-      {activeTab === 'tasks' && (
+      {effectiveTab === 'tasks' && (
         <>
           {isLoadingTasks ? (
             <div className="p-6 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
