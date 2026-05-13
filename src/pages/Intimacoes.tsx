@@ -27,6 +27,12 @@ interface Intim {
   process_id: string | null;
   classificacao_status?: string | null;
   confianca_classificacao?: number | null;
+  classification_meta?: {
+    fase?: string | null;
+    numero_execucao?: string | null;
+    processo_principal?: string | null;
+    linked_to_parent?: boolean;
+  } | null;
 }
 
 const UNSAFE_STATUSES = new Set(['ambigua_urgente', 'auto_baixa']);
@@ -319,6 +325,20 @@ export default function Intimacoes() {
                   <div className="flex items-center gap-2 flex-wrap">
                     {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                     <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
+                    {it.classification_meta?.fase === 'execucao' && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-900/30 dark:text-amber-200 font-semibold gap-1"
+                        title={it.classification_meta?.processo_principal
+                          ? `Cumprimento de sentença vinculado ao processo principal ${it.classification_meta.processo_principal}`
+                          : 'Publicação em fase de execução / cumprimento de sentença'}
+                      >
+                        ⚖ Execução
+                        {it.classification_meta?.numero_execucao && (
+                          <span className="font-mono opacity-80">· {it.classification_meta.numero_execucao}</span>
+                        )}
+                      </Badge>
+                    )}
                     {!isUnsafe && detectedDeadline && !detectedDeadline.isFallback && (
                       <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
                     )}
