@@ -34,6 +34,7 @@ interface Task {
   description?: string;
   due_date?: string;
   start_date?: string | null;
+  created_at?: string;
   priority?: string;
   completed: boolean;
   process_id?: string;
@@ -67,6 +68,17 @@ const priorityLabel: Record<string, string> = {
   alta: 'Alta', media: 'Média', baixa: 'Baixa',
 };
 
+const SYSTEM_ASSIGNEES = new Set(['movimentacao', 'documento', 'agenda']);
+
+function dateOnly(value?: string | null) {
+  return value ? value.toString().split('T')[0] : '';
+}
+
+function isVisibleAgendaTask(task: Task) {
+  const assignee = task.assignee?.trim().toLowerCase();
+  return !assignee || !SYSTEM_ASSIGNEES.has(assignee);
+}
+
 function useAgendaTasks() {
   return useQuery({
     queryKey: ['agenda-tasks'],
@@ -74,12 +86,10 @@ function useAgendaTasks() {
       const { data, error } = await supabase
         .from('tasks')
         .select('*, processes(number, title)')
-        .not('assignee', 'eq', 'movimentacao')
-        .not('assignee', 'eq', 'documento')
         .order('due_date', { ascending: true })
         .limit(5000);
       if (error) throw error;
-      return data as Task[];
+      return (data as Task[]).filter(isVisibleAgendaTask);
     },
   });
 }
