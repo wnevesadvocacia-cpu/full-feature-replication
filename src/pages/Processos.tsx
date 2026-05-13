@@ -148,6 +148,22 @@ function displayProcessNumber(n: string | null | undefined): string {
   return cleaned || EMPTY;
 }
 
+/**
+ * Detecta se um processo está em fase de execução / cumprimento de sentença.
+ * Heurística: olha title, phase, stage, type e observations.
+ * Retorna { isExecucao, principal } onde principal é o CNJ do processo principal
+ * extraído do título/observações (se houver).
+ */
+function detectExecucao(p: { title?: string | null; phase?: string | null; stage?: string | null; type?: string | null; observations?: string | null; number?: string | null }): { isExecucao: boolean; principal: string | null } {
+  const blob = [p.title, p.phase, p.stage, p.type, p.observations].filter(Boolean).join(' \n ');
+  const isExecucao = /cumprimento\s+de\s+senten[çc]a|execu[çc][ãa]o\s+de\s+(senten[çc]a|t[íi]tulo)|fase\s+de\s+execu[çc][ãa]o|^\s*execu[çc][ãa]o\b/i.test(blob);
+  let principal: string | null = null;
+  const m = blob.match(/processo\s+principal[:\s]*?(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i)
+    || blob.match(/(?:origin[áa]rio|vinculad[oa]|derivad[oa])\s+(?:de|do|ao)?\s*(?:processo)?\s*n?[ºo]?\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
+  if (m) principal = m[1];
+  return { isExecucao: isExecucao || !!principal, principal };
+}
+
 const FULL_SELECT = [
   'id', 'number', 'title', 'status', 'type',
   'client_id', 'client_name', 'comarca', 'vara', 'tribunal',
