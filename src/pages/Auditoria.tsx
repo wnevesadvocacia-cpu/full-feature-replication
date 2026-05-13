@@ -125,17 +125,8 @@ export default function Auditoria() {
     });
   }, [logs, search, tableFilter, actionFilter]);
 
-  if (!canView) {
-    return (
-      <div className="p-8 max-w-md mx-auto text-center space-y-3">
-        <ShieldCheck className="h-10 w-10 mx-auto text-muted-foreground" />
-        <h1 className="text-xl font-display font-bold">Acesso restrito</h1>
-        <p className="text-sm text-muted-foreground">
-          Apenas administradores e gerentes podem acessar o registro de auditoria.
-        </p>
-      </div>
-    );
-  }
+  // Se não for admin/gerente, força a aba de tarefas (única acessível)
+  const effectiveTab = !canView ? 'tasks' : activeTab;
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
