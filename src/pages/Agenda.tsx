@@ -699,11 +699,27 @@ export default function Agenda() {
                 </DialogHeader>
 
                 <div className="space-y-3 py-2">
+                  {t.start_date && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-blue-500" />
+                      <span className="font-medium text-blue-700">
+                        Data inicial (referência agenda): {new Date(t.start_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
                   {t.due_date && (
                     <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-700">
-                        {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      <Calendar className="w-4 h-4 text-red-500" />
+                      <span className="font-medium text-red-700">
+                        Prazo final: {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )}
+                  {t.created_at && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Clock className="w-4 h-4 text-gray-400" />
+                      <span className="text-gray-500">
+                        Criada em: {new Date(t.created_at).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
                     </div>
                   )}
