@@ -190,14 +190,20 @@ export default function Agenda() {
   function dateKey(day: number) {
     return `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
-  function prevMonth() {
+  const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
     else setCurrentMonth(m => m - 1);
-  }
-  function nextMonth() {
+  };
+  const nextMonth = () => {
     if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
     else setCurrentMonth(m => m + 1);
-  }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
+    setIsRefreshing(false);
+  };
 
   const openEdit = (t: Task) => {
     setForm({
