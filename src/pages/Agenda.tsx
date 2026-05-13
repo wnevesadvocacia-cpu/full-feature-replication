@@ -123,12 +123,18 @@ export default function Agenda() {
   const [saving, setSaving] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [view, setView] = useState<'day' | 'week' | 'month'>('month');
+  const [processFilter, setProcessFilter] = useState<string>('all');
 
   const { data: tasks = [] } = useAgendaTasks();
   const { data: processes = [] } = useProcessList();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user } = useAuth();
+
+  // Filtra por processo selecionado (filtro de tela). RLS já filtra por user_id no servidor.
+  const filteredTasks = processFilter === 'all'
+    ? tasks
+    : tasks.filter(t => t.process_id === processFilter);
 
   // Calendar helpers
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
@@ -140,7 +146,7 @@ export default function Agenda() {
 
   // Agenda usa start_date como referência (cai do due_date apenas como fallback antigo)
   const tasksByDate: Record<string, Task[]> = {};
-  tasks.forEach((t) => {
+  filteredTasks.forEach((t) => {
     const ref = dateOnly(t.start_date || t.due_date);
     if (!ref) return;
     if (!tasksByDate[ref]) tasksByDate[ref] = [];
@@ -149,7 +155,7 @@ export default function Agenda() {
 
   // Tarefa criada hoje com data futura também aparece HOJE como flag imediata.
   // Isso evita trazer o histórico inteiro de tarefas futuras/antigas para hoje.
-  tasks.forEach((t) => {
+  filteredTasks.forEach((t) => {
     if (t.completed) return;
     const ref = dateOnly(t.start_date || t.due_date);
     const created = dateOnly(t.created_at);
@@ -177,7 +183,7 @@ export default function Agenda() {
     });
   })();
 
-  const upcoming = tasks
+  const upcoming = filteredTasks
     .filter((t) => {
       if (!t.due_date || t.completed) return false;
       const d = new Date(t.due_date.split('T')[0]);
@@ -397,6 +403,17 @@ export default function Agenda() {
           <p className="text-sm text-gray-500">Compromissos, audiências e prazos</p>
         </div>
         <div className="flex items-center gap-2">
+          <Select value={processFilter} onValueChange={setProcessFilter}>
+            <SelectTrigger className="w-[220px] h-9 text-xs">
+              <SelectValue placeholder="Filtrar por processo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os processos</SelectItem>
+              {processes.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.number} — {p.title?.slice(0, 40)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="icon"
@@ -572,23 +589,35 @@ export default function Agenda() {
                 <p className="font-medium flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-blue-600" /> Diagnóstico
                 </p>
-                <p>Total de tarefas carregadas: <strong>{tasks.length}</strong></p>
-                <p>Pendentes: <strong>{tasks.filter(t => !t.completed).length}</strong> | Concluídas: <strong>{tasks.filter(t => t.completed).length}</strong></p>
+                <p>Usuário autenticado: <strong>{user?.email ?? '— não autenticado —'}</strong></p>
+                <p className="text-[11px] text-blue-600/80">user_id: <code>{user?.id ?? '—'}</code></p>
+                <p>Filtro de processo: <strong>{processFilter === 'all' ? 'Todos' : (processes.find(p => p.id === processFilter)?.number ?? processFilter)}</strong></p>
+                <p>Tarefas retornadas pelo backend (RLS): <strong>{tasks.length}</strong></p>
+                <p>Tarefas após filtro de processo: <strong>{filteredTasks.length}</strong></p>
+                <p>Pendentes: <strong>{filteredTasks.filter(t => !t.completed).length}</strong> | Concluídas: <strong>{filteredTasks.filter(t => t.completed).length}</strong></p>
                 {(() => {
-                  const userTasks = tasks.filter(t => t.assignee && !SYSTEM_ASSIGNEES.has(t.assignee.trim().toLowerCase()));
-                  return <p>Atribuídas a usuários: <strong>{userTasks.length}</strong></p>;
+                  const userTasks = filteredTasks.filter(t => t.assignee && !SYSTEM_ASSIGNEES.has(t.assignee.trim().toLowerCase()));
+                  const ownTasks = tasks.filter(t => (t as any).user_id === user?.id);
+                  return (
+                    <>
+                      <p>Atribuídas a usuários (não-sistema): <strong>{userTasks.length}</strong></p>
+                      <p>Criadas pelo usuário atual: <strong>{ownTasks.length}</strong></p>
+                    </>
+                  );
                 })()}
                 {(() => {
                   const todayRef = dateOnly(todayStr);
-                  const todayTasks = tasks.filter(t => {
+                  const todayTasks = filteredTasks.filter(t => {
                     const ref = dateOnly(t.start_date || t.due_date);
                     const created = dateOnly(t.created_at);
                     return ref === todayRef || (!t.completed && ref && ref > todayRef && created === todayRef);
                   });
-                  return <p>Tarefas com referência em {todayRef}: <strong>{todayTasks.length}</strong></p>;
+                  return <p>Com referência em {todayRef}: <strong>{todayTasks.length}</strong></p>;
                 })()}
-                {detailTarget?.processes?.number && (
-                  <p>Processo atual ({detailTarget.processes.number}): <strong>{tasks.filter(t => t.process_id === detailTarget.process_id).length}</strong> tarefas</p>
+                {processFilter !== 'all' && (
+                  <p className="text-[11px] text-blue-600/80 pt-1 border-t border-blue-200 mt-1">
+                    💡 Se 0 aqui mas há tarefas em "Todos os processos", o filtro está ocultando-as.
+                  </p>
                 )}
               </div>
             )}
