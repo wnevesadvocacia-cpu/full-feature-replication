@@ -137,12 +137,11 @@ export default function Agenda() {
     tasksByDate[key].push(t);
   });
 
-  // Carry-forward: tarefa não concluída cuja data inicial já passou
-  // permanece visível em todos os dias até hoje (não pode "sair" da agenda)
-  tasks.forEach((t) => {
+  // Toda tarefa não concluída aparece HOJE (independente da data inicial futura),
+  // garantindo que o usuário veja imediatamente o que foi atribuído e o que está em aberto.
+  // Continua aparecendo também no dia da start_date/due_date.
+  tasks.forEach((t: any) => {
     if (t.completed) return;
-    const ref = (t.start_date || t.due_date || '').toString().split('T')[0];
-    if (!ref || ref >= todayStr) return;
     if (!tasksByDate[todayStr]) tasksByDate[todayStr] = [];
     if (!tasksByDate[todayStr].some(x => x.id === t.id)) tasksByDate[todayStr].push(t);
   });
