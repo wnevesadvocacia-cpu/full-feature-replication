@@ -496,9 +496,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       items = filtered;
     }
 
-    // Batch lookup de processes
+    // Batch lookup de processes — inclui CNJs do cabeçalho E "processo principal" extraído do conteúdo
     const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
-    const processIndex = await buildProcessIndex(supabase, row.user_id, numeros);
+    const parents = items.map(it => extractParentProcess(cleanHtml(it.texto || ''), it.numero_processo || null) || '').filter(Boolean);
+    const processIndex = await buildProcessIndex(supabase, row.user_id, [...numeros, ...parents]);
+
 
     let userEmail: string | null = null;
     try {
@@ -534,7 +536,21 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           trigger_source: detected.triggerSource,
           calculated_at: new Date().toISOString(),
         } : null;
-        const processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        // Resolução de processo: tenta CNJ direto; se não houver match, tenta "processo principal" do conteúdo
+        let processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        const parentNumero = extractParentProcess(cleanText, it.numero_processo || null);
+        const isExecution = detectsExecutionPhase(cleanText) || (!!parentNumero && parentNumero !== it.numero_processo);
+        let linkedToParent = false;
+        if (!processId && parentNumero) {
+          const parentId = processIndex.get(parentNumero) || null;
+          if (parentId) { processId = parentId; linkedToParent = true; }
+        }
+        const classificationMeta: Record<string, any> | null = (isExecution || linkedToParent || parentNumero) ? {
+          fase: isExecution ? 'execucao' : null,
+          numero_execucao: linkedToParent ? (it.numero_processo || null) : null,
+          processo_principal: parentNumero,
+          linked_to_parent: linkedToParent,
+        } : null;
 
         const { data: insertedRow, error } = await supabase.from('intimations').insert({
           user_id: row.user_id,
@@ -549,6 +565,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           base_legal: detected?.baseLegal ?? null,
           confianca_classificacao: detected?.confianca ?? null,
           classificacao_status: detected?.classificacaoStatus ?? null,
+          classification_meta: classificationMeta,
           process_id: processId,
           status: 'pendente',
         }).select('id').single();
