@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
+import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 
 const MONTHS = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
