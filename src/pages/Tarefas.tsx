@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
