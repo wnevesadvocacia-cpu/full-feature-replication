@@ -96,6 +96,7 @@ export default function Tarefas() {
         assignee: form.assignee || undefined,
         priority: form.priority,
         due_date: form.due_date || undefined,
+        start_date: form.start_date || undefined,
         process_id: form.process_id || undefined,
       });
       setCreateOpen(false);
