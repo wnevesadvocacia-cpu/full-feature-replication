@@ -37,7 +37,7 @@ const EMPTY_FORM: TaskForm = {
   priority: 'media', due_date: '', process_id: '',
 };
 
-interface Process { id: string; number: string; title: string; }
+interface Process { id: string; number: string; title: string; client_id?: string | null; client_name?: string | null; client_document?: string | null; }
 
 function useProcessList() {
   return useQuery<Process[]>({
@@ -45,14 +45,23 @@ function useProcessList() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('processes')
-        .select('id, number, title')
+        .select('id, number, title, client_id, clients(name, document)')
         .order('number', { ascending: true })
         .limit(4000);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).map((p: any) => ({
+        id: p.id,
+        number: p.number,
+        title: p.title,
+        client_id: p.client_id,
+        client_name: p.clients?.name ?? null,
+        client_document: p.clients?.document ?? null,
+      }));
     },
   });
 }
+
+const onlyDigits = (s: string) => (s || '').replace(/\D+/g, '');
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
