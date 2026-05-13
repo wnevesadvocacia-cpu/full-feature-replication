@@ -16,7 +16,7 @@ import {
 import {
   ChevronLeft, ChevronRight, Plus, Calendar, Clock,
   CheckCircle2, Circle, Pencil, Trash2, AlertTriangle,
-  MapPin, User, Briefcase, FileText, Tag, RotateCcw,
+  MapPin, User, Briefcase, FileText, Tag, RotateCcw, RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
@@ -121,6 +121,7 @@ export default function Agenda() {
   const [detailTarget, setDetailTarget] = useState<Task | null>(null);
   const [form, setForm] = useState<AgendaForm>(EMPTY_FORM(todayStr));
   const [saving, setSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [view, setView] = useState<'day' | 'week' | 'month'>('month');
 
   const { data: tasks = [] } = useAgendaTasks();
@@ -189,14 +190,20 @@ export default function Agenda() {
   function dateKey(day: number) {
     return `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
-  function prevMonth() {
+  const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); }
     else setCurrentMonth(m => m - 1);
-  }
-  function nextMonth() {
+  };
+  const nextMonth = () => {
     if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); }
     else setCurrentMonth(m => m + 1);
-  }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ['agenda-tasks'] });
+    setIsRefreshing(false);
+  };
 
   const openEdit = (t: Task) => {
     setForm({
@@ -390,6 +397,16 @@ export default function Agenda() {
           <p className="text-sm text-gray-500">Compromissos, audiências e prazos</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={isRefreshing ? 'animate-spin' : ''}
+            title="Atualizar tarefas"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
           <div className="flex rounded-md border bg-white overflow-hidden">
             {(['day','week','month'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
