@@ -853,7 +853,14 @@ export default function Processos() {
                       className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => { setSelected(p); setEditMode(false); setDetailTab('details'); }}
                     >
-                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{displayProcessNumber(p.number)}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{displayProcessNumber(p.number)}</span>
+                          {detectExecucao(p as any).isExecucao && (
+                            <span title={`Fase de execução${detectExecucao(p as any).principal ? ` · principal ${detectExecucao(p as any).principal}` : ''}`} className="inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5">⚖ Execução</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 max-w-[220px] truncate font-medium">{p.title || EMPTY}</td>
                       <td className="px-4 py-3 max-w-[160px] truncate text-gray-600">{val(p.client_name)}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{val(p.comarca)}</td>
