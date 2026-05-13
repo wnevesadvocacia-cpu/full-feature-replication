@@ -918,7 +918,12 @@ export default function Processos() {
               <SheetHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <SheetTitle className="font-mono text-base">{displayProcessNumber(selected.number) !== EMPTY ? displayProcessNumber(selected.number) : selected.title}</SheetTitle>
+                    <SheetTitle className="font-mono text-base flex items-center gap-2 flex-wrap">
+                      <span>{displayProcessNumber(selected.number) !== EMPTY ? displayProcessNumber(selected.number) : selected.title}</span>
+                      {detectExecucao(selected as any).isExecucao && (
+                        <span title={`Fase de execução${detectExecucao(selected as any).principal ? ` · principal ${detectExecucao(selected as any).principal}` : ''}`} className="inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-semibold px-2 py-0.5">⚖ Execução</span>
+                      )}
+                    </SheetTitle>
                     <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{selected.title}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
