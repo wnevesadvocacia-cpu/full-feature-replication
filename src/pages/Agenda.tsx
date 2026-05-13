@@ -127,13 +127,24 @@ export default function Agenda() {
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
+  // Agenda usa start_date como referência (cai do due_date apenas como fallback antigo)
   const tasksByDate: Record<string, Task[]> = {};
   tasks.forEach((t) => {
-    if (t.due_date) {
-      const key = t.due_date.split('T')[0];
-      if (!tasksByDate[key]) tasksByDate[key] = [];
-      tasksByDate[key].push(t);
-    }
+    const ref = (t.start_date || t.due_date || '').toString();
+    if (!ref) return;
+    const key = ref.split('T')[0];
+    if (!tasksByDate[key]) tasksByDate[key] = [];
+    tasksByDate[key].push(t);
+  });
+
+  // Carry-forward: tarefa não concluída cuja data inicial já passou
+  // permanece visível em todos os dias até hoje (não pode "sair" da agenda)
+  tasks.forEach((t) => {
+    if (t.completed) return;
+    const ref = (t.start_date || t.due_date || '').toString().split('T')[0];
+    if (!ref || ref >= todayStr) return;
+    if (!tasksByDate[todayStr]) tasksByDate[todayStr] = [];
+    if (!tasksByDate[todayStr].some(x => x.id === t.id)) tasksByDate[todayStr].push(t);
   });
 
   // Sort tasks within each day by start_time
