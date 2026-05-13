@@ -418,6 +418,44 @@ async function buildProcessIndex(supabase: any, userId: string, numeros: string[
   return map;
 }
 
+/**
+ * Extrai o nº CNJ do "processo principal" referenciado no texto da publicação.
+ * Casos típicos cobertos:
+ *   - "Processo principal 1008786-86.2024.8.26.0127"
+ *   - "Cumprimento de sentença (1008786-86.2024.8.26.0127)"
+ *   - "originário do processo nº 1008786-86.2024.8.26.0127"
+ *   - "vinculado a 1008786-86.2024.8.26.0127"
+ *   - "derivado de 1008786-86.2024.8.26.0127"
+ * Retorna o CNJ normalizado (formato canônico) ou null.
+ */
+function extractParentProcess(content: string, currentNumero: string | null): string | null {
+  if (!content) return null;
+  const CNJ = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g;
+  const text = content.replace(/\s+/g, ' ');
+  const patterns: RegExp[] = [
+    /processo\s+principal[:\s]*?(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i,
+    /cumprimento\s+de\s+senten[çc]a[^()]*\((\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})\)/i,
+    /(?:origin[áa]rio|vinculad[oa]|derivad[oa])\s+(?:de|do|ao)?\s*(?:processo)?\s*n?[ºo]?\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i,
+    /execu[çc][ãa]o\s+(?:de\s+senten[çc]a)?\s*(?:nos\s+autos|do\s+processo)\s*n?[ºo]?\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m && m[1] && m[1] !== currentNumero) return m[1];
+  }
+  // Heurística fallback: se o texto cita 2+ CNJs distintos e o primeiro é o cabeçalho (currentNumero),
+  // o segundo é candidato a principal.
+  const all = Array.from(new Set((text.match(CNJ) || []).filter((n) => n !== currentNumero)));
+  if (all.length === 1 && currentNumero) return all[0];
+  return null;
+}
+
+/** Detecta se a publicação trata de fase de execução / cumprimento de sentença. */
+function detectsExecutionPhase(content: string): boolean {
+  if (!content) return false;
+  return /cumprimento\s+de\s+senten[çc]a|execu[çc][ãa]o\s+de\s+(senten[çc]a|t[íi]tulo)|fase\s+de\s+execu[çc][ãa]o/i.test(content);
+}
+
+
 async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   const startedAt = Date.now();
   let items: DjenItem[] = [];
@@ -458,9 +496,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       items = filtered;
     }
 
-    // Batch lookup de processes
+    // Batch lookup de processes — inclui CNJs do cabeçalho E "processo principal" extraído do conteúdo
     const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
-    const processIndex = await buildProcessIndex(supabase, row.user_id, numeros);
+    const parents = items.map(it => extractParentProcess(cleanHtml(it.texto || ''), it.numero_processo || null) || '').filter(Boolean);
+    const processIndex = await buildProcessIndex(supabase, row.user_id, [...numeros, ...parents]);
+
 
     let userEmail: string | null = null;
     try {
@@ -496,7 +536,21 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           trigger_source: detected.triggerSource,
           calculated_at: new Date().toISOString(),
         } : null;
-        const processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        // Resolução de processo: tenta CNJ direto; se não houver match, tenta "processo principal" do conteúdo
+        let processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        const parentNumero = extractParentProcess(cleanText, it.numero_processo || null);
+        const isExecution = detectsExecutionPhase(cleanText) || (!!parentNumero && parentNumero !== it.numero_processo);
+        let linkedToParent = false;
+        if (!processId && parentNumero) {
+          const parentId = processIndex.get(parentNumero) || null;
+          if (parentId) { processId = parentId; linkedToParent = true; }
+        }
+        const classificationMeta: Record<string, any> | null = (isExecution || linkedToParent || parentNumero) ? {
+          fase: isExecution ? 'execucao' : null,
+          numero_execucao: linkedToParent ? (it.numero_processo || null) : null,
+          processo_principal: parentNumero,
+          linked_to_parent: linkedToParent,
+        } : null;
 
         const { data: insertedRow, error } = await supabase.from('intimations').insert({
           user_id: row.user_id,
@@ -511,6 +565,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           base_legal: detected?.baseLegal ?? null,
           confianca_classificacao: detected?.confianca ?? null,
           classificacao_status: detected?.classificacaoStatus ?? null,
+          classification_meta: classificationMeta,
           process_id: processId,
           status: 'pendente',
         }).select('id').single();
