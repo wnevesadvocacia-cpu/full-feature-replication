@@ -195,9 +195,22 @@ export default function Tarefas() {
           </select>
         </div>
       </div>
-      <div>
-        <Label>Prazo</Label>
-        <Input className="mt-1" type="date" value={form.due_date} onChange={set('due_date')} />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-primary" /> Data inicial
+          </Label>
+          <Input className="mt-1" type="date" value={form.start_date} onChange={set('start_date')} />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Aparece na agenda a partir desta data e permanece até ser concluída.
+          </p>
+        </div>
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final
+          </Label>
+          <Input className="mt-1" type="date" value={form.due_date} onChange={set('due_date')} />
+        </div>
       </div>
     </div>
   );
