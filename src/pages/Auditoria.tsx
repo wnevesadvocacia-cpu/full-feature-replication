@@ -250,7 +250,7 @@ export default function Auditoria() {
       )}
 
       {/* TASKS TAB */}
-      {activeTab === 'tasks' && (
+      {effectiveTab === 'tasks' && (
         <>
           {isLoadingTasks ? (
             <div className="p-6 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
