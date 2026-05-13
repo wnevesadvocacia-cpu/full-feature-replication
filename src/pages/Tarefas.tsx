@@ -58,13 +58,17 @@ export default function Tarefas() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [k]: e.target.value }));
 
+  const onlyDigits = (s: string) => (s || '').replace(/\D+/g, '');
   const filtered = (tasks as any[]).filter((t) => {
-    const q = search.toLowerCase();
-    const matchSearch =
+    const q = search.toLowerCase().trim();
+    const qDigits = onlyDigits(q);
+    const procNumDigits = onlyDigits(t.processes?.number || '');
+    const matchSearch = !q ||
       t.title.toLowerCase().includes(q) ||
       (t.assignee || '').toLowerCase().includes(q) ||
       (t.description || '').toLowerCase().includes(q) ||
-      (t.processes?.number || '').includes(q);
+      (t.processes?.number || '').toLowerCase().includes(q) ||
+      (qDigits && procNumDigits.includes(qDigits));
     if (!matchSearch) return false;
     if (viewFilter === 'pendentes') return !t.completed;
     if (viewFilter === 'concluidas') return t.completed;
