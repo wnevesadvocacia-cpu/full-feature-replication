@@ -231,6 +231,7 @@ export default function Agenda() {
         title: form.title,
         description: form.description || null,
         due_date: form.due_date || null,
+        start_date: form.start_date || form.due_date || null,
         priority: form.priority,
         process_id: form.process_id,
         assignee: form.assignee || null,
