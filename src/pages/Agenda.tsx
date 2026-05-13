@@ -403,6 +403,17 @@ export default function Agenda() {
           <p className="text-sm text-gray-500">Compromissos, audiências e prazos</p>
         </div>
         <div className="flex items-center gap-2">
+          <Select value={processFilter} onValueChange={setProcessFilter}>
+            <SelectTrigger className="w-[220px] h-9 text-xs">
+              <SelectValue placeholder="Filtrar por processo" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os processos</SelectItem>
+              {processes.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.number} — {p.title?.slice(0, 40)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             variant="outline"
             size="icon"
