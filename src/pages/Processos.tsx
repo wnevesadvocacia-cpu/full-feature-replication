@@ -148,6 +148,22 @@ function displayProcessNumber(n: string | null | undefined): string {
   return cleaned || EMPTY;
 }
 
+/**
+ * Detecta se um processo está em fase de execução / cumprimento de sentença.
+ * Heurística: olha title, phase, stage, type e observations.
+ * Retorna { isExecucao, principal } onde principal é o CNJ do processo principal
+ * extraído do título/observações (se houver).
+ */
+function detectExecucao(p: { title?: string | null; phase?: string | null; stage?: string | null; type?: string | null; observations?: string | null; number?: string | null }): { isExecucao: boolean; principal: string | null } {
+  const blob = [p.title, p.phase, p.stage, p.type, p.observations].filter(Boolean).join(' \n ');
+  const isExecucao = /cumprimento\s+de\s+senten[çc]a|execu[çc][ãa]o\s+de\s+(senten[çc]a|t[íi]tulo)|fase\s+de\s+execu[çc][ãa]o|^\s*execu[çc][ãa]o\b/i.test(blob);
+  let principal: string | null = null;
+  const m = blob.match(/processo\s+principal[:\s]*?(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i)
+    || blob.match(/(?:origin[áa]rio|vinculad[oa]|derivad[oa])\s+(?:de|do|ao)?\s*(?:processo)?\s*n?[ºo]?\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i);
+  if (m) principal = m[1];
+  return { isExecucao: isExecucao || !!principal, principal };
+}
+
 const FULL_SELECT = [
   'id', 'number', 'title', 'status', 'type',
   'client_id', 'client_name', 'comarca', 'vara', 'tribunal',
@@ -837,7 +853,14 @@ export default function Processos() {
                       className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
                       onClick={() => { setSelected(p); setEditMode(false); setDetailTab('details'); }}
                     >
-                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">{displayProcessNumber(p.number)}</td>
+                      <td className="px-4 py-3 font-mono font-medium text-blue-700 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span>{displayProcessNumber(p.number)}</span>
+                          {detectExecucao(p as any).isExecucao && (
+                            <span title={`Fase de execução${detectExecucao(p as any).principal ? ` · principal ${detectExecucao(p as any).principal}` : ''}`} className="inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-semibold px-1.5 py-0.5">⚖ Execução</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 max-w-[220px] truncate font-medium">{p.title || EMPTY}</td>
                       <td className="px-4 py-3 max-w-[160px] truncate text-gray-600">{val(p.client_name)}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{val(p.comarca)}</td>
@@ -895,7 +918,12 @@ export default function Processos() {
               <SheetHeader>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <SheetTitle className="font-mono text-base">{displayProcessNumber(selected.number) !== EMPTY ? displayProcessNumber(selected.number) : selected.title}</SheetTitle>
+                    <SheetTitle className="font-mono text-base flex items-center gap-2 flex-wrap">
+                      <span>{displayProcessNumber(selected.number) !== EMPTY ? displayProcessNumber(selected.number) : selected.title}</span>
+                      {detectExecucao(selected as any).isExecucao && (
+                        <span title={`Fase de execução${detectExecucao(selected as any).principal ? ` · principal ${detectExecucao(selected as any).principal}` : ''}`} className="inline-flex items-center gap-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-800 text-[10px] font-semibold px-2 py-0.5">⚖ Execução</span>
+                      )}
+                    </SheetTitle>
                     <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{selected.title}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
