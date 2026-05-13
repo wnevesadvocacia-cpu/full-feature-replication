@@ -622,19 +622,40 @@ export default function Processos() {
   const handleStatus = useCallback((v: string) => { setStatusFilter(v); setPage(0); }, []);
   const handleType = useCallback((v: string) => { setTypeFilter(v); setPage(0); }, []);
 
-  // Add task to process
+  // Add task + andamento ao processo (pipeline unificado Processo ↔ Tarefa ↔ Agenda)
   const addTask = useMutation({
     mutationFn: async (payload: { title: string; description: string; due_date: string }) => {
-      const { error } = await supabase.from('tasks').insert({
+      // 1) Cria a tarefa (aparece em /tarefas e /agenda)
+      const { error: taskErr } = await supabase.from('tasks').insert({
         ...payload,
         process_id: selected?.id,
         completed: false,
         user_id: user?.id,
       });
-      if (error) throw error;
+      if (taskErr) throw taskErr;
+
+      // 2) Registra o andamento na pasta do processo (aparece imediatamente na aba "Andamentos")
+      const author =
+        (user?.user_metadata as any)?.full_name ||
+        user?.email?.split('@')[0] ||
+        'Advogado';
+      const { error: commentErr } = await supabase.from('process_comments').insert({
+        content: payload.description?.trim()
+          ? `${payload.title}\n${payload.description}${payload.due_date ? `\nPrazo: ${payload.due_date}` : ''}`
+          : `${payload.title}${payload.due_date ? ` — Prazo: ${payload.due_date}` : ''}`,
+        author_name: author,
+        process_id: selected?.id!,
+        user_id: user?.id!,
+        type: 'andamento',
+      });
+      if (commentErr) throw commentErr;
     },
     onSuccess: () => {
+      // Cross-page sync: invalida tudo que depende dessas tabelas
+      qc.invalidateQueries({ queryKey: ['tasks'] });
       qc.invalidateQueries({ queryKey: ['tasks', selected?.id] });
+      qc.invalidateQueries({ queryKey: ['agenda-tasks'] });
+      qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       toast({ title: 'Andamento adicionado.' });
       setNewTask({ title: '', description: '', due_date: '' });
       setShowTaskForm(false);
@@ -656,6 +677,7 @@ export default function Processos() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
+      qc.invalidateQueries({ queryKey: ['proc-movs'] });
       toast({ title: 'Comentário adicionado.' });
       setNewTask({ title: '', description: '', due_date: '' });
       setShowTaskForm(false);
