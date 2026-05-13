@@ -97,7 +97,7 @@ export default function Auditoria() {
 
   const { data: todayTasks = [], isLoading: isLoadingTasks } = useQuery({
     queryKey: ['audit_today_tasks', user?.id, todayStart],
-    enabled: !!user && activeTab === 'tasks',
+    enabled: !!user && (canView ? activeTab === 'tasks' : true),
     queryFn: async () => {
       const { data, error } = await (supabase as any)
         .from('tasks')
