@@ -33,6 +33,7 @@ interface Task {
   title: string;
   description?: string;
   due_date?: string;
+  start_date?: string | null;
   priority?: string;
   completed: boolean;
   process_id?: string;
@@ -47,7 +48,7 @@ interface Task {
 interface Process { id: string; number: string; title: string; }
 
 interface AgendaForm {
-  title: string; description: string; due_date: string;
+  title: string; description: string; due_date: string; start_date: string;
   priority: string; process_id: string; assignee: string;
   start_time: string; end_time: string; event_type: string; location: string;
 }
@@ -55,7 +56,7 @@ interface AgendaForm {
 const EVENT_TYPES = ['Audiência','Prazo Fatal','Reunião','Despacho','Diligência','Sustentação Oral','Outro'];
 
 const EMPTY_FORM = (date: string): AgendaForm => ({
-  title: '', description: '', due_date: date, priority: 'media', process_id: '', assignee: '',
+  title: '', description: '', due_date: date, start_date: date, priority: 'media', process_id: '', assignee: '',
   start_time: '', end_time: '', event_type: 'Audiência', location: '',
 });
 
@@ -126,13 +127,24 @@ export default function Agenda() {
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
+  // Agenda usa start_date como referência (cai do due_date apenas como fallback antigo)
   const tasksByDate: Record<string, Task[]> = {};
   tasks.forEach((t) => {
-    if (t.due_date) {
-      const key = t.due_date.split('T')[0];
-      if (!tasksByDate[key]) tasksByDate[key] = [];
-      tasksByDate[key].push(t);
-    }
+    const ref = (t.start_date || t.due_date || '').toString();
+    if (!ref) return;
+    const key = ref.split('T')[0];
+    if (!tasksByDate[key]) tasksByDate[key] = [];
+    tasksByDate[key].push(t);
+  });
+
+  // Carry-forward: tarefa não concluída cuja data inicial já passou
+  // permanece visível em todos os dias até hoje (não pode "sair" da agenda)
+  tasks.forEach((t) => {
+    if (t.completed) return;
+    const ref = (t.start_date || t.due_date || '').toString().split('T')[0];
+    if (!ref || ref >= todayStr) return;
+    if (!tasksByDate[todayStr]) tasksByDate[todayStr] = [];
+    if (!tasksByDate[todayStr].some(x => x.id === t.id)) tasksByDate[todayStr].push(t);
   });
 
   // Sort tasks within each day by start_time
@@ -181,6 +193,7 @@ export default function Agenda() {
       title: t.title ?? '',
       description: t.description ?? '',
       due_date: t.due_date ? t.due_date.split('T')[0] : selectedDate,
+      start_date: t.start_date ? t.start_date.split('T')[0] : (t.due_date ? t.due_date.split('T')[0] : selectedDate),
       priority: t.priority ?? 'media',
       process_id: t.process_id ?? '',
       assignee: t.assignee ?? '',
@@ -200,6 +213,7 @@ export default function Agenda() {
         title: form.title,
         description: form.description || null,
         due_date: form.due_date || null,
+        start_date: form.start_date || form.due_date || null,
         priority: form.priority,
         process_id: form.process_id,
         assignee: form.assignee || null,
@@ -228,6 +242,7 @@ export default function Agenda() {
         title: form.title,
         description: form.description || null,
         due_date: form.due_date || null,
+        start_date: form.start_date || form.due_date || null,
         priority: form.priority,
         process_id: form.process_id,
         assignee: form.assignee || null,
@@ -285,10 +300,24 @@ export default function Agenda() {
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
           placeholder="Ex: Audiência de instrução" />
       </div>
-      <div>
-        <Label>Prazo final *</Label>
-        <Input className="mt-1" type="date" value={form.due_date}
-          onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} required />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-blue-600" /> Data inicial *
+          </Label>
+          <Input className="mt-1" type="date" value={form.start_date}
+            onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required />
+          <p className="text-[11px] text-gray-500 mt-1">
+            Referência da agenda. A tarefa fica visível a partir desta data e permanece até ser concluída.
+          </p>
+        </div>
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-red-500" /> Prazo final *
+          </Label>
+          <Input className="mt-1" type="date" value={form.due_date}
+            onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} required />
+        </div>
       </div>
       <div>
         <Label>Delegado a *</Label>

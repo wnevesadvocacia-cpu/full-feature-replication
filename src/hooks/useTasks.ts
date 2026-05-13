@@ -28,7 +28,7 @@ export function useCreateTask() {
   const qc = useQueryClient();
   const { user } = useAuth();
   return useMutation({
-    mutationFn: async (task: { title: string; description?: string; process_id?: string; assignee?: string; priority?: string; due_date?: string }) => {
+    mutationFn: async (task: { title: string; description?: string; process_id?: string; assignee?: string; priority?: string; due_date?: string; start_date?: string }) => {
       // S28: valida + bloqueia campos server-only
       const parsed = taskCreateSchema.parse(stripServerOnly(task as any));
       const { data, error } = await supabase

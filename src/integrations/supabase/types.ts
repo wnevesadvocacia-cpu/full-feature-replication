@@ -1436,6 +1436,7 @@ export type Database = {
           location: string | null
           priority: string
           process_id: string | null
+          start_date: string | null
           start_time: string | null
           status: string
           title: string
@@ -1454,6 +1455,7 @@ export type Database = {
           location?: string | null
           priority?: string
           process_id?: string | null
+          start_date?: string | null
           start_time?: string | null
           status?: string
           title: string
@@ -1472,6 +1474,7 @@ export type Database = {
           location?: string | null
           priority?: string
           process_id?: string | null
+          start_date?: string | null
           start_time?: string | null
           status?: string
           title?: string

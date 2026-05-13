@@ -30,11 +30,11 @@ const priorityConfig: Record<TaskPriority, { label: string; className: string }>
 
 interface TaskForm {
   title: string; description: string; assignee: string;
-  priority: string; due_date: string; process_id: string;
+  priority: string; due_date: string; start_date: string; process_id: string;
 }
 const EMPTY_FORM: TaskForm = {
   title: '', description: '', assignee: '',
-  priority: 'media', due_date: '', process_id: '',
+  priority: 'media', due_date: '', start_date: '', process_id: '',
 };
 
 
@@ -96,6 +96,7 @@ export default function Tarefas() {
         assignee: form.assignee || undefined,
         priority: form.priority,
         due_date: form.due_date || undefined,
+        start_date: form.start_date || undefined,
         process_id: form.process_id || undefined,
       });
       setCreateOpen(false);
@@ -116,6 +117,7 @@ export default function Tarefas() {
         assignee: form.assignee || null,
         priority: form.priority,
         due_date: form.due_date || null,
+        start_date: form.start_date || null,
         process_id: form.process_id || null,
       }).eq('id', editTarget.id);
       if (error) throw error;
@@ -148,6 +150,7 @@ export default function Tarefas() {
       assignee: t.assignee ?? '',
       priority: t.priority ?? 'media',
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
+      start_date: t.start_date ? t.start_date.slice(0, 10) : '',
       process_id: t.process_id ?? '',
     });
     setEditTarget(t);
@@ -192,9 +195,22 @@ export default function Tarefas() {
           </select>
         </div>
       </div>
-      <div>
-        <Label>Prazo</Label>
-        <Input className="mt-1" type="date" value={form.due_date} onChange={set('due_date')} />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-primary" /> Data inicial
+          </Label>
+          <Input className="mt-1" type="date" value={form.start_date} onChange={set('start_date')} />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            Aparece na agenda a partir desta data e permanece até ser concluída.
+          </p>
+        </div>
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final
+          </Label>
+          <Input className="mt-1" type="date" value={form.due_date} onChange={set('due_date')} />
+        </div>
       </div>
     </div>
   );
