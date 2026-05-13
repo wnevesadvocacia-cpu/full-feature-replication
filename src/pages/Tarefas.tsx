@@ -117,6 +117,7 @@ export default function Tarefas() {
         assignee: form.assignee || null,
         priority: form.priority,
         due_date: form.due_date || null,
+        start_date: form.start_date || null,
         process_id: form.process_id || null,
       }).eq('id', editTarget.id);
       if (error) throw error;
