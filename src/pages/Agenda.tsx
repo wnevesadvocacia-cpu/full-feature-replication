@@ -182,6 +182,7 @@ export default function Agenda() {
       title: t.title ?? '',
       description: t.description ?? '',
       due_date: t.due_date ? t.due_date.split('T')[0] : selectedDate,
+      start_date: t.start_date ? t.start_date.split('T')[0] : (t.due_date ? t.due_date.split('T')[0] : selectedDate),
       priority: t.priority ?? 'media',
       process_id: t.process_id ?? '',
       assignee: t.assignee ?? '',
