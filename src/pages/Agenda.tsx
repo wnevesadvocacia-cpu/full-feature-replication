@@ -155,7 +155,7 @@ export default function Agenda() {
 
   // Tarefa criada hoje com data futura também aparece HOJE como flag imediata.
   // Isso evita trazer o histórico inteiro de tarefas futuras/antigas para hoje.
-  tasks.forEach((t) => {
+  filteredTasks.forEach((t) => {
     if (t.completed) return;
     const ref = dateOnly(t.start_date || t.due_date);
     const created = dateOnly(t.created_at);
