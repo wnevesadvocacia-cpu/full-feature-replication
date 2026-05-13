@@ -548,7 +548,34 @@ export default function Agenda() {
           <Badge variant="secondary">{selectedTasks.length}</Badge>
         </h3>
         {selectedTasks.length === 0 ? (
-          <p className="text-sm text-gray-400">Nenhum compromisso neste dia.</p>
+          <div className="space-y-3">
+            <p className="text-sm text-gray-400">Nenhum compromisso neste dia.</p>
+            {selectedDate === todayStr && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 space-y-1">
+                <p className="font-medium flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-blue-600" /> Diagnóstico
+                </p>
+                <p>Total de tarefas carregadas: <strong>{tasks.length}</strong></p>
+                <p>Pendentes: <strong>{tasks.filter(t => !t.completed).length}</strong> | Concluídas: <strong>{tasks.filter(t => t.completed).length}</strong></p>
+                {(() => {
+                  const userTasks = tasks.filter(t => t.assignee && !SYSTEM_ASSIGNEES.has(t.assignee.trim().toLowerCase()));
+                  return <p>Atribuídas a usuários: <strong>{userTasks.length}</strong></p>;
+                })()}
+                {(() => {
+                  const todayRef = dateOnly(todayStr);
+                  const todayTasks = tasks.filter(t => {
+                    const ref = dateOnly(t.start_date || t.due_date);
+                    const created = dateOnly(t.created_at);
+                    return ref === todayRef || (!t.completed && ref && ref > todayRef && created === todayRef);
+                  });
+                  return <p>Tarefas com referência em {todayRef}: <strong>{todayTasks.length}</strong></p>;
+                })()}
+                {detailTarget?.processes?.number && (
+                  <p>Processo atual ({detailTarget.processes.number}): <strong>{tasks.filter(t => t.process_id === detailTarget.process_id).length}</strong> tarefas</p>
+                )}
+              </div>
+            )}
+          </div>
         ) : (
           <div className="space-y-2">
             {selectedTasks.map(t => (
