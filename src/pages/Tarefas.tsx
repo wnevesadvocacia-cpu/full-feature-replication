@@ -58,13 +58,17 @@ export default function Tarefas() {
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [k]: e.target.value }));
 
+  const onlyDigits = (s: string) => (s || '').replace(/\D+/g, '');
   const filtered = (tasks as any[]).filter((t) => {
-    const q = search.toLowerCase();
-    const matchSearch =
+    const q = search.toLowerCase().trim();
+    const qDigits = onlyDigits(q);
+    const procNumDigits = onlyDigits(t.processes?.number || '');
+    const matchSearch = !q ||
       t.title.toLowerCase().includes(q) ||
       (t.assignee || '').toLowerCase().includes(q) ||
       (t.description || '').toLowerCase().includes(q) ||
-      (t.processes?.number || '').includes(q);
+      (t.processes?.number || '').toLowerCase().includes(q) ||
+      (qDigits && procNumDigits.includes(qDigits));
     if (!matchSearch) return false;
     if (viewFilter === 'pendentes') return !t.completed;
     if (viewFilter === 'concluidas') return t.completed;
@@ -235,7 +239,16 @@ export default function Tarefas() {
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <p className="text-lg font-medium">Nenhuma tarefa encontrada</p>
-          <p className="text-sm mt-1">Crie sua primeira tarefa clicando em "Nova Tarefa"</p>
+          <p className="text-sm mt-1">
+            {search
+              ? 'A busca filtra tarefas já criadas. Para vincular a um processo, clique em "Nova Tarefa".'
+              : 'Crie sua primeira tarefa clicando em "Nova Tarefa"'}
+          </p>
+          {search && (
+            <Button className="mt-3" size="sm" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-1">
