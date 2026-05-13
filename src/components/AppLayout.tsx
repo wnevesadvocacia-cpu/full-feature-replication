@@ -4,7 +4,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { CommandMenu } from '@/components/CommandMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Search, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useLegalCalendar } from '@/hooks/useLegalCalendar';
