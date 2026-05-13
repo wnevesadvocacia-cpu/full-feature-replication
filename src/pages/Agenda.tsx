@@ -137,11 +137,13 @@ export default function Agenda() {
     tasksByDate[key].push(t);
   });
 
-  // Toda tarefa não concluída aparece HOJE (independente da data inicial futura),
-  // garantindo que o usuário veja imediatamente o que foi atribuído e o que está em aberto.
-  // Continua aparecendo também no dia da start_date/due_date.
+  // Tarefa não concluída com data inicial FUTURA também aparece HOJE
+  // (assim o usuário vê imediatamente o que acabou de atribuir).
+  // Tarefas antigas (start_date no passado) ficam no seu próprio dia — não inundam a agenda de hoje.
   tasks.forEach((t: any) => {
     if (t.completed) return;
+    const ref = (t.start_date || t.due_date || '').toString().split('T')[0];
+    if (!ref || ref <= todayStr) return; // só futuras
     if (!tasksByDate[todayStr]) tasksByDate[todayStr] = [];
     if (!tasksByDate[todayStr].some(x => x.id === t.id)) tasksByDate[todayStr].push(t);
   });
