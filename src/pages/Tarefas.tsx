@@ -156,23 +156,22 @@ export default function Tarefas() {
   const taskFormFields = (
     <div className="space-y-4">
       <div>
+        <Label>Processo vinculado *</Label>
+        <ProcessSearchSelect
+          value={form.process_id}
+          onChange={(id) => setForm(f => ({ ...f, process_id: id }))}
+        />
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Comece pelo processo: digite o número ou CPF/CNPJ do cliente.
+        </p>
+      </div>
+      <div>
         <Label>Título *</Label>
         <Input className="mt-1" value={form.title} onChange={set('title')} placeholder="Título da tarefa" />
       </div>
       <div>
         <Label>Descrição</Label>
         <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes da tarefa" />
-      </div>
-      <div>
-        <Label>Processo vinculado</Label>
-        <ProcessSearchSelect
-          processes={processList}
-          value={form.process_id}
-          onChange={(id) => setForm(f => ({ ...f, process_id: id }))}
-        />
-        <p className="text-[11px] text-muted-foreground mt-1">
-          Digite o número do processo ou CPF/CNPJ do cliente para localizar.
-        </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
