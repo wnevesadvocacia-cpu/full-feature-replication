@@ -140,20 +140,19 @@ export default function Agenda() {
   // Agenda usa start_date como referência (cai do due_date apenas como fallback antigo)
   const tasksByDate: Record<string, Task[]> = {};
   tasks.forEach((t) => {
-    const ref = (t.start_date || t.due_date || '').toString();
+    const ref = dateOnly(t.start_date || t.due_date);
     if (!ref) return;
-    const key = ref.split('T')[0];
-    if (!tasksByDate[key]) tasksByDate[key] = [];
-    tasksByDate[key].push(t);
+    if (!tasksByDate[ref]) tasksByDate[ref] = [];
+    tasksByDate[ref].push(t);
   });
 
-  // Tarefa não concluída com data inicial FUTURA também aparece HOJE
-  // (assim o usuário vê imediatamente o que acabou de atribuir).
-  // Tarefas antigas (start_date no passado) ficam no seu próprio dia — não inundam a agenda de hoje.
-  tasks.forEach((t: any) => {
+  // Tarefa criada hoje com data futura também aparece HOJE como flag imediata.
+  // Isso evita trazer o histórico inteiro de tarefas futuras/antigas para hoje.
+  tasks.forEach((t) => {
     if (t.completed) return;
-    const ref = (t.start_date || t.due_date || '').toString().split('T')[0];
-    if (!ref || ref <= todayStr) return; // só futuras
+    const ref = dateOnly(t.start_date || t.due_date);
+    const created = dateOnly(t.created_at);
+    if (!ref || ref <= todayStr || created !== todayStr) return;
     if (!tasksByDate[todayStr]) tasksByDate[todayStr] = [];
     if (!tasksByDate[todayStr].some(x => x.id === t.id)) tasksByDate[todayStr].push(t);
   });
