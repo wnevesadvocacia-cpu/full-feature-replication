@@ -300,10 +300,24 @@ export default function Agenda() {
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
           placeholder="Ex: Audiência de instrução" />
       </div>
-      <div>
-        <Label>Prazo final *</Label>
-        <Input className="mt-1" type="date" value={form.due_date}
-          onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} required />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-blue-600" /> Data inicial *
+          </Label>
+          <Input className="mt-1" type="date" value={form.start_date}
+            onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required />
+          <p className="text-[11px] text-gray-500 mt-1">
+            Referência da agenda. A tarefa fica visível a partir desta data e permanece até ser concluída.
+          </p>
+        </div>
+        <div>
+          <Label className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-red-500" /> Prazo final *
+          </Label>
+          <Input className="mt-1" type="date" value={form.due_date}
+            onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} required />
+        </div>
       </div>
       <div>
         <Label>Delegado a *</Label>
