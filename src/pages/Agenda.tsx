@@ -183,7 +183,7 @@ export default function Agenda() {
     });
   })();
 
-  const upcoming = tasks
+  const upcoming = filteredTasks
     .filter((t) => {
       if (!t.due_date || t.completed) return false;
       const d = new Date(t.due_date.split('T')[0]);
