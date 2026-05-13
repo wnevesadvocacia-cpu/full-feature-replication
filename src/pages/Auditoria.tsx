@@ -141,20 +141,22 @@ export default function Auditoria() {
 
       {/* Tab switcher */}
       <div className="flex gap-2 border-b border-hairline pb-0">
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === 'logs'
-              ? 'border-primary text-primary'
-              : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ClipboardList className="h-4 w-4" /> Logs de Auditoria
-        </button>
+        {canView && (
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+              effectiveTab === 'logs'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ClipboardList className="h-4 w-4" /> Logs de Auditoria
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('tasks')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
-            activeTab === 'tasks'
+            effectiveTab === 'tasks'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
@@ -164,7 +166,7 @@ export default function Auditoria() {
       </div>
 
       {/* LOGS TAB */}
-      {activeTab === 'logs' && (
+      {effectiveTab === 'logs' && canView && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="relative md:col-span-1">
