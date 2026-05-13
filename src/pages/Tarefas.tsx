@@ -148,6 +148,7 @@ export default function Tarefas() {
       assignee: t.assignee ?? '',
       priority: t.priority ?? 'media',
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
+      start_date: t.start_date ? t.start_date.slice(0, 10) : '',
       process_id: t.process_id ?? '',
     });
     setEditTarget(t);
