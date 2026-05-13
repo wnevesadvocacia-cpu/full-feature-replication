@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
+import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 
 const MONTHS = [
   'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -269,6 +270,16 @@ export default function Agenda() {
   const formBody = (
     <div className="space-y-4">
       <div>
+        <Label>Processo *</Label>
+        <ProcessSearchSelect
+          value={form.process_id}
+          onChange={(id) => setForm(f => ({ ...f, process_id: id }))}
+        />
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Comece pelo processo: digite o número ou CPF/CNPJ do cliente.
+        </p>
+      </div>
+      <div>
         <Label>Título *</Label>
         <Input className="mt-1" value={form.title}
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
@@ -320,18 +331,6 @@ export default function Agenda() {
             <SelectItem value="alta">Alta</SelectItem>
             <SelectItem value="media">Média</SelectItem>
             <SelectItem value="baixa">Baixa</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div>
-        <Label>Processo *</Label>
-        <Select value={form.process_id}
-          onValueChange={v => setForm(f => ({ ...f, process_id: v }))}>
-          <SelectTrigger className="mt-1"><SelectValue placeholder="Selecionar processo…" /></SelectTrigger>
-          <SelectContent>
-            {processes.map(p => (
-              <SelectItem key={p.id} value={p.id}>{p.number} — {p.title}</SelectItem>
-            ))}
           </SelectContent>
         </Select>
       </div>
