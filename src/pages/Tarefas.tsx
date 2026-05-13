@@ -48,7 +48,7 @@ export default function Tarefas() {
   const [saving, setSaving] = useState(false);
 
   const { data: tasks = [], isLoading } = useTasks();
-  const { data: processList = [] } = useProcessList();
+  
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const { toast } = useToast();
