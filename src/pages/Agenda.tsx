@@ -397,6 +397,16 @@ export default function Agenda() {
           <p className="text-sm text-gray-500">Compromissos, audiências e prazos</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={isRefreshing ? 'animate-spin' : ''}
+            title="Atualizar tarefas"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
           <div className="flex rounded-md border bg-white overflow-hidden">
             {(['day','week','month'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}
