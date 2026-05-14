@@ -79,7 +79,7 @@ export default function Equipe() {
       const { error } = await supabase.from('user_roles').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       toast({ title: 'Papel removido.' });
     },
