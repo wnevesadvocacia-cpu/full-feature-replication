@@ -336,10 +336,10 @@ export default function Auth() {
     const normalized = email.trim().toLowerCase();
     setResetSending(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
-        redirectTo: `${window.location.origin}/#/reset-password`,
+      await invokePublicFunction<{ success?: boolean }>('request-password-reset', {
+        email: normalized,
+        redirect_to: `${window.location.origin}/#/reset-password`,
       });
-      if (error) throw error;
       toast({ title: 'E-mail enviado', description: `Verifique a caixa de entrada de ${normalized} para redefinir a senha.` });
     } catch (err: any) {
       toast({ title: 'Erro', description: translateLoginError(err.message), variant: 'destructive' });
