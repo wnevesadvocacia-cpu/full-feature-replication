@@ -501,7 +501,7 @@ export default function Configuracoes() {
                 </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
-                <strong>Sobre AASP:</strong> integração via scraping não foi implementada por risco de bloqueio da conta. O DJEN do CNJ cobre as mesmas intimações eletrônicas que a AASP repassa, oficialmente e sem custo.
+                <strong>Cobertura:</strong> o DJEN/CNJ cobre publicações eletrônicas dos tribunais federais (TRFs, STF, STJ, TSE, STM), TRTs e TJs estaduais aderidos. Tribunais como TJ-SP, TJ-MG e TJ-RJ ainda mantêm parcialmente seus DJEs estaduais em paralelo. Recomendamos manter assinatura AASP ou similar como <strong>fallback regulatório</strong> durante período de transição, especialmente para escritórios com alto volume em TJ-SP.
               </div>
 
               {/* Proxy Cloudflare DJEN */}

@@ -1,9 +1,8 @@
 // Edge Function: daily_backup_intimations
-// Cron: 0 6 UTC = 3h BRT. Exporta tabelas críticas em JSON gzipado para Cloudflare R2.
-// Loga em backup_log. Try-catch por tabela.
+// Cron: 0 6 UTC = 3h BRT. Exporta tabelas críticas em JSON gzipado para Supabase Storage.
+// Bucket privado 'wnevesbox-backups'. Loga em backup_log. Try-catch por tabela.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { gzip } from 'https://deno.land/x/compress@v0.4.5/mod.ts';
-import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,11 +12,7 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-const R2_ACCOUNT_ID = Deno.env.get('R2_ACCOUNT_ID');
-const R2_ACCESS_KEY_ID = Deno.env.get('R2_ACCESS_KEY_ID');
-const R2_SECRET_ACCESS_KEY = Deno.env.get('R2_SECRET_ACCESS_KEY');
-const R2_BUCKET = Deno.env.get('R2_BUCKET');
-
+const BUCKET = 'wnevesbox-backups';
 const TABLES = ['intimations', 'processes', 'process_comments', 'tasks', 'clients', 'oab_settings'];
 const PAGE_SIZE = 1000;
 
@@ -42,28 +37,8 @@ async function exportTable(supabase: any, table: string): Promise<any[]> {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
-    return new Response(JSON.stringify({
-      status: 'error',
-      error: 'missing_r2_secrets',
-      missing: {
-        R2_ACCOUNT_ID: !R2_ACCOUNT_ID,
-        R2_ACCESS_KEY_ID: !R2_ACCESS_KEY_ID,
-        R2_SECRET_ACCESS_KEY: !R2_SECRET_ACCESS_KEY,
-        R2_BUCKET: !R2_BUCKET,
-      },
-    }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const aws = new AwsClient({
-      accessKeyId: R2_ACCESS_KEY_ID,
-      secretAccessKey: R2_SECRET_ACCESS_KEY,
-      service: 's3',
-      region: 'auto',
-    });
-
     const today = new Date().toISOString().slice(0, 10);
     const results: any[] = [];
 
@@ -77,19 +52,17 @@ Deno.serve(async (req) => {
           rows,
         });
         const gz = gzip(new TextEncoder().encode(payload));
-        const url = `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}/daily/${today}/${table}.json.gz`;
+        const path = `daily/${today}/${table}.json.gz`;
 
-        const putRes = await aws.fetch(url, {
-          method: 'PUT',
-          body: gz,
-          headers: { 'Content-Type': 'application/gzip' },
-        });
+        const blob = new Blob([gz], { type: 'application/gzip' });
+        const { error: upErr } = await supabase.storage
+          .from(BUCKET)
+          .upload(path, blob, { contentType: 'application/gzip', upsert: true });
 
-        if (!putRes.ok) {
-          const errText = await putRes.text().catch(() => '');
-          results.push({ table, rows: rows.length, gz_bytes: gz.length, status: 'failed', error: `HTTP ${putRes.status}: ${errText.slice(0, 300)}` });
+        if (upErr) {
+          results.push({ table, rows: rows.length, gz_bytes: gz.length, status: 'failed', error: upErr.message });
         } else {
-          results.push({ table, rows: rows.length, gz_bytes: gz.length, status: 'ok' });
+          results.push({ table, rows: rows.length, gz_bytes: gz.length, status: 'ok', path });
         }
       } catch (tableErr: any) {
         console.error('backup table error', table, tableErr);
