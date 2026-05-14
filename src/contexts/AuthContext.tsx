@@ -31,6 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let mounted = true;
 
+    const isPasswordRecoveryUrl = () => {
+      const url = `${window.location.search}${window.location.hash}`;
+      return window.location.hash.includes('/reset-password') && (url.includes('code=') || url.includes('type=recovery') || url.includes('access_token='));
+    };
+
     const applySession = (nextSession: Session | null) => {
       if (!mounted) return;
       setSession(nextSession);
@@ -40,6 +45,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, nextSession) => {
+        if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && nextSession?.user && isPasswordRecoveryUrl())) {
+          sessionStorage.setItem('wb_password_recovery_pending', '1');
+        }
         applySession(nextSession);
         if (event === 'PASSWORD_RECOVERY') window.location.hash = '/reset-password';
         // Sec-3.2/3.3 — log + register device em login bem-sucedido
