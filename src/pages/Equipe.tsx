@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Trash2, ShieldAlert, UserPlus } from 'lucide-react';
+import { Loader2, Trash2, ShieldAlert, UserPlus, Eye, EyeOff } from 'lucide-react';
 
 type AppRole = 'admin' | 'gerente' | 'advogado' | 'estagiario' | 'financeiro' | 'usuario' | 'assistente_adm';
 const ROLES: AppRole[] = ['admin', 'gerente', 'advogado', 'estagiario', 'financeiro', 'assistente_adm', 'usuario'];
@@ -33,8 +33,17 @@ export default function Equipe() {
 
   // Criar novo usuário
   const [newEmail, setNewEmail] = useState('');
+  const [newEmailConfirm, setNewEmailConfirm] = useState('');
   const [newPass, setNewPass] = useState('');
+  const [newPassConfirm, setNewPassConfirm] = useState('');
   const [newRole, setNewRole] = useState<AppRole>('advogado');
+  const [showPass, setShowPass] = useState(false);
+  const [showPassConfirm, setShowPassConfirm] = useState(false);
+
+  const emailMatches = newEmail.length > 0 && newEmail === newEmailConfirm;
+  const passMatches = newPass.length >= 12 && newPass === newPassConfirm;
+  const emailMismatch = newEmailConfirm.length > 0 && newEmail !== newEmailConfirm;
+  const passMismatch = newPassConfirm.length > 0 && newPass !== newPassConfirm;
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['user-roles-all'],
@@ -79,17 +88,32 @@ export default function Equipe() {
 
   const createUser = useMutation({
     mutationFn: async () => {
+      if (newEmail !== newEmailConfirm) throw new Error('Os e-mails não conferem.');
+      if (newPass !== newPassConfirm) throw new Error('As senhas não conferem.');
+      if (newPass.length < 12) throw new Error('A senha precisa ter no mínimo 12 caracteres.');
       const { data, error } = await supabase.functions.invoke('admin-create-user', {
         body: { email: newEmail, password: newPass, role: newRole },
       });
-      if (error) throw error;
+      // supabase-js wraps non-2xx em FunctionsHttpError; tenta extrair mensagem do body.
+      if (error) {
+        let detail = error.message;
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            if (body?.error) detail = body.error;
+          }
+        } catch {}
+        throw new Error(detail);
+      }
       if (data?.error) throw new Error(data.error);
       return data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
-      setNewEmail(''); setNewPass('');
-      toast({ title: 'Usuário criado!', description: `${newEmail} já pode entrar no sistema.` });
+      const created = newEmail;
+      setNewEmail(''); setNewEmailConfirm(''); setNewPass(''); setNewPassConfirm('');
+      toast({ title: 'Usuário criado!', description: `${created} já pode entrar no sistema.` });
     },
     onError: (e: any) => toast({ title: 'Erro ao criar usuário', description: e.message, variant: 'destructive' }),
   });
@@ -120,22 +144,67 @@ export default function Equipe() {
         <h2 className="font-semibold text-sm flex items-center gap-2">
           <UserPlus className="h-4 w-4" /> Criar novo usuário
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
             <Label>Email</Label>
             <Input
-              className="mt-1" type="email" placeholder="usuario@dominio.com"
-              value={newEmail} onChange={(e) => setNewEmail(e.target.value)}
+              className="mt-1" type="email" placeholder="usuario@dominio.com" autoComplete="off"
+              value={newEmail} onChange={(e) => setNewEmail(e.target.value.trim())}
             />
           </div>
           <div>
-            <Label>Senha (mín. 8 caracteres)</Label>
+            <Label>Confirmar email</Label>
             <Input
-              className="mt-1" type="password" placeholder="••••••••"
-              value={newPass} onChange={(e) => setNewPass(e.target.value)}
+              className="mt-1" type="email" placeholder="repita o e-mail" autoComplete="off"
+              value={newEmailConfirm} onChange={(e) => setNewEmailConfirm(e.target.value.trim())}
+              aria-invalid={emailMismatch}
             />
+            {emailMismatch && (
+              <p className="text-xs text-destructive mt-1">Os e-mails não conferem.</p>
+            )}
           </div>
           <div>
+            <Label>Senha (mín. 12 caracteres)</Label>
+            <div className="relative mt-1">
+              <Input
+                type={showPass ? 'text' : 'password'} placeholder="••••••••••••" autoComplete="new-password"
+                value={newPass} onChange={(e) => setNewPass(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button" onClick={() => setShowPass((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showPass ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {newPass.length > 0 && newPass.length < 12 && (
+              <p className="text-xs text-destructive mt-1">Faltam {12 - newPass.length} caracteres.</p>
+            )}
+          </div>
+          <div>
+            <Label>Confirmar senha</Label>
+            <div className="relative mt-1">
+              <Input
+                type={showPassConfirm ? 'text' : 'password'} placeholder="repita a senha" autoComplete="new-password"
+                value={newPassConfirm} onChange={(e) => setNewPassConfirm(e.target.value)}
+                className="pr-10"
+                aria-invalid={passMismatch}
+              />
+              <button
+                type="button" onClick={() => setShowPassConfirm((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label={showPassConfirm ? 'Ocultar senha' : 'Mostrar senha'}
+              >
+                {showPassConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            {passMismatch && (
+              <p className="text-xs text-destructive mt-1">As senhas não conferem.</p>
+            )}
+          </div>
+          <div className="md:col-span-2">
             <Label>Papel</Label>
             <select
               className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
@@ -148,7 +217,7 @@ export default function Equipe() {
         </div>
         <Button
           onClick={() => createUser.mutate()}
-          disabled={!newEmail || newPass.length < 8 || createUser.isPending}
+          disabled={!emailMatches || !passMatches || createUser.isPending}
         >
           {createUser.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando…</> : <><UserPlus className="h-4 w-4 mr-2" />Criar usuário</>}
         </Button>
