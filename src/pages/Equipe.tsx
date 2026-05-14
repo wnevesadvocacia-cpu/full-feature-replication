@@ -109,7 +109,7 @@ export default function Equipe() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       const created = newEmail;
       setNewEmail(''); setNewEmailConfirm(''); setNewPass(''); setNewPassConfirm('');
