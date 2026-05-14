@@ -35,6 +35,7 @@ export default function Configuracoes() {
   const [perfil, setPerfil] = useState({ nome: '', email: user?.email ?? '', oab: '', telefone: '' });
   const [escritorio, setEscritorio] = useState(EMPTY_ESCRITORIO);
   const [notifs, setNotifs] = useState(EMPTY_NOTIFS);
+  const [digest, setDigest] = useState({ daily_digest_enabled: true, digest_hour_brt: 8 });
   const [senhaForm, setSenhaForm] = useState({ nova: '', confirmar: '' });
   type OabRow = { id?: string; oab_number: string; oab_uf: string; active: boolean; last_sync_at: string | null; last_success_at?: string | null; consecutive_failures?: number; last_error?: string | null; lawyer_name?: string | null; name_variations?: string[]; name_match_threshold?: number };
   const [oabs, setOabs] = useState<OabRow[]>([]);
@@ -68,11 +69,13 @@ export default function Configuracoes() {
     (async () => {
       setLoadingData(true);
       try {
-        const [{ data: office }, { data: prefs }, { data: oabRows }] = await Promise.all([
+        const [{ data: office }, { data: prefs }, { data: oabRows }, { data: digestPrefs }] = await Promise.all([
           (supabase as any).from('office_settings').select('*').eq('user_id', user.id).maybeSingle(),
           (supabase as any).from('notification_preferences').select('*').eq('user_id', user.id).maybeSingle(),
           (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true }),
+          (supabase as any).from('user_notification_prefs').select('daily_digest_enabled, digest_hour_brt').eq('user_id', user.id).maybeSingle(),
         ]);
+        if (digestPrefs) setDigest({ daily_digest_enabled: !!digestPrefs.daily_digest_enabled, digest_hour_brt: digestPrefs.digest_hour_brt ?? 8 });
         if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error, lawyer_name: r.lawyer_name ?? '', name_variations: r.name_variations ?? [], name_match_threshold: r.name_match_threshold ?? 0.85 })));
         if (cancel) return;
         if (office) {
@@ -142,6 +145,16 @@ export default function Configuracoes() {
         .from('notification_preferences')
         .upsert({ user_id: user.id, ...notifs, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
       if (error) throw error;
+      const { error: digestErr } = await (supabase as any)
+        .from('user_notification_prefs')
+        .upsert({
+          user_id: user.id,
+          email: user.email ?? '',
+          nome: perfil.nome ?? null,
+          daily_digest_enabled: digest.daily_digest_enabled,
+          digest_hour_brt: digest.digest_hour_brt,
+        }, { onConflict: 'user_id' });
+      if (digestErr) throw digestErr;
       toast({ title: 'Preferências salvas!' });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSaving(false); }
@@ -383,6 +396,26 @@ export default function Configuracoes() {
                       </div>
                     ))}
                   </div>
+
+                  <div className="border-t pt-4 space-y-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">Resumo diário por e-mail</h3>
+                      <p className="text-xs text-gray-500">Receba todas as manhãs um e-mail consolidado com novas intimações (últimas 24h) e pendentes.</p>
+                    </div>
+                    <div className="flex items-start justify-between p-4 border rounded-lg hover:bg-gray-50">
+                      <div>
+                        <p className="font-medium text-sm">Resumo diário por e-mail às 8h</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Enviado para {user?.email} no horário de Brasília.</p>
+                      </div>
+                      <button
+                        onClick={() => setDigest(d => ({ ...d, daily_digest_enabled: !d.daily_digest_enabled }))}
+                        className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors ${digest.daily_digest_enabled ? 'bg-blue-600' : 'bg-gray-200'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${digest.daily_digest_enabled ? 'translate-x-4' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  </div>
+
                   <Button onClick={saveNotifs} disabled={saving}>{saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}Salvar Preferências</Button>
                 </>
               )}
@@ -501,7 +534,7 @@ export default function Configuracoes() {
                 </div>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-900">
-                <strong>Sobre AASP:</strong> integração via scraping não foi implementada por risco de bloqueio da conta. O DJEN do CNJ cobre as mesmas intimações eletrônicas que a AASP repassa, oficialmente e sem custo.
+                <strong>Cobertura:</strong> o DJEN/CNJ cobre publicações eletrônicas dos tribunais federais (TRFs, STF, STJ, TSE, STM), TRTs e TJs estaduais aderidos. Tribunais como TJ-SP, TJ-MG e TJ-RJ ainda mantêm parcialmente seus DJEs estaduais em paralelo. Recomendamos manter assinatura AASP ou similar como <strong>fallback regulatório</strong> durante período de transição, especialmente para escritórios com alto volume em TJ-SP.
               </div>
 
               {/* Proxy Cloudflare DJEN */}
