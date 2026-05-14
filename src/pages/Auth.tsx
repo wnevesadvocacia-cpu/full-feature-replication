@@ -115,6 +115,9 @@ export default function Auth() {
   const [now, setNow] = useState<number>(Date.now());
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [needsCaptcha, setNeedsCaptcha] = useState(false);
+  const [mode, setMode] = useState<'otp' | 'password'>('otp');
+  const [password, setPassword] = useState('');
+  const [resetSending, setResetSending] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
