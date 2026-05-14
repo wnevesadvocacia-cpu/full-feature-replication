@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     let resetSent = false;
     let resetError: string | null = null;
     try {
-      const { error: resetErr } = await admin.auth.resetPasswordForEmail(normalizedEmail, redirectTo ? { redirectTo } : undefined);
+      const { error: resetErr } = await admin.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
       if (resetErr) resetError = resetErr.message;
       else resetSent = true;
     } catch (e) {
