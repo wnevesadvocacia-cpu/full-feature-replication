@@ -109,13 +109,13 @@ export default function Equipe() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (result: any) => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       const created = newEmail;
       setNewEmail(''); setNewEmailConfirm(''); setNewPass(''); setNewPassConfirm('');
       toast({
         title: 'Usuário liberado!',
-        description: data?.existed
+        description: result?.existed
           ? `${created} já existia; o papel selecionado foi atribuído.`
           : `${created} já pode entrar no sistema.`,
       });
