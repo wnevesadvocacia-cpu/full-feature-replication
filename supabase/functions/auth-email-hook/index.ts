@@ -10,15 +10,19 @@ import { RecoveryEmail } from '../_shared/email-templates/recovery.tsx'
 import { EmailChangeEmail } from '../_shared/email-templates/email-change.tsx'
 import { ReauthenticationEmail } from '../_shared/email-templates/reauthentication.tsx'
 
-import { corsHeadersFor, handleCorsPreflight, isOriginAllowed } from '../_shared/cors.ts'
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers':
+    'authorization, x-client-info, apikey, content-type, x-lovable-signature, x-lovable-timestamp, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+}
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'WnevesBox — Confirme seu e-mail',
-  invite: 'WnevesBox — Você foi convidado',
-  magiclink: 'WnevesBox — Seu link de acesso',
-  recovery: 'WnevesBox — Redefinição de senha',
-  email_change: 'WnevesBox — Confirme seu novo e-mail',
-  reauthentication: 'WnevesBox — Código de verificação',
+  signup: 'Confirm your email',
+  invite: "You've been invited",
+  magiclink: 'Your login link',
+  recovery: 'Reset your password',
+  email_change: 'Confirm your new email',
+  reauthentication: 'Your verification code',
 }
 
 // Template mapping
@@ -32,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 }
 
 // Configuration
-const SITE_NAME = "WnevesBox"
+const SITE_NAME = "full-feature-replication"
 const SENDER_DOMAIN = "notify.wnevesbox.com"
 const ROOT_DOMAIN = "wnevesbox.com"
 const FROM_DOMAIN = "notify.wnevesbox.com" // Domain shown in From address (may be root or sender subdomain)
@@ -66,6 +70,7 @@ const SAMPLE_DATA: Record<string, object> = {
   },
   email_change: {
     siteName: SITE_NAME,
+    oldEmail: SAMPLE_EMAIL,
     email: SAMPLE_EMAIL,
     newEmail: SAMPLE_EMAIL,
     confirmationUrl: SAMPLE_PROJECT_URL,
@@ -127,7 +132,6 @@ async function handlePreview(req: Request): Promise<Response> {
 
 // Webhook handler - verifies signature and sends email
 async function handleWebhook(req: Request): Promise<Response> {
-  const corsHeaders = corsHeadersFor(req)
   const apiKey = Deno.env.get('LOVABLE_API_KEY')
 
   if (!apiKey) {
@@ -222,6 +226,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     confirmationUrl: payload.data.url,
     token: payload.data.token,
     email: payload.data.email,
+    oldEmail: payload.data.old_email,
     newEmail: payload.data.new_email,
   }
 
@@ -289,11 +294,11 @@ async function handleWebhook(req: Request): Promise<Response> {
 
 Deno.serve(async (req) => {
   const url = new URL(req.url)
-  const corsHeaders = corsHeadersFor(req)
 
   // Handle CORS preflight for main endpoint
-  const preflight = handleCorsPreflight(req)
-  if (preflight) return preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders })
+  }
 
   // Route to preview handler for /preview path
   if (url.pathname.endsWith('/preview')) {
