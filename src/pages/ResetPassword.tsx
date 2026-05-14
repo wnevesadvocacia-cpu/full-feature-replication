@@ -39,6 +39,23 @@ export default function ResetPassword() {
     });
 
     const processHash = async () => {
+      // PKCE flow: ?code=... in query string
+      const search = window.location.search;
+      if (search && search.includes('code=')) {
+        const params = new URLSearchParams(search);
+        const code = params.get('code');
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          console.log('[ResetPassword] exchangeCodeForSession:', error);
+          if (!error) {
+            setHasRecoverySession(true);
+            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+            setChecking(false);
+            return;
+          }
+        }
+      }
+
       if (hash && hash.includes('access_token')) {
         const params = new URLSearchParams(hash.replace(/^#/, ''));
         const accessToken = params.get('access_token');
