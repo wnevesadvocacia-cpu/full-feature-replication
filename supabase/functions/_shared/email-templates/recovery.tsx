@@ -44,6 +44,9 @@ export const RecoveryEmail = ({
           Se você não solicitou a redefinição, ignore este e-mail — sua senha
           permanecerá a mesma.
         </Text>
+        <Text style={footer}>
+          Dúvidas? Responda este e-mail ou escreva para <strong>wnevesadvocacia@gmail.com</strong> (alternativo: wneves2006@yahoo.com.br).
+        </Text>
         <Text style={footer}>© {siteName} — wnevesbox.com</Text>
       </Container>
     </Body>
