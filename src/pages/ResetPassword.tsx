@@ -28,20 +28,26 @@ export default function ResetPassword() {
 
   useEffect(() => {
     const getRecoveryParam = (key: string) => {
-      const searchParams = new URLSearchParams(window.location.search);
-      const fromSearch = searchParams.get(key);
-      if (fromSearch) return fromSearch;
+      const rawHash = window.location.hash.replace(/^#/, '');
+      const candidates = [window.location.search.replace(/^\?/, '')];
 
-      const hash = window.location.hash.replace(/^#/, '');
-      const queryIndex = hash.indexOf('?');
-      if (queryIndex >= 0) {
-        const hashParams = new URLSearchParams(hash.slice(queryIndex + 1));
-        const fromHashQuery = hashParams.get(key);
-        if (fromHashQuery) return fromHashQuery;
+      const queryIndex = rawHash.indexOf('?');
+      if (queryIndex >= 0) candidates.push(rawHash.slice(queryIndex + 1));
+
+      // HashRouter + Supabase implicit links can produce:
+      // /#/reset-password#access_token=...&type=recovery
+      const nestedHashIndex = rawHash.indexOf('#');
+      if (nestedHashIndex >= 0) candidates.push(rawHash.slice(nestedHashIndex + 1));
+
+      candidates.push(rawHash.replace(/^\//, ''));
+
+      for (const candidate of candidates) {
+        if (!candidate) continue;
+        const value = new URLSearchParams(candidate).get(key);
+        if (value) return value;
       }
 
-      const hashTokenParams = new URLSearchParams(hash.replace(/^\//, ''));
-      return hashTokenParams.get(key);
+      return null;
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
