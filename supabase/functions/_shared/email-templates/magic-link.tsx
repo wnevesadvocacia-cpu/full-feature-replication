@@ -38,6 +38,9 @@ export const MagicLinkEmail = ({
         <Text style={footer}>
           If you didn't request this link, you can safely ignore this email.
         </Text>
+        <Text style={footer}>
+          Dúvidas? Responda este e-mail ou escreva para <strong>wnevesadvocacia@gmail.com</strong> (alternativo: wneves2006@yahoo.com.br).
+        </Text>
       </Container>
     </Body>
   </Html>

@@ -53,6 +53,9 @@ export const SignupEmail = ({
         <Text style={footer}>
           Se você não criou uma conta, pode ignorar este e-mail com segurança.
         </Text>
+        <Text style={footer}>
+          Dúvidas? Responda este e-mail ou escreva para <strong>wnevesadvocacia@gmail.com</strong> (alternativo: wneves2006@yahoo.com.br).
+        </Text>
         <Text style={footer}>© {siteName} — wnevesbox.com</Text>
       </Container>
     </Body>

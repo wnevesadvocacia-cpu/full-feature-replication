@@ -1,76 +1,34 @@
+## Objetivo
 
+Definir os e-mails de contato do WnevesBox:
+- **Principal (Reply-To):** `wnevesadvocacia@gmail.com`
+- **Alternativo (backup interno):** `wneves2006@yahoo.com.br`
 
-## Problema: ao clicar no link do email, a página `/reset-password` não mostra o formulário
+E-mails do sistema continuam saindo de `noreply@notify.wnevesbox.com`. Estes dois endereços servem apenas para receber respostas e contato humano.
 
-### Diagnóstico
+## Mudanças
 
-O Supabase envia o link de recuperação no formato:
-```
-https://<app>/reset-password#access_token=...&type=recovery&refresh_token=...
-```
+### 1. `supabase/functions/auth-email-hook/index.ts`
+- Adicionar constantes:
+  ```ts
+  const REPLY_TO_PRIMARY = "wnevesadvocacia@gmail.com"
+  const REPLY_TO_ALT     = "wneves2006@yahoo.com.br"
+  ```
+- Incluir `reply_to: REPLY_TO_PRIMARY` no payload enfileirado em `enqueue_email` para que toda resposta a e-mail de auth caia no Gmail.
 
-O token vem no **fragment hash** (`#`), não em query params. O `ResetPassword.tsx` atual depende exclusivamente do evento `PASSWORD_RECOVERY` do `onAuthStateChange` para liberar o formulário. Em alguns casos (especialmente quando a página carrega pela primeira vez), esse evento não dispara antes do `getSession()`, ou a sessão é criada como `SIGNED_IN` normal sem disparar `PASSWORD_RECOVERY`. Resultado: `hasRecoverySession` fica `false` e aparece a mensagem "Link inválido ou expirado".
+### 2. Templates de e-mail (rodapé) — 6 arquivos em `supabase/functions/_shared/email-templates/`
+Adicionar linha no rodapé:
+> Dúvidas? Responda este e-mail ou escreva para **wnevesadvocacia@gmail.com** (alternativo: wneves2006@yahoo.com.br).
 
-Além disso, se o link foi enviado quando a URL do app era diferente (ex: preview vs published), o redirect pode não bater com a rota atual.
+Aplicar em: `signup.tsx`, `recovery.tsx`, `magic-link.tsx`, `invite.tsx`, `email-change.tsx`, `reauthentication.tsx`.
 
-### O que será corrigido
+### 3. Deploy
+Redeploy de `auth-email-hook` para aplicar templates + reply-to.
 
-**1. Reescrever a detecção de sessão de recuperação em `src/pages/ResetPassword.tsx`**
+## Fora do escopo
+- Não toca em `SENDER_DOMAIN`, `FROM_DOMAIN`, `SITE_NAME`, `ROOT_DOMAIN`.
+- Não altera schema, RLS, outras edge functions, nem código `src/`.
+- Não cria página de Configurações nova (a existente não muda agora).
 
-- Detectar explicitamente o hash da URL ao montar o componente: se `window.location.hash` contém `type=recovery` E `access_token`, processar manualmente:
-  - Extrair `access_token` e `refresh_token` do hash
-  - Chamar `supabase.auth.setSession({ access_token, refresh_token })` para estabelecer a sessão
-  - Marcar `hasRecoverySession = true`
-  - Limpar o hash da URL (`window.history.replaceState`)
-- Manter o listener `onAuthStateChange` como fallback para o evento `PASSWORD_RECOVERY`
-- Manter o `getSession()` como fallback final: se já existe sessão ativa quando a página carrega, considerar válida para reset
-- Mostrar logs no console para debug (`console.log` do hash detectado e do resultado de `setSession`)
-
-**2. Garantir que o redirect do email aponte para a URL correta**
-
-Em `src/pages/Auth.tsx`, o `redirectTo` já usa `${window.location.origin}/reset-password`. Verificar que o link no email está vindo com essa URL — se o usuário solicitou o reset estando no preview (`id-preview--*.lovable.app`), o link vai para o preview. Não há mudança de código aqui, mas vou adicionar uma observação no toast de sucesso lembrando o usuário de abrir o link **no mesmo navegador** onde solicitou.
-
-**3. Estado de loading mais claro**
-
-- Enquanto detecta o hash/sessão, mostrar "Validando link de recuperação..."
-- Se falhar, mostrar erro específico com botão para solicitar novo link
-
-### Detalhes técnicos
-
-```ts
-// Pseudocódigo da nova lógica de detecção
-useEffect(() => {
-  const hash = window.location.hash;
-  const params = new URLSearchParams(hash.replace('#', ''));
-  const accessToken = params.get('access_token');
-  const refreshToken = params.get('refresh_token');
-  const type = params.get('type');
-
-  if (type === 'recovery' && accessToken && refreshToken) {
-    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error }) => {
-        if (!error) {
-          setHasRecoverySession(true);
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-        setChecking(false);
-      });
-    return;
-  }
-
-  // fallback: listener + getSession existentes
-  ...
-}, []);
-```
-
-### Observação importante
-
-O email que você recebeu veio de `no-reply@md.lovable-app.email` e o link de redirect provavelmente aponta para `id-preview--b753a021-ff4f-4e59-b4fd-f9f912a4c7bf.lovable.app/reset-password`. Para o link funcionar:
-
-- Abra o email **no mesmo navegador** onde você está usando o app
-- Se você publicar o app, solicite um **novo** reset depois de publicado para que o link aponte para a URL publicada
-
-### Próximos passos após aprovação
-
-Implementar a nova detecção de hash em `ResetPassword.tsx` e te pedir para clicar novamente no link do email (ou solicitar um novo reset).
-
+## Resultado
+Qualquer cliente que receber e-mail do sistema e clicar em "Responder" terá a mensagem direcionada ao Gmail (`wnevesadvocacia@gmail.com`). O Yahoo fica registrado como backup visível no rodapé.
