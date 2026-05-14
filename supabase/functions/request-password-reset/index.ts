@@ -16,6 +16,25 @@ const BodySchema = z.object({
   redirect_to: z.string().trim().url().optional(),
 });
 
+function safeRedirectTo(input?: string) {
+  const fallback = 'https://wnevesbox.com/#/reset-password';
+  if (!input) return fallback;
+  try {
+    const url = new URL(input);
+    const allowedHosts = new Set([
+      'wnevesbox.com',
+      'www.wnevesbox.com',
+      'full-feature-replication.lovable.app',
+    ]);
+    const allowedSuffixes = ['.lovable.app', '.lovable.dev', '.lovableproject.com', '.sandbox.lovable.dev'];
+    const host = url.hostname.toLowerCase();
+    if (allowedHosts.has(host) || allowedSuffixes.some((suffix) => host.endsWith(suffix))) return input;
+  } catch {
+    // fall through to safe default
+  }
+  return fallback;
+}
+
 function fromAddress() {
   const raw = Deno.env.get('RESEND_FROM_EMAIL') ?? 'noreply@notify.wnevesbox.com';
   const match = raw.match(/<([^>]+)>/);
@@ -64,7 +83,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) return uniformOk();
 
     const email = parsed.data.email.trim().toLowerCase();
-    const redirectTo = parsed.data.redirect_to ?? 'https://wnevesbox.com/#/reset-password';
+    const redirectTo = safeRedirectTo(parsed.data.redirect_to);
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
     const ipHash = await hashIp(getClientIp(req));
