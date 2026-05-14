@@ -21,3 +21,5 @@ project_id = "coyqbspjryohkccxnkti"
     verify_jwt = false
   [functions.daily_intimations_digest]
     verify_jwt = false
+  [functions.daily_backup_intimations]
+    verify_jwt = false
