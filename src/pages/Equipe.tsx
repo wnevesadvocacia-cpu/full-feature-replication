@@ -24,6 +24,23 @@ const roleLabel: Record<AppRole, string> = {
   usuario: 'Usuário',
 };
 
+function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+  let score = 0;
+  if (password.length >= 12) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  const map: Record<number, { label: string; color: string }> = {
+    0: { label: 'Muito fraca', color: 'bg-red-500' },
+    1: { label: 'Fraca', color: 'bg-red-400' },
+    2: { label: 'Média', color: 'bg-yellow-400' },
+    3: { label: 'Boa', color: 'bg-emerald-400' },
+    4: { label: 'Forte', color: 'bg-emerald-600' },
+  };
+  return { score, ...map[score] };
+}
+
 export default function Equipe() {
   const { user } = useAuth();
   const isAdmin = useIsAdmin();
