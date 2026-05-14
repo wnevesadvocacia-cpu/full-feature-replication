@@ -1,34 +1,35 @@
-## Objetivo
+## Suportar login por OTP **e** por senha
 
-Definir os e-mails de contato do WnevesBox:
-- **Principal (Reply-To):** `wnevesadvocacia@gmail.com`
-- **Alternativo (backup interno):** `wneves2006@yahoo.com.br`
+### Mudança principal
+Adicionar abas "Código" e "Senha" na tela `/auth`. O usuário escolhe como entrar. O fluxo de OTP atual continua intacto. O fluxo de senha usa `supabase.auth.signInWithPassword` e habilita "Esqueci minha senha" → `resetPasswordForEmail` → `/reset-password` (que já existe).
 
-E-mails do sistema continuam saindo de `noreply@notify.wnevesbox.com`. Estes dois endereços servem apenas para receber respostas e contato humano.
+### Arquivos alterados
 
-## Mudanças
+**`src/pages/Auth.tsx`** (principal)
+- Adicionar `Tabs` com 2 abas: **Código** (OTP — fluxo atual, default) e **Senha**.
+- Aba "Senha":
+  - Campos: e-mail + senha
+  - Botão **Entrar** → `supabase.auth.signInWithPassword({ email, password })` → `navigate('/dashboard')`
+  - Link **Esqueci minha senha** → `supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/#/reset-password' })` + toast de confirmação
+  - Tradução de erros comuns ("Invalid login credentials" → "E-mail ou senha incorretos", "Email not confirmed" → "Confirme seu e-mail antes de entrar")
+  - Mantém honeypot e rate-limit de envio aplicado também ao reset
 
-### 1. `supabase/functions/auth-email-hook/index.ts`
-- Adicionar constantes:
-  ```ts
-  const REPLY_TO_PRIMARY = "wnevesadvocacia@gmail.com"
-  const REPLY_TO_ALT     = "wneves2006@yahoo.com.br"
-  ```
-- Incluir `reply_to: REPLY_TO_PRIMARY` no payload enfileirado em `enqueue_email` para que toda resposta a e-mail de auth caia no Gmail.
+**`src/pages/Equipe.tsx`** (ajuste fino)
+- O botão "Resetar senha" passa a fazer sentido (já dispara `resetPasswordForEmail`). Adicionar tooltip explicando: "Envia e-mail com link para o usuário definir nova senha."
+- Quando criar novo usuário, manter o comportamento atual (envia link de definição de senha).
 
-### 2. Templates de e-mail (rodapé) — 6 arquivos em `supabase/functions/_shared/email-templates/`
-Adicionar linha no rodapé:
-> Dúvidas? Responda este e-mail ou escreva para **wnevesadvocacia@gmail.com** (alternativo: wneves2006@yahoo.com.br).
+**Sem mudanças em:**
+- `ResetPassword.tsx` (já funciona — escuta `PASSWORD_RECOVERY`)
+- `AuthContext.tsx` (já trata `PASSWORD_RECOVERY` e redireciona)
+- Edge functions OTP (`send-otp-resend`, `verify-otp-resend`)
+- Templates de e-mail (signup/recovery já configurados com Reply-To)
 
-Aplicar em: `signup.tsx`, `recovery.tsx`, `magic-link.tsx`, `invite.tsx`, `email-change.tsx`, `reauthentication.tsx`.
+### Comportamento resultante
+- **Login por código** (atual): e-mail → OTP de 6 dígitos → dashboard.
+- **Login por senha** (novo): e-mail + senha → dashboard.
+- **Esqueci senha**: e-mail de recovery → clique no link → `/reset-password` → define nova senha → dashboard.
+- **Caso pbelgini**: da próxima vez ela poderá usar a aba "Senha" depois de redefinir; ou continuar usando "Código" se preferir.
 
-### 3. Deploy
-Redeploy de `auth-email-hook` para aplicar templates + reply-to.
-
-## Fora do escopo
-- Não toca em `SENDER_DOMAIN`, `FROM_DOMAIN`, `SITE_NAME`, `ROOT_DOMAIN`.
-- Não altera schema, RLS, outras edge functions, nem código `src/`.
-- Não cria página de Configurações nova (a existente não muda agora).
-
-## Resultado
-Qualquer cliente que receber e-mail do sistema e clicar em "Responder" terá a mensagem direcionada ao Gmail (`wnevesadvocacia@gmail.com`). O Yahoo fica registrado como backup visível no rodapé.
+### Observação de segurança
+- Senhas são validadas pelo Supabase Auth (mínimo 6 chars padrão; HIBP já ativável).
+- Rate-limit de tentativas de senha: o Supabase já aplica throttling server-side; mantemos o lockout por OTP separado.

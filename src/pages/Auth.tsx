@@ -7,10 +7,21 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
 import {
-  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert,
+  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert, KeyRound,
 } from 'lucide-react';
+
+function translateLoginError(message: string): string {
+  if (!message) return 'Erro inesperado. Tente novamente.';
+  const m = message.toLowerCase();
+  if (m.includes('invalid login credentials')) return 'E-mail ou senha incorretos.';
+  if (m.includes('email not confirmed')) return 'Confirme seu e-mail antes de entrar.';
+  if (m.includes('too many requests') || m.includes('rate limit')) return 'Muitas tentativas. Aguarde alguns minutos.';
+  if (m.includes('user not found')) return 'Usuário não encontrado.';
+  return message;
+}
 
 type Step = 'email' | 'otp';
 
@@ -104,6 +115,9 @@ export default function Auth() {
   const [now, setNow] = useState<number>(Date.now());
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [needsCaptcha, setNeedsCaptcha] = useState(false);
+  const [mode, setMode] = useState<'otp' | 'password'>('otp');
+  const [password, setPassword] = useState('');
+  const [resetSending, setResetSending] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -297,6 +311,41 @@ export default function Auth() {
     } finally { setLoading(false); }
   };
 
+  // ── Login por SENHA ────────────────────────────────────────────────
+  const signInWithPassword = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!email || !password) return;
+    if (honeypot) return;
+    const normalized = email.trim().toLowerCase();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: normalized, password });
+      if (error) throw error;
+      navigate('/dashboard', { replace: true });
+    } catch (err: any) {
+      toast({ title: 'Falha no login', description: translateLoginError(err.message), variant: 'destructive' });
+    } finally { setLoading(false); }
+  };
+
+  // ── Esqueci minha senha ────────────────────────────────────────────
+  const sendPasswordReset = async () => {
+    if (!email) {
+      toast({ title: 'Informe o e-mail', description: 'Digite o e-mail para receber o link de redefinição.', variant: 'destructive' });
+      return;
+    }
+    const normalized = email.trim().toLowerCase();
+    setResetSending(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
+        redirectTo: `${window.location.origin}/#/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: 'E-mail enviado', description: `Verifique a caixa de entrada de ${normalized} para redefinir a senha.` });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: translateLoginError(err.message), variant: 'destructive' });
+    } finally { setResetSending(false); }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -310,6 +359,55 @@ export default function Auth() {
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {step === 'email' && (
+            <Tabs value={mode} onValueChange={(v) => setMode(v as 'otp' | 'password')} className="mb-5">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="otp"><ShieldCheck className="h-4 w-4 mr-1" />Código</TabsTrigger>
+                <TabsTrigger value="password"><KeyRound className="h-4 w-4 mr-1" />Senha</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          {step === 'email' && mode === 'password' && (
+            <>
+              <div className="mb-5 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
+                  <KeyRound className="h-6 w-6 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Entrar com senha</h2>
+                <p className="text-sm text-gray-500 mt-1">Use seu e-mail e senha cadastrados.</p>
+              </div>
+              <form onSubmit={signInWithPassword} className="space-y-4" autoComplete="on">
+                <div>
+                  <Label htmlFor="email-pw">Email</Label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input id="email-pw" type="email" placeholder="seu@email.com"
+                      value={email} onChange={e => setEmail(e.target.value)}
+                      className="pl-9" required autoComplete="email" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Senha</Label>
+                    <button type="button" onClick={sendPasswordReset} disabled={resetSending}
+                      className="text-xs text-blue-600 hover:underline disabled:text-gray-400">
+                      {resetSending ? 'Enviando…' : 'Esqueci minha senha'}
+                    </button>
+                  </div>
+                  <div className="relative mt-1">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input id="password" type="password" placeholder="••••••••"
+                      value={password} onChange={e => setPassword(e.target.value)}
+                      className="pl-9" required autoComplete="current-password" minLength={6} />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || !password}>
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Entrando…</>
+                    : <><ArrowRight className="h-4 w-4 mr-2" />Entrar</>}
+                </Button>
+              </form>
+            </>
+          )}
+          {step === 'email' && mode === 'otp' && (
             <>
               <div className="mb-5 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
