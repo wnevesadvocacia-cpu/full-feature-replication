@@ -34,13 +34,10 @@ export function validateBrowserCsrf(req: Request): CsrfCheckResult {
   const referer = req.headers.get('referer');
   const secFetchSite = req.headers.get('sec-fetch-site');
 
-  // Sec-Fetch-Site é a checagem mais robusta (browsers modernos sempre enviam).
-  // 'cross-site' = página em domínio totalmente diferente disparou o request.
-  if (secFetchSite === 'cross-site') {
-    return { ok: false, reason: 'cross_site_blocked' };
-  }
-
-  // Se browser enviou Origin, deve estar na allowlist.
+  // Se browser enviou Origin, ela é a fonte autoritativa.
+  // Note: chamadas browser→Supabase Edge Functions são SEMPRE 'cross-site'
+  // (lovable.app ≠ supabase.co), então não dá para usar Sec-Fetch-Site
+  // como bloqueio cego — usamos a allowlist de Origin como autoridade.
   if (origin) {
     if (!isOriginAllowed(origin)) {
       return { ok: false, reason: 'origin_not_allowed' };
@@ -49,7 +46,6 @@ export function validateBrowserCsrf(req: Request): CsrfCheckResult {
   }
 
   // Sem Origin mas com Referer — valida Referer.
-  // Útil para alguns navegadores antigos / requisições GET cross-iframe.
   if (referer) {
     try {
       const refOrigin = new URL(referer).origin;
@@ -62,11 +58,14 @@ export function validateBrowserCsrf(req: Request): CsrfCheckResult {
     }
   }
 
-  // Sem Origin nem Referer:
-  // - Pode ser server-to-server legítimo (cron, edge-to-edge) → permitir.
-  // - Pode ser request fabricada por atacante → mas sem cookie automático
-  //   (usamos Authorization header), ataque CSRF clássico não funciona.
-  // - Para edges sensíveis, o caller ainda precisa do JWT do usuário.
+  // Sem Origin nem Referer: server-to-server legítimo (cron, edge-to-edge,
+  // webhook). CSRF clássico não funciona porque não usamos cookies — auth
+  // é via Authorization header.
+  // Bloqueamos apenas se o browser explicitamente sinalizou cross-site SEM
+  // ter mandado Origin (cenário anômalo).
+  if (secFetchSite === 'cross-site') {
+    return { ok: false, reason: 'cross_site_no_origin' };
+  }
   return { ok: true };
 }
 
