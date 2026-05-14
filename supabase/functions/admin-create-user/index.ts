@@ -114,8 +114,9 @@ Deno.serve(async (req) => {
     }
 
     // Envia e-mail de "definir/redefinir senha" para a usuária
-    const origin = req.headers.get('origin') ?? '';
-    const redirectTo = origin ? `${origin}/auth/reset` : undefined;
+    const origin = req.headers.get('origin') ?? 'https://wnevesbox.com';
+    // App usa HashRouter — rota real é /#/reset-password
+    const redirectTo = `${origin.replace(/\/+$/, '')}/#/reset-password`;
     let resetSent = false;
     let resetError: string | null = null;
     try {
