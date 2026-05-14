@@ -27,60 +27,64 @@ export default function ResetPassword() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const hash = window.location.hash;
-    console.log('[ResetPassword] hash detected:', hash);
+    const getRecoveryParam = (key: string) => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const fromSearch = searchParams.get(key);
+      if (fromSearch) return fromSearch;
+
+      const hash = window.location.hash.replace(/^#/, '');
+      const queryIndex = hash.indexOf('?');
+      if (queryIndex >= 0) {
+        const hashParams = new URLSearchParams(hash.slice(queryIndex + 1));
+        const fromHashQuery = hashParams.get(key);
+        if (fromHashQuery) return fromHashQuery;
+      }
+
+      const hashTokenParams = new URLSearchParams(hash.replace(/^\//, ''));
+      return hashTokenParams.get(key);
+    };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[ResetPassword] auth event:', event, !!session);
-      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session && sessionStorage.getItem('wb_password_recovery_pending') === '1')) {
         setHasRecoverySession(true);
         setChecking(false);
       }
     });
 
     const processHash = async () => {
-      // PKCE flow: ?code=... in query string
-      const search = window.location.search;
-      if (search && search.includes('code=')) {
-        const params = new URLSearchParams(search);
-        const code = params.get('code');
-        if (code) {
-          const { error } = await supabase.auth.exchangeCodeForSession(code);
-          console.log('[ResetPassword] exchangeCodeForSession:', error);
-          if (!error) {
-            setHasRecoverySession(true);
-            window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-            setChecking(false);
-            return;
-          }
+      // PKCE flow: Supabase may place code either in ?code=... or in #/reset-password?code=...
+      const code = getRecoveryParam('code');
+      if (code) {
+        sessionStorage.setItem('wb_password_recovery_pending', '1');
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!error) {
+          setHasRecoverySession(true);
+          window.history.replaceState(null, '', `${window.location.pathname}#/reset-password`);
+          setChecking(false);
+          return;
         }
       }
 
-      if (hash && hash.includes('access_token')) {
-        const params = new URLSearchParams(hash.replace(/^#/, ''));
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        const type = params.get('type');
-        console.log('[ResetPassword] hash params:', { type, hasAccess: !!accessToken, hasRefresh: !!refreshToken });
+      const accessToken = getRecoveryParam('access_token');
+      const refreshToken = getRecoveryParam('refresh_token');
+      const type = getRecoveryParam('type');
 
-        if (accessToken && refreshToken) {
+      if (type === 'recovery' && accessToken && refreshToken) {
           const { error } = await supabase.auth.setSession({
             access_token: accessToken,
             refresh_token: refreshToken,
           });
-          console.log('[ResetPassword] setSession result:', error);
           if (!error) {
+            sessionStorage.setItem('wb_password_recovery_pending', '1');
             setHasRecoverySession(true);
-            window.history.replaceState(null, '', window.location.pathname);
+            window.history.replaceState(null, '', `${window.location.pathname}#/reset-password`);
             setChecking(false);
             return;
           }
-        }
       }
 
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('[ResetPassword] fallback getSession:', !!session);
-      if (session) setHasRecoverySession(true);
+      if (session && sessionStorage.getItem('wb_password_recovery_pending') === '1') setHasRecoverySession(true);
       setChecking(false);
     };
 
@@ -117,6 +121,7 @@ export default function ResetPassword() {
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
+      sessionStorage.removeItem('wb_password_recovery_pending');
       toast({ title: 'Senha redefinida!', description: 'Sua senha foi atualizada com sucesso.' });
       navigate('/dashboard');
     } catch (error: any) {
