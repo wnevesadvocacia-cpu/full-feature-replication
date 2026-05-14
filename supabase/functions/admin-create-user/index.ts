@@ -113,15 +113,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Envia e-mail de "definir/redefinir senha" para a usuária
+    // Envia e-mail de "definir/redefinir senha" usando o remetente customizado do WnevesBox
     const origin = req.headers.get('origin') ?? 'https://wnevesbox.com';
     // App usa HashRouter — rota real é /#/reset-password
     const redirectTo = `${origin.replace(/\/+$/, '')}/#/reset-password`;
     let resetSent = false;
     let resetError: string | null = null;
     try {
-      const { error: resetErr } = await admin.auth.resetPasswordForEmail(normalizedEmail, { redirectTo });
-      if (resetErr) resetError = resetErr.message;
+      const resetResp = await fetch(`${SUPABASE_URL}/functions/v1/request-password-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          apikey: ANON,
+          Authorization: `Bearer ${ANON}`,
+        },
+        body: JSON.stringify({ email: normalizedEmail, redirect_to: redirectTo }),
+      });
+      if (!resetResp.ok) resetError = `reset_request_failed_${resetResp.status}`;
       else resetSent = true;
     } catch (e) {
       resetError = (e as Error).message;
