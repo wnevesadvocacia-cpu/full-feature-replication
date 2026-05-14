@@ -66,7 +66,7 @@ export default function Equipe() {
         .insert({ user_id: userId, role });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       setUserId('');
       toast({ title: 'Papel atribuído!' });
