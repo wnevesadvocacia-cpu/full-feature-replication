@@ -66,7 +66,7 @@ export default function Equipe() {
         .insert({ user_id: userId, role });
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       setUserId('');
       toast({ title: 'Papel atribuído!' });
@@ -79,7 +79,7 @@ export default function Equipe() {
       const { error } = await supabase.from('user_roles').delete().eq('id', id);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       toast({ title: 'Papel removido.' });
     },
@@ -109,11 +109,16 @@ export default function Equipe() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       const created = newEmail;
       setNewEmail(''); setNewEmailConfirm(''); setNewPass(''); setNewPassConfirm('');
-      toast({ title: 'Usuário criado!', description: `${created} já pode entrar no sistema.` });
+      toast({
+        title: 'Usuário liberado!',
+        description: data?.existed
+          ? `${created} já existia; o papel selecionado foi atribuído.`
+          : `${created} já pode entrar no sistema.`,
+      });
     },
     onError: (e: any) => toast({ title: 'Erro ao criar usuário', description: e.message, variant: 'destructive' }),
   });
