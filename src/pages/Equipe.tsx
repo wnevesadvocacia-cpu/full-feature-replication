@@ -257,15 +257,33 @@ export default function Equipe() {
             </select>
           </div>
         </div>
-        <Button
-          onClick={() => createUser.mutate()}
-          disabled={!emailMatches || !passMatches || createUser.isPending}
-        >
-          {createUser.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando…</> : <><UserPlus className="h-4 w-4 mr-2" />Criar usuário</>}
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          O usuário é criado já confirmado e pode fazer login imediatamente.
-        </p>
+        {(() => {
+          const reasons: string[] = [];
+          if (!newEmail) reasons.push('informe o e-mail');
+          else if (!emailMatches) reasons.push('os e-mails precisam ser iguais');
+          if (newPass.length < 12) reasons.push(`senha precisa de ${12 - newPass.length} caractere(s) a mais`);
+          else if (!passMatches) reasons.push('as senhas precisam ser iguais');
+          const blocked = reasons.length > 0;
+          return (
+            <>
+              <Button
+                onClick={() => createUser.mutate()}
+                disabled={blocked || createUser.isPending}
+              >
+                {createUser.isPending ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Criando…</> : <><UserPlus className="h-4 w-4 mr-2" />Criar usuário</>}
+              </Button>
+              {blocked ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Para habilitar: {reasons.join('; ')}.
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  O usuário é criado já confirmado e pode fazer login imediatamente.
+                </p>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       <div className="bg-card rounded-lg shadow-card p-4 space-y-3">
