@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Trash2, ShieldAlert, UserPlus, Eye, EyeOff } from 'lucide-react';
 
@@ -22,6 +23,23 @@ const roleLabel: Record<AppRole, string> = {
   assistente_adm: 'Assistente Administrativo',
   usuario: 'Usuário',
 };
+
+function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+  let score = 0;
+  if (password.length >= 12) score++;
+  if (/[A-Z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  const map: Record<number, { label: string; color: string }> = {
+    0: { label: 'Muito fraca', color: 'bg-red-500' },
+    1: { label: 'Fraca', color: 'bg-red-400' },
+    2: { label: 'Média', color: 'bg-yellow-400' },
+    3: { label: 'Boa', color: 'bg-emerald-400' },
+    4: { label: 'Forte', color: 'bg-emerald-600' },
+  };
+  return { score, ...map[score] };
+}
 
 export default function Equipe() {
   const { user } = useAuth();
@@ -187,8 +205,24 @@ export default function Equipe() {
                 {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            {newPass.length > 0 && newPass.length < 12 && (
-              <p className="text-xs text-destructive mt-1">Faltam {12 - newPass.length} caracteres.</p>
+            {newPass.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Progress value={(getPasswordStrength(newPass).score / 4) * 100} className="h-2 flex-1" />
+                  <span className={`text-xs font-medium w-20 text-right ${
+                    getPasswordStrength(newPass).score <= 1 ? 'text-red-500' :
+                    getPasswordStrength(newPass).score === 2 ? 'text-yellow-500' : 'text-emerald-600'
+                  }`}>
+                    {getPasswordStrength(newPass).label}
+                  </span>
+                </div>
+                <div className="flex gap-3 text-xs text-muted-foreground">
+                  <span className={newPass.length >= 12 ? 'text-emerald-600' : ''}>• 12+ chars</span>
+                  <span className={/[A-Z]/.test(newPass) ? 'text-emerald-600' : ''}>• Maiúscula</span>
+                  <span className={/[0-9]/.test(newPass) ? 'text-emerald-600' : ''}>• Número</span>
+                  <span className={/[^A-Za-z0-9]/.test(newPass) ? 'text-emerald-600' : ''}>• Especial</span>
+                </div>
+              </div>
             )}
           </div>
           <div>
