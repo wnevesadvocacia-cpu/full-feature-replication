@@ -40,6 +40,8 @@ const SITE_NAME = "WnevesBox"
 const SENDER_DOMAIN = "notify.wnevesbox.com"
 const ROOT_DOMAIN = "wnevesbox.com"
 const FROM_DOMAIN = "notify.wnevesbox.com" // Domain shown in From address (may be root or sender subdomain)
+const REPLY_TO_PRIMARY = "wnevesadvocacia@gmail.com"
+const REPLY_TO_ALT = "wneves2006@yahoo.com.br"
 
 // Sample data for preview mode ONLY (not used in actual email sending).
 // URLs are baked in at scaffold time from the project's real data.
