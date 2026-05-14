@@ -13,12 +13,12 @@ import { ReauthenticationEmail } from '../_shared/email-templates/reauthenticati
 import { corsHeadersFor, handleCorsPreflight, isOriginAllowed } from '../_shared/cors.ts'
 
 const EMAIL_SUBJECTS: Record<string, string> = {
-  signup: 'Confirm your email',
-  invite: "You've been invited",
-  magiclink: 'Your login link',
-  recovery: 'Reset your password',
-  email_change: 'Confirm your new email',
-  reauthentication: 'Your verification code',
+  signup: 'WnevesBox — Confirme seu e-mail',
+  invite: 'WnevesBox — Você foi convidado',
+  magiclink: 'WnevesBox — Seu link de acesso',
+  recovery: 'WnevesBox — Redefinição de senha',
+  email_change: 'WnevesBox — Confirme seu novo e-mail',
+  reauthentication: 'WnevesBox — Código de verificação',
 }
 
 // Template mapping
