@@ -19,3 +19,5 @@ project_id = "coyqbspjryohkccxnkti"
     verify_jwt = false
   [functions.import-sql]
     verify_jwt = false
+  [functions.daily_intimations_digest]
+    verify_jwt = false
