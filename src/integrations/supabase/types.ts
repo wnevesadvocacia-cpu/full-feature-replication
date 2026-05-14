@@ -715,6 +715,81 @@ export type Database = {
         }
         Relationships: []
       }
+      intimations_backup_pre_user_consolidation: {
+        Row: {
+          base_legal: string | null
+          classificacao_status:
+            | Database["public"]["Enums"]["intimation_classification_status"]
+            | null
+          classification_canonical_v2: Json | null
+          classification_meta: Json | null
+          confianca_classificacao: number | null
+          content: string | null
+          court: string | null
+          created_at: string | null
+          deadline: string | null
+          deadline_canonical_v2: string | null
+          deadline_sugerido_inseguro: Json | null
+          external_id: string | null
+          id: string | null
+          peca_sugerida: Json | null
+          process_id: string | null
+          received_at: string | null
+          source: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          base_legal?: string | null
+          classificacao_status?:
+            | Database["public"]["Enums"]["intimation_classification_status"]
+            | null
+          classification_canonical_v2?: Json | null
+          classification_meta?: Json | null
+          confianca_classificacao?: number | null
+          content?: string | null
+          court?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          deadline_canonical_v2?: string | null
+          deadline_sugerido_inseguro?: Json | null
+          external_id?: string | null
+          id?: string | null
+          peca_sugerida?: Json | null
+          process_id?: string | null
+          received_at?: string | null
+          source?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          base_legal?: string | null
+          classificacao_status?:
+            | Database["public"]["Enums"]["intimation_classification_status"]
+            | null
+          classification_canonical_v2?: Json | null
+          classification_meta?: Json | null
+          confianca_classificacao?: number | null
+          content?: string | null
+          court?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          deadline_canonical_v2?: string | null
+          deadline_sugerido_inseguro?: Json | null
+          external_id?: string | null
+          id?: string | null
+          peca_sugerida?: Json | null
+          process_id?: string | null
+          received_at?: string | null
+          source?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       invoices: {
         Row: {
           amount: number
