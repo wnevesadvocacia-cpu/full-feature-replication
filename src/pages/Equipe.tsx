@@ -205,8 +205,24 @@ export default function Equipe() {
                 {showPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
-            {newPass.length > 0 && newPass.length < 12 && (
-              <p className="text-xs text-destructive mt-1">Faltam {12 - newPass.length} caracteres.</p>
+            {newPass.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Progress value={(getPasswordStrength(newPass).score / 4) * 100} className="h-2 flex-1" />
+                  <span className={`text-xs font-medium w-20 text-right ${
+                    getPasswordStrength(newPass).score <= 1 ? 'text-red-500' :
+                    getPasswordStrength(newPass).score === 2 ? 'text-yellow-500' : 'text-emerald-600'
+                  }`}>
+                    {getPasswordStrength(newPass).label}
+                  </span>
+                </div>
+                <div className="flex gap-3 text-xs text-muted-foreground">
+                  <span className={newPass.length >= 12 ? 'text-emerald-600' : ''}>• 12+ chars</span>
+                  <span className={/[A-Z]/.test(newPass) ? 'text-emerald-600' : ''}>• Maiúscula</span>
+                  <span className={/[0-9]/.test(newPass) ? 'text-emerald-600' : ''}>• Número</span>
+                  <span className={/[^A-Za-z0-9]/.test(newPass) ? 'text-emerald-600' : ''}>• Especial</span>
+                </div>
+              </div>
             )}
           </div>
           <div>
