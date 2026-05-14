@@ -113,7 +113,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    return new Response(JSON.stringify({ success: true, user_id: targetUser.id, email: normalizedEmail, existed }), {
+    // Envia e-mail de "definir/redefinir senha" para a usuária
+    const origin = req.headers.get('origin') ?? '';
+    const redirectTo = origin ? `${origin}/auth/reset` : undefined;
+    let resetSent = false;
+    let resetError: string | null = null;
+    try {
+      const { error: resetErr } = await admin.auth.resetPasswordForEmail(normalizedEmail, redirectTo ? { redirectTo } : undefined);
+      if (resetErr) resetError = resetErr.message;
+      else resetSent = true;
+    } catch (e) {
+      resetError = (e as Error).message;
+    }
+
+    return new Response(JSON.stringify({ success: true, user_id: targetUser.id, email: normalizedEmail, existed, reset_sent: resetSent, reset_error: resetError }), {
       headers: { ...cors, 'Content-Type': 'application/json' },
     });
   } catch (e) {

@@ -113,12 +113,15 @@ export default function Equipe() {
       qc.invalidateQueries({ queryKey: ['user-roles-all'] });
       const created = newEmail;
       setNewEmail(''); setNewEmailConfirm(''); setNewPass(''); setNewPassConfirm('');
-      toast({
-        title: 'Usuário liberado!',
-        description: result?.existed
-          ? `${created} já existia; o papel selecionado foi atribuído.`
-          : `${created} já pode entrar no sistema.`,
-      });
+      const base = result?.existed
+        ? `${created} já existia; o papel selecionado foi atribuído.`
+        : `${created} foi criado(a) no sistema.`;
+      const emailMsg = result?.reset_sent
+        ? ' Um e-mail para definir a senha foi enviado.'
+        : result?.reset_error
+        ? ` (Não foi possível enviar e-mail: ${result.reset_error})`
+        : '';
+      toast({ title: 'Usuário liberado!', description: base + emailMsg });
     },
     onError: (e: any) => toast({ title: 'Erro ao criar usuário', description: e.message, variant: 'destructive' }),
   });
