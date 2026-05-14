@@ -359,6 +359,55 @@ export default function Auth() {
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {step === 'email' && (
+            <Tabs value={mode} onValueChange={(v) => setMode(v as 'otp' | 'password')} className="mb-5">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="otp"><ShieldCheck className="h-4 w-4 mr-1" />Código</TabsTrigger>
+                <TabsTrigger value="password"><KeyRound className="h-4 w-4 mr-1" />Senha</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          )}
+          {step === 'email' && mode === 'password' && (
+            <>
+              <div className="mb-5 text-center">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
+                  <KeyRound className="h-6 w-6 text-blue-600" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900">Entrar com senha</h2>
+                <p className="text-sm text-gray-500 mt-1">Use seu e-mail e senha cadastrados.</p>
+              </div>
+              <form onSubmit={signInWithPassword} className="space-y-4" autoComplete="on">
+                <div>
+                  <Label htmlFor="email-pw">Email</Label>
+                  <div className="relative mt-1">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input id="email-pw" type="email" placeholder="seu@email.com"
+                      value={email} onChange={e => setEmail(e.target.value)}
+                      className="pl-9" required autoComplete="email" />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password">Senha</Label>
+                    <button type="button" onClick={sendPasswordReset} disabled={resetSending}
+                      className="text-xs text-blue-600 hover:underline disabled:text-gray-400">
+                      {resetSending ? 'Enviando…' : 'Esqueci minha senha'}
+                    </button>
+                  </div>
+                  <div className="relative mt-1">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input id="password" type="password" placeholder="••••••••"
+                      value={password} onChange={e => setPassword(e.target.value)}
+                      className="pl-9" required autoComplete="current-password" minLength={6} />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={loading || !email || !password}>
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Entrando…</>
+                    : <><ArrowRight className="h-4 w-4 mr-2" />Entrar</>}
+                </Button>
+              </form>
+            </>
+          )}
+          {step === 'email' && mode === 'otp' && (
             <>
               <div className="mb-5 text-center">
                 <div className="inline-flex items-center justify-center w-12 h-12 bg-blue-100 rounded-full mb-3">
