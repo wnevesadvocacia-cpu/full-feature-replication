@@ -311,6 +311,41 @@ export default function Auth() {
     } finally { setLoading(false); }
   };
 
+  // ── Login por SENHA ────────────────────────────────────────────────
+  const signInWithPassword = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!email || !password) return;
+    if (honeypot) return;
+    const normalized = email.trim().toLowerCase();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: normalized, password });
+      if (error) throw error;
+      navigate('/dashboard', { replace: true });
+    } catch (err: any) {
+      toast({ title: 'Falha no login', description: translateLoginError(err.message), variant: 'destructive' });
+    } finally { setLoading(false); }
+  };
+
+  // ── Esqueci minha senha ────────────────────────────────────────────
+  const sendPasswordReset = async () => {
+    if (!email) {
+      toast({ title: 'Informe o e-mail', description: 'Digite o e-mail para receber o link de redefinição.', variant: 'destructive' });
+      return;
+    }
+    const normalized = email.trim().toLowerCase();
+    setResetSending(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
+        redirectTo: `${window.location.origin}/#/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: 'E-mail enviado', description: `Verifique a caixa de entrada de ${normalized} para redefinir a senha.` });
+    } catch (err: any) {
+      toast({ title: 'Erro', description: translateLoginError(err.message), variant: 'destructive' });
+    } finally { setResetSending(false); }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
