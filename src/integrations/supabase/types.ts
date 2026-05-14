@@ -92,6 +92,30 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_log: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          results: Json
+          run_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          results: Json
+          run_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          results?: Json
+          run_at?: string
+        }
+        Relationships: []
+      }
       client_portal_tokens: {
         Row: {
           active: boolean
@@ -370,6 +394,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_digest_log: {
+        Row: {
+          created_at: string
+          id: string
+          novas_count: number
+          pendentes_count: number
+          resend_error: string | null
+          resend_id: string | null
+          sent_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          novas_count?: number
+          pendentes_count?: number
+          resend_error?: string | null
+          resend_id?: string | null
+          sent_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          novas_count?: number
+          pendentes_count?: number
+          resend_error?: string | null
+          resend_id?: string | null
+          sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       email_send_log: {
         Row: {
@@ -1632,6 +1689,45 @@ export type Database = {
           holiday_date?: string
           id?: string
           tribunal_codigo?: string
+        }
+        Relationships: []
+      }
+      user_notification_prefs: {
+        Row: {
+          created_at: string
+          daily_digest_enabled: boolean
+          digest_hour_brt: number
+          email: string
+          nome: string | null
+          push_enabled: boolean
+          updated_at: string
+          user_id: string
+          whatsapp_enabled: boolean
+          whatsapp_phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          daily_digest_enabled?: boolean
+          digest_hour_brt?: number
+          email: string
+          nome?: string | null
+          push_enabled?: boolean
+          updated_at?: string
+          user_id: string
+          whatsapp_enabled?: boolean
+          whatsapp_phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          daily_digest_enabled?: boolean
+          digest_hour_brt?: number
+          email?: string
+          nome?: string | null
+          push_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+          whatsapp_enabled?: boolean
+          whatsapp_phone?: string | null
         }
         Relationships: []
       }
