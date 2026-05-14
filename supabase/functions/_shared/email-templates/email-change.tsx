@@ -59,6 +59,9 @@ export const EmailChangeEmail = ({
           If you didn't request this change, please secure your account
           immediately.
         </Text>
+        <Text style={footer}>
+          Dúvidas? Responda este e-mail ou escreva para <strong>wnevesadvocacia@gmail.com</strong> (alternativo: wneves2006@yahoo.com.br).
+        </Text>
       </Container>
     </Body>
   </Html>
