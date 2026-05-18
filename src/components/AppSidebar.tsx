@@ -82,23 +82,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarHeader className="p-5 border-b border-sidebar-border">
+      <SidebarHeader className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="relative h-10 w-10 shrink-0">
-            <div className="absolute inset-0 rounded-lg bg-gradient-gold shadow-gold" />
-            <div className="absolute inset-[1.5px] rounded-[7px] bg-sidebar flex items-center justify-center">
-              <span className="font-display text-[19px] bg-gradient-gold bg-clip-text text-transparent leading-none font-semibold">
-                W
-              </span>
-            </div>
+          <div className="h-10 w-10 rounded-lg bg-gradient-gold flex items-center justify-center shrink-0 shadow-gold">
+            <span className="font-display text-xl font-bold text-primary-foreground leading-none">W</span>
           </div>
           {!collapsed && (
-            <div className="flex flex-col leading-none gap-1.5">
-              <span className="font-display text-[22px] text-sidebar-accent-foreground tracking-[-0.02em] font-semibold">
-                Wneves<span className="bg-gradient-gold bg-clip-text text-transparent">Box</span>
+            <div className="flex flex-col leading-tight">
+              <span className="font-display text-xl font-semibold text-sidebar-accent-foreground tracking-tight">
+                WnevesBox
               </span>
-              <span className="flex items-center gap-2 text-[9px] uppercase tracking-[0.32em] text-sidebar-muted font-medium">
-                <span className="h-px w-3 bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+              <span className="text-[10px] uppercase tracking-[0.25em] text-sidebar-muted font-medium mt-0.5">
                 Legal Suite
               </span>
             </div>
