@@ -1,7 +1,7 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Input } from '@/components/ui/input';
+import { SearchAutocomplete } from '@/components/SearchAutocomplete';
 
 export interface ProcessOption {
   id: string;
@@ -12,7 +12,13 @@ export interface ProcessOption {
   client_document?: string | null;
 }
 
-const processDigits = (s: string) => (s || '').replace(/[oO]/g, '0').replace(/[iIlL]/g, '1').replace(/\D+/g, '');
+type ProcessRow = {
+  id: string;
+  number: string | null;
+  title: string | null;
+  client_id: string | null;
+  clients?: { name: string | null; document: string | null } | null;
+};
 
 export function useProcessOptions() {
   return useQuery<ProcessOption[]>({
@@ -21,9 +27,8 @@ export function useProcessOptions() {
       // O backend limita cada request a 1000 linhas; busca paginada e ordenação estável
       // garantem que processos após a primeira página também entrem na pesquisa.
       const pageSize = 1000;
-      const all: any[] = [];
+      const all: ProcessRow[] = [];
       let from = 0;
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase
           .from('processes')
@@ -38,10 +43,10 @@ export function useProcessOptions() {
         from += pageSize;
         if (from > 50000) break; // sanity guard
       }
-      return all.map((p: any) => ({
+      return all.map((p) => ({
         id: p.id,
-        number: p.number,
-        title: p.title,
+        number: p.number ?? '',
+        title: p.title ?? '',
         client_id: p.client_id,
         client_name: p.clients?.name ?? null,
         client_document: p.clients?.document ?? null,
@@ -64,70 +69,25 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
   const processes = external ?? fetched;
 
   const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
-  const remoteTerm = query.trim().replace(/[oO]/g, '0').replace(/[iIlL]/g, '1').replace(/[,;%]/g, ' ');
-
-  const { data: remote = [], isFetching } = useQuery<ProcessOption[]>({
-    queryKey: ['process-options-remote-search', remoteTerm],
-    enabled: open && remoteTerm.length >= 3,
-    queryFn: async () => {
-      const { data, error } = await (supabase as any).rpc('search_process_options', {
-        _term: remoteTerm,
-        _limit: 50,
-      });
-      if (error) throw error;
-      return (data ?? []).map((p: any) => ({
-        id: p.id,
-        number: p.number,
-        title: p.title,
-        client_id: p.client_id,
-        client_name: p.client_name ?? null,
-        client_document: null,
-      }));
-    },
-    staleTime: 30_000,
-  });
 
   const selected = useMemo(
-    () => [...remote, ...processes].find(p => p.id === value) || null,
-    [processes, remote, value]
+    () => processes.find(p => p.id === value) || null,
+    [processes, value]
   );
 
   useEffect(() => {
-    if (!open && selected) setQuery(`${selected.number} — ${selected.title}`);
-    if (!open && !selected) setQuery('');
-  }, [open, selected]);
-
-  useEffect(() => {
-    const onDoc = (e: MouseEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
-  }, []);
-
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return processes.slice(0, 50);
-    const qDigits = processDigits(q);
-    const merged = [...remote, ...processes].filter((p, index, arr) => arr.findIndex(x => x.id === p.id) === index);
-    return merged.filter(p => {
-      const numDigits = processDigits(p.number);
-      const docDigits = processDigits(p.client_document || '');
-      if (qDigits && (numDigits.includes(qDigits) || (docDigits && docDigits.includes(qDigits)))) return true;
-      const hay = `${p.number} ${p.title} ${p.client_name ?? ''}`.toLowerCase();
-      return hay.includes(q);
-    }).slice(0, 50);
-  }, [processes, query, remote]);
+    if (selected) setQuery(`${selected.number} — ${selected.title}`);
+    if (!value) setQuery('');
+  }, [selected, value]);
 
   return (
-    <div ref={wrapRef} className="relative mt-1">
-      <Input
+    <div className="relative mt-1">
+      <SearchAutocomplete
         autoFocus={autoFocus}
         value={query}
-        onFocus={() => { setOpen(true); if (selected) setQuery(''); }}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onChange={(v) => { setQuery(v); if (value) onChange(''); }}
+        onSelect={(s) => { if (s.kind === 'process') onChange(s.id); }}
+        sources={['process']}
         placeholder={placeholder ?? 'Nº do processo, CPF/CNPJ ou nome do cliente…'}
       />
       {value && (
@@ -139,35 +99,6 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
         >
           ✕
         </button>
-      )}
-      {open && (
-        <div className="absolute z-50 mt-1 w-full max-h-64 overflow-y-auto rounded-md border bg-popover shadow-lg">
-          <button
-            type="button"
-            className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-muted"
-            onMouseDown={(e) => { e.preventDefault(); onChange(''); setOpen(false); }}
-          >
-            — Nenhum processo —
-          </button>
-          {results.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground">{isFetching ? 'Buscando…' : 'Nenhum resultado.'}</div>
-          ) : results.map(p => (
-            <button
-              key={p.id}
-              type="button"
-              onMouseDown={(e) => { e.preventDefault(); onChange(p.id); setOpen(false); }}
-              className={`block w-full text-left px-3 py-2 text-sm hover:bg-muted ${p.id === value ? 'bg-muted' : ''}`}
-            >
-              <div className="font-mono text-xs">{p.number}</div>
-              <div className="truncate">{p.title}</div>
-              {(p.client_name || p.client_document) && (
-                <div className="text-[11px] text-muted-foreground truncate">
-                  {p.client_name}{p.client_document ? ` · ${p.client_document}` : ''}
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
       )}
     </div>
   );
