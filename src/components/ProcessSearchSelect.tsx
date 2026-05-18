@@ -66,10 +66,36 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const remoteTerm = query.trim().replace(/[oO]/g, '0').replace(/[iIlL]/g, '1').replace(/[,;%]/g, ' ');
+
+  const { data: remote = [], isFetching } = useQuery<ProcessOption[]>({
+    queryKey: ['process-options-remote-search', remoteTerm],
+    enabled: open && remoteTerm.length >= 3,
+    queryFn: async () => {
+      const digitNeedle = processDigits(remoteTerm);
+      const numberNeedle = digitNeedle.length >= 6 ? digitNeedle.slice(0, 7) : remoteTerm;
+      const { data, error } = await supabase
+        .from('processes')
+        .select('id, number, title, client_id, client_name')
+        .or(`number.ilike.%${remoteTerm}%,number.ilike.%${numberNeedle}%,title.ilike.%${remoteTerm}%,client_name.ilike.%${remoteTerm}%`)
+        .order('number', { ascending: true })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []).map((p: any) => ({
+        id: p.id,
+        number: p.number,
+        title: p.title,
+        client_id: p.client_id,
+        client_name: p.client_name ?? null,
+        client_document: null,
+      }));
+    },
+    staleTime: 30_000,
+  });
 
   const selected = useMemo(
-    () => processes.find(p => p.id === value) || null,
-    [processes, value]
+    () => [...remote, ...processes].find(p => p.id === value) || null,
+    [processes, remote, value]
   );
 
   useEffect(() => {
@@ -89,14 +115,15 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
     const q = query.trim().toLowerCase();
     if (!q) return processes.slice(0, 50);
     const qDigits = processDigits(q);
-    return processes.filter(p => {
+    const merged = [...remote, ...processes].filter((p, index, arr) => arr.findIndex(x => x.id === p.id) === index);
+    return merged.filter(p => {
       const numDigits = processDigits(p.number);
       const docDigits = processDigits(p.client_document || '');
       if (qDigits && (numDigits.includes(qDigits) || (docDigits && docDigits.includes(qDigits)))) return true;
       const hay = `${p.number} ${p.title} ${p.client_name ?? ''}`.toLowerCase();
       return hay.includes(q);
     }).slice(0, 50);
-  }, [processes, query]);
+  }, [processes, query, remote]);
 
   return (
     <div ref={wrapRef} className="relative mt-1">
@@ -127,7 +154,7 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
             — Nenhum processo —
           </button>
           {results.length === 0 ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground">Nenhum resultado.</div>
+            <div className="px-3 py-2 text-xs text-muted-foreground">{isFetching ? 'Buscando…' : 'Nenhum resultado.'}</div>
           ) : results.map(p => (
             <button
               key={p.id}
