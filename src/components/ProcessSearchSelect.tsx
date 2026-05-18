@@ -12,11 +12,11 @@ export interface ProcessOption {
   client_document?: string | null;
 }
 
-const onlyDigits = (s: string) => (s || '').replace(/\D+/g, '');
+const processDigits = (s: string) => (s || '').replace(/[oO]/g, '0').replace(/[iIlL]/g, '1').replace(/\D+/g, '');
 
 export function useProcessOptions() {
   return useQuery<ProcessOption[]>({
-    queryKey: ['process-options-shared-v3-all-pages'],
+    queryKey: ['process-options-shared-v4-normalized'],
     queryFn: async () => {
       // O backend limita cada request a 1000 linhas; busca paginada e ordenação estável
       // garantem que processos após a primeira página também entrem na pesquisa.
@@ -88,10 +88,10 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return processes.slice(0, 50);
-    const qDigits = onlyDigits(q);
+    const qDigits = processDigits(q);
     return processes.filter(p => {
-      const numDigits = onlyDigits(p.number);
-      const docDigits = onlyDigits(p.client_document || '');
+      const numDigits = processDigits(p.number);
+      const docDigits = processDigits(p.client_document || '');
       if (qDigits && (numDigits.includes(qDigits) || (docDigits && docDigits.includes(qDigits)))) return true;
       const hay = `${p.number} ${p.title} ${p.client_name ?? ''}`.toLowerCase();
       return hay.includes(q);
