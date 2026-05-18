@@ -12,8 +12,6 @@ export interface ProcessOption {
   client_document?: string | null;
 }
 
-const processDigits = (s: string) => (s || '').replace(/[oO]/g, '0').replace(/[iIlL]/g, '1').replace(/\D+/g, '');
-
 export function useProcessOptions() {
   return useQuery<ProcessOption[]>({
     queryKey: ['process-options-shared-v4-normalized'],
