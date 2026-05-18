@@ -1851,6 +1851,17 @@ export type Database = {
         Returns: Json
       }
       reset_otp_lockout: { Args: { _email: string }; Returns: undefined }
+      search_process_options: {
+        Args: { _limit?: number; _term: string }
+        Returns: {
+          client_document: string
+          client_id: string
+          client_name: string
+          id: string
+          number: string
+          title: string
+        }[]
+      }
       sign_portal_document: {
         Args: {
           _request_id: string
