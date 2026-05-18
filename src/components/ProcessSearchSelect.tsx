@@ -94,8 +94,8 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
   });
 
   const selected = useMemo(
-    () => processes.find(p => p.id === value) || null,
-    [processes, value]
+    () => [...remote, ...processes].find(p => p.id === value) || null,
+    [processes, remote, value]
   );
 
   useEffect(() => {
