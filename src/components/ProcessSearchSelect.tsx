@@ -72,14 +72,10 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
     queryKey: ['process-options-remote-search', remoteTerm],
     enabled: open && remoteTerm.length >= 3,
     queryFn: async () => {
-      const digitNeedle = processDigits(remoteTerm);
-      const numberNeedle = digitNeedle.length >= 6 ? digitNeedle.slice(0, 7) : remoteTerm;
-      const { data, error } = await supabase
-        .from('processes')
-        .select('id, number, title, client_id, client_name')
-        .or(`number.ilike.%${remoteTerm}%,number.ilike.%${numberNeedle}%,title.ilike.%${remoteTerm}%,client_name.ilike.%${remoteTerm}%`)
-        .order('number', { ascending: true })
-        .limit(50);
+      const { data, error } = await (supabase as any).rpc('search_process_options', {
+        _term: remoteTerm,
+        _limit: 50,
+      });
       if (error) throw error;
       return (data ?? []).map((p: any) => ({
         id: p.id,
