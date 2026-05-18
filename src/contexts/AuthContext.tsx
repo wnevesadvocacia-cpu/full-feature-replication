@@ -59,17 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const ua = navigator.userAgent || 'unknown';
               const uaHash = await sha256Hex(ua);
               const ipHash = await sha256Hex('client'); // IP real é capturado server-side em outros pontos
-              const { data: reg } = await supabase.rpc('register_device', { _ua_hash: uaHash, _ip_hash: ipHash, _user_agent: ua.slice(0, 500) });
-              if (reg && (reg as any).is_new) {
-                // Notificação in-app (alerta novo dispositivo)
-                await supabase.from('notifications').insert({
-                  user_id: nextSession.user.id,
-                  title: '🔔 Novo dispositivo detectado',
-                  message: `Acesso de ${ua.slice(0, 80)}`,
-                  type: 'warning',
-                  link: '/configuracoes?tab=seguranca',
-                });
-              }
+              await supabase.rpc('register_device', { _ua_hash: uaHash, _ip_hash: ipHash, _user_agent: ua.slice(0, 500) });
             } catch (err) { console.warn('[AuthProvider] post-login hooks failed', err); }
           }, 0);
         }
