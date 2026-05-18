@@ -75,7 +75,8 @@ export default function Notificacoes() {
       if (cErr) throw cErr;
       const { error } = await (supabase as any)
         .from('notifications')
-        .delete();
+        .delete()
+        .eq('user_id', user.id);
       if (error) throw error;
       return before ?? 0;
     },
