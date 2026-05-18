@@ -12,6 +12,14 @@ export interface ProcessOption {
   client_document?: string | null;
 }
 
+type ProcessRow = {
+  id: string;
+  number: string | null;
+  title: string | null;
+  client_id: string | null;
+  clients?: { name: string | null; document: string | null } | null;
+};
+
 export function useProcessOptions() {
   return useQuery<ProcessOption[]>({
     queryKey: ['process-options-shared-v4-normalized'],
@@ -19,9 +27,8 @@ export function useProcessOptions() {
       // O backend limita cada request a 1000 linhas; busca paginada e ordenação estável
       // garantem que processos após a primeira página também entrem na pesquisa.
       const pageSize = 1000;
-      const all: any[] = [];
+      const all: ProcessRow[] = [];
       let from = 0;
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { data, error } = await supabase
           .from('processes')
@@ -36,10 +43,10 @@ export function useProcessOptions() {
         from += pageSize;
         if (from > 50000) break; // sanity guard
       }
-      return all.map((p: any) => ({
+      return all.map((p) => ({
         id: p.id,
-        number: p.number,
-        title: p.title,
+        number: p.number ?? '',
+        title: p.title ?? '',
         client_id: p.client_id,
         client_name: p.clients?.name ?? null,
         client_document: p.clients?.document ?? null,
