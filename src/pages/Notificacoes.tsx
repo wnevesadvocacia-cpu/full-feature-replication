@@ -29,7 +29,8 @@ export default function Notificacoes() {
 
   const markRead = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from('notifications').update({ read: true }).eq('id', id);
+      if (!user?.id) throw new Error('Usuário não autenticado');
+      const { error } = await (supabase as any).from('notifications').update({ read: true }).eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -43,11 +44,13 @@ export default function Notificacoes() {
       const { count: before, error: cErr } = await (supabase as any)
         .from('notifications')
         .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .eq('read', false);
       if (cErr) throw cErr;
       const { error } = await (supabase as any)
         .from('notifications')
         .update({ read: true })
+        .eq('user_id', user.id)
         .eq('read', false);
       if (error) throw error;
       return before ?? 0;
