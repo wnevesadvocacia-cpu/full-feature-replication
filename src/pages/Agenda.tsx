@@ -48,7 +48,7 @@ interface Task {
 
 interface Process { id: string; number: string; title: string; }
 
-const AGENDA_DIALOG_CLASS = "w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] sm:w-full sm:max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
+const AGENDA_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-full sm:!max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
 
 interface AgendaForm {
   title: string; description: string; due_date: string; start_date: string;
