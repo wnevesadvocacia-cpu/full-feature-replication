@@ -48,7 +48,7 @@ interface Task {
 
 interface Process { id: string; number: string; title: string; }
 
-const AGENDA_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[26rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4";
+const AGENDA_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[24rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-3 gap-3";
 
 interface AgendaForm {
   title: string; description: string; due_date: string; start_date: string;
@@ -321,7 +321,7 @@ export default function Agenda() {
   });
 
   const formBody = (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <div>
         <Label>Processo *</Label>
         <ProcessSearchSelect
@@ -334,7 +334,7 @@ export default function Agenda() {
       </div>
       <div>
         <Label>Título *</Label>
-        <Input className="mt-1" value={form.title}
+        <Input className="mt-1 h-9" value={form.title}
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
           placeholder="Ex: Audiência de instrução" />
       </div>
@@ -343,7 +343,7 @@ export default function Agenda() {
           <Label className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-blue-600" /> Data inicial *
           </Label>
-          <Input className="mt-1" type="date" value={form.start_date}
+          <Input className="mt-1 h-9" type="date" value={form.start_date}
             onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required />
           <p className="text-[11px] text-gray-500 mt-1 leading-snug">
             Referência da agenda. A tarefa fica visível a partir desta data e permanece até ser concluída.
@@ -353,20 +353,20 @@ export default function Agenda() {
           <Label className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-red-500" /> Prazo final *
           </Label>
-          <Input className="mt-1" type="date" value={form.due_date}
+          <Input className="mt-1 h-9" type="date" value={form.due_date}
             onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} required />
         </div>
       </div>
       <div>
         <Label>Delegado a *</Label>
-        <Input className="mt-1" value={form.assignee}
+        <Input className="mt-1 h-9" value={form.assignee}
           onChange={e => setForm(f => ({ ...f, assignee: e.target.value }))}
           placeholder="Nome do responsável" />
       </div>
       <div>
         <Label>Tipo</Label>
         <Select value={form.event_type} onValueChange={v => setForm(f => ({ ...f, event_type: v }))}>
-          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             {EVENT_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
           </SelectContent>
@@ -375,25 +375,25 @@ export default function Agenda() {
       <div className="grid grid-cols-2 gap-2">
         <div>
           <Label>Hora início</Label>
-          <Input className="mt-1" type="time" value={form.start_time}
+          <Input className="mt-1 h-9" type="time" value={form.start_time}
             onChange={e => setForm(f => ({ ...f, start_time: e.target.value }))} />
         </div>
         <div>
           <Label>Hora fim</Label>
-          <Input className="mt-1" type="time" value={form.end_time}
+          <Input className="mt-1 h-9" type="time" value={form.end_time}
             onChange={e => setForm(f => ({ ...f, end_time: e.target.value }))} />
         </div>
       </div>
       <div>
         <Label>Local</Label>
-        <Input className="mt-1" value={form.location}
+        <Input className="mt-1 h-9" value={form.location}
           onChange={e => setForm(f => ({ ...f, location: e.target.value }))}
           placeholder="Ex: Fórum Central — Sala 302" />
       </div>
       <div>
         <Label>Prioridade</Label>
         <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
-          <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="mt-1 h-9"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="alta">Alta</SelectItem>
             <SelectItem value="media">Média</SelectItem>
@@ -403,7 +403,7 @@ export default function Agenda() {
       </div>
       <div>
         <Label>Descrição (opcional)</Label>
-        <Textarea className="mt-1" value={form.description}
+        <Textarea className="mt-1 min-h-16" value={form.description}
           onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
       </div>
     </div>
