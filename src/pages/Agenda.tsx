@@ -48,7 +48,7 @@ interface Task {
 
 interface Process { id: string; number: string; title: string; }
 
-const AGENDA_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-full sm:!max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
+const AGENDA_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[26rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4";
 
 interface AgendaForm {
   title: string; description: string; due_date: string; start_date: string;
@@ -321,14 +321,14 @@ export default function Agenda() {
   });
 
   const formBody = (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
         <Label>Processo *</Label>
         <ProcessSearchSelect
           value={form.process_id}
           onChange={(id) => setForm(f => ({ ...f, process_id: id }))}
         />
-        <p className="text-[11px] text-muted-foreground mt-1">
+        <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
           Comece pelo processo: digite o número ou CPF/CNPJ do cliente.
         </p>
       </div>
@@ -338,14 +338,14 @@ export default function Agenda() {
           onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
           placeholder="Ex: Audiência de instrução" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <Label className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-blue-600" /> Data inicial *
           </Label>
           <Input className="mt-1" type="date" value={form.start_date}
             onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required />
-          <p className="text-[11px] text-gray-500 mt-1">
+          <p className="text-[11px] text-gray-500 mt-1 leading-snug">
             Referência da agenda. A tarefa fica visível a partir desta data e permanece até ser concluída.
           </p>
         </div>
@@ -372,7 +372,7 @@ export default function Agenda() {
           </SelectContent>
         </Select>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <div>
           <Label>Hora início</Label>
           <Input className="mt-1" type="time" value={form.start_time}
