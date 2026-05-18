@@ -72,7 +72,7 @@ export default function Dashboard() {
       try {
         // Process stats — use count queries (not page-limited)
         // Sprint E2E-fix #1+#4: filtros corrigidos para os valores reais do banco
-        // ('em_andamento','concluido') e count: 'planned' (mais leve que 'exact').
+        // ('em_andamento','concluido') e count: 'exact' (mais leve que 'exact').
         const [
           { count: totalCount },
           { count: activeCount },
@@ -81,15 +81,15 @@ export default function Dashboard() {
           { count: clientTotal },
           { count: taskTotal },
         ] = await Promise.all([
-          supabase.from('processes').select('*', { count: 'planned', head: true }),
-          supabase.from('processes').select('*', { count: 'planned', head: true })
+          supabase.from('processes').select('*', { count: 'exact', head: true }),
+          supabase.from('processes').select('*', { count: 'exact', head: true })
             .in('status', ['em_andamento','aguardando']),
-          supabase.from('processes').select('*', { count: 'planned', head: true })
+          supabase.from('processes').select('*', { count: 'exact', head: true })
             .in('status', ['concluido','arquivado']),
-          supabase.from('processes').select('*', { count: 'planned', head: true })
+          supabase.from('processes').select('*', { count: 'exact', head: true })
             .eq('status', 'aguardando'),
-          supabase.from('clients').select('*', { count: 'planned', head: true }),
-          supabase.from('tasks').select('*', { count: 'planned', head: true })
+          supabase.from('clients').select('*', { count: 'exact', head: true }),
+          supabase.from('tasks').select('*', { count: 'exact', head: true })
             .eq('completed', false)
             .not('assignee', 'eq', 'movimentacao')
             .not('assignee', 'eq', 'documento')
