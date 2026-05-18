@@ -67,7 +67,8 @@ export default function Notificacoes() {
   });
   const del = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase as any).from('notifications').delete().eq('id', id);
+      if (!user?.id) throw new Error('Usuário não autenticado');
+      const { error } = await (supabase as any).from('notifications').delete().eq('id', id).eq('user_id', user.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -80,7 +81,8 @@ export default function Notificacoes() {
       if (!user?.id) throw new Error('Usuário não autenticado');
       const { count: before, error: cErr } = await (supabase as any)
         .from('notifications')
-        .select('id', { count: 'exact', head: true });
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id);
       if (cErr) throw cErr;
       const { error } = await (supabase as any)
         .from('notifications')
