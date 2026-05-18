@@ -28,6 +28,7 @@ interface Props {
 }
 
 const onlyDigits = (s: string) => s.replace(/\D/g, '');
+const normalizeTerm = (s: string) => s.trim().replace(/[oO]/g, '0').replace(/[iIlL]/g, '1').replace(/[,;%]/g, ' ');
 
 /**
  * Busca incremental (autocomplete) de clientes e/ou processos.
@@ -103,6 +104,20 @@ export function SearchAutocomplete({
         if (sources.includes('process')) {
           promises.push(
             (async () => {
+              const { data: rpcData, error: rpcError } = await (supabase as any).rpc('search_process_options', {
+                _term: normalizeTerm(term),
+                _limit: 8,
+              });
+              if (!rpcError && rpcData) {
+                return rpcData.map<Suggestion>((p: any) => ({
+                  kind: 'process',
+                  id: p.id,
+                  primary: p.number || p.title || '(sem número)',
+                  secondary: [p.title, p.client_name].filter(Boolean).join(' • '),
+                  searchValue: p.number || p.title || '',
+                }));
+              }
+
               // 1) Match direto em number/title/client_name/opponent
               const orParts = [
                 `number.ilike.%${term}%`,
