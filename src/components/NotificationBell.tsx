@@ -9,13 +9,15 @@ export function NotificationBell() {
   const { user } = useAuth();
   const nav = useNavigate();
   const { data: count = 0 } = useQuery({
-    queryKey: ['notifications-unread-count'],
+    queryKey: ['notifications-unread-count', user?.id],
     enabled: !!user,
     refetchInterval: 30_000,
     queryFn: async () => {
+      if (!user?.id) return 0;
       const { count, error } = await (supabase as any)
         .from('notifications')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .eq('read', false);
       if (error) return 0;
       return count ?? 0;
