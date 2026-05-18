@@ -14,6 +14,9 @@ export default function Notificacoes() {
   const { data = [], isLoading } = useQuery({
     queryKey: ['notifications', user?.id],
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
     queryFn: async () => {
       if (!user?.id) return [];
       const { data, error } = await (supabase as any)
