@@ -48,6 +48,8 @@ interface Task {
 
 interface Process { id: string; number: string; title: string; }
 
+const AGENDA_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-full sm:!max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
+
 interface AgendaForm {
   title: string; description: string; due_date: string; start_date: string;
   priority: string; process_id: string; assignee: string;
@@ -96,14 +98,27 @@ function useAgendaTasks() {
 
 function useProcessList() {
   return useQuery<Process[]>({
-    queryKey: ['process-list'],
+    queryKey: ['process-list-v2-all-pages'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('processes')
-        .select('id, number, title')
-        .order('number', { ascending: true }).limit(4000);
-      if (error) throw error;
-      return data ?? [];
+      const pageSize = 1000;
+      const all: Process[] = [];
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from('processes')
+          .select('id, number, title')
+          .order('number', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+        if (from > 50000) break;
+      }
+      return all;
     },
   });
 }
@@ -821,7 +836,7 @@ export default function Agenda() {
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
-        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className={AGENDA_DIALOG_CLASS}>
           <DialogHeader><DialogTitle>Novo compromisso</DialogTitle></DialogHeader>
           {formBody}
           <DialogFooter>
@@ -835,7 +850,7 @@ export default function Agenda() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
-        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className={AGENDA_DIALOG_CLASS}>
           <DialogHeader><DialogTitle>Editar compromisso</DialogTitle></DialogHeader>
           {formBody}
           <DialogFooter>

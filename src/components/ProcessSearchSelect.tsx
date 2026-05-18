@@ -16,10 +16,10 @@ const onlyDigits = (s: string) => (s || '').replace(/\D+/g, '');
 
 export function useProcessOptions() {
   return useQuery<ProcessOption[]>({
-    queryKey: ['process-options-shared'],
+    queryKey: ['process-options-shared-v3-all-pages'],
     queryFn: async () => {
-      // Supabase impõe limite máx. de 1000 linhas por request — paginamos manualmente
-      // para garantir que TODOS os processos da base apareçam na busca.
+      // O backend limita cada request a 1000 linhas; busca paginada e ordenação estável
+      // garantem que processos após a primeira página também entrem na pesquisa.
       const pageSize = 1000;
       const all: any[] = [];
       let from = 0;
@@ -29,6 +29,7 @@ export function useProcessOptions() {
           .from('processes')
           .select('id, number, title, client_id, clients(name, document)')
           .order('number', { ascending: true })
+          .order('id', { ascending: true })
           .range(from, from + pageSize - 1);
         if (error) throw error;
         const batch = data ?? [];
