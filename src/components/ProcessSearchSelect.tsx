@@ -18,13 +18,26 @@ export function useProcessOptions() {
   return useQuery<ProcessOption[]>({
     queryKey: ['process-options-shared'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('processes')
-        .select('id, number, title, client_id, clients(name, document)')
-        .order('number', { ascending: true })
-        .limit(4000);
-      if (error) throw error;
-      return (data ?? []).map((p: any) => ({
+      // Supabase impõe limite máx. de 1000 linhas por request — paginamos manualmente
+      // para garantir que TODOS os processos da base apareçam na busca.
+      const pageSize = 1000;
+      const all: any[] = [];
+      let from = 0;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const { data, error } = await supabase
+          .from('processes')
+          .select('id, number, title, client_id, clients(name, document)')
+          .order('number', { ascending: true })
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+        from += pageSize;
+        if (from > 50000) break; // sanity guard
+      }
+      return all.map((p: any) => ({
         id: p.id,
         number: p.number,
         title: p.title,
@@ -33,6 +46,7 @@ export function useProcessOptions() {
         client_document: p.clients?.document ?? null,
       }));
     },
+    staleTime: 5 * 60_000,
   });
 }
 
