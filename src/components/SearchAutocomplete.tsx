@@ -109,7 +109,7 @@ export function SearchAutocomplete({
                 _limit: 8,
               });
               if (!rpcError && rpcData) {
-                return rpcData.map<Suggestion>((p: any) => ({
+                return (rpcData as any[]).map((p: any): Suggestion => ({
                   kind: 'process',
                   id: p.id,
                   primary: p.number || p.title || '(sem número)',
