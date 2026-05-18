@@ -85,14 +85,14 @@ export default function Dashboard() {
           { count: clientTotal },
           { count: taskTotal },
         ] = await Promise.all([
-          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid),
-          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid)
+          supabase.from('processes').select('*', { count: 'exact', head: true }),
+          supabase.from('processes').select('*', { count: 'exact', head: true })
             .in('status', ['em_andamento','aguardando']),
-          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid)
+          supabase.from('processes').select('*', { count: 'exact', head: true })
             .in('status', ['concluido','arquivado']),
-          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid)
+          supabase.from('processes').select('*', { count: 'exact', head: true })
             .eq('status', 'aguardando'),
-          supabase.from('clients').select('*', { count: 'exact', head: true }).eq('user_id', uid),
+          supabase.from('clients').select('*', { count: 'exact', head: true }),
           supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', uid)
             .eq('completed', false)
             .not('assignee', 'eq', 'movimentacao')
@@ -112,7 +112,6 @@ export default function Dashboard() {
         const { data: recent } = await supabase
           .from('processes')
           .select('id, number, title, status, updated_at')
-          .eq('user_id', uid)
           .order('updated_at', { ascending: false })
           .limit(5);
         setRecentProcesses(recent ?? []);
