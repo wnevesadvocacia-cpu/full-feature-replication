@@ -104,12 +104,12 @@ export function SearchAutocomplete({
         if (sources.includes('process')) {
           promises.push(
             (async () => {
-              const { data: rpcData, error: rpcError } = await (supabase as any).rpc('search_process_options', {
+              const { data: rpcData, error: rpcError } = await supabase.rpc('search_process_options', {
                 _term: normalizeTerm(term),
                 _limit: 8,
               });
               if (!rpcError && rpcData) {
-                return (rpcData as any[]).map((p: any): Suggestion => ({
+                return rpcData.map((p): Suggestion => ({
                   kind: 'process',
                   id: p.id,
                   primary: p.number || p.title || '(sem número)',
