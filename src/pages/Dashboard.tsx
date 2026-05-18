@@ -92,8 +92,7 @@ export default function Dashboard() {
           supabase.from('tasks').select('*', { count: 'exact', head: true })
             .eq('completed', false)
             .not('assignee', 'eq', 'movimentacao')
-            .not('assignee', 'eq', 'documento')
-            .not('assignee', 'eq', 'agenda'),
+            .not('assignee', 'eq', 'documento'),
         ]);
 
         setStats({
