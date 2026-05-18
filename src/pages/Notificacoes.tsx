@@ -12,10 +12,16 @@ export default function Notificacoes() {
   const nav = useNavigate();
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ['notifications'],
+    queryKey: ['notifications', user?.id],
     enabled: !!user,
     queryFn: async () => {
-      const { data, error } = await (supabase as any).from('notifications').select('*').order('created_at', { ascending: false }).limit(200);
+      if (!user?.id) return [];
+      const { data, error } = await (supabase as any)
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(200);
       if (error) throw error;
       return data as any[];
     },
