@@ -70,6 +70,10 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadDashboard() {
       try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const uid = user?.id;
+        if (!uid) { setLoading(false); return; }
+
         // Process stats — use count queries (not page-limited)
         // Sprint E2E-fix #1+#4: filtros corrigidos para os valores reais do banco
         // ('em_andamento','concluido') e count: 'exact' (mais leve que 'exact').
@@ -81,15 +85,15 @@ export default function Dashboard() {
           { count: clientTotal },
           { count: taskTotal },
         ] = await Promise.all([
-          supabase.from('processes').select('*', { count: 'exact', head: true }),
-          supabase.from('processes').select('*', { count: 'exact', head: true })
+          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid),
+          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid)
             .in('status', ['em_andamento','aguardando']),
-          supabase.from('processes').select('*', { count: 'exact', head: true })
+          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid)
             .in('status', ['concluido','arquivado']),
-          supabase.from('processes').select('*', { count: 'exact', head: true })
+          supabase.from('processes').select('*', { count: 'exact', head: true }).eq('user_id', uid)
             .eq('status', 'aguardando'),
-          supabase.from('clients').select('*', { count: 'exact', head: true }),
-          supabase.from('tasks').select('*', { count: 'exact', head: true })
+          supabase.from('clients').select('*', { count: 'exact', head: true }).eq('user_id', uid),
+          supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', uid)
             .eq('completed', false)
             .not('assignee', 'eq', 'movimentacao')
             .not('assignee', 'eq', 'documento'),
@@ -108,6 +112,7 @@ export default function Dashboard() {
         const { data: recent } = await supabase
           .from('processes')
           .select('id, number, title, status, updated_at')
+          .eq('user_id', uid)
           .order('updated_at', { ascending: false })
           .limit(5);
         setRecentProcesses(recent ?? []);
@@ -116,6 +121,7 @@ export default function Dashboard() {
         const { data: tasks } = await supabase
           .from('tasks')
           .select('id, title, due_date, completed, process_id, assignee')
+          .eq('user_id', uid)
           .eq('completed', false)
           .not('due_date', 'is', null)
           .not('assignee', 'eq', 'movimentacao')
