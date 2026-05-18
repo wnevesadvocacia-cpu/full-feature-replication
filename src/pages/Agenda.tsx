@@ -821,7 +821,7 @@ export default function Agenda() {
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Novo compromisso</DialogTitle></DialogHeader>
           {formBody}
           <DialogFooter>
@@ -835,7 +835,7 @@ export default function Agenda() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Editar compromisso</DialogTitle></DialogHeader>
           {formBody}
           <DialogFooter>
