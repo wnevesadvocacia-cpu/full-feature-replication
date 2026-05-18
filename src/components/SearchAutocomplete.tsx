@@ -19,6 +19,7 @@ interface Props {
   onChange: (v: string) => void;
   /** chamado quando o usuário escolhe uma sugestão (clica ou Enter) */
   onSelect?: (s: Suggestion) => void;
+  searchEnabled?: boolean;
   placeholder?: string;
   /** quais entidades sugerir */
   sources?: SuggestionKind[];
@@ -40,6 +41,7 @@ export function SearchAutocomplete({
   value,
   onChange,
   onSelect,
+  searchEnabled = true,
   placeholder = 'Buscar…',
   sources = ['client', 'process'],
   className,
@@ -67,9 +69,10 @@ export function SearchAutocomplete({
   useEffect(() => {
     const term = value.trim();
     if (debounceRef.current) window.clearTimeout(debounceRef.current);
-    if (term.length < 2) {
+    if (!searchEnabled || term.length < 2) {
       setItems([]);
       setLoading(false);
+      setOpen(false);
       return;
     }
     setLoading(true);
@@ -182,7 +185,7 @@ export function SearchAutocomplete({
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [value, sources.join(',')]);
+  }, [value, searchEnabled, sources.join(',')]);
 
   const choose = (s: Suggestion) => {
     onChange(s.searchValue);
@@ -217,6 +220,7 @@ export function SearchAutocomplete({
         onKeyDown={onKeyDown}
         placeholder={placeholder}
         autoFocus={autoFocus}
+        aria-autocomplete="list"
         className={cn(
           'flex h-10 w-full rounded-md border border-input bg-background pl-10 pr-9 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           inputClassName,

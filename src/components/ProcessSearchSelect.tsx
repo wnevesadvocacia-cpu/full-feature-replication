@@ -87,6 +87,7 @@ export function ProcessSearchSelect({ value, onChange, processes: external, plac
         value={query}
         onChange={(v) => { setQuery(v); if (value) onChange(''); }}
         onSelect={(s) => { if (s.kind === 'process') onChange(s.id); }}
+        searchEnabled={!value}
         sources={['process']}
         placeholder={placeholder ?? 'Nº do processo, CPF/CNPJ ou nome do cliente…'}
       />
