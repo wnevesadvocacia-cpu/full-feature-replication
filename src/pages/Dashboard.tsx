@@ -117,7 +117,7 @@ export default function Dashboard() {
           .limit(5);
         setRecentProcesses(recent ?? []);
 
-        // Upcoming tasks (include agenda items for dashboard)
+        // Upcoming tasks (mesma regra da página Tarefas)
         const { data: tasks } = await supabase
           .from('tasks')
           .select('id, title, due_date, completed, process_id, assignee')
@@ -126,6 +126,7 @@ export default function Dashboard() {
           .not('due_date', 'is', null)
           .not('assignee', 'eq', 'movimentacao')
           .not('assignee', 'eq', 'documento')
+          .not('assignee', 'eq', 'agenda')
           .order('due_date', { ascending: true })
           .limit(8);
         setUpcomingTasks(tasks ?? []);
