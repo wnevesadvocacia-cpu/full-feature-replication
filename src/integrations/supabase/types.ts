@@ -1811,6 +1811,14 @@ export type Database = {
       }
       is_email_locked: { Args: { _email: string }; Returns: boolean }
       is_office_member: { Args: { _user_id: string }; Returns: boolean }
+      list_team_members: {
+        Args: never
+        Returns: {
+          email: string
+          roles: string[]
+          user_id: string
+        }[]
+      }
       log_auth_event: {
         Args: { _event: string; _metadata?: Json }
         Returns: undefined

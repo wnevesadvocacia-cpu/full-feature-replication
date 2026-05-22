@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.list_team_members() FROM PUBLIC, anon;
