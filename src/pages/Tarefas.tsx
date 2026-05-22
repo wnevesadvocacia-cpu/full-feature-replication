@@ -261,7 +261,7 @@ export default function Tarefas() {
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar por título, responsável ou nº do processo…" value={search}
+          <Input placeholder="Buscar título, responsável ou nº do processo (somente com tarefa pendente)…" value={search}
             onChange={(e) => setSearch(e.target.value)} className="pl-10" />
         </div>
         <div className="flex gap-1">
