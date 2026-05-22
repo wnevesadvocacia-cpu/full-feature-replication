@@ -15,7 +15,8 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { HistoricoConversas } from '@/components/HistoricoConversas';
 
@@ -55,6 +56,18 @@ export default function Tarefas() {
   const updateTask = useUpdateTask();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const { user } = useAuth();
+
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('list_team_members');
+      if (error) throw error;
+      return (data || []) as { user_id: string; email: string; roles: string[] }[];
+    },
+    enabled: !!user,
+    staleTime: 60_000,
+  });
 
   const set = (k: keyof TaskForm) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -185,7 +198,19 @@ export default function Tarefas() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Responsável</Label>
-          <Input className="mt-1" value={form.assignee} onChange={set('assignee')} placeholder="Nome" />
+          <select
+            className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
+            value={form.assignee}
+            onChange={set('assignee')}
+          >
+            <option value="">— Selecione —</option>
+            {teamMembers.map((m) => (
+              <option key={m.user_id} value={m.email}>{m.email}</option>
+            ))}
+            {form.assignee && !teamMembers.some((m) => m.email === form.assignee) && (
+              <option value={form.assignee}>{form.assignee}</option>
+            )}
+          </select>
         </div>
         <div>
           <Label>Prioridade</Label>
