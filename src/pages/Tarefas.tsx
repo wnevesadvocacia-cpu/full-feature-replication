@@ -7,8 +7,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle,
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -259,15 +260,22 @@ export default function Tarefas() {
 
       {/* Filtros */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Buscar título, responsável ou nº do processo…" value={search}
-            onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-          <p className="text-xs text-muted-foreground mt-1.5">
-            Essa busca lista apenas processos que possuem tarefas pendentes.
-            Para buscar todos os processos do sistema, acesse a tela{" "}
-            <a href="/processos" className="underline hover:text-foreground transition-colors">Processos</a>.
-          </p>
+        <div className="flex-1 max-w-sm space-y-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Buscar título, responsável ou nº do processo…" value={search}
+              onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          </div>
+          <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+            <p className="leading-relaxed">
+              Esta busca lista apenas processos com <span className="font-medium text-foreground">tarefas pendentes</span>.
+              Para buscar todos os processos,{" "}
+              <Link to="/processos" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
+                acesse Processos <ArrowRight className="h-3 w-3" />
+              </Link>.
+            </p>
+          </div>
         </div>
         <div className="flex gap-1">
           {([
