@@ -12,6 +12,7 @@ type AuthContextType = {
   session: Session | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  refreshSession: () => Promise<Session | null>;
 };
 
 const AuthContext = createContext<AuthContextType>({
@@ -19,6 +20,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   loading: true,
   signOut: async () => {},
+  refreshSession: async () => null,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -28,6 +30,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const applySession = (nextSession: Session | null) => {
+    setSession(nextSession);
+    setUser(nextSession?.user ?? null);
+    setLoading(false);
+  };
+
+  const refreshSession = async () => {
+    const { data, error } = await supabase.auth.getSession();
+    const nextSession = error ? null : data.session ?? null;
+    applySession(nextSession);
+    return nextSession;
+  };
+
   useEffect(() => {
     let mounted = true;
 
@@ -36,11 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return window.location.hash.includes('/reset-password') && (url.includes('code=') || url.includes('type=recovery') || url.includes('access_token='));
     };
 
-    const applySession = (nextSession: Session | null) => {
+    const applyMountedSession = (nextSession: Session | null) => {
       if (!mounted) return;
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
-      setLoading(false);
+      applySession(nextSession);
     };
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -48,7 +61,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && nextSession?.user && isPasswordRecoveryUrl())) {
           sessionStorage.setItem('wb_password_recovery_pending', '1');
         }
-        applySession(nextSession);
+        applyMountedSession(nextSession);
         if (event === 'PASSWORD_RECOVERY') window.location.hash = '/reset-password';
         // Sec-3.2/3.3 — log + register device em login bem-sucedido
         if (event === 'SIGNED_IN' && nextSession?.user) {
@@ -73,14 +86,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(({ data, error }) => {
         if (error) {
           console.error('[AuthProvider] getSession error:', error);
-          applySession(null);
+          applyMountedSession(null);
           return;
         }
-        applySession(data.session ?? null);
+        applyMountedSession(data.session ?? null);
       })
       .catch((error) => {
         console.error('[AuthProvider] getSession unexpected error:', error);
-        applySession(null);
+        applyMountedSession(null);
       });
 
     const timer = setTimeout(() => {
@@ -100,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signOut, refreshSession }}>
       {children}
     </AuthContext.Provider>
   );
