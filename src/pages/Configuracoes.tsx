@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRoles, type AppRole } from '@/hooks/useUserRole';
+import { MfaEnrollDialog } from '@/components/MfaEnrollDialog';
 
 const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Administrador',
@@ -25,11 +27,14 @@ const EMPTY_ESCRITORIO = { nome: '', cnpj: '', endereco: '', cidade: '', estado:
 const EMPTY_NOTIFS = { vencimento_processo: true, nova_tarefa: true, tarefa_concluida: false, novo_cliente: false, fatura_vencida: true };
 
 export default function Configuracoes() {
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { data: roles = [] } = useUserRoles();
   const primaryRole = (roles[0] ?? 'usuario') as AppRole;
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('perfil');
+  const [mfaDialogOpen, setMfaDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [perfil, setPerfil] = useState({ nome: '', email: user?.email ?? '', oab: '', telefone: '' });
@@ -49,6 +54,20 @@ export default function Configuracoes() {
   const [proxyValidating, setProxyValidating] = useState(false);
   const [proxySaving, setProxySaving] = useState(false);
   const [proxyResult, setProxyResult] = useState<{ ok: boolean; message: string; latencyMs?: number; sample?: string } | null>(null);
+
+  const requiresMfa = new URLSearchParams(location.search).get('mfa') === 'required';
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(location.search).get('tab') as Tab | null;
+    if (requestedTab && ['perfil', 'escritorio', 'notificacoes', 'intimacoes', 'seguranca'].includes(requestedTab)) {
+      setTab(requestedTab);
+    }
+  }, [location.search]);
+
+  async function handleMfaEnrolled() {
+    await refreshSession();
+    navigate('/dashboard', { replace: true });
+  }
 
   useEffect(() => {
     if (!user) return;
