@@ -126,13 +126,11 @@ export default function Intimacoes() {
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members'],
     enabled: !!user,
+    staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc('list_team_members');
       if (error) throw error;
-      return data as { user_id: string; role: string }[];
+      return (data || []) as { user_id: string; email: string; roles: string[] }[];
     },
   });
 
@@ -481,7 +479,7 @@ export default function Intimacoes() {
                 <select
                   className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
                   value={
-                    teamMembers.some((m) => m.user_id === taskForm.assignee)
+                    teamMembers.some((m) => m.email === taskForm.assignee)
                       ? taskForm.assignee
                       : taskForm.assignee
                         ? '__custom__'
@@ -495,14 +493,14 @@ export default function Intimacoes() {
                 >
                   <option value="">— Selecionar —</option>
                   {teamMembers.map((m) => (
-                    <option key={m.user_id} value={m.user_id}>
-                      {m.role} · {m.user_id.slice(0, 8)}
+                    <option key={m.user_id} value={m.email}>
+                      {m.email}
                     </option>
                   ))}
                   <option value="__custom__">Outro (digitar nome)</option>
                 </select>
                 {taskForm.assignee &&
-                  !teamMembers.some((m) => m.user_id === taskForm.assignee) && (
+                  !teamMembers.some((m) => m.email === taskForm.assignee) && (
                     <Input
                       value={taskForm.assignee.trim()}
                       onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}
