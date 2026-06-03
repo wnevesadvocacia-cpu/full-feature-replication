@@ -479,7 +479,7 @@ export default function Intimacoes() {
                 <select
                   className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
                   value={
-                    teamMembers.some((m) => m.user_id === taskForm.assignee)
+                    teamMembers.some((m) => m.email === taskForm.assignee)
                       ? taskForm.assignee
                       : taskForm.assignee
                         ? '__custom__'
@@ -493,8 +493,8 @@ export default function Intimacoes() {
                 >
                   <option value="">— Selecionar —</option>
                   {teamMembers.map((m) => (
-                    <option key={m.user_id} value={m.user_id}>
-                      {m.role} · {m.user_id.slice(0, 8)}
+                    <option key={m.user_id} value={m.email}>
+                      {m.email}
                     </option>
                   ))}
                   <option value="__custom__">Outro (digitar nome)</option>
