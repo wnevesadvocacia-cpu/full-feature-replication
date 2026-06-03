@@ -121,7 +121,7 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { user } = useAuth();
+  const { user, refreshSession } = useAuth();
   useEffect(() => {
     if (user) navigate('/dashboard', { replace: true });
   }, [user, navigate]);
@@ -286,6 +286,7 @@ export default function Auth() {
         clearAttempts(SEND_KEY, normalized);
         setOtpExpiresAt(0);
         clearLastRequest();
+        await refreshSession();
         navigate('/dashboard', { replace: true });
       } else {
         throw new Error('no_session');
@@ -321,6 +322,7 @@ export default function Auth() {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email: normalized, password });
       if (error) throw error;
+      await refreshSession();
       navigate('/dashboard', { replace: true });
     } catch (err: any) {
       toast({ title: 'Falha no login', description: translateLoginError(err.message), variant: 'destructive' });
