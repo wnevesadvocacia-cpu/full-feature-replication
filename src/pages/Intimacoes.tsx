@@ -500,7 +500,7 @@ export default function Intimacoes() {
                   <option value="__custom__">Outro (digitar nome)</option>
                 </select>
                 {taskForm.assignee &&
-                  !teamMembers.some((m) => m.user_id === taskForm.assignee) && (
+                  !teamMembers.some((m) => m.email === taskForm.assignee) && (
                     <Input
                       value={taskForm.assignee.trim()}
                       onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}
