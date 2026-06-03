@@ -640,9 +640,31 @@ export default function Configuracoes() {
           {tab === 'seguranca' && (
             <div className="space-y-6">
               <div><h2 className="text-lg font-semibold">Segurança</h2><p className="text-sm text-gray-400">Gerencie sua senha e segurança da conta</p></div>
+              {requiresMfa && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-semibold">Ative o 2FA para continuar usando o sistema.</p>
+                      <p className="mt-1 text-amber-800">Sua conta administrativa precisa da autenticação em 2 fatores antes de acessar as demais telas.</p>
+                    </div>
+                    <Button onClick={() => setMfaDialogOpen(true)} className="shrink-0">
+                      <Shield className="w-4 h-4 mr-2" />Ativar 2FA
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
                 <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-gray-400" /><span className="text-gray-600">Email:</span><span className="font-medium">{user?.email}</span></div>
                 <div className="flex items-center gap-2"><Shield className="w-4 h-4 text-gray-400" /><span className="text-gray-600">Método:</span><Badge variant="outline" className="text-xs">Email + Senha</Badge></div>
+              </div>
+              <div className="border rounded-lg p-4 space-y-3">
+                <div>
+                  <h3 className="font-medium text-gray-700 flex items-center gap-2"><Shield className="w-4 h-4" />Autenticação em 2 fatores</h3>
+                  <p className="text-sm text-gray-500 mt-1">Use um aplicativo autenticador para proteger o acesso.</p>
+                </div>
+                <Button onClick={() => setMfaDialogOpen(true)} variant={requiresMfa ? 'default' : 'outline'}>
+                  <Shield className="w-4 h-4 mr-2" />Ativar 2FA
+                </Button>
               </div>
               <div className="space-y-4">
                 <h3 className="font-medium text-gray-700 flex items-center gap-2"><Lock className="w-4 h-4" />Alterar Senha</h3>
@@ -658,6 +680,7 @@ export default function Configuracoes() {
           )}
         </div>
       </div>
+      <MfaEnrollDialog open={mfaDialogOpen} onOpenChange={setMfaDialogOpen} onEnrolled={handleMfaEnrolled} />
     </div>
   );
 }
