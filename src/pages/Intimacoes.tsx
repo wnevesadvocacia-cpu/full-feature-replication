@@ -126,13 +126,11 @@ export default function Intimacoes() {
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members'],
     enabled: !!user,
+    staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .order('created_at', { ascending: false });
+      const { data, error } = await supabase.rpc('list_team_members');
       if (error) throw error;
-      return data as { user_id: string; role: string }[];
+      return (data || []) as { user_id: string; email: string; roles: string[] }[];
     },
   });
 
