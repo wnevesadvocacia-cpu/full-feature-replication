@@ -47,6 +47,7 @@ interface Process {
   request_date: string | null;
   closing_date: string | null;
   result: string | null;
+  parent_process_number?: string | null;
 }
 
 interface Task {
