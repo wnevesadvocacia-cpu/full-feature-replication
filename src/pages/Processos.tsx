@@ -47,6 +47,7 @@ interface Process {
   request_date: string | null;
   closing_date: string | null;
   result: string | null;
+  parent_process_number?: string | null;
 }
 
 interface Task {
@@ -173,7 +174,7 @@ const FULL_SELECT = [
   'opponent', 'phase', 'stage', 'responsible', 'lawyer',
   'honorarios_valor', 'honorarios_percent', 'cause_value', 'contingency',
   'last_update', 'observations', 'created_at', 'updated_at',
-  'request_date', 'closing_date', 'result',
+  'request_date', 'closing_date', 'result', 'parent_process_number',
 ].join(',');
 
 // ── hooks ──────────────────────────────────────────────────────────────────────
@@ -328,6 +329,7 @@ type FormData = {
   lawyer: string; cause_value: string; honorarios_valor: string;
   honorarios_percent: string; contingency: string; observations: string;
   request_date: string; closing_date: string; result: string;
+  parent_process_number: string;
 };
 
 const EMPTY_FORM: FormData = {
@@ -337,6 +339,7 @@ const EMPTY_FORM: FormData = {
   lawyer: '', cause_value: '', honorarios_valor: '',
   honorarios_percent: '', contingency: '', observations: '',
   request_date: '', closing_date: '', result: '',
+  parent_process_number: '',
 };
 
 function processToForm(p: Process): FormData {
@@ -363,6 +366,7 @@ function processToForm(p: Process): FormData {
     request_date: p.request_date ? p.request_date.slice(0, 10) : '',
     closing_date: p.closing_date ? p.closing_date.slice(0, 10) : '',
     result: p.result ?? '',
+    parent_process_number: (p as any).parent_process_number ?? '',
   };
 }
 
@@ -390,6 +394,7 @@ function formToPayload(f: FormData) {
     request_date: f.request_date || null,
     closing_date: f.closing_date || null,
     result: f.result || null,
+    parent_process_number: f.status === 'execucao' ? (f.parent_process_number || null) : (f.parent_process_number || null),
     updated_at: new Date().toISOString(),
   };
 }
@@ -532,6 +537,23 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
         {renderField('Fase', 'phase')}
         {renderField('Etapa', 'stage')}
       </div>
+
+      {form.status === 'execucao' && (
+        <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3">
+          <Label className="text-xs text-amber-900 uppercase tracking-wide font-semibold">
+            Nº do Processo Originário (Conhecimento)
+          </Label>
+          <Input
+            value={form.parent_process_number}
+            onChange={set('parent_process_number')}
+            className="mt-1 font-mono"
+            placeholder="0000000-00.0000.0.00.0000"
+          />
+          <p className="text-[11px] text-amber-800/80 mt-1">
+            Informe o nº CNJ do processo de conhecimento que deu origem a este cumprimento/execução.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3">
         {renderField('Valor da Causa (R$)', 'cause_value', 'number')}

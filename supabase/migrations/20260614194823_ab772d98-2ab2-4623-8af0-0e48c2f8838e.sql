@@ -1,0 +1,2 @@
+ALTER TABLE public.processes ADD COLUMN IF NOT EXISTS parent_process_number TEXT;
+CREATE INDEX IF NOT EXISTS idx_processes_parent_process_number ON public.processes(user_id, parent_process_number) WHERE parent_process_number IS NOT NULL;
