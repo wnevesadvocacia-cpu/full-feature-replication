@@ -492,6 +492,9 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
             {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
+      </div>
+
+
 
       <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3">
         <Label className="text-xs text-amber-900 uppercase tracking-wide font-semibold">
