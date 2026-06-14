@@ -96,6 +96,8 @@ const ALL_STATUSES = [
   { value: 'ativo', label: 'Ativo' },
   { value: 'aguardando', label: 'Aguardando' },
   { value: 'recursal', label: 'Recursal' },
+  { value: 'recursal', label: 'Recursal' },
+  { value: 'execucao', label: 'Execução/Cumprimento de Sentença' },
   { value: 'sobrestamento', label: 'Sobrestamento' },
   { value: 'concluido', label: 'Concluído' },
   { value: 'arquivado', label: 'Arquivado' },
