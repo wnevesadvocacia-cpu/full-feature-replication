@@ -1305,6 +1305,7 @@ export type Database = {
           number: string
           observations: string | null
           opponent: string | null
+          parent_process_number: string | null
           phase: string | null
           request_date: string | null
           responsible: string | null
@@ -1336,6 +1337,7 @@ export type Database = {
           number: string
           observations?: string | null
           opponent?: string | null
+          parent_process_number?: string | null
           phase?: string | null
           request_date?: string | null
           responsible?: string | null
@@ -1367,6 +1369,7 @@ export type Database = {
           number?: string
           observations?: string | null
           opponent?: string | null
+          parent_process_number?: string | null
           phase?: string | null
           request_date?: string | null
           responsible?: string | null
