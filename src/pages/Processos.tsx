@@ -173,7 +173,7 @@ const FULL_SELECT = [
   'opponent', 'phase', 'stage', 'responsible', 'lawyer',
   'honorarios_valor', 'honorarios_percent', 'cause_value', 'contingency',
   'last_update', 'observations', 'created_at', 'updated_at',
-  'request_date', 'closing_date', 'result',
+  'request_date', 'closing_date', 'result', 'parent_process_number',
 ].join(',');
 
 // ── hooks ──────────────────────────────────────────────────────────────────────
