@@ -407,16 +407,24 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
 
   // Client lookup for linking process to client
   const { data: clientList = [] } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ['client-list-proc'],
+    queryKey: ['client-list-proc-all'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('id, name')
-        .order('name')
-        .limit(5000);
-      if (error) throw error;
-      return data ?? [];
+      const pageSize = 1000;
+      const all: { id: string; name: string }[] = [];
+      for (let from = 0; from < 100000; from += pageSize) {
+        const { data, error } = await supabase
+          .from('clients')
+          .select('id, name')
+          .order('name')
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        const batch = data ?? [];
+        all.push(...batch);
+        if (batch.length < pageSize) break;
+      }
+      return all;
     },
+    staleTime: 5 * 60_000,
   });
 
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
