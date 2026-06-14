@@ -538,6 +538,23 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
         {renderField('Etapa', 'stage')}
       </div>
 
+      {form.status === 'execucao' && (
+        <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3">
+          <Label className="text-xs text-amber-900 uppercase tracking-wide font-semibold">
+            Nº do Processo Originário (Conhecimento)
+          </Label>
+          <Input
+            value={form.parent_process_number}
+            onChange={set('parent_process_number')}
+            className="mt-1 font-mono"
+            placeholder="0000000-00.0000.0.00.0000"
+          />
+          <p className="text-[11px] text-amber-800/80 mt-1">
+            Informe o nº CNJ do processo de conhecimento que deu origem a este cumprimento/execução.
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-3 gap-3">
         {renderField('Valor da Causa (R$)', 'cause_value', 'number')}
         {renderField('Honorários (R$)', 'honorarios_valor', 'number')}
