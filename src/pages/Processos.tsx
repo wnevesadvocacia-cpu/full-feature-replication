@@ -492,6 +492,20 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
             {ALL_STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
           </select>
         </div>
+
+      <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3">
+        <Label className="text-xs text-amber-900 uppercase tracking-wide font-semibold">
+          Nº do Processo Originário (Conhecimento)
+        </Label>
+        <Input
+          value={form.parent_process_number}
+          onChange={set('parent_process_number')}
+          className="mt-1 font-mono"
+          placeholder="0000000-00.0000.0.00.0000"
+        />
+        <p className="text-[11px] text-amber-800/80 mt-1">
+          Preencha quando se tratar de cumprimento/execução de sentença, com o nº CNJ do processo de conhecimento que deu origem.
+        </p>
       </div>
 
       <div>
@@ -538,20 +552,6 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
         {renderField('Etapa', 'stage')}
       </div>
 
-      <div className="rounded-md border border-amber-200 bg-amber-50/50 p-3">
-        <Label className="text-xs text-amber-900 uppercase tracking-wide font-semibold">
-          Nº do Processo Originário (Conhecimento)
-        </Label>
-        <Input
-          value={form.parent_process_number}
-          onChange={set('parent_process_number')}
-          className="mt-1 font-mono"
-          placeholder="0000000-00.0000.0.00.0000"
-        />
-        <p className="text-[11px] text-amber-800/80 mt-1">
-          Preencha quando se tratar de cumprimento/execução de sentença, com o nº CNJ do processo de conhecimento que deu origem.
-        </p>
-      </div>
 
       <div className="grid grid-cols-3 gap-3">
         {renderField('Valor da Causa (R$)', 'cause_value', 'number')}
