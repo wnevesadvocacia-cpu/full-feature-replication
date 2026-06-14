@@ -329,6 +329,7 @@ type FormData = {
   lawyer: string; cause_value: string; honorarios_valor: string;
   honorarios_percent: string; contingency: string; observations: string;
   request_date: string; closing_date: string; result: string;
+  parent_process_number: string;
 };
 
 const EMPTY_FORM: FormData = {
@@ -338,6 +339,7 @@ const EMPTY_FORM: FormData = {
   lawyer: '', cause_value: '', honorarios_valor: '',
   honorarios_percent: '', contingency: '', observations: '',
   request_date: '', closing_date: '', result: '',
+  parent_process_number: '',
 };
 
 function processToForm(p: Process): FormData {
