@@ -83,6 +83,7 @@ const STATUS_COLORS: Record<string, string> = {
   arquivado: 'bg-gray-100 text-gray-700',
   recursal: 'bg-purple-100 text-purple-800',
   sobrestamento: 'bg-orange-100 text-orange-800',
+  execucao: 'bg-amber-100 text-amber-800',
   active: 'bg-green-100 text-green-800',
   archived: 'bg-gray-100 text-gray-700',
   pending: 'bg-yellow-100 text-yellow-800',
