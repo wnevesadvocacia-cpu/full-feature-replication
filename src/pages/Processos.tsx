@@ -394,6 +394,7 @@ function formToPayload(f: FormData) {
     request_date: f.request_date || null,
     closing_date: f.closing_date || null,
     result: f.result || null,
+    parent_process_number: f.status === 'execucao' ? (f.parent_process_number || null) : (f.parent_process_number || null),
     updated_at: new Date().toISOString(),
   };
 }
