@@ -366,6 +366,7 @@ function processToForm(p: Process): FormData {
     request_date: p.request_date ? p.request_date.slice(0, 10) : '',
     closing_date: p.closing_date ? p.closing_date.slice(0, 10) : '',
     result: p.result ?? '',
+    parent_process_number: (p as any).parent_process_number ?? '',
   };
 }
 
