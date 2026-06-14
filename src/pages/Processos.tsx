@@ -66,6 +66,7 @@ const STATUS_LABELS: Record<string, string> = {
   ativo: 'Ativo',
   arquivado: 'Arquivado',
   recursal: 'Recursal',
+  execucao: 'Execução/Cumprimento de Sentença',
   sobrestamento: 'Sobrestamento',
   active: 'Ativo',
   archived: 'Arquivado',
