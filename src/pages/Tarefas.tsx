@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
+import { useCanDelete } from '@/hooks/useUserRole';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -58,6 +59,7 @@ export default function Tarefas() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const canManage = useCanDelete();
 
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members'],
@@ -395,8 +397,13 @@ export default function Tarefas() {
             </div>
           </div>
           <DialogFooter>
+            {!canManage && (
+              <p className="text-xs text-muted-foreground mr-auto">
+                Apenas administradores e gerentes podem salvar alterações.
+              </p>
+            )}
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || saving}>
+            <Button onClick={handleEdit} disabled={!form.title || saving || !canManage}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
