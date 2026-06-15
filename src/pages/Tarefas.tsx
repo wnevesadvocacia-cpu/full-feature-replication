@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
+import { useCanDelete } from '@/hooks/useUserRole';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
