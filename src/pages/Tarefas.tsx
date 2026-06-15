@@ -318,9 +318,14 @@ export default function Tarefas() {
                     {task.title}
                   </p>
                   {task.processes?.number && (
-                    <span className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 font-mono">
+                    <button
+                      type="button"
+                      onClick={() => openEdit(task)}
+                      title="Ver detalhes / estado da tarefa"
+                      className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 font-mono hover:bg-blue-100 hover:underline cursor-pointer"
+                    >
                       #{task.processes.number}
-                    </span>
+                    </button>
                   )}
                 </div>
                 {task.description && (
