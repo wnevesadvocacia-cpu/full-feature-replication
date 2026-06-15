@@ -397,8 +397,13 @@ export default function Tarefas() {
             </div>
           </div>
           <DialogFooter>
+            {!canManage && (
+              <p className="text-xs text-muted-foreground mr-auto">
+                Apenas administradores e gerentes podem salvar alterações.
+              </p>
+            )}
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || saving}>
+            <Button onClick={handleEdit} disabled={!form.title || saving || !canManage}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
