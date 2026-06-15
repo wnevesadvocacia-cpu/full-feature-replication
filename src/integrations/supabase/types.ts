@@ -1794,6 +1794,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_otps: { Args: never; Returns: undefined }
+      current_user_email: { Args: never; Returns: string }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
