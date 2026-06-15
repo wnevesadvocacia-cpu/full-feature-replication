@@ -59,6 +59,7 @@ export default function Tarefas() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const canManage = useCanDelete();
 
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members'],
