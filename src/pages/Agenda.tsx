@@ -643,13 +643,9 @@ export default function Agenda() {
               <div key={t.id}
                 onClick={() => setDetailTarget(t)}
                 className={`flex items-start gap-3 p-3 rounded-lg border transition-colors group cursor-pointer hover:border-blue-300 hover:shadow-sm ${t.completed ? 'bg-gray-50 border-gray-100' : 'bg-white border-gray-200'}`}>
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleTask.mutate({ id: t.id, completed: !t.completed }); }}
-                  className="mt-0.5 flex-shrink-0">
-                  {t.completed
-                    ? <CheckCircle2 className="w-5 h-5 text-green-500" />
-                    : <Circle className="w-5 h-5 text-gray-300" />}
-                </button>
+                {t.completed && (
+                  <CheckCircle2 className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" aria-label="Concluída" />
+                )}
                 <div className="flex-1 min-w-0">
                   <p className={`font-medium ${t.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                     {t.title}
