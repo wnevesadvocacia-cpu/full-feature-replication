@@ -175,13 +175,28 @@ export default function Tarefas() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    const backup = deleteTarget;
     setSaving(true);
     try {
-      const { error } = await supabase.from('tasks').delete().eq('id', deleteTarget.id);
+      const { error } = await supabase.from('tasks').delete().eq('id', backup.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setDeleteTarget(null);
-      toast({ title: 'Tarefa excluída.' });
+      toast({
+        title: 'Tarefa excluída.',
+        action: (
+          <ToastAction altText="Desfazer" onClick={async () => {
+            const { processes, ...row } = backup;
+            const { error: restoreErr } = await supabase.from('tasks').insert(row);
+            if (restoreErr) {
+              toast({ title: 'Erro ao desfazer', description: restoreErr.message, variant: 'destructive' });
+              return;
+            }
+            qc.invalidateQueries({ queryKey: ['tasks'] });
+            toast({ title: 'Exclusão desfeita.' });
+          }}>Desfazer</ToastAction>
+        ),
+      });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
