@@ -50,8 +50,17 @@ export default function Tarefas() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const { data: tasks = [], isLoading } = useTasks();
   
@@ -330,7 +339,11 @@ export default function Tarefas() {
           {filtered.map((task: any) => (
             <div key={task.id}
               className={`bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group ${task.completed ? 'opacity-60' : ''}`}>
-              <Checkbox checked={task.completed} onCheckedChange={() => toggleTask(task)} />
+              <Checkbox
+                checked={selectedIds.has(task.id)}
+                onCheckedChange={() => toggleSelected(task.id)}
+                aria-label="Selecionar tarefa"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
