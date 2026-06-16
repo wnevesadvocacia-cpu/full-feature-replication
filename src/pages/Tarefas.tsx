@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -50,17 +50,8 @@ export default function Tarefas() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
-
-  const toggleSelected = (id: string) => {
-    setSelectedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
 
   const { data: tasks = [], isLoading } = useTasks();
   
@@ -175,13 +166,28 @@ export default function Tarefas() {
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
+    const backup = deleteTarget;
     setSaving(true);
     try {
-      const { error } = await supabase.from('tasks').delete().eq('id', deleteTarget.id);
+      const { error } = await supabase.from('tasks').delete().eq('id', backup.id);
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setDeleteTarget(null);
-      toast({ title: 'Tarefa excluída.' });
+      toast({
+        title: 'Tarefa excluída.',
+        action: (
+          <ToastAction altText="Desfazer" onClick={async () => {
+            const { processes, ...row } = backup;
+            const { error: restoreErr } = await supabase.from('tasks').insert(row);
+            if (restoreErr) {
+              toast({ title: 'Erro ao desfazer', description: restoreErr.message, variant: 'destructive' });
+              return;
+            }
+            qc.invalidateQueries({ queryKey: ['tasks'] });
+            toast({ title: 'Exclusão desfeita.' });
+          }}>Desfazer</ToastAction>
+        ),
+      });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -339,11 +345,6 @@ export default function Tarefas() {
           {filtered.map((task: any) => (
             <div key={task.id}
               className={`bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group ${task.completed ? 'opacity-60' : ''}`}>
-              <Checkbox
-                checked={selectedIds.has(task.id)}
-                onCheckedChange={() => toggleSelected(task.id)}
-                aria-label="Selecionar tarefa"
-              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
