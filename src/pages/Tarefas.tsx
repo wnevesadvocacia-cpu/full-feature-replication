@@ -97,10 +97,26 @@ export default function Tarefas() {
   const concluidas = (tasks as any[]).filter(t => t.completed).length;
 
   const toggleTask = async (task: any) => {
+    const willComplete = !task.completed;
     await updateTask.mutateAsync({
       id: task.id,
-      completed: !task.completed,
-      status: !task.completed ? 'concluida' : 'pendente',
+      completed: willComplete,
+      status: willComplete ? 'concluida' : 'pendente',
+    });
+    toast({
+      title: willComplete ? 'Tarefa concluída' : 'Tarefa reaberta',
+      description: willComplete && viewFilter === 'pendentes'
+        ? 'Ela saiu da lista de pendentes. Veja em "Concluídas" ou "Todas".'
+        : undefined,
+      action: (
+        <ToastAction altText="Desfazer" onClick={() => {
+          updateTask.mutate({
+            id: task.id,
+            completed: !willComplete,
+            status: !willComplete ? 'concluida' : 'pendente',
+          });
+        }}>Desfazer</ToastAction>
+      ),
     });
   };
 
