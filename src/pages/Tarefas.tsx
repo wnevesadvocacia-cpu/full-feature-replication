@@ -50,8 +50,17 @@ export default function Tarefas() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const { data: tasks = [], isLoading } = useTasks();
   
