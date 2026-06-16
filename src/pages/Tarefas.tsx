@@ -339,7 +339,11 @@ export default function Tarefas() {
           {filtered.map((task: any) => (
             <div key={task.id}
               className={`bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group ${task.completed ? 'opacity-60' : ''}`}>
-              <Checkbox checked={task.completed} onCheckedChange={() => toggleTask(task)} />
+              <Checkbox
+                checked={selectedIds.has(task.id)}
+                onCheckedChange={() => toggleSelected(task.id)}
+                aria-label="Selecionar tarefa"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
