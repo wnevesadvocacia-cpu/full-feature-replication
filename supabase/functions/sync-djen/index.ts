@@ -43,7 +43,7 @@ type DjenItem = z.infer<typeof DjenItemSchema>;
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
-const DAYS_BACK = 45;
+const DAYS_BACK = 90;
 const PAGE_DELAY_MS = 250; // gap entre páginas para não estressar API CNJ
 
 // ============= Calendário CNJ (dias úteis) =============
@@ -472,7 +472,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     ...(row.lawyer_name ? [String(row.lawyer_name)] : []),
     ...(Array.isArray(row.name_variations) ? row.name_variations.filter(Boolean).map(String) : []),
   ];
-  const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.85;
+  const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.80;
 
   try {
     const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name);
