@@ -310,6 +310,36 @@ export default function Tarefas() {
         </Button>
       </div>
 
+      {/* Banner de alerta piscante para prazos próximos */}
+      {(() => {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const urgentTasks = (tasks as any[]).filter((t: any) => {
+          if (!t.due_date || t.completed) return false;
+          const due = new Date(t.due_date.slice(0,10) + 'T12:00:00');
+          due.setHours(0,0,0,0);
+          const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
+          return daysLeft <= 2;
+        }).sort((a: any, b: any) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+        if (urgentTasks.length === 0) return null;
+        const nearest = urgentTasks[0];
+        const due = new Date(nearest.due_date.slice(0,10) + 'T12:00:00');
+        due.setHours(0,0,0,0);
+        const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
+        return (
+          <div className="animate-blink rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 flex items-center gap-3 text-sm text-destructive font-medium">
+            <AlertTriangle className="h-5 w-5 shrink-0" />
+            <div className="flex-1">
+              {urgentTasks.length === 1 ? (
+                <span>"{nearest.title}" vence {daysLeft < 0 ? `há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'hoje' : daysLeft === 1 ? 'amanhã' : `em ${daysLeft} dias`} — {fmtDate(nearest.due_date)}</span>
+              ) : (
+                <span>{urgentTasks.length} tarefas próximas do vencimento. A mais urgente: "{nearest.title}" {daysLeft < 0 ? `vencida há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'vence hoje' : daysLeft === 1 ? 'vence amanhã' : `vence em ${daysLeft} dias`} — {fmtDate(nearest.due_date)}</span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Filtros */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex-1 max-w-sm space-y-2">
