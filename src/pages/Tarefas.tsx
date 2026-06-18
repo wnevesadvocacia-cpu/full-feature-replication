@@ -358,11 +358,18 @@ export default function Tarefas() {
             const completerLabel = task.completed_by ? (memberById.get(task.completed_by) || '—') : null;
             const fmtDate = (s?: string) => s ? new Date(s).toLocaleDateString('pt-BR') : '';
             const fmtDateTime = (s?: string) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+            const dueDate = task.due_date ? new Date(task.due_date.slice(0,10) + 'T12:00:00') : null;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const dueDay = dueDate ? new Date(dueDate) : null;
+            if (dueDay) dueDay.setHours(0,0,0,0);
+            const daysLeft = dueDay ? Math.ceil((dueDay.getTime() - today.getTime()) / (1000*60*60*24)) : null;
+            const showDeadlineAlert = !task.completed && dueDay && daysLeft !== null && daysLeft <= 2;
             return (
             <div key={task.id}
               className={`bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group ${task.completed ? 'opacity-60' : ''}`}>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
                     {task.title}
                   </p>
@@ -375,6 +382,12 @@ export default function Tarefas() {
                     >
                       #{task.processes.number}
                     </button>
+                  )}
+                  {showDeadlineAlert && (
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${daysLeft < 0 ? 'bg-destructive/10 text-destructive border-destructive/30' : daysLeft === 0 ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-warning/10 text-warning border-warning/30'}`}>
+                      <AlertTriangle className="h-3 w-3" />
+                      {daysLeft < 0 ? `Vencida há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft} dia(s)`}
+                    </span>
                   )}
                 </div>
                 {task.description && (
@@ -394,7 +407,7 @@ export default function Tarefas() {
               {task.due_date && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                   <Calendar className="h-3 w-3" />
-                  <span>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                  <span className={showDeadlineAlert ? (daysLeft && daysLeft < 0 ? 'text-destructive font-semibold' : 'text-warning font-semibold') : ''}>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                 </div>
               )}
               {task.assignee && (
