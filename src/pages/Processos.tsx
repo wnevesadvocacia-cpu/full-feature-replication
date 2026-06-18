@@ -432,7 +432,8 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
       }
       return all;
     },
-    staleTime: 5 * 60_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
