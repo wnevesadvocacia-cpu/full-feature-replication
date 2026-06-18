@@ -378,7 +378,7 @@ export default function Tarefas() {
                   )}
                 </div>
                 {task.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{task.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{decodeHtml(task.description)}</p>
                 )}
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
