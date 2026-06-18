@@ -53,6 +53,13 @@ function decodeHtml(s: string): string {
   return s;
 }
 
+function fmtDate(s?: string) {
+  return s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+}
+function fmtDateTime(s?: string) {
+  return s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+}
+
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
