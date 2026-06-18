@@ -43,6 +43,16 @@ const EMPTY_FORM: TaskForm = {
 
 const TASK_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-full sm:!max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
 
+function decodeHtml(s: string): string {
+  if (!s) return '';
+  if (typeof document !== 'undefined') {
+    const el = document.createElement('textarea');
+    el.innerHTML = s;
+    return el.value;
+  }
+  return s;
+}
+
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
