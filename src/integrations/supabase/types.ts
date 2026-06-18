@@ -1562,7 +1562,10 @@ export type Database = {
         Row: {
           assignee: string | null
           completed: boolean
+          completed_at: string | null
+          completed_by: string | null
           created_at: string
+          created_by: string | null
           description: string | null
           due_date: string | null
           end_time: string | null
@@ -1581,7 +1584,10 @@ export type Database = {
         Insert: {
           assignee?: string | null
           completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           end_time?: string | null
@@ -1600,7 +1606,10 @@ export type Database = {
         Update: {
           assignee?: string | null
           completed?: boolean
+          completed_at?: string | null
+          completed_by?: string | null
           created_at?: string
+          created_by?: string | null
           description?: string | null
           due_date?: string | null
           end_time?: string | null
