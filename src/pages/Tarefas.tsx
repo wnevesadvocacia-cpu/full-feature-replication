@@ -364,8 +364,6 @@ export default function Tarefas() {
             const memberById = new Map(teamMembers.map(m => [m.user_id, m.email]));
             const creatorLabel = memberById.get(task.created_by) || memberById.get(task.user_id) || '—';
             const completerLabel = task.completed_by ? (memberById.get(task.completed_by) || '—') : null;
-            const fmtDate = (s?: string) => s ? new Date(s).toLocaleDateString('pt-BR') : '';
-            const fmtDateTime = (s?: string) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
             const dueDate = task.due_date ? new Date(task.due_date.slice(0,10) + 'T12:00:00') : null;
             const today = new Date();
             today.setHours(0,0,0,0);
