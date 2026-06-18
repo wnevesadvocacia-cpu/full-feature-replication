@@ -448,6 +448,27 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
   const save = useMutation({
     mutationFn: async () => {
       const payload = formToPayload(form);
+      // Auto-cria cliente quando o nome foi digitado manualmente (sem seleção no dropdown)
+      if (!payload.client_id && payload.client_name?.trim() && user?.id) {
+        const name = payload.client_name.trim();
+        const { data: existing } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('user_id', user.id)
+          .ilike('name', name)
+          .maybeSingle();
+        let cid = existing?.id as string | undefined;
+        if (!cid) {
+          const { data: created, error: cErr } = await supabase
+            .from('clients')
+            .insert({ name, user_id: user.id } as any)
+            .select('id')
+            .single();
+          if (cErr) throw cErr;
+          cid = created.id;
+        }
+        payload.client_id = cid;
+      }
       if (isEdit) {
         const { data, error } = await supabase
           .from('processes')
@@ -467,6 +488,7 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
         return data as unknown as Process;
       }
     },
+
     onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ['processes'] });
       toast({ title: isEdit ? 'Processo atualizado.' : 'Processo criado.' });
