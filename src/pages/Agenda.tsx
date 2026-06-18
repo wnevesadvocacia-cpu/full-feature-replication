@@ -765,7 +765,7 @@ export default function Agenda() {
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="w-4 h-4 text-gray-400" />
                       <span className="text-gray-500">
-                        Criada em: {new Date(t.created_at).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        Criada em: {fmtBR(t.created_at)}
                       </span>
                     </div>
                   )}
