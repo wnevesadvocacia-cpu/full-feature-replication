@@ -407,7 +407,7 @@ export default function Tarefas() {
               {task.due_date && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
                   <Calendar className="h-3 w-3" />
-                  <span className={showDeadlineAlert ? (daysLeft && daysLeft < 0 ? 'text-destructive font-semibold' : 'text-warning font-semibold') : ''}>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                  <span className={showDeadlineAlert ? (daysLeft && daysLeft < 0 ? 'text-destructive font-semibold' : 'text-warning font-semibold') : ''}>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
                 </div>
               )}
               {task.assignee && (
