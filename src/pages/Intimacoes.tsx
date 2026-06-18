@@ -44,6 +44,7 @@ const PRAXIS_TASK_TITLES = [
   'Avisar cliente sobre perícia',
   'Avisar cliente sobre audiência',
   'Juntar petição',
+  'Petições diversas',
   'Elaborar contestação',
   'Elaborar réplica',
   'Elaborar recurso (apelação)',
