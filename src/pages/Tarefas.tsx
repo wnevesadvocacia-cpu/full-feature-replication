@@ -498,6 +498,87 @@ export default function Tarefas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* Overview Dialog (read-only) */}
+      <Dialog open={!!overviewTarget} onOpenChange={(o) => { if (!o) setOverviewTarget(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-blue-500" /> {overviewTarget?.title}
+            </DialogTitle>
+          </DialogHeader>
+          {overviewTarget && (() => {
+            const t = overviewTarget;
+            const dueDate = t.due_date ? new Date(t.due_date.slice(0,10) + 'T12:00:00') : null;
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const dueDay = dueDate ? new Date(dueDate) : null;
+            if (dueDay) dueDay.setHours(0,0,0,0);
+            const daysLeft = dueDay ? Math.ceil((dueDay.getTime() - today.getTime()) / (1000*60*60*24)) : null;
+            const isOverdue = daysLeft !== null && daysLeft < 0 && !t.completed;
+            const isToday = daysLeft === 0 && !t.completed;
+            const memberById = new Map(teamMembers.map(m => [m.user_id, m.email]));
+            const creatorLabel = memberById.get(t.created_by) || memberById.get(t.user_id) || '—';
+            const completerLabel = t.completed_by ? (memberById.get(t.completed_by) || '—') : null;
+            return (
+              <div className="space-y-3 text-sm">
+                {t.processes?.number && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Processo:</span>
+                    <span className="font-mono font-medium text-blue-700">{t.processes.number}</span>
+                  </div>
+                )}
+                {t.description && (
+                  <div className="bg-muted/40 rounded-md p-3 text-sm whitespace-pre-wrap">
+                    {decodeHtml(t.description)}
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3">
+                  {t.assignee && (
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <span>{t.assignee}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={priorityConfig[t.priority as TaskPriority]?.className || ''}>
+                      {priorityConfig[t.priority as TaskPriority]?.label || t.priority}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {t.start_date && (
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-blue-500" />
+                      <span>Início: {fmtDate(t.start_date)}</span>
+                    </div>
+                  )}
+                  {t.due_date && (
+                    <div className={`flex items-center gap-2 ${isOverdue || isToday ? 'text-destructive font-semibold' : ''}`}>
+                      <Calendar className={`h-4 w-4 ${isOverdue || isToday ? 'text-destructive' : 'text-red-500'}`} />
+                      <span>Prazo: {new Date(t.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                      {isOverdue && <span className="text-[11px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full">Vencida</span>}
+                      {isToday && <span className="text-[11px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full">Vence hoje</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground border-t pt-2 mt-2">
+                  <p>Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(t.created_at)}</p>
+                  {t.completed && completerLabel && (
+                    <p className="mt-0.5">Concluída por <span className="font-medium">{completerLabel}</span> em {fmtDateTime(t.completed_at)}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOverviewTarget(null)}>Fechar</Button>
+            <Button onClick={() => { setOverviewTarget(null); openEdit(overviewTarget); }}>
+              <Pencil className="h-4 w-4 mr-1" /> Editar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
