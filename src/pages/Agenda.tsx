@@ -76,6 +76,12 @@ function dateOnly(value?: string | null) {
   return value ? value.toString().split('T')[0] : '';
 }
 
+function fmtBR(dateStr?: string | null) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr.toString().split('T')[0] + 'T12:00:00');
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
 function isVisibleAgendaTask(task: Task) {
   const assignee = task.assignee?.trim().toLowerCase();
   return !assignee || !SYSTEM_ASSIGNEES.has(assignee);
@@ -654,17 +660,17 @@ export default function Agenda() {
                     {t.event_type && <span className="font-medium text-gray-600">{t.event_type}</span>}
                     {t.start_date && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100" title="Data inicial (referência da agenda)">
-                        <Calendar className="w-3 h-3" /> Início {t.start_date.split('T')[0]}
+                        <Calendar className="w-3 h-3" /> Início {fmtBR(t.start_date)}
                       </span>
                     )}
                     {t.due_date && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-100" title="Prazo final (vencimento)">
-                        <AlertTriangle className="w-3 h-3" /> Venc {t.due_date.split('T')[0]}
+                        <AlertTriangle className="w-3 h-3" /> Venc {fmtBR(t.due_date)}
                       </span>
                     )}
                     {t.created_at && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-50 text-gray-500 border border-gray-100" title="Data de criação">
-                        <Clock className="w-3 h-3" /> Criado {t.created_at.split('T')[0]}
+                        <Clock className="w-3 h-3" /> Criado {fmtBR(t.created_at)}
                       </span>
                     )}
                     {(t.start_time || t.end_time) && (
@@ -743,7 +749,7 @@ export default function Agenda() {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-blue-500" />
                       <span className="font-medium text-blue-700">
-                        Data inicial (referência agenda): {new Date(t.start_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        Data inicial (referência agenda): {fmtBR(t.start_date)}
                       </span>
                     </div>
                   )}
@@ -751,7 +757,7 @@ export default function Agenda() {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-red-500" />
                       <span className="font-medium text-red-700">
-                        Prazo final: {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        Prazo final: {fmtBR(t.due_date)}
                       </span>
                     </div>
                   )}
@@ -759,7 +765,7 @@ export default function Agenda() {
                     <div className="flex items-center gap-2 text-sm">
                       <Clock className="w-4 h-4 text-gray-400" />
                       <span className="text-gray-500">
-                        Criada em: {new Date(t.created_at).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        Criada em: {fmtBR(t.created_at)}
                       </span>
                     </div>
                   )}
