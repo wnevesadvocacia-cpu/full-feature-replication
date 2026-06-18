@@ -40,9 +40,11 @@ const UNSAFE_STATUSES = new Set(['ambigua_urgente', 'auto_baixa']);
 // Títulos comuns da praxis jurídica para tarefas delegadas a partir de intimações
 const PRAXIS_TASK_TITLES = [
   'Acompanhar expedição de guia',
+  'Acompanhar expedição de MLE/alvará',
   'Avisar cliente sobre perícia',
   'Avisar cliente sobre audiência',
   'Juntar petição',
+  'Petições diversas',
   'Elaborar contestação',
   'Elaborar réplica',
   'Elaborar recurso (apelação)',
