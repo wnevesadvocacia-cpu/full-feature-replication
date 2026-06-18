@@ -757,7 +757,7 @@ export default function Agenda() {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-red-500" />
                       <span className="font-medium text-red-700">
-                        Prazo final: {new Date(t.due_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        Prazo final: {fmtBR(t.due_date)}
                       </span>
                     </div>
                   )}
