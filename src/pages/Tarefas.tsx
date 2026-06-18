@@ -610,9 +610,6 @@ export default function Tarefas() {
           })()}
           <DialogFooter>
             <Button variant="outline" onClick={() => setOverviewTarget(null)}>Fechar</Button>
-            <Button onClick={() => { setOverviewTarget(null); openEdit(overviewTarget); }}>
-              <Pencil className="h-4 w-4 mr-1" /> Editar
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
