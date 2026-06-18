@@ -441,9 +441,12 @@ export default function Tarefas() {
                 {priorityConfig[task.priority as TaskPriority]?.label || task.priority}
               </Badge>
               {task.due_date && (
-                <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                  <Calendar className="h-3 w-3" />
-                  <span className={showDeadlineAlert ? (daysLeft && daysLeft < 0 ? 'text-destructive font-semibold' : 'text-warning font-semibold') : ''}>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                <div className="flex flex-col items-start text-xs shrink-0">
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold leading-none mb-0.5">Vencimento</span>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span className={showDeadlineAlert ? (daysLeft && daysLeft < 0 ? 'text-destructive font-semibold' : 'text-warning font-semibold') : ''}>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                  </div>
                 </div>
               )}
               {task.assignee && (
