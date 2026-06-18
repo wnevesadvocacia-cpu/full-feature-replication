@@ -59,6 +59,7 @@ export default function Tarefas() {
   const [viewFilter, setViewFilter] = useState<ViewFilter>('pendentes');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
+  const [overviewTarget, setOverviewTarget] = useState<any | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [form, setForm] = useState<TaskForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
