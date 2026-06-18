@@ -660,17 +660,17 @@ export default function Agenda() {
                     {t.event_type && <span className="font-medium text-gray-600">{t.event_type}</span>}
                     {t.start_date && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100" title="Data inicial (referência da agenda)">
-                        <Calendar className="w-3 h-3" /> Início {t.start_date.split('T')[0]}
+                        <Calendar className="w-3 h-3" /> Início {fmtBR(t.start_date)}
                       </span>
                     )}
                     {t.due_date && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-50 text-red-700 border border-red-100" title="Prazo final (vencimento)">
-                        <AlertTriangle className="w-3 h-3" /> Venc {t.due_date.split('T')[0]}
+                        <AlertTriangle className="w-3 h-3" /> Venc {fmtBR(t.due_date)}
                       </span>
                     )}
                     {t.created_at && (
                       <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-50 text-gray-500 border border-gray-100" title="Data de criação">
-                        <Clock className="w-3 h-3" /> Criado {t.created_at.split('T')[0]}
+                        <Clock className="w-3 h-3" /> Criado {fmtBR(t.created_at)}
                       </span>
                     )}
                     {(t.start_time || t.end_time) && (
