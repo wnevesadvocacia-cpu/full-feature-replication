@@ -749,7 +749,7 @@ export default function Agenda() {
                     <div className="flex items-center gap-2 text-sm">
                       <Calendar className="w-4 h-4 text-blue-500" />
                       <span className="font-medium text-blue-700">
-                        Data inicial (referência agenda): {new Date(t.start_date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        Data inicial (referência agenda): {fmtBR(t.start_date)}
                       </span>
                     </div>
                   )}
