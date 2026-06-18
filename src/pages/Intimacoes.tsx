@@ -345,6 +345,35 @@ export default function Intimacoes() {
                     {!isUnsafe && it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
                   </div>
 
+                  {!isUnsafe && detectedDeadline && !detectedDeadline.isFallback && detectedDeadline.dueDate && (detectedDeadline.severity === 'critical' || detectedDeadline.severity === 'expired' || (detectedDeadline.severity === 'warning' && detectedDeadline.businessDaysLeft <= 2)) && (
+                    <div
+                      role="alert"
+                      className={`mt-3 flex items-start gap-3 rounded-lg border-l-4 px-3 py-2.5 shadow-sm ${
+                        detectedDeadline.severity === 'expired'
+                          ? 'border-l-destructive bg-destructive/10 text-destructive'
+                          : detectedDeadline.severity === 'critical'
+                            ? 'border-l-destructive bg-destructive/5 text-destructive'
+                            : 'border-l-warning bg-warning/10 text-warning'
+                      }`}
+                    >
+                      <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${detectedDeadline.severity !== 'warning' ? 'animate-pulse' : ''}`} />
+                      <div className="text-xs leading-relaxed">
+                        <div className="font-bold uppercase tracking-wide">
+                          {detectedDeadline.severity === 'expired'
+                            ? `Prazo vencido há ${Math.abs(detectedDeadline.businessDaysLeft)} dia(s) útil(eis)`
+                            : detectedDeadline.businessDaysLeft === 0
+                              ? 'Prazo vence hoje'
+                              : detectedDeadline.businessDaysLeft === 1
+                                ? 'Prazo vence amanhã'
+                                : `Faltam ${detectedDeadline.businessDaysLeft} dias úteis para o vencimento`}
+                        </div>
+                        <div className="opacity-90">
+                          {detectedDeadline.label} · vencimento em {formatBR(detectedDeadline.dueDate)} · peça sugerida: {detectedDeadline.pecaSugerida.peca}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {isUnsafe && (
                     <div className="mt-3 rounded-md border-2 border-destructive bg-destructive/10 p-3 space-y-2">
                       <div className="flex items-center gap-2 text-destructive font-bold uppercase text-sm">
