@@ -511,7 +511,38 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     for (const it of items) {
       try {
         const externalId = await buildExternalId(it);
-        const cleanText = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
+        const _body = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
+        // AASP-style header: enriquece o conteúdo com metadados estruturados
+        // que a API DJEN retorna em campos separados (não vêm no `texto`).
+        const _fmtDate = (iso?: string) => {
+          if (!iso) return '';
+          const [y, m, d] = iso.split('-');
+          return (y && m && d) ? `${d}/${m}/${y}` : iso;
+        };
+        const _partes = Array.isArray((it as any).destinatarios)
+          ? (it as any).destinatarios.map((d: any) => d?.nome).filter(Boolean).join('; ')
+          : '';
+        const _advs = Array.isArray((it as any).destinatarioadvogados)
+          ? (it as any).destinatarioadvogados.map((d: any) => {
+              const nome = d?.advogado?.nome ?? d?.nome;
+              const num = d?.advogado?.numero_oab ?? d?.numero_oab;
+              const uf = d?.advogado?.uf_oab ?? d?.uf_oab;
+              return nome ? `${nome}${num ? ` OAB ${uf || ''}${uf ? '-' : ''}${num}` : ''}` : '';
+            }).filter(Boolean).join(', ')
+          : (Array.isArray((it as any).advogados)
+              ? (it as any).advogados.map((a: any) => a?.nome).filter(Boolean).join(', ')
+              : '');
+        const _headerLines = [
+          it.tipoComunicacao ? `${it.tipoComunicacao}${it.numero_processo ? ` Processo: ${it.numero_processo}` : ''}` : (it.numero_processo ? `Processo: ${it.numero_processo}` : ''),
+          it.nomeOrgao ? `Órgão: ${it.nomeOrgao}` : '',
+          it.data_disponibilizacao ? `Data de disponibilização: ${_fmtDate(it.data_disponibilizacao)}` : '',
+          (it as any).meio ? `Meio: ${(it as any).meio}` : '',
+          _partes ? `Parte(s): ${_partes}` : '',
+          _advs ? `Advogado(s): ${_advs}` : '',
+        ].filter(Boolean);
+        const cleanText = _headerLines.length
+          ? `${_headerLines.join('\n')}\n\n${_body}`
+          : _body;
         // SprintClosure #9: já garantido pelo Zod schema que data_disponibilizacao existe.
         // Não há mais fallback silencioso para today.
         const receivedAt = it.data_disponibilizacao!;
