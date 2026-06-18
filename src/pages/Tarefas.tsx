@@ -206,7 +206,7 @@ export default function Tarefas() {
   const openEdit = (t: any) => {
     setForm({
       title: t.title ?? '',
-      description: t.description ?? '',
+      description: decodeHtml(t.description ?? ''),
       assignee: t.assignee ?? '',
       priority: t.priority ?? 'media',
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
