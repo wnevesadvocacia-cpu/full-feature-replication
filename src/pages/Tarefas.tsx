@@ -342,7 +342,13 @@ export default function Tarefas() {
         </div>
       ) : (
         <div className="space-y-1">
-          {filtered.map((task: any) => (
+          {filtered.map((task: any) => {
+            const memberById = new Map(teamMembers.map(m => [m.user_id, m.email]));
+            const creatorLabel = memberById.get(task.created_by) || memberById.get(task.user_id) || '—';
+            const completerLabel = task.completed_by ? (memberById.get(task.completed_by) || '—') : null;
+            const fmtDate = (s?: string) => s ? new Date(s).toLocaleDateString('pt-BR') : '';
+            const fmtDateTime = (s?: string) => s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
+            return (
             <div key={task.id}
               className={`bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group ${task.completed ? 'opacity-60' : ''}`}>
               <div className="flex-1 min-w-0">
@@ -364,6 +370,12 @@ export default function Tarefas() {
                 {task.description && (
                   <p className="text-xs text-muted-foreground mt-0.5 truncate">{task.description}</p>
                 )}
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
+                  {task.completed && completerLabel && (
+                    <> · Concluída por <span className="font-medium">{completerLabel}</span> em {fmtDateTime(task.completed_at)}</>
+                  )}
+                </p>
               </div>
               <Badge variant="outline"
                 className={`text-xs shrink-0 ${priorityConfig[task.priority as TaskPriority]?.className || ''}`}>
@@ -390,9 +402,11 @@ export default function Tarefas() {
                 </DeleteGuard>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
+
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
