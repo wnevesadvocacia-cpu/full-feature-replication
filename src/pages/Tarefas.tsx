@@ -43,6 +43,16 @@ const EMPTY_FORM: TaskForm = {
 
 const TASK_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-full sm:!max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
 
+function decodeHtml(s: string): string {
+  if (!s) return '';
+  if (typeof document !== 'undefined') {
+    const el = document.createElement('textarea');
+    el.innerHTML = s;
+    return el.value;
+  }
+  return s;
+}
+
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
@@ -196,7 +206,7 @@ export default function Tarefas() {
   const openEdit = (t: any) => {
     setForm({
       title: t.title ?? '',
-      description: t.description ?? '',
+      description: decodeHtml(t.description ?? ''),
       assignee: t.assignee ?? '',
       priority: t.priority ?? 'media',
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
@@ -368,7 +378,7 @@ export default function Tarefas() {
                   )}
                 </div>
                 {task.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{task.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{decodeHtml(task.description)}</p>
                 )}
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
