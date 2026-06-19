@@ -281,13 +281,20 @@ function useProcessMovimentacoes(processId: string | null) {
     queryKey: ['proc-movs', validProcessId],
     enabled: !!validProcessId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('process_comments')
-        .select('*')
-        .eq('process_id', validProcessId);
-      if (error) throw error;
-      // Normaliza para o shape esperado pela UI (title/description/due_date)
-      return (data ?? []).sort((a: any, b: any) => String(b.created_at).localeCompare(String(a.created_at))).map((c: any) => ({
+      const [commentsRes, intimsRes] = await Promise.all([
+        supabase
+          .from('process_comments')
+          .select('*')
+          .eq('process_id', validProcessId),
+        supabase
+          .from('intimations')
+          .select('id, content, court, received_at, deadline, source, created_at')
+          .eq('process_id', validProcessId),
+      ]);
+      if (commentsRes.error) throw commentsRes.error;
+      if (intimsRes.error) throw intimsRes.error;
+
+      const comments = (commentsRes.data ?? []).map((c: any) => ({
         id: c.id,
         title: c.type || 'movimentacao',
         description: c.content,
@@ -295,6 +302,20 @@ function useProcessMovimentacoes(processId: string | null) {
         created_at: c.created_at,
         author_name: c.author_name,
       }));
+
+      const intims = (intimsRes.data ?? []).map((i: any) => ({
+        id: `intim-${i.id}`,
+        title: 'publicacao',
+        description: [i.court ? `[${i.court}]` : '', i.content, i.deadline ? `\nPrazo: ${i.deadline}` : '']
+          .filter(Boolean).join(' ').trim(),
+        due_date: i.received_at ?? i.created_at?.split('T')[0] ?? null,
+        created_at: i.created_at ?? i.received_at,
+        author_name: i.source === 'djen' ? 'DJEN' : 'Publicação',
+      }));
+
+      return [...comments, ...intims].sort((a: any, b: any) =>
+        String(b.created_at).localeCompare(String(a.created_at))
+      );
     },
   });
 }
