@@ -233,8 +233,15 @@ export default function Intimacoes() {
     return m;
   }, [items]);
 
+  // Oculta publicações sem dados processuais (sem nº CNJ no conteúdo e sem vínculo a processo).
+  // Ex.: "ARQUIVOS DIGITAIS INDISPONÍVEIS (NÃO SÃO DO TIPO PÚBLICO)" — inútil ao advogado.
+  const CNJ_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
   const dayItems = useMemo(
-    () => items.filter((i) => i.received_at?.slice(0, 10) === selectedDate),
+    () => items.filter((i) => {
+      if (i.received_at?.slice(0, 10) !== selectedDate) return false;
+      if (i.process_id) return true;
+      return CNJ_RE.test(i.content || '');
+    }),
     [items, selectedDate]
   );
 
