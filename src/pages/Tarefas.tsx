@@ -452,16 +452,22 @@ export default function Tarefas() {
               {task.assignee && (
                 <span className="text-xs text-muted-foreground shrink-0 hidden md:block">{task.assignee}</span>
               )}
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(task)}>
+              <div className="flex gap-1 items-center">
+                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(task)}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
-                <DeleteGuard>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700"
-                    onClick={() => setDeleteTarget(task)}>
-                    <Trash2 className="h-3.5 w-3.5" />
+                {!task.completed && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-success border-success/40 hover:bg-success/10 hover:text-success"
+                    onClick={() => toggleTask(task)}
+                    disabled={updateTask.isPending}
+                    title="Concluir tarefa (mantida no histórico para auditoria)"
+                  >
+                    <Check className="h-3.5 w-3.5 mr-1" /> Concluir
                   </Button>
-                </DeleteGuard>
+                )}
               </div>
             </div>
             );
