@@ -342,6 +342,45 @@ function useProcessDocumentos(processId: string | null) {
   });
 }
 
+// Processos vinculados (mesma "pasta"): pai, filhos e irmãos via parent_process_number
+const digitsOnly = (s?: string | null) => (s ?? '').replace(/\D/g, '');
+function useRelatedProcesses(selected: Process | null) {
+  return useQuery({
+    queryKey: ['proc-related', selected?.id, selected?.number, selected?.parent_process_number],
+    enabled: !!selected,
+    queryFn: async () => {
+      if (!selected) return [] as Process[];
+      const self = digitsOnly(selected.number);
+      const parent = digitsOnly(selected.parent_process_number);
+      const orParts: string[] = [];
+      if (selected.number) {
+        orParts.push(`parent_process_number.eq.${selected.number}`);
+        orParts.push(`number.eq.${selected.number}`);
+      }
+      if (selected.parent_process_number) {
+        orParts.push(`number.eq.${selected.parent_process_number}`);
+        orParts.push(`parent_process_number.eq.${selected.parent_process_number}`);
+      }
+      if (!orParts.length) return [] as Process[];
+      const { data, error } = await supabase
+        .from('processes')
+        .select('id, number, title, status, parent_process_number, client_name')
+        .or(orParts.join(','))
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []).filter((p: any) => {
+        if (p.id === selected.id) return false;
+        const pn = digitsOnly(p.number);
+        const ppn = digitsOnly(p.parent_process_number);
+        return (
+          (self && (pn === self || ppn === self)) ||
+          (parent && (pn === parent || ppn === parent))
+        );
+      }) as unknown as Process[];
+    },
+  });
+}
+
 // ── ProcessForm (create + edit) ───────────────────────────────────────────────
 type FormData = {
   number: string; title: string; status: string; type: string;
