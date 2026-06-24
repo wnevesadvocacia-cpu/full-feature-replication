@@ -22,6 +22,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { HistoricoConversas } from '@/components/HistoricoConversas';
+import { PRAXIS_TASK_TITLES } from '@/lib/praxisTitles';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
