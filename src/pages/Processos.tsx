@@ -696,6 +696,7 @@ export default function Processos() {
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
   const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null);
   const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
+  const { data: relatedProcesses = [] } = useRelatedProcesses(selected ?? null);
   const procAndamentos = (procMovs as any[]).filter((m: any) => m.title !== 'comentario');
   const procComents = (procMovs as any[]).filter((m: any) => m.title === 'comentario');
   const [detailTab, setDetailTab] = useState<'details' | 'docs' | 'tasks' | 'comments' | 'history'>('details');
