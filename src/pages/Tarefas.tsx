@@ -110,6 +110,10 @@ export default function Tarefas() {
     if (viewFilter === 'pendentes') return !t.completed;
     if (viewFilter === 'concluidas') return t.completed;
     return true;
+  }).sort((a: any, b: any) => {
+    const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+    const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+    return da - db;
   });
 
   const pendentes = (tasks as any[]).filter(t => !t.completed).length;
