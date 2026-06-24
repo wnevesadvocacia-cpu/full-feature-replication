@@ -1214,6 +1214,36 @@ export default function Processos() {
                       <p className="text-sm mt-0.5 text-gray-700 whitespace-pre-wrap">{selected.observations}</p>
                     </div>
                   )}
+
+                  {(relatedProcesses.length > 0 || selected.parent_process_number) && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                        <FileText className="h-3 w-3" /> Processos vinculados (mesma pasta)
+                      </p>
+                      {selected.parent_process_number && (
+                        <p className="text-[11px] text-amber-800 mt-1">
+                          Originário: <span className="font-mono">{selected.parent_process_number}</span>
+                        </p>
+                      )}
+                      <div className="mt-2 space-y-1.5">
+                        {relatedProcesses.length === 0 ? (
+                          <p className="text-xs text-gray-400">Nenhum processo vinculado encontrado.</p>
+                        ) : relatedProcesses.map((rp: any) => (
+                          <button
+                            key={rp.id}
+                            onClick={() => { setSelected(rp); setEditMode(false); setDetailTab('details'); }}
+                            className="w-full text-left rounded-md border border-gray-200 hover:border-amber-400 bg-white px-3 py-2 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs">{rp.number || '—'}</span>
+                              <Badge variant="secondary" className="text-[10px]">{rp.status}</Badge>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-0.5 truncate">{rp.title}</p>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   </div>} {/* end details tab */}
 
                   {/* ── Tab: Andamentos (process_comments completos) ── */}
