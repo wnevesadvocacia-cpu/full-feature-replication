@@ -247,7 +247,35 @@ export default function Tarefas() {
       </div>
       <div>
         <Label>Título *</Label>
-        <Input className="mt-1" value={form.title} onChange={set('title')} placeholder="Título da tarefa" />
+        <Input
+          className="mt-1"
+          value={form.title}
+          onChange={set('title')}
+          placeholder="Digite ou selecione abaixo"
+          list="praxis-titles-tarefas"
+        />
+        <datalist id="praxis-titles-tarefas">
+          {PRAXIS_TASK_TITLES.map((t) => <option key={t} value={t} />)}
+        </datalist>
+        <div className="mt-2 flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+          {PRAXIS_TASK_TITLES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setForm((f) => ({ ...f, title: t }))}
+              className={`text-[11px] px-2 py-1 rounded-md border transition-colors ${
+                form.title === t
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'bg-muted/40 hover:bg-muted text-foreground border-border'
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Selecione um título da praxis ou digite um personalizado.
+        </p>
       </div>
       <div>
         <Label>Descrição</Label>
