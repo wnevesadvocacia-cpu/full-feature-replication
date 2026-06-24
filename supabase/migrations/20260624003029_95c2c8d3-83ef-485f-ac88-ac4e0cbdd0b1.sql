@@ -1,0 +1,2 @@
+ALTER TABLE public.processes DROP CONSTRAINT IF EXISTS processes_status_check;
+ALTER TABLE public.processes ADD CONSTRAINT processes_status_check CHECK (status = ANY (ARRAY['prospecto','novo','ativo','aguardando','recursal','execucao','sobrestamento','concluido','arquivado','em_andamento','suspenso']));
