@@ -342,6 +342,45 @@ function useProcessDocumentos(processId: string | null) {
   });
 }
 
+// Processos vinculados (mesma "pasta"): pai, filhos e irmãos via parent_process_number
+const digitsOnly = (s?: string | null) => (s ?? '').replace(/\D/g, '');
+function useRelatedProcesses(selected: Process | null) {
+  return useQuery({
+    queryKey: ['proc-related', selected?.id, selected?.number, selected?.parent_process_number],
+    enabled: !!selected,
+    queryFn: async () => {
+      if (!selected) return [] as Process[];
+      const self = digitsOnly(selected.number);
+      const parent = digitsOnly(selected.parent_process_number);
+      const orParts: string[] = [];
+      if (selected.number) {
+        orParts.push(`parent_process_number.eq.${selected.number}`);
+        orParts.push(`number.eq.${selected.number}`);
+      }
+      if (selected.parent_process_number) {
+        orParts.push(`number.eq.${selected.parent_process_number}`);
+        orParts.push(`parent_process_number.eq.${selected.parent_process_number}`);
+      }
+      if (!orParts.length) return [] as Process[];
+      const { data, error } = await supabase
+        .from('processes')
+        .select('id, number, title, status, parent_process_number, client_name')
+        .or(orParts.join(','))
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []).filter((p: any) => {
+        if (p.id === selected.id) return false;
+        const pn = digitsOnly(p.number);
+        const ppn = digitsOnly(p.parent_process_number);
+        return (
+          (self && (pn === self || ppn === self)) ||
+          (parent && (pn === parent || ppn === parent))
+        );
+      }) as unknown as Process[];
+    },
+  });
+}
+
 // ── ProcessForm (create + edit) ───────────────────────────────────────────────
 type FormData = {
   number: string; title: string; status: string; type: string;
@@ -657,6 +696,7 @@ export default function Processos() {
   const { data: tasks = [] } = useProcessTasks(selected?.id ?? null);
   const { data: procMovs = [] } = useProcessMovimentacoes(selected?.id ?? null);
   const { data: procDocs = [] } = useProcessDocumentos(selected?.id ?? null);
+  const { data: relatedProcesses = [] } = useRelatedProcesses(selected ?? null);
   const procAndamentos = (procMovs as any[]).filter((m: any) => m.title !== 'comentario');
   const procComents = (procMovs as any[]).filter((m: any) => m.title === 'comentario');
   const [detailTab, setDetailTab] = useState<'details' | 'docs' | 'tasks' | 'comments' | 'history'>('details');
@@ -1172,6 +1212,36 @@ export default function Processos() {
                     <div>
                       <p className="text-xs text-gray-400 uppercase tracking-wide">Observações</p>
                       <p className="text-sm mt-0.5 text-gray-700 whitespace-pre-wrap">{selected.observations}</p>
+                    </div>
+                  )}
+
+                  {(relatedProcesses.length > 0 || selected.parent_process_number) && (
+                    <div>
+                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                        <FileText className="h-3 w-3" /> Processos vinculados (mesma pasta)
+                      </p>
+                      {selected.parent_process_number && (
+                        <p className="text-[11px] text-amber-800 mt-1">
+                          Originário: <span className="font-mono">{selected.parent_process_number}</span>
+                        </p>
+                      )}
+                      <div className="mt-2 space-y-1.5">
+                        {relatedProcesses.length === 0 ? (
+                          <p className="text-xs text-gray-400">Nenhum processo vinculado encontrado.</p>
+                        ) : relatedProcesses.map((rp: any) => (
+                          <button
+                            key={rp.id}
+                            onClick={() => { setSelected(rp); setEditMode(false); setDetailTab('details'); }}
+                            className="w-full text-left rounded-md border border-gray-200 hover:border-amber-400 bg-white px-3 py-2 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-mono text-xs">{rp.number || '—'}</span>
+                              <Badge variant="secondary" className="text-[10px]">{rp.status}</Badge>
+                            </div>
+                            <p className="text-xs text-gray-600 mt-0.5 truncate">{rp.title}</p>
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                   </div>} {/* end details tab */}
