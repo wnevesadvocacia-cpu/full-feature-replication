@@ -1828,6 +1828,7 @@ export type Database = {
         Args: never
         Returns: {
           email: string
+          full_name: string
           roles: string[]
           user_id: string
         }[]
