@@ -61,6 +61,17 @@ function fmtDateTime(s?: string) {
   return s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
 }
 
+function abbreviateName(fullName?: string | null): string {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const connectors = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'del']);
+  const significant = parts.filter(p => !connectors.has(p.toLowerCase()));
+  if (significant.length === 0) return parts[0];
+  if (significant.length === 1) return significant[0];
+  return `${significant[0]} ${significant[significant.length - 1]}`;
+}
+
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
