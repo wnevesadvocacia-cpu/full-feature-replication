@@ -6,7 +6,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-token',
 };
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!;
@@ -108,6 +108,13 @@ function renderEmail(nome: string, novas: any[], pendentes: any[]): string {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const adminToken = req.headers.get('x-admin-token');
+  if (!adminToken || adminToken !== Deno.env.get('IMPORT_TOKEN')) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -184,7 +191,7 @@ Deno.serve(async (req) => {
         });
 
         results.push({
-          user_id: p.user_id, email: p.email,
+          user_id: p.user_id,
           novas: novasArr.length, pendentes: pendArr.length,
           resend_id, resend_error,
         });

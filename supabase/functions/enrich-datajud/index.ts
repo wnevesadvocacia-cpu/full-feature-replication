@@ -3,7 +3,7 @@
 // busca dados no DataJud público (por nº CNJ) e cria/atualiza o processo local + vincula.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const DATAJUD_API_KEY = "cDZHYzlZa1JBQjN5MmdwdENaajg6T1RNcGJsUUVdGNoNGN1c0VLOWxSXzU0SnQzVklITF8x";
+const DATAJUD_API_KEY = Deno.env.get("DATAJUD_API_KEY")!;
 
 // Mapa mínimo sigla → alias DataJud. Acrescente conforme uso real.
 const ALIAS: Record<string, string> = {
@@ -25,7 +25,7 @@ const CNJ_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-admin-token",
 };
 
 function aliasFromCourt(court: string | null | undefined): string | null {
@@ -49,6 +49,12 @@ async function queryDataJud(alias: string, numero: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const adminToken = req.headers.get("x-admin-token");
+  if (!adminToken || adminToken !== Deno.env.get("IMPORT_TOKEN")) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,

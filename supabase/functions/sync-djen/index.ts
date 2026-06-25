@@ -821,7 +821,10 @@ Deno.serve(async (req) => {
     // Enriquecimento DataJud: vincula intimações com nº CNJ mas sem process_id.
     // Best-effort: falhas não afetam o resultado da sync.
     try {
-      await supabase.functions.invoke('enrich-datajud', { body: { limit: 100 } });
+      await supabase.functions.invoke('enrich-datajud', {
+        body: { limit: 100 },
+        headers: { 'x-admin-token': Deno.env.get('IMPORT_TOKEN') ?? '' },
+      });
     } catch (e) {
       console.warn('[sync-djen] enrich-datajud falhou:', (e as Error).message);
     }

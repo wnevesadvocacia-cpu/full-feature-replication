@@ -6,7 +6,7 @@ import { gzip } from 'https://deno.land/x/compress@v0.4.5/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-token',
 };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
@@ -36,6 +36,13 @@ async function exportTable(supabase: any, table: string): Promise<any[]> {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+
+  const adminToken = req.headers.get('x-admin-token');
+  if (!adminToken || adminToken !== Deno.env.get('IMPORT_TOKEN')) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
 
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
