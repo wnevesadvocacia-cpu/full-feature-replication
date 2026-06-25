@@ -1215,52 +1215,6 @@ export default function Processos() {
                     </div>
                   )}
 
-                  {(relatedProcesses.length > 0 || selected.parent_process_number) && (
-                    <div>
-                      <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
-                        <FileText className="h-3 w-3" /> Processos vinculados (mesma pasta)
-                      </p>
-                      <div className="mt-2 space-y-1.5">
-                        {selected.parent_process_number && (
-                          <button
-                            onClick={async () => {
-                              const { data: parent, error: perr } = await supabase
-                                .from('processes')
-                                .select(FULL_SELECT)
-                                .eq('number', selected.parent_process_number)
-                                .maybeSingle();
-                              if (perr) { toast({ title: 'Erro ao buscar processo', description: perr.message, variant: 'destructive' }); return; }
-                              if (parent) { setSelected(parent as unknown as Process); setEditMode(false); setDetailTab('details'); }
-                            }}
-                            className="w-full text-left rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-3 py-2 transition-colors"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-mono text-xs text-amber-900">{selected.parent_process_number}</span>
-                              <Badge variant="outline" className="text-[10px] border-amber-400 text-amber-800">Originário</Badge>
-                            </div>
-                            <p className="text-xs text-amber-700 mt-0.5 truncate">Processo principal</p>
-                          </button>
-                        )}
-                        {relatedProcesses.length === 0 ? (
-                          !selected.parent_process_number && (
-                            <p className="text-xs text-gray-400">Nenhum processo vinculado encontrado.</p>
-                          )
-                        ) : relatedProcesses.map((rp: any) => (
-                          <button
-                            key={rp.id}
-                            onClick={() => { setSelected(rp); setEditMode(false); setDetailTab('details'); }}
-                            className="w-full text-left rounded-md border border-gray-200 hover:border-amber-400 bg-white px-3 py-2 transition-colors"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-mono text-xs">{rp.number || '—'}</span>
-                              <Badge variant="secondary" className="text-[10px]">{rp.status}</Badge>
-                            </div>
-                            <p className="text-xs text-gray-600 mt-0.5 truncate">{rp.title}</p>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                   </div>} {/* end details tab */}
 
                   {/* ── Tab: Andamentos (process_comments completos) ── */}
