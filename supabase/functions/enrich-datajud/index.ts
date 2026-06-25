@@ -49,6 +49,12 @@ async function queryDataJud(alias: string, numero: string) {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
+  const adminToken = req.headers.get("x-admin-token");
+  if (!adminToken || adminToken !== Deno.env.get("IMPORT_TOKEN")) {
+    return new Response(JSON.stringify({ ok: false, error: "unauthorized" }), {
+      status: 401, headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
   try {
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
