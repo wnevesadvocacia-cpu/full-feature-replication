@@ -1224,12 +1224,13 @@ export default function Processos() {
                         {selected.parent_process_number && (
                           <button
                             onClick={async () => {
-                              const { data: parent } = await supabase
+                              const { data: parent, error: perr } = await supabase
                                 .from('processes')
                                 .select(FULL_SELECT)
                                 .eq('number', selected.parent_process_number)
                                 .maybeSingle();
-                              if (parent) { setSelected(parent as Process); setEditMode(false); setDetailTab('details'); }
+                              if (perr) { toast({ title: 'Erro ao buscar processo', description: perr.message, variant: 'destructive' }); return; }
+                              if (parent) { setSelected(parent as unknown as Process); setEditMode(false); setDetailTab('details'); }
                             }}
                             className="w-full text-left rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-3 py-2 transition-colors"
                           >
