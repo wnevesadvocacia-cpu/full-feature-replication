@@ -3,7 +3,7 @@
 // busca dados no DataJud público (por nº CNJ) e cria/atualiza o processo local + vincula.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
-const DATAJUD_API_KEY = "cDZHYzlZa1JBQjN5MmdwdENaajg6T1RNcGJsUUVdGNoNGN1c0VLOWxSXzU0SnQzVklITF8x";
+const DATAJUD_API_KEY = Deno.env.get("DATAJUD_API_KEY")!;
 
 // Mapa mínimo sigla → alias DataJud. Acrescente conforme uso real.
 const ALIAS: Record<string, string> = {
