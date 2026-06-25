@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
         });
 
         results.push({
-          user_id: p.user_id, email: p.email,
+          user_id: p.user_id,
           novas: novasArr.length, pendentes: pendArr.length,
           resend_id, resend_error,
         });
