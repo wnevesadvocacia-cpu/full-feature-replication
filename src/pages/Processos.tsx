@@ -1223,9 +1223,13 @@ export default function Processos() {
                       <div className="mt-2 space-y-1.5">
                         {selected.parent_process_number && (
                           <button
-                            onClick={() => {
-                              const parent = processesData?.find((p: any) => p.number === selected.parent_process_number);
-                              if (parent) { setSelected(parent); setEditMode(false); setDetailTab('details'); }
+                            onClick={async () => {
+                              const { data: parent } = await supabase
+                                .from('processes')
+                                .select(FULL_SELECT)
+                                .eq('number', selected.parent_process_number)
+                                .maybeSingle();
+                              if (parent) { setSelected(parent as Process); setEditMode(false); setDetailTab('details'); }
                             }}
                             className="w-full text-left rounded-md border border-amber-300 bg-amber-50 hover:bg-amber-100 px-3 py-2 transition-colors"
                           >
