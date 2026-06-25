@@ -108,6 +108,13 @@ function renderEmail(nome: string, novas: any[], pendentes: any[]): string {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  const adminToken = req.headers.get('x-admin-token');
+  if (!adminToken || adminToken !== Deno.env.get('IMPORT_TOKEN')) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
