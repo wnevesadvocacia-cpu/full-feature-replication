@@ -61,6 +61,17 @@ function fmtDateTime(s?: string) {
   return s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
 }
 
+function abbreviateName(fullName?: string | null): string {
+  if (!fullName) return '';
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const connectors = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'del']);
+  const significant = parts.filter(p => !connectors.has(p.toLowerCase()));
+  if (significant.length === 0) return parts[0];
+  if (significant.length === 1) return significant[0];
+  return `${significant[0]} ${significant[significant.length - 1]}`;
+}
+
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
@@ -86,7 +97,7 @@ export default function Tarefas() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('list_team_members');
       if (error) throw error;
-      return (data || []) as { user_id: string; email: string; roles: string[] }[];
+      return (data || []) as { user_id: string; email: string; full_name?: string; roles: string[] }[];
     },
     enabled: !!user,
     staleTime: 60_000,
@@ -483,7 +494,18 @@ export default function Tarefas() {
                 </div>
               )}
               {task.assignee && (
-                <span className="text-xs text-muted-foreground shrink-0 hidden md:block">{task.assignee}</span>
+                <div className="flex flex-col items-end shrink-0 hidden md:flex">
+                  {(() => {
+                    const member = teamMembers.find(m => m.email === task.assignee);
+                    const short = member?.full_name ? abbreviateName(member.full_name) : '';
+                    return (
+                      <>
+                        {short && <span className="text-xs font-semibold text-foreground leading-none">{short}</span>}
+                        <span className="text-[11px] text-muted-foreground leading-none mt-0.5">{task.assignee}</span>
+                      </>
+                    );
+                  })()}
+                </div>
               )}
               <div className="flex gap-1 items-center">
                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(task)}>
