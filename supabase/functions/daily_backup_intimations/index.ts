@@ -6,7 +6,7 @@ import { gzip } from 'https://deno.land/x/compress@v0.4.5/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-token',
 };
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
