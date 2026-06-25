@@ -494,7 +494,18 @@ export default function Tarefas() {
                 </div>
               )}
               {task.assignee && (
-                <span className="text-xs text-muted-foreground shrink-0 hidden md:block">{task.assignee}</span>
+                <div className="flex flex-col items-end shrink-0 hidden md:flex">
+                  {(() => {
+                    const member = teamMembers.find(m => m.email === task.assignee);
+                    const short = member?.full_name ? abbreviateName(member.full_name) : '';
+                    return (
+                      <>
+                        {short && <span className="text-xs font-semibold text-foreground leading-none">{short}</span>}
+                        <span className="text-[11px] text-muted-foreground leading-none mt-0.5">{task.assignee}</span>
+                      </>
+                    );
+                  })()}
+                </div>
               )}
               <div className="flex gap-1 items-center">
                 <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(task)}>
