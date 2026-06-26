@@ -471,9 +471,12 @@ export default function Tarefas() {
                     </span>
                   )}
                 </div>
-                {task.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{decodeHtml(task.description)}</p>
-                )}
+                {task.description && (() => {
+                  const r = renderSafeContent(task.description);
+                  return r.html
+                    ? <div className="text-xs text-muted-foreground mt-0.5 truncate" dangerouslySetInnerHTML={{ __html: r.html }} />
+                    : <p className="text-xs text-muted-foreground mt-0.5 truncate">{decodeHtml(r.text || '')}</p>;
+                })()}
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
                   {task.completed && completerLabel && (
