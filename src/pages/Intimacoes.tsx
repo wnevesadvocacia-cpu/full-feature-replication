@@ -517,33 +517,37 @@ export default function Intimacoes() {
                   variant="ghost"
                   size="sm"
                   className="h-7 text-xs gap-1"
-                  onClick={() => {
-                    const el = document.getElementById('task-desc') as HTMLTextAreaElement | null;
+                  onMouseDown={(e) => {
+                    e.preventDefault(); // preserva seleção
+                    const el = document.getElementById('task-desc');
                     if (!el) return;
-                    const start = el.selectionStart;
-                    const end = el.selectionEnd;
-                    if (start === end) return;
-                    const before = el.value.slice(0, start);
-                    const selected = el.value.slice(start, end);
-                    const after = el.value.slice(end);
-                    const markOpen = '<mark style="background-color:#fde047;color:inherit;">';
-                    const markClose = '</mark>';
-                    const newVal = before + markOpen + selected + markClose + after;
-                    el.value = newVal;
-                    el.selectionStart = start + markOpen.length;
-                    el.selectionEnd = el.selectionStart + selected.length;
-                    setTaskForm(f => ({ ...f, description: newVal }));
+                    const sel = window.getSelection();
+                    if (!sel || sel.isCollapsed) return;
+                    if (!el.contains(sel.anchorNode) || !el.contains(sel.focusNode)) return;
+                    const range = sel.getRangeAt(0);
+                    const mark = document.createElement('mark');
+                    mark.style.backgroundColor = '#fde047';
+                    mark.style.color = 'inherit';
+                    try {
+                      range.surroundContents(mark);
+                    } catch {
+                      mark.appendChild(range.extractContents());
+                      range.insertNode(mark);
+                    }
+                    sel.removeAllRanges();
+                    setTaskForm(f => ({ ...f, description: el.innerHTML }));
                   }}
                 >
                   <Highlighter className="h-3 w-3" /> Grifar
                 </Button>
               </div>
-              <Textarea
+              <div
                 id="task-desc"
-                rows={4}
-                value={taskForm.description}
-                onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}
-                className="mt-1"
+                contentEditable
+                suppressContentEditableWarning
+                className="mt-1 min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                dangerouslySetInnerHTML={{ __html: taskForm.description }}
+                onBlur={(e) => setTaskForm(f => ({ ...f, description: (e.currentTarget as HTMLDivElement).innerHTML }))}
               />
             </div>
             <div className="grid grid-cols-2 gap-3">
