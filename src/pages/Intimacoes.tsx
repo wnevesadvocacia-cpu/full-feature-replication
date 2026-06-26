@@ -205,7 +205,14 @@ export default function Intimacoes() {
   });
 
   const openTaskDialog = (it: Intim) => {
-    const plain = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    // Decode HTML entities (&iacute; → í) e tags para que o textarea mostre texto limpo.
+    const decodeEntities = (s: string) => {
+      const ta = document.createElement('textarea');
+      ta.innerHTML = s;
+      return ta.value;
+    };
+    const stripped = it.content.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ');
+    const plain = decodeEntities(stripped).replace(/\s+/g, ' ').trim();
     const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO());
     setTaskForm({
       title: '', // usuário escolhe / digita
