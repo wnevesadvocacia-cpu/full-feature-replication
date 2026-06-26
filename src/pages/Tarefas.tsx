@@ -627,11 +627,12 @@ export default function Tarefas() {
                     <span className="font-mono font-medium text-blue-700">{t.processes.number}</span>
                   </div>
                 )}
-                {t.description && (
-                  <div className="bg-muted/40 rounded-md p-3 text-sm whitespace-pre-wrap">
-                    {decodeHtml(t.description)}
-                  </div>
-                )}
+                {t.description && (() => {
+                  const r = renderSafeContent(t.description);
+                  return r.html
+                    ? <div className="bg-muted/40 rounded-md p-3 text-sm break-words prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
+                    : <div className="bg-muted/40 rounded-md p-3 text-sm whitespace-pre-wrap">{decodeHtml(r.text || '')}</div>;
+                })()}
                 <div className="grid grid-cols-2 gap-3">
                   {t.assignee && (
                     <div className="flex items-center gap-2">
