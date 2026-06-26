@@ -11,7 +11,7 @@ import DOMPurify from 'dompurify';
 // Tags permitidas no render de intimações/publicações DJEN.
 // Foco: texto formatado, listas, tabelas simples (atos judiciais usam tabelas para ementas).
 const ALLOWED_TAGS = [
-  'p', 'br', 'b', 'strong', 'i', 'em', 'u', 'span', 'div',
+  'p', 'br', 'b', 'strong', 'i', 'em', 'u', 'span', 'div', 'mark',
   'section', 'article', 'header', 'footer', 'small', 'sup', 'sub',
   'ul', 'ol', 'li', 'hr',
   'h1', 'h2', 'h3', 'h4', 'h5', 'h6',

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
 import { detectDeadline } from '@/lib/legalDeadlines';
@@ -503,8 +503,36 @@ export default function Intimacoes() {
               </p>
             </div>
             <div>
-              <Label>Descrição / Detalhes</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label>Descrição / Detalhes</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => {
+                    const el = document.getElementById('task-desc') as HTMLTextAreaElement | null;
+                    if (!el) return;
+                    const start = el.selectionStart;
+                    const end = el.selectionEnd;
+                    if (start === end) return;
+                    const before = el.value.slice(0, start);
+                    const selected = el.value.slice(start, end);
+                    const after = el.value.slice(end);
+                    const markOpen = '<mark style="background-color:#fde047;color:inherit;">';
+                    const markClose = '</mark>';
+                    const newVal = before + markOpen + selected + markClose + after;
+                    el.value = newVal;
+                    el.selectionStart = start + markOpen.length;
+                    el.selectionEnd = el.selectionStart + selected.length;
+                    setTaskForm(f => ({ ...f, description: newVal }));
+                  }}
+                >
+                  <Highlighter className="h-3 w-3" /> Grifar
+                </Button>
+              </div>
               <Textarea
+                id="task-desc"
                 rows={4}
                 value={taskForm.description}
                 onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })}

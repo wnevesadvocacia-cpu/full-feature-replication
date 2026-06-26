@@ -16,6 +16,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { ToastAction } from '@/components/ui/toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -470,9 +471,12 @@ export default function Tarefas() {
                     </span>
                   )}
                 </div>
-                {task.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5 truncate">{decodeHtml(task.description)}</p>
-                )}
+                {task.description && (() => {
+                  const r = renderSafeContent(task.description);
+                  return r.html
+                    ? <div className="text-xs text-muted-foreground mt-0.5 truncate" dangerouslySetInnerHTML={{ __html: r.html }} />
+                    : <p className="text-xs text-muted-foreground mt-0.5 truncate">{decodeHtml(r.text || '')}</p>;
+                })()}
                 <p className="text-[11px] text-muted-foreground mt-0.5">
                   Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
                   {task.completed && completerLabel && (
@@ -626,11 +630,12 @@ export default function Tarefas() {
                     <span className="font-mono font-medium text-blue-700">{t.processes.number}</span>
                   </div>
                 )}
-                {t.description && (
-                  <div className="bg-muted/40 rounded-md p-3 text-sm whitespace-pre-wrap">
-                    {decodeHtml(t.description)}
-                  </div>
-                )}
+                {t.description && (() => {
+                  const r = renderSafeContent(t.description);
+                  return r.html
+                    ? <div className="bg-muted/40 rounded-md p-3 text-sm break-words prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: r.html }} />
+                    : <div className="bg-muted/40 rounded-md p-3 text-sm whitespace-pre-wrap">{decodeHtml(r.text || '')}</div>;
+                })()}
                 <div className="grid grid-cols-2 gap-3">
                   {t.assignee && (
                     <div className="flex items-center gap-2">
