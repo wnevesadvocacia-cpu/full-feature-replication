@@ -16,6 +16,7 @@ import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
+import { hasCnj } from '@/lib/cnjRegex';
 
 interface Intim {
   id: string;
@@ -242,12 +243,11 @@ export default function Intimacoes() {
 
   // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
   // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
-  const CNJ_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}|\b\d{20}\b/;
   const dayItems = useMemo(
     () => items.filter((i) => {
       if (i.received_at?.slice(0, 10) !== selectedDate) return false;
       if (i.process_id) return true;
-      return CNJ_RE.test(i.content || '');
+      return hasCnj(i.content);
     }),
     [items, selectedDate]
   );
