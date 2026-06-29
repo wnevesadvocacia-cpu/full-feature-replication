@@ -16,6 +16,7 @@ import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
+import { hasCnj } from '@/lib/cnjRegex';
 
 interface Intim {
   id: string;
