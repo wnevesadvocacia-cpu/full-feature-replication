@@ -240,9 +240,9 @@ export default function Intimacoes() {
     return m;
   }, [items]);
 
-  // Oculta publicações sem dados processuais (sem nº CNJ no conteúdo e sem vínculo a processo).
-  // Ex.: "ARQUIVOS DIGITAIS INDISPONÍVEIS (NÃO SÃO DO TIPO PÚBLICO)" — inútil ao advogado.
-  const CNJ_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
+  // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
+  // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
+  const CNJ_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}|\b\d{20}\b/;
   const dayItems = useMemo(
     () => items.filter((i) => {
       if (i.received_at?.slice(0, 10) !== selectedDate) return false;
