@@ -375,6 +375,21 @@ export default function Intimacoes() {
         ))}
       </div>
 
+      {oabAlerts.length > 0 && (
+        <div role="alert" className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 text-destructive shadow-card animate-pulse">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0" />
+            <div>
+              <div className="font-display font-bold">🚨 RISCO DE PERDA DE PRAZO — OAB sem sincronização</div>
+              <ul className="text-sm mt-1 list-disc pl-5">
+                {oabAlerts.map(a => <li key={a.label}><strong>OAB {a.label}</strong>: {a.reason}</li>)}
+              </ul>
+              <p className="text-xs mt-2">Vá em <strong>Configurações → Intimações</strong> e reative/verifique a OAB imediatamente.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {lateNoticeByDate.length > 0 && (
         <div role="alert" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-warning shadow-card">
           <div className="flex items-start gap-3">
