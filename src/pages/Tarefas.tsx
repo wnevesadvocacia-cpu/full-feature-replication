@@ -56,7 +56,11 @@ function decodeHtml(s: string): string {
 }
 
 function fmtDate(s?: string) {
-  return s ? new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+  if (!s) return '';
+  // Datas puras YYYY-MM-DD devem ser exibidas sem conversão de fuso (evita -1 dia em BRT).
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return new Date(s).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 function fmtDateTime(s?: string) {
   return s ? new Date(s).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '';
