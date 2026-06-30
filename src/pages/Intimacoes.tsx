@@ -286,6 +286,7 @@ export default function Intimacoes() {
     const today = todayISO();
     const m = new Map<string, number>();
     items.forEach((it) => {
+      if (it.status === 'tratada') return;
       const received = it.received_at?.slice(0, 10);
       const captured = saoPauloDate(it.created_at);
       if (received && captured === today && received >= today) {
