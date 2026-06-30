@@ -1,0 +1,1 @@
+UPDATE public.oab_settings SET active = true, updated_at = now() WHERE id = 'df91991b-4ed0-40d8-84ac-2cd792654459';
