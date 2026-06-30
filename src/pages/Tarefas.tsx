@@ -341,198 +341,230 @@ export default function Tarefas() {
   );
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-display font-bold">Tarefas</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {pendentes} pendentes · {concluidas} concluídas
-          </p>
-        </div>
-        <Button onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
-        </Button>
-      </div>
-
-      {/* Banner de alerta piscante para prazos próximos */}
-      {(() => {
-        const today = new Date();
-        today.setHours(0,0,0,0);
-        const urgentTasks = (tasks as any[]).filter((t: any) => {
-          if (!t.due_date || t.completed) return false;
-          const due = new Date(t.due_date.slice(0,10) + 'T12:00:00');
-          due.setHours(0,0,0,0);
-          const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
-          return daysLeft <= 2;
-        }).sort((a: any, b: any) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
-        if (urgentTasks.length === 0) return null;
-        const nearest = urgentTasks[0];
-        const due = new Date(nearest.due_date.slice(0,10) + 'T12:00:00');
-        due.setHours(0,0,0,0);
-        const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
-        return (
-          <div className="animate-blink rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 flex items-center gap-3 text-sm text-destructive font-medium">
-            <AlertTriangle className="h-5 w-5 shrink-0" />
-            <div className="flex-1">
-              {urgentTasks.length === 1 ? (
-                <span>"{nearest.title}" vence {daysLeft < 0 ? `há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'hoje' : daysLeft === 1 ? 'amanhã' : `em ${daysLeft} dias`} — {fmtDate(nearest.due_date)}</span>
-              ) : (
-                <span>{urgentTasks.length} tarefas próximas do vencimento. A mais urgente: "{nearest.title}" {daysLeft < 0 ? `vencida há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'vence hoje' : daysLeft === 1 ? 'vence amanhã' : `vence em ${daysLeft} dias`} — {fmtDate(nearest.due_date)}</span>
-              )}
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Filtros */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex-1 max-w-sm space-y-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar título, responsável ou nº do processo…" value={search}
-              onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-          </div>
-          <div className="flex items-start gap-2 rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
-            <p className="leading-relaxed">
-              Esta busca lista apenas processos com <span className="font-medium text-foreground">tarefas pendentes</span>.
-              Para buscar todos os processos,{" "}
-              <Link to="/processos" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
-                acesse Processos <ArrowRight className="h-3 w-3" />
-              </Link>.
+    <div className="min-h-screen bg-[#F9F7F2] dark:bg-background p-6 sm:p-8 animate-fade-in">
+      <div className="mx-auto w-full max-w-6xl space-y-8">
+        {/* Header */}
+        <header className="flex items-end justify-between border-b border-stone-200 dark:border-border pb-6">
+          <div className="space-y-1">
+            <h1 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight text-stone-900 dark:text-foreground">
+              Tarefas
+            </h1>
+            <p className="text-xs sm:text-sm text-stone-500 dark:text-muted-foreground font-medium tracking-wide uppercase">
+              <span className="text-stone-900 dark:text-foreground">{pendentes} pendentes</span> · {concluidas} concluídas
             </p>
           </div>
-        </div>
-        <div className="flex gap-1">
-          {([
-            { v: 'pendentes', l: 'Pendentes' },
-            { v: 'todas', l: 'Todas' },
-            { v: 'concluidas', l: 'Concluídas' },
-          ] as { v: ViewFilter; l: string }[]).map(({ v, l }) => (
-            <Button key={v} size="sm" variant={viewFilter === v ? 'default' : 'outline'}
-              onClick={() => setViewFilter(v)}>
-              {l}
-            </Button>
-          ))}
-        </div>
-      </div>
+          <Button
+            onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}
+            className="rounded-sm shadow-xl"
+          >
+            <Plus className="h-4 w-4 mr-1.5" /> Nova Tarefa
+          </Button>
+        </header>
 
-      {/* Lista */}
-      {filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <p className="text-lg font-medium">Nenhuma tarefa encontrada</p>
-          <p className="text-sm mt-1">
-            {search
-              ? 'A busca filtra tarefas já criadas. Para vincular a um processo, clique em "Nova Tarefa".'
-              : 'Crie sua primeira tarefa clicando em "Nova Tarefa"'}
-          </p>
-          {search && (
-            <Button className="mt-3" size="sm" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
-              <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
-            </Button>
-          )}
-        </div>
-      ) : (
-        <div className="space-y-1">
-          {filtered.map((task: any) => {
-            const memberById = new Map(teamMembers.map(m => [m.user_id, m.email]));
-            const creatorLabel = memberById.get(task.created_by) || memberById.get(task.user_id) || '—';
-            const completerLabel = task.completed_by ? (memberById.get(task.completed_by) || '—') : null;
-            const dueDate = task.due_date ? new Date(task.due_date.slice(0,10) + 'T12:00:00') : null;
-            const today = new Date();
-            today.setHours(0,0,0,0);
-            const dueDay = dueDate ? new Date(dueDate) : null;
-            if (dueDay) dueDay.setHours(0,0,0,0);
-            const daysLeft = dueDay ? Math.ceil((dueDay.getTime() - today.getTime()) / (1000*60*60*24)) : null;
-            const showDeadlineAlert = !task.completed && dueDay && daysLeft !== null && daysLeft <= 2;
-            return (
-            <div key={task.id}
-              className={`bg-card rounded-lg px-4 py-3 shadow-card hover:shadow-card-hover transition-shadow duration-200 flex items-center gap-4 group ${task.completed ? 'opacity-60' : ''}`}>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <p className={`text-sm font-medium ${task.completed ? 'line-through text-muted-foreground' : ''}`}>
-                    {task.title}
+        {/* Banner de alerta piscante para prazos próximos */}
+        {(() => {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          const urgentTasks = (tasks as any[]).filter((t: any) => {
+            if (!t.due_date || t.completed) return false;
+            const due = new Date(t.due_date.slice(0,10) + 'T12:00:00');
+            due.setHours(0,0,0,0);
+            const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
+            return daysLeft <= 2;
+          }).sort((a: any, b: any) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+          if (urgentTasks.length === 0) return null;
+          const nearest = urgentTasks[0];
+          const due = new Date(nearest.due_date.slice(0,10) + 'T12:00:00');
+          due.setHours(0,0,0,0);
+          const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
+          return (
+            <div className="relative overflow-hidden bg-red-50/60 dark:bg-destructive/10 border-l-2 border-red-500 dark:border-destructive p-5 rounded-r-lg">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 text-red-600 dark:text-destructive" />
+                <div>
+                  <p className="text-sm text-red-900 dark:text-destructive font-semibold">
+                    {urgentTasks.length === 1
+                      ? `"${nearest.title}" — atenção ao prazo`
+                      : `${urgentTasks.length} tarefas próximas do vencimento`}
                   </p>
-                  {task.processes?.number && (
-                    <button
-                      type="button"
-                      onClick={() => setOverviewTarget(task)}
-                      title="Ver detalhes da tarefa"
-                      className="text-xs bg-blue-50 text-blue-700 border border-blue-200 rounded px-1.5 py-0.5 font-mono hover:bg-blue-100 hover:underline cursor-pointer"
-                    >
-                      #{task.processes.number}
-                    </button>
-                  )}
-                  {showDeadlineAlert && (
-                    <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${daysLeft < 0 ? 'bg-destructive/10 text-destructive border-destructive/30' : daysLeft === 0 ? 'bg-destructive/10 text-destructive border-destructive/30' : 'bg-warning/10 text-warning border-warning/30'}`}>
-                      <AlertTriangle className="h-3 w-3" />
-                      {daysLeft < 0 ? `Vencida há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft} dia(s)`}
-                    </span>
-                  )}
+                  <p className="text-xs text-red-700 dark:text-destructive/80 mt-1 opacity-90 italic">
+                    A mais urgente: "{nearest.title}" {daysLeft < 0 ? `vencida há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'vence hoje' : daysLeft === 1 ? 'vence amanhã' : `vence em ${daysLeft} dias`} — {fmtDate(nearest.due_date)}
+                  </p>
                 </div>
-                {task.description && (() => {
-                  const r = renderSafeContent(task.description);
-                  return r.html
-                    ? <div className="text-xs text-muted-foreground mt-0.5 truncate" dangerouslySetInnerHTML={{ __html: r.html }} />
-                    : <p className="text-xs text-muted-foreground mt-0.5 truncate">{decodeHtml(r.text || '')}</p>;
-                })()}
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
-                  {task.completed && completerLabel && (
-                    <> · Concluída por <span className="font-medium">{completerLabel}</span> em {fmtDateTime(task.completed_at)}</>
-                  )}
-                </p>
-              </div>
-              <Badge variant="outline"
-                className={`text-xs shrink-0 ${priorityConfig[task.priority as TaskPriority]?.className || ''}`}>
-                {priorityConfig[task.priority as TaskPriority]?.label || task.priority}
-              </Badge>
-              {task.due_date && (
-                <div className="flex flex-col items-start text-xs shrink-0">
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold leading-none mb-0.5">Vencimento</span>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Calendar className="h-3 w-3" />
-                    <span className={showDeadlineAlert ? (daysLeft && daysLeft < 0 ? 'text-destructive font-semibold' : 'text-warning font-semibold') : ''}>{new Date(task.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                  </div>
-                </div>
-              )}
-              {task.assignee && (
-                <div className="flex flex-col items-end shrink-0 hidden md:flex">
-                  {(() => {
-                    const member = teamMembers.find(m => m.email === task.assignee);
-                    const short = member?.full_name ? abbreviateName(member.full_name) : '';
-                    return (
-                      <>
-                        {short && <span className="text-xs font-semibold text-foreground leading-none">{short}</span>}
-                        <span className="text-[11px] text-muted-foreground leading-none mt-0.5">{task.assignee}</span>
-                      </>
-                    );
-                  })()}
-                </div>
-              )}
-              <div className="flex gap-1 items-center">
-                <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => openEdit(task)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                {!task.completed && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-success border-success/40 hover:bg-success/10 hover:text-success"
-                    onClick={() => toggleTask(task)}
-                    disabled={updateTask.isPending}
-                    title="Concluir tarefa (mantida no histórico para auditoria)"
-                  >
-                    <Check className="h-3.5 w-3.5 mr-1" /> Concluir
-                  </Button>
-                )}
               </div>
             </div>
-            );
-          })}
+          );
+        })()}
+
+        {/* Controls */}
+        <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+          <div className="relative w-full max-w-md group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 group-focus-within:text-primary transition-colors" />
+            <Input
+              placeholder="Buscar título, responsável ou nº do processo…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white dark:bg-card border border-stone-200 dark:border-border pl-11 pr-4 py-3 h-auto rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary placeholder:text-stone-400"
+            />
+          </div>
+          <div className="flex p-1 bg-stone-200/50 dark:bg-muted rounded-full self-start md:self-auto">
+            {([
+              { v: 'pendentes', l: 'Pendentes' },
+              { v: 'todas', l: 'Todas' },
+              { v: 'concluidas', l: 'Concluídas' },
+            ] as { v: ViewFilter; l: string }[]).map(({ v, l }) => (
+              <button
+                key={v}
+                onClick={() => setViewFilter(v)}
+                className={`px-5 py-2 text-[11px] font-bold uppercase tracking-widest rounded-full transition-all ${
+                  viewFilter === v
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-stone-500 dark:text-muted-foreground hover:text-stone-800 dark:hover:text-foreground'
+                }`}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
-      )}
+
+        <div className="flex items-start gap-2 rounded-md border border-stone-200 dark:border-border bg-white/50 dark:bg-card/40 px-3 py-2 text-xs text-stone-500 dark:text-muted-foreground">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
+          <p className="leading-relaxed">
+            Esta busca lista apenas processos com <span className="font-medium text-stone-800 dark:text-foreground">tarefas pendentes</span>.
+            Para buscar todos os processos,{" "}
+            <Link to="/processos" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
+              acesse Processos <ArrowRight className="h-3 w-3" />
+            </Link>.
+          </p>
+        </div>
+
+        {/* Lista */}
+        {filtered.length === 0 ? (
+          <div className="text-center py-16 text-stone-500 dark:text-muted-foreground">
+            <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhuma tarefa encontrada</p>
+            <p className="text-sm mt-2 italic">
+              {search
+                ? 'A busca filtra tarefas já criadas. Para vincular a um processo, clique em "Nova Tarefa".'
+                : 'Crie sua primeira tarefa clicando em "Nova Tarefa".'}
+            </p>
+            {search && (
+              <Button className="mt-4" size="sm" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
+                <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {filtered.map((task: any) => {
+              const memberById = new Map(teamMembers.map(m => [m.user_id, m.email]));
+              const creatorLabel = memberById.get(task.created_by) || memberById.get(task.user_id) || '—';
+              const completerLabel = task.completed_by ? (memberById.get(task.completed_by) || '—') : null;
+              const dueDate = task.due_date ? new Date(task.due_date.slice(0,10) + 'T12:00:00') : null;
+              const today = new Date();
+              today.setHours(0,0,0,0);
+              const dueDay = dueDate ? new Date(dueDate) : null;
+              if (dueDay) dueDay.setHours(0,0,0,0);
+              const daysLeft = dueDay ? Math.ceil((dueDay.getTime() - today.getTime()) / (1000*60*60*24)) : null;
+              const showDeadlineAlert = !task.completed && dueDay && daysLeft !== null && daysLeft <= 2;
+              const member = task.assignee ? teamMembers.find(m => m.email === task.assignee) : null;
+              const short = member?.full_name ? abbreviateName(member.full_name) : '';
+              return (
+                <div
+                  key={task.id}
+                  className={`group bg-white dark:bg-card border border-stone-200 dark:border-border hover:border-primary/40 hover:shadow-xl hover:shadow-stone-200/50 dark:hover:shadow-black/20 transition-all duration-300 rounded-lg p-5 sm:p-6 ${task.completed ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+                    <div className="flex-1 min-w-0 space-y-3">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className={`text-base sm:text-lg font-medium text-stone-900 dark:text-foreground group-hover:text-primary transition-colors ${task.completed ? 'line-through' : ''}`}>
+                          {task.title}
+                        </h3>
+                        {task.processes?.number && (
+                          <button
+                            type="button"
+                            onClick={() => setOverviewTarget(task)}
+                            title="Ver detalhes da tarefa"
+                            className="px-2 py-0.5 bg-stone-100 dark:bg-muted text-stone-500 dark:text-muted-foreground text-[10px] font-mono rounded border border-stone-200 dark:border-border hover:bg-stone-200 dark:hover:bg-muted/70"
+                          >
+                            #{task.processes.number}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2 items-center">
+                        {showDeadlineAlert && (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border ${daysLeft! < 0 ? 'bg-red-50 text-red-600 border-red-100 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30' : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-warning/10 dark:text-warning dark:border-warning/30'}`}>
+                            <AlertTriangle className="h-3 w-3" />
+                            {daysLeft! < 0 ? `Vencida há ${Math.abs(daysLeft!)} dia(s)` : daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft} dia(s)`}
+                          </span>
+                        )}
+                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border italic ${priorityConfig[task.priority as TaskPriority]?.className || 'bg-stone-50 text-stone-400 border-stone-100'}`}>
+                          Prioridade {priorityConfig[task.priority as TaskPriority]?.label || task.priority}
+                        </span>
+                      </div>
+                      {task.description && (() => {
+                        const r = renderSafeContent(task.description);
+                        return r.html
+                          ? <div className="text-xs text-stone-500 dark:text-muted-foreground leading-relaxed max-w-2xl line-clamp-1" dangerouslySetInnerHTML={{ __html: r.html }} />
+                          : <p className="text-xs text-stone-500 dark:text-muted-foreground leading-relaxed max-w-2xl line-clamp-1">{decodeHtml(r.text || '')}</p>;
+                      })()}
+                      <p className="text-[11px] text-stone-400 dark:text-muted-foreground/80">
+                        Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
+                        {task.completed && completerLabel && (
+                          <> · Concluída por <span className="font-medium">{completerLabel}</span> em {fmtDateTime(task.completed_at)}</>
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-6 lg:gap-8 flex-wrap">
+                      {task.due_date && (
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] uppercase tracking-widest text-stone-400 dark:text-muted-foreground font-bold mb-1">Vencimento</span>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-primary" />
+                            <span className={`text-sm font-semibold ${showDeadlineAlert ? (daysLeft! < 0 ? 'text-red-600 dark:text-destructive' : 'text-amber-700 dark:text-warning') : 'text-stone-800 dark:text-foreground'}`}>
+                              {fmtDate(task.due_date)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                      {task.assignee && (
+                        <div className="flex flex-col items-end">
+                          <span className="text-[10px] uppercase tracking-widest text-stone-400 dark:text-muted-foreground font-bold mb-1">Responsável</span>
+                          {short && <span className="text-sm font-semibold text-stone-800 dark:text-foreground leading-tight">{short}</span>}
+                          <span className="text-[11px] text-stone-500 dark:text-muted-foreground leading-tight">{task.assignee}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-stone-400 hover:text-stone-900 dark:hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => openEdit(task)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        {!task.completed && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm"
+                            onClick={() => toggleTask(task)}
+                            disabled={updateTask.isPending}
+                            title="Concluir tarefa (mantida no histórico para auditoria)"
+                          >
+                            <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
 
 
       {/* Create Dialog */}
