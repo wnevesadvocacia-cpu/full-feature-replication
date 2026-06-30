@@ -25,6 +25,7 @@ interface Intim {
   deadline: string | null;
   status: string;
   received_at: string;
+  created_at?: string;
   process_id: string | null;
   classificacao_status?: string | null;
   confianca_classificacao?: number | null;
@@ -37,6 +38,16 @@ interface Intim {
 }
 
 const UNSAFE_STATUSES = new Set(['ambigua_urgente', 'auto_baixa']);
+
+const saoPauloDate = (value?: string | null) => {
+  if (!value) return '';
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(value));
+};
 
 // Títulos comuns da praxis jurídica para tarefas delegadas a partir de intimações
 const PRAXIS_TASK_TITLES = [
@@ -241,6 +252,19 @@ export default function Intimacoes() {
     return m;
   }, [items]);
 
+  const lateNoticeByDate = useMemo(() => {
+    const today = todayISO();
+    const m = new Map<string, number>();
+    items.forEach((it) => {
+      const received = it.received_at?.slice(0, 10);
+      const captured = saoPauloDate(it.created_at);
+      if (received && captured === today && received < today) {
+        m.set(received, (m.get(received) ?? 0) + 1);
+      }
+    });
+    return Array.from(m.entries()).sort(([a], [b]) => b.localeCompare(a));
+  }, [items]);
+
   // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
   // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
   const dayItems = useMemo(
@@ -320,6 +344,34 @@ export default function Intimacoes() {
           </Button>
         ))}
       </div>
+
+      {lateNoticeByDate.length > 0 && (
+        <div role="alert" className="rounded-lg border border-warning/30 bg-warning/10 p-4 text-warning shadow-card">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 mt-0.5 shrink-0 animate-pulse" />
+            <div className="space-y-2">
+              <div className="font-display font-semibold">Possível publicação/intimação retardatária</div>
+              <p className="text-sm text-foreground/90">
+                Foram capturadas hoje publicações com data de disponibilização anterior. Confira as datas abaixo para evitar perda de prazo.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {lateNoticeByDate.map(([date, count]) => (
+                  <Button
+                    key={date}
+                    type="button"
+                    size="sm"
+                    variant={selectedDate === date ? 'default' : 'outline'}
+                    onClick={() => setSelectedDate(date)}
+                    className="h-8"
+                  >
+                    {formatBR(date)} · {count}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
