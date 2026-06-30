@@ -18,6 +18,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { ToastAction } from '@/components/ui/toast';
+import { tribunalFromCNJ } from '@/lib/cnjTribunal';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
