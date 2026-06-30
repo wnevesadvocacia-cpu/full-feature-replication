@@ -113,8 +113,16 @@ export default function Intimacoes() {
         return;
       }
       const r = (data?.results || [])[0];
-      if (!r) toast({ title: 'Cadastre sua OAB em Configurações → Intimações', variant: 'destructive' });
-      else toast({ title: 'Sincronizado', description: `${r.inserted} novas / ${r.total} encontradas` });
+      if (!r) {
+        const { data: oab } = await supabase
+          .from('oab_settings')
+          .select('id')
+          .eq('active', true)
+          .limit(1)
+          .maybeSingle();
+        if (!oab) toast({ title: 'Cadastre sua OAB em Configurações → Intimações', variant: 'destructive' });
+        else toast({ title: 'Sincronizado', description: 'Nenhuma nova publicação encontrada' });
+      } else toast({ title: 'Sincronizado', description: `${r.inserted} novas / ${r.total} encontradas` });
       qc.invalidateQueries({ queryKey: ['intimations'] });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSyncing(false); }
