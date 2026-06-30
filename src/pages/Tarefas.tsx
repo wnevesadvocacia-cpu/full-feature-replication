@@ -496,12 +496,16 @@ export default function Tarefas() {
                           </button>
                         )}
                         {(() => {
-                          const trib = tribunalFromCNJ(task.processes?.number);
+                          // Fallback: tenta extrair CNJ do título/descrição quando não há processo vinculado
+                          const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
+                          const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
+                          const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
+                          const trib = tribunalFromCNJ(cnjCandidate);
                           if (!trib || !trib.cnjValido) return null;
                           return (
                             <span
                               title={trib.nome}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold tracking-wide rounded-full border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-900 shadow-sm"
                             >
                               ⚖ {trib.sigla}{trib.uf && trib.sigla.indexOf(trib.uf) === -1 ? ` · ${trib.uf}` : ''}
                             </span>
