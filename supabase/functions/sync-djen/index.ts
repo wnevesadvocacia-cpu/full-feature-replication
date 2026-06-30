@@ -43,7 +43,7 @@ type DjenItem = z.infer<typeof DjenItemSchema>;
 
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
-const DAYS_BACK = 90;
+const DAYS_BACK = 30;
 const PAGE_DELAY_MS = 250; // gap entre páginas para não estressar API CNJ
 
 // ============= Calendário CNJ (dias úteis) =============
