@@ -1099,6 +1099,40 @@ export default function Processos() {
 
                   {/* ── Tab: Detalhes ── */}
                   {detailTab === 'details' && <div className="space-y-5">
+                  {(() => {
+                    const t = tribunalFromCNJ(selected.number);
+                    if (!t) return null;
+                    const ok = t.cnjValido;
+                    return (
+                      <div
+                        className={`rounded-lg border px-4 py-3 flex items-center gap-3 ${
+                          ok
+                            ? 'border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50'
+                            : 'border-red-300 bg-red-50'
+                        }`}
+                        title={`Derivado do nº CNJ: ${selected.number || '—'}`}
+                      >
+                        <Gavel className={`h-5 w-5 shrink-0 ${ok ? 'text-amber-700' : 'text-red-600'}`} />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`font-bold text-sm tracking-wide ${ok ? 'text-amber-900' : 'text-red-800'}`}>
+                              {t.sigla}
+                            </span>
+                            <Badge variant="outline" className={`text-[10px] ${ok ? 'border-amber-400 text-amber-800' : 'border-red-400 text-red-700'}`}>
+                              {t.segmento}
+                            </Badge>
+                            {t.uf && (
+                              <Badge variant="secondary" className="text-[10px]">UF {t.uf}</Badge>
+                            )}
+                          </div>
+                          <p className={`text-xs mt-0.5 truncate ${ok ? 'text-amber-800' : 'text-red-700'}`}>
+                            {t.nome}
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-gray-500 hidden sm:block">via CNJ</span>
+                      </div>
+                    );
+                  })()}
                   {/* Status com troca rápida */}
                   <div>
                     <p className="text-xs text-gray-400 uppercase tracking-wide mb-1">Status</p>
