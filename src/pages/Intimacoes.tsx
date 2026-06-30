@@ -156,6 +156,28 @@ export default function Intimacoes() {
     },
   });
 
+  // Watchdog OAB: alerta vermelho persistente se inativa ou sem sync >24h
+  const { data: oabWatch = [] } = useQuery({
+    queryKey: ['oab-watchdog', user?.id],
+    enabled: !!user,
+    refetchInterval: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('oab_settings')
+        .select('oab_number, oab_uf, active, last_sync_at')
+        .eq('user_id', user!.id);
+      return data ?? [];
+    },
+  });
+  const oabAlerts = oabWatch
+    .map((o: any) => {
+      const ageH = o.last_sync_at ? Math.round((Date.now() - new Date(o.last_sync_at).getTime()) / 3600_000) : Infinity;
+      if (!o.active) return { label: `${o.oab_uf} ${o.oab_number}`, reason: 'INATIVA' };
+      if (ageH > 24) return { label: `${o.oab_uf} ${o.oab_number}`, reason: `sem sync há ${ageH}h` };
+      return null;
+    })
+    .filter(Boolean) as { label: string; reason: string }[];
+
   const create = useMutation({
     mutationFn: async () => {
       const { error } = await (supabase as any).from('intimations').insert({
