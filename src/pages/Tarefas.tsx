@@ -495,6 +495,18 @@ export default function Tarefas() {
                             #{task.processes.number}
                           </button>
                         )}
+                        {(() => {
+                          const trib = tribunalFromCNJ(task.processes?.number);
+                          if (!trib || !trib.cnjValido) return null;
+                          return (
+                            <span
+                              title={trib.nome}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-amber-300 bg-amber-50 text-amber-800"
+                            >
+                              ⚖ {trib.sigla}{trib.uf && trib.sigla.indexOf(trib.uf) === -1 ? ` · ${trib.uf}` : ''}
+                            </span>
+                          );
+                        })()}
                       </div>
                       <div className="flex flex-wrap gap-2 items-center">
                         {showDeadlineAlert && (
