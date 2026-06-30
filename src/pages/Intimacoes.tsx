@@ -288,7 +288,7 @@ export default function Intimacoes() {
     items.forEach((it) => {
       const received = it.received_at?.slice(0, 10);
       const captured = saoPauloDate(it.created_at);
-      if (received && captured === today && received < today) {
+      if (received && captured === today && received >= today) {
         m.set(received, (m.get(received) ?? 0) + 1);
       }
     });
