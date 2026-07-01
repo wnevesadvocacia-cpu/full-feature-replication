@@ -118,12 +118,14 @@ export default function Tarefas() {
     const q = search.toLowerCase().trim();
     const qDigits = onlyDigits(q);
     const procNumDigits = onlyDigits(t.processes?.number || '');
+    const descDigits = onlyDigits(t.description || '');
+    const titleDigits = onlyDigits(t.title || '');
     const matchSearch = !q ||
       t.title.toLowerCase().includes(q) ||
       (t.assignee || '').toLowerCase().includes(q) ||
       (t.description || '').toLowerCase().includes(q) ||
       (t.processes?.number || '').toLowerCase().includes(q) ||
-      (qDigits && procNumDigits.includes(qDigits));
+      (qDigits && (procNumDigits.includes(qDigits) || descDigits.includes(qDigits) || titleDigits.includes(qDigits)));
     if (!matchSearch) return false;
     if (viewFilter === 'pendentes') return !t.completed;
     if (viewFilter === 'concluidas') return t.completed;
