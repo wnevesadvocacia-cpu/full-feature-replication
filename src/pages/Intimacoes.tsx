@@ -157,6 +157,22 @@ export default function Intimacoes() {
     },
   });
 
+  // Números de processo já cadastrados (para ocultar botão "Cadastrar processo" quando já existe)
+  const { data: existingProcessNumbers = [] } = useQuery({
+    queryKey: ['process-numbers', user?.id],
+    enabled: !!user,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await (supabase as any)
+        .from('processes')
+        .select('number')
+        .eq('user_id', user!.id);
+      if (error) throw error;
+      return (data || []).map((r: any) => (r.number || '').replace(/\D/g, '')) as string[];
+    },
+  });
+  const existingProcessSet = useMemo(() => new Set(existingProcessNumbers), [existingProcessNumbers]);
+
   // Watchdog OAB: alerta vermelho persistente se inativa ou sem sync >24h
   const { data: oabWatch = [] } = useQuery({
     queryKey: ['oab-watchdog', user?.id],
@@ -600,7 +616,11 @@ export default function Intimacoes() {
                   <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
-                  {!it.process_id && hasCnj(it.content) && (
+                  {(() => {
+                    const cnjs = extractCnjs(it.content).map((c: string) => c.replace(/\D/g, ''));
+                    const alreadyExists = cnjs.some((c: string) => existingProcessSet.has(c));
+                    return !it.process_id && hasCnj(it.content) && !alreadyExists;
+                  })() && (
                     <Button
                       size="sm"
                       variant="default"
