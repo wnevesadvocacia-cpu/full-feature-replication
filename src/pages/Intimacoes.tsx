@@ -218,6 +218,71 @@ export default function Intimacoes() {
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
+  // Cadastro sob demanda de processo a partir de intimação órfã.
+  // Regra: cliente NÃO é criado automaticamente (fica sem vínculo, com aviso).
+  // Regra parent: só define parent_process_number quando fase='execucao' E há outro CNJ no texto.
+  const registerProcess = useMutation({
+    mutationFn: async (it: Intim) => {
+      const cnjs = extractCnjs(it.content);
+      if (cnjs.length === 0) throw new Error('Nenhum número CNJ encontrado na intimação.');
+      const primary = cnjs[0];
+
+      // Idempotência: se já existir com esse número para o usuário, apenas vincula.
+      const { data: existing } = await (supabase as any)
+        .from('processes').select('id').eq('user_id', user!.id).eq('number', primary).maybeSingle();
+
+      let processId = existing?.id as string | undefined;
+
+      if (!processId) {
+        const fase = it.classification_meta?.fase;
+        const isExec = fase === 'execucao';
+        const parent = isExec
+          ? (it.classification_meta?.processo_principal || cnjs.find((c) => c !== primary) || null)
+          : null;
+
+        const { data: created, error: pErr } = await (supabase as any)
+          .from('processes')
+          .insert({
+            user_id: user!.id,
+            number: primary,
+            title: it.court ? `Processo ${primary} — ${it.court}` : `Processo ${primary}`,
+            status: isExec ? 'execucao' : 'novo',
+            tribunal: it.court || null,
+            client_id: null,
+            client_name: null,
+            parent_process_number: parent,
+            observations: 'Cadastrado automaticamente a partir de intimação. Vincule o cliente manualmente.',
+          })
+          .select('id').single();
+        if (pErr) throw pErr;
+        processId = created.id;
+      }
+
+      const { error: uErr } = await (supabase as any)
+        .from('intimations').update({ process_id: processId }).eq('id', it.id);
+      if (uErr) throw uErr;
+
+      // Notificação de aviso: falta vincular cliente.
+      await (supabase as any).from('notifications').insert({
+        user_id: user!.id,
+        title: 'Processo cadastrado sem cliente',
+        message: `${primary} foi criado a partir de intimação. Vincule o cliente manualmente.`,
+        type: 'warning',
+        link: '/processos',
+      });
+
+      return { primary, reused: !!existing };
+    },
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+      qc.invalidateQueries({ queryKey: ['processes'] });
+      toast({
+        title: r.reused ? 'Intimação vinculada' : 'Processo cadastrado',
+        description: `${r.primary} — vincule o cliente em Processos.`,
+      });
+    },
+    onError: (e: any) => toast({ title: 'Erro ao cadastrar processo', description: e.message, variant: 'destructive' }),
+
   const toTask = useMutation({
     mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
       const { intim, form: tf } = payload;
