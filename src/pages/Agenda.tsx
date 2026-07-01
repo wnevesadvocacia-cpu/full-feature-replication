@@ -70,7 +70,7 @@ const priorityLabel: Record<string, string> = {
   alta: 'Alta', media: 'Média', baixa: 'Baixa',
 };
 
-const SYSTEM_ASSIGNEES = new Set(['movimentacao', 'documento', 'agenda']);
+import { SYSTEM_ASSIGNEES, isUserTask as isVisibleAgendaTask } from '@/lib/taskVisibility';
 
 function dateOnly(value?: string | null) {
   return value ? value.toString().split('T')[0] : '';
@@ -80,11 +80,6 @@ function fmtBR(dateStr?: string | null) {
   if (!dateStr) return '';
   const d = new Date(dateStr.toString().split('T')[0] + 'T12:00:00');
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function isVisibleAgendaTask(task: Task) {
-  const assignee = task.assignee?.trim().toLowerCase();
-  return !assignee || !SYSTEM_ASSIGNEES.has(assignee);
 }
 
 function useAgendaTasks() {
