@@ -282,6 +282,9 @@ export default function Intimacoes() {
       });
     },
     onError: (e: any) => toast({ title: 'Erro ao cadastrar processo', description: e.message, variant: 'destructive' }),
+  });
+
+
 
   const toTask = useMutation({
     mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
