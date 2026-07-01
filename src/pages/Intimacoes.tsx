@@ -16,7 +16,8 @@ import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
-import { hasCnj } from '@/lib/cnjRegex';
+import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
+import { FilePlus2 } from 'lucide-react';
 
 interface Intim {
   id: string;
