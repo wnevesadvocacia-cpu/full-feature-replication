@@ -2,20 +2,23 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { taskCreateSchema, taskUpdateSchema, stripServerOnly } from '@/lib/validationSchemas';
+import { isUserTask } from '@/lib/taskVisibility';
 
 export function useTasks() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ['tasks'],
     queryFn: async () => {
+      // NÃO filtrar no servidor por assignee: NULL + PostgREST não convive
+      // com not.eq/not.in. Filtro é aplicado client-side via isUserTask()
+      // para manter paridade absoluta com a Agenda.
       const { data, error } = await supabase
         .from('tasks')
         .select('*, processes(number)')
-        .or('assignee.is.null,assignee.not.in.(movimentacao,documento,agenda)')
         .order('created_at', { ascending: false })
         .limit(5000);
       if (error) throw error;
-      return data;
+      return (data ?? []).filter(isUserTask);
     },
     enabled: !!user,
     refetchInterval: 60_000, // Sprint1.7: poll de segurança 60s
