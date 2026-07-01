@@ -312,7 +312,7 @@ function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number)
 // para evitar refazer query a cada chamada de fetchDjen dentro de um run.
 let RESOLVED_PROXY_URL: string | null = null;
 
-async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): Promise<{ items: DjenItem[]; attempts: number }> {
+async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
   const dataInicio = new Date(Date.now() - DAYS_BACK * 86400_000).toISOString().slice(0, 10);
   const dataFim = new Date().toISOString().slice(0, 10);
   const all: DjenItem[] = [];
@@ -326,13 +326,24 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
   const PROXY = ('https://djen-proxy-five.vercel.app').replace(/\/$/, '');
   const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
 
-  // Constrói lista de queries: 1) sempre por OAB; 2) por nome se configurado.
+  // Constrói lista de queries:
+  //   1) sempre por OAB (comunicações dirigidas ao advogado);
+  //   2) por nome do advogado (se configurado);
+  //   3) por numeroProcesso para CADA processo cadastrado — cobre pautas de julgamento,
+  //      listas de distribuição e atos administrativos que a API DJEN só retorna quando
+  //      consultada pelo número do processo (não pela OAB).
   const queries: Array<(p: number) => string> = [
     (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
   ];
   if (lawyerName && lawyerName.trim().length >= 5) {
     queries.push((p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
   }
+  for (const numero of processNumbers) {
+    const n = (numero || '').trim();
+    if (n.length < 15) continue;
+    queries.push((p) => `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+  }
+
 
   for (const buildUrl of queries) {
     let pagina = 1;
@@ -475,7 +486,16 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.80;
 
   try {
-    const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name);
+    // Carrega números de processos do usuário para varredura adicional (pautas,
+    // listas de distribuição, atos administrativos que só aparecem por numeroProcesso).
+    const { data: procs } = await supabase
+      .from('processes')
+      .select('number')
+      .eq('user_id', row.user_id)
+      .not('number', 'is', null);
+    const processNumbers = (procs || []).map((p: any) => p.number).filter(Boolean);
+
+    const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers);
     items = result.items;
     attempts = result.attempts;
   } catch (e: any) {
@@ -484,8 +504,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   }
 
   if (status !== 'failed' && items.length > 0) {
-    // Filtro server-side: descarta publicações dirigidas a outros advogados quando
-    // existir lista de nomes configurada e o payload trouxer destinatários.
+    // Filtro server-side por nome: desabilitado quando a intimação foi capturada
+    // via numeroProcesso (pautas de julgamento não citam nome do advogado no
+    // campo destinatários). Só aplicamos filtro se o payload tem destinatário
+    // estruturado E existe conflito — a função matchesConfiguredLawyer já trata
+    // "no-candidates" como aceite.
     if (refNames.length) {
       const filtered: DjenItem[] = [];
       for (const it of items) {
@@ -495,6 +518,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       }
       items = filtered;
     }
+
 
     // Batch lookup de processes — inclui CNJs do cabeçalho E "processo principal" extraído do conteúdo
     const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
