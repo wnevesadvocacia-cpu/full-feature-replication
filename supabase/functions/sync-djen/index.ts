@@ -486,7 +486,16 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.80;
 
   try {
-    const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name);
+    // Carrega números de processos do usuário para varredura adicional (pautas,
+    // listas de distribuição, atos administrativos que só aparecem por numeroProcesso).
+    const { data: procs } = await supabase
+      .from('processes')
+      .select('number')
+      .eq('user_id', row.user_id)
+      .not('number', 'is', null);
+    const processNumbers = (procs || []).map((p: any) => p.number).filter(Boolean);
+
+    const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers);
     items = result.items;
     attempts = result.attempts;
   } catch (e: any) {
@@ -495,8 +504,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   }
 
   if (status !== 'failed' && items.length > 0) {
-    // Filtro server-side: descarta publicações dirigidas a outros advogados quando
-    // existir lista de nomes configurada e o payload trouxer destinatários.
+    // Filtro server-side por nome: desabilitado quando a intimação foi capturada
+    // via numeroProcesso (pautas de julgamento não citam nome do advogado no
+    // campo destinatários). Só aplicamos filtro se o payload tem destinatário
+    // estruturado E existe conflito — a função matchesConfiguredLawyer já trata
+    // "no-candidates" como aceite.
     if (refNames.length) {
       const filtered: DjenItem[] = [];
       for (const it of items) {
@@ -506,6 +518,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       }
       items = filtered;
     }
+
 
     // Batch lookup de processes — inclui CNJs do cabeçalho E "processo principal" extraído do conteúdo
     const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
