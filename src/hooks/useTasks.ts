@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { taskCreateSchema, taskUpdateSchema, stripServerOnly } from '@/lib/validationSchemas';
+import { isUserTask } from '@/lib/taskVisibility';
 
 export function useTasks() {
   const { user } = useAuth();
