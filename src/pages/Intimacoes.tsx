@@ -616,7 +616,11 @@ export default function Intimacoes() {
                   <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
-                  {!it.process_id && hasCnj(it.content) && (
+                  {(() => {
+                    const cnjs = extractCnjs(it.content).map((c: string) => c.replace(/\D/g, ''));
+                    const alreadyExists = cnjs.some((c: string) => existingProcessSet.has(c));
+                    return !it.process_id && hasCnj(it.content) && !alreadyExists;
+                  })() && (
                     <Button
                       size="sm"
                       variant="default"
