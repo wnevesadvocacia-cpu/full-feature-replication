@@ -26,4 +26,9 @@ describe('taskVisibility — paridade Agenda ↔ Tarefas', () => {
     expect(isUserTask({ assignee: '' })).toBe(true);
     expect(isUserTask({ assignee: '   ' })).toBe(true);
   });
+
+  it('exclui alertas importados de tarefa excluída', () => {
+    expect(isUserTask({ title: 'ALERTA DE TAREFA EXCLUÍDA', assignee: null })).toBe(false);
+    expect(isUserTask({ description: 'Ivan Cardoso excluiu a tarefa https://app.advbox.com.br/0?t:65401287' })).toBe(false);
+  });
 });
