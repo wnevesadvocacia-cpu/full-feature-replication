@@ -600,6 +600,18 @@ export default function Intimacoes() {
                   <p className="text-xs text-muted-foreground mt-1">Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</p>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
+                  {!it.process_id && hasCnj(it.content) && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => registerProcess.mutate(it)}
+                      disabled={registerProcess.isPending}
+                      title="Cadastrar processo automaticamente a partir desta intimação"
+                    >
+                      <FilePlus2 className="h-3 w-3 mr-1" />
+                      {registerProcess.isPending ? 'Cadastrando…' : 'Cadastrar processo'}
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
                     <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
                   </Button>
