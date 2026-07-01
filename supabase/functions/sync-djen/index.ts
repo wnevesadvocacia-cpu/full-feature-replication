@@ -312,7 +312,7 @@ function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number)
 // para evitar refazer query a cada chamada de fetchDjen dentro de um run.
 let RESOLVED_PROXY_URL: string | null = null;
 
-async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): Promise<{ items: DjenItem[]; attempts: number }> {
+async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
   const dataInicio = new Date(Date.now() - DAYS_BACK * 86400_000).toISOString().slice(0, 10);
   const dataFim = new Date().toISOString().slice(0, 10);
   const all: DjenItem[] = [];
@@ -326,13 +326,24 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null): P
   const PROXY = ('https://djen-proxy-five.vercel.app').replace(/\/$/, '');
   const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
 
-  // Constrói lista de queries: 1) sempre por OAB; 2) por nome se configurado.
+  // Constrói lista de queries:
+  //   1) sempre por OAB (comunicações dirigidas ao advogado);
+  //   2) por nome do advogado (se configurado);
+  //   3) por numeroProcesso para CADA processo cadastrado — cobre pautas de julgamento,
+  //      listas de distribuição e atos administrativos que a API DJEN só retorna quando
+  //      consultada pelo número do processo (não pela OAB).
   const queries: Array<(p: number) => string> = [
     (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
   ];
   if (lawyerName && lawyerName.trim().length >= 5) {
     queries.push((p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
   }
+  for (const numero of processNumbers) {
+    const n = (numero || '').trim();
+    if (n.length < 15) continue;
+    queries.push((p) => `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+  }
+
 
   for (const buildUrl of queries) {
     let pagina = 1;
