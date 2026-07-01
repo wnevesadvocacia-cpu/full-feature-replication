@@ -11,9 +11,7 @@ export function useTasks() {
       const { data, error } = await supabase
         .from('tasks')
         .select('*, processes(number)')
-        .not('assignee', 'eq', 'movimentacao')
-        .not('assignee', 'eq', 'documento')
-        .not('assignee', 'eq', 'agenda')
+        .or('assignee.is.null,assignee.not.in.(movimentacao,documento,agenda)')
         .order('created_at', { ascending: false })
         .limit(5000);
       if (error) throw error;
