@@ -252,9 +252,11 @@ export default function Intimacoes() {
       if (!processId) {
         const fase = it.classification_meta?.fase;
         const isExec = fase === 'execucao';
-        const parent = isExec
-          ? (it.classification_meta?.processo_principal || cnjs.find((c) => c !== primary) || null)
-          : null;
+        const norm = (s: string | null | undefined) => (s || '').replace(/\D/g, '');
+        const primaryDigits = norm(primary);
+        const candidateParent = it.classification_meta?.processo_principal || cnjs.find((c) => norm(c) !== primaryDigits) || null;
+        // Guard: nunca vincular o processo a si mesmo como originário.
+        const parent = isExec && candidateParent && norm(candidateParent) !== primaryDigits ? candidateParent : null;
 
         const { data: created, error: pErr } = await (supabase as any)
           .from('processes')
