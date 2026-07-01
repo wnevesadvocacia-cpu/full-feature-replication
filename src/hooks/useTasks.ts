@@ -9,14 +9,16 @@ export function useTasks() {
   return useQuery({
     queryKey: ['tasks'],
     queryFn: async () => {
+      // NÃO filtrar no servidor por assignee: NULL + PostgREST não convive
+      // com not.eq/not.in. Filtro é aplicado client-side via isUserTask()
+      // para manter paridade absoluta com a Agenda.
       const { data, error } = await supabase
         .from('tasks')
         .select('*, processes(number)')
-        .or('assignee.is.null,assignee.not.in.(movimentacao,documento,agenda)')
         .order('created_at', { ascending: false })
         .limit(5000);
       if (error) throw error;
-      return data;
+      return (data ?? []).filter(isUserTask);
     },
     enabled: !!user,
     refetchInterval: 60_000, // Sprint1.7: poll de segurança 60s
