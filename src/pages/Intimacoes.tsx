@@ -159,14 +159,14 @@ export default function Intimacoes() {
 
   // Números de processo já cadastrados (para ocultar botão "Cadastrar processo" quando já existe)
   const { data: existingProcessNumbers = [] } = useQuery({
-    queryKey: ['process-numbers', user?.id],
+    queryKey: ['process-numbers-all', user?.id],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
+      // Sem filtro por user_id: confia na RLS (inclui processos do escritório compartilhados).
       const { data, error } = await (supabase as any)
         .from('processes')
-        .select('number')
-        .eq('user_id', user!.id);
+        .select('number');
       if (error) throw error;
       return (data || []).map((r: any) => (r.number || '').replace(/\D/g, '')) as string[];
     },
