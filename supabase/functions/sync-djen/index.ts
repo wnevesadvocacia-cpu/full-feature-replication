@@ -311,19 +311,26 @@ function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number)
 // Proxy resolvido na inicialização do handler (lê djen_proxy_config). Module-level
 // para evitar refazer query a cada chamada de fetchDjen dentro de um run.
 let RESOLVED_PROXY_URL: string | null = null;
+let OVERRIDE_START_DATE: string | null = null;
+let OVERRIDE_END_DATE: string | null = null;
+let OVERRIDE_DAYS_BACK: number | null = null;
+let OVERRIDE_MAX_PAGES: number | null = null;
 
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
-  const dataInicio = new Date(Date.now() - DAYS_BACK * 86400_000).toISOString().slice(0, 10);
-  const dataFim = new Date().toISOString().slice(0, 10);
+  const daysBack = OVERRIDE_DAYS_BACK ?? DAYS_BACK;
+  const dataInicio = OVERRIDE_START_DATE || new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
+  const dataFim = OVERRIDE_END_DATE || new Date().toISOString().slice(0, 10);
+  const maxPages = OVERRIDE_MAX_PAGES ?? 20;
   const all: DjenItem[] = [];
   const seen = new Set<string>();
   let totalAttempts = 0;
+  let upstreamDegraded = false;
 
   // Base URL da API CNJ — usa proxy BR (Cloudflare Worker) se configurado para
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
   // Prioridade: 1) RESOLVED_PROXY_URL (configurado pela UI em djen_proxy_config),
   //             2) secret DJEN_PROXY_URL, 3) URL direta do CNJ.
-  const PROXY = ('https://djen-proxy-five.vercel.app').replace(/\/$/, '');
+  const PROXY = (RESOLVED_PROXY_URL || Deno.env.get('DJEN_PROXY_URL') || 'https://djen-proxy-five.vercel.app').replace(/\/$/, '');
   const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
 
   // Constrói lista de queries:
@@ -346,22 +353,46 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
 
 
   for (const buildUrl of queries) {
+    if (upstreamDegraded) break;
     let pagina = 1;
-    while (pagina <= 20) {
+    let queryItems = 0;
+    while (pagina <= maxPages) {
       const url = buildUrl(pagina);
-      const res = await fetchWithRetry(url);
       totalAttempts++;
+      let res: Response;
+      try {
+        res = await fetchWithRetry(url);
+      } catch (e: any) {
+        const msg = `DJEN fetch falhou (pag ${pagina}): ${e?.message || e}`;
+        if (pagina > 1 || all.length > 0) {
+          console.warn(`[sync-djen] ${msg}; preservando ${all.length} item(ns) já capturado(s).`);
+          upstreamDegraded = true;
+          break;
+        }
+        throw new Error(msg);
+      }
       if (!res.ok) {
         const t = await res.text();
         // Detecta geo-block do CloudFront do CNJ — mensagem acionável em vez de HTML cru
         if (res.status === 403 && /block access from your country/i.test(t)) {
-          throw new Error(
+          const msg =
             `DJEN 403 GEO-BLOCK: o proxy configurado (${PROXY || 'direto'}) está saindo por IP fora do Brasil. ` +
             `Solução: use proxy hospedado em região BR (ver docs/cloudflare-worker-djen.md). ` +
-            `Tribunal CNJ bloqueia CloudFront por geolocalização.`
-          );
+            `Tribunal CNJ bloqueia CloudFront por geolocalização.`;
+          if (all.length > 0) {
+            console.warn(`[sync-djen] ${msg}; preservando ${all.length} item(ns) já capturado(s).`);
+            upstreamDegraded = true;
+            break;
+          }
+          throw new Error(msg);
         }
-        throw new Error(`DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`);
+        const msg = `DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`;
+        if (pagina > 1 || all.length > 0) {
+          console.warn(`[sync-djen] ${msg}; preservando ${all.length} item(ns) já capturado(s).`);
+          upstreamDegraded = true;
+          break;
+        }
+        throw new Error(msg);
       }
       const json = await res.json();
       const rawItems: unknown[] = json.items || json.data || [];
@@ -384,6 +415,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         }
       }
       all.push(...validItems);
+      queryItems += validItems.length;
       if (rawItems.length < 100) break;
       pagina++;
       await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
@@ -764,6 +796,13 @@ Deno.serve(async (req) => {
     Deno.env.get('SUPABASE_URL')!,
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
   );
+
+  const requestBody = req.method === 'POST' ? await req.clone().json().catch(() => ({})) : {};
+  const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+  OVERRIDE_START_DATE = typeof requestBody?.date_start === 'string' && dateRe.test(requestBody.date_start) ? requestBody.date_start : null;
+  OVERRIDE_END_DATE = typeof requestBody?.date_end === 'string' && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
+  OVERRIDE_DAYS_BACK = Number.isFinite(Number(requestBody?.days_back)) ? Math.max(0, Math.min(90, Number(requestBody.days_back))) : null;
+  OVERRIDE_MAX_PAGES = Number.isFinite(Number(requestBody?.max_pages)) ? Math.max(1, Math.min(20, Number(requestBody.max_pages))) : null;
 
   // Resolve proxy URL configurado pela UI (tabela djen_proxy_config). Falha silenciosa
   // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.
