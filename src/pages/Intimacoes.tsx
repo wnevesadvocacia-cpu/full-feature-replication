@@ -18,6 +18,7 @@ import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 import { FilePlus2 } from 'lucide-react';
+import { DjenHealthBadge } from '@/components/DjenHealthBadge';
 
 interface Intim {
   id: string;
@@ -419,6 +420,7 @@ export default function Intimacoes() {
         <div>
           <h1 className="text-2xl font-display font-bold">Intimações</h1>
           <p className="text-muted-foreground text-sm mt-1">Calendário oficial CNJ · Sincronização DJEN automática a cada 6h</p>
+          <DjenHealthBadge />
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={syncDjen} disabled={syncing}>

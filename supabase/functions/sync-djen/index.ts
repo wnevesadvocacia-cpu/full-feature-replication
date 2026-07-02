@@ -828,6 +828,32 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Health tracking — fonte primária DJEN
+    try {
+      const anyOk = results.some((r: any) => r?.status === 'success' || r?.status === 'partial');
+      const allFailed = results.length > 0 && results.every((r: any) => r?.status === 'failed');
+      if (anyOk) {
+        await supabase.from('djen_source_health').update({
+          current_source: 'djen',
+          last_ok_at: new Date().toISOString(),
+          consecutive_failures: 0,
+          last_error: null,
+          updated_at: new Date().toISOString(),
+        }).eq('id', 1);
+      } else if (allFailed) {
+        const firstErr = String((results.find((r: any) => r?.error)?.error) ?? 'todas OABs falharam').slice(0, 500);
+        const { data: cur } = await supabase.from('djen_source_health').select('consecutive_failures').eq('id', 1).maybeSingle();
+        const nextFails = ((cur as any)?.consecutive_failures ?? 0) + 1;
+        await supabase.from('djen_source_health').update({
+          current_source: nextFails >= 2 ? 'degraded' : 'djen',
+          last_fail_at: new Date().toISOString(),
+          consecutive_failures: nextFails,
+          last_error: firstErr,
+          updated_at: new Date().toISOString(),
+        }).eq('id', 1);
+      }
+    } catch (e) { console.warn('[sync-djen] health update falhou:', (e as Error).message); }
+
     if (cronRunId) {
       // Telemetria PR3: agrega contagem de triggerSource por execução para
       // monitorar distribuição diária dos gatilhos do detectDeadline.
@@ -869,6 +895,17 @@ Deno.serve(async (req) => {
     // genérico "non-2xx status code" do supabase-js.
     const msg = String(e?.message || e);
     const isUpstream = /DJEN\s+(502|503|504)|timeout|aborted|ETIMEDOUT|ECONNRESET/i.test(msg);
+    try {
+      const { data: cur } = await supabase.from('djen_source_health').select('consecutive_failures').eq('id', 1).maybeSingle();
+      const nextFails = ((cur as any)?.consecutive_failures ?? 0) + 1;
+      await supabase.from('djen_source_health').update({
+        current_source: nextFails >= 2 ? 'degraded' : 'djen',
+        last_fail_at: new Date().toISOString(),
+        consecutive_failures: nextFails,
+        last_error: msg.slice(0, 500),
+        updated_at: new Date().toISOString(),
+      }).eq('id', 1);
+    } catch (_) { /* ignore */ }
     if (isUpstream) {
       return new Response(JSON.stringify({
         success: false,

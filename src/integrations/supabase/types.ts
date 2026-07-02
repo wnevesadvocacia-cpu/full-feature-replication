@@ -269,6 +269,36 @@ export type Database = {
         }
         Relationships: []
       }
+      djen_source_health: {
+        Row: {
+          consecutive_failures: number
+          current_source: string
+          id: number
+          last_error: string | null
+          last_fail_at: string | null
+          last_ok_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          consecutive_failures?: number
+          current_source?: string
+          id?: number
+          last_error?: string | null
+          last_fail_at?: string | null
+          last_ok_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          consecutive_failures?: number
+          current_source?: string
+          id?: number
+          last_error?: string | null
+          last_fail_at?: string | null
+          last_ok_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       document_templates: {
         Row: {
           category: string | null
