@@ -895,6 +895,17 @@ Deno.serve(async (req) => {
     // genérico "non-2xx status code" do supabase-js.
     const msg = String(e?.message || e);
     const isUpstream = /DJEN\s+(502|503|504)|timeout|aborted|ETIMEDOUT|ECONNRESET/i.test(msg);
+    try {
+      const { data: cur } = await supabase.from('djen_source_health').select('consecutive_failures').eq('id', 1).maybeSingle();
+      const nextFails = ((cur as any)?.consecutive_failures ?? 0) + 1;
+      await supabase.from('djen_source_health').update({
+        current_source: nextFails >= 2 ? 'degraded' : 'djen',
+        last_fail_at: new Date().toISOString(),
+        consecutive_failures: nextFails,
+        last_error: msg.slice(0, 500),
+        updated_at: new Date().toISOString(),
+      }).eq('id', 1);
+    } catch (_) { /* ignore */ }
     if (isUpstream) {
       return new Response(JSON.stringify({
         success: false,
