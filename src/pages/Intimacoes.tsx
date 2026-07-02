@@ -18,6 +18,7 @@ import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 import { FilePlus2 } from 'lucide-react';
+import { DjenHealthBadge } from '@/components/DjenHealthBadge';
 
 interface Intim {
   id: string;
