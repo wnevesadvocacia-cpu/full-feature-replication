@@ -324,6 +324,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
   const all: DjenItem[] = [];
   const seen = new Set<string>();
   let totalAttempts = 0;
+  let upstreamDegraded = false;
 
   // Base URL da API CNJ — usa proxy BR (Cloudflare Worker) se configurado para
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
@@ -352,6 +353,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
 
 
   for (const buildUrl of queries) {
+    if (upstreamDegraded) break;
     let pagina = 1;
     let queryItems = 0;
     while (pagina <= maxPages) {
@@ -364,6 +366,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         const msg = `DJEN fetch falhou (pag ${pagina}): ${e?.message || e}`;
         if (pagina > 1 || all.length > 0) {
           console.warn(`[sync-djen] ${msg}; preservando ${all.length} item(ns) já capturado(s).`);
+          upstreamDegraded = true;
           break;
         }
         throw new Error(msg);
@@ -378,6 +381,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
             `Tribunal CNJ bloqueia CloudFront por geolocalização.`;
           if (all.length > 0) {
             console.warn(`[sync-djen] ${msg}; preservando ${all.length} item(ns) já capturado(s).`);
+            upstreamDegraded = true;
             break;
           }
           throw new Error(msg);
@@ -385,6 +389,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         const msg = `DJEN ${res.status} (pag ${pagina}): ${t.slice(0, 200)}`;
         if (pagina > 1 || all.length > 0) {
           console.warn(`[sync-djen] ${msg}; preservando ${all.length} item(ns) já capturado(s).`);
+          upstreamDegraded = true;
           break;
         }
         throw new Error(msg);
