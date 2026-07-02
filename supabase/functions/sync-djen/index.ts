@@ -197,6 +197,12 @@ async function buildExternalId(it: DjenItem): Promise<string> {
   return `djen:sha:${h}`;
 }
 
+function maskProcessNumber(raw?: string | null): string | null {
+  const d = (raw || '').replace(/\D/g, '');
+  if (d.length !== 20) return raw || null;
+  return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
+}
+
 // ============= Fetch com retry =============
 async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
   const controller = new AbortController();
@@ -589,7 +595,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
               ? (it as any).advogados.map((a: any) => a?.nome).filter(Boolean).join(', ')
               : '');
         const _headerLines = [
-          it.tipoComunicacao ? `${it.tipoComunicacao}${it.numero_processo ? ` Processo: ${it.numero_processo}` : ''}` : (it.numero_processo ? `Processo: ${it.numero_processo}` : ''),
+          it.tipoComunicacao ? `${it.tipoComunicacao}${it.numero_processo ? ` Processo: ${maskProcessNumber(it.numero_processo)}` : ''}` : (it.numero_processo ? `Processo: ${maskProcessNumber(it.numero_processo)}` : ''),
           it.nomeOrgao ? `Órgão: ${it.nomeOrgao}` : '',
           it.data_disponibilizacao ? `Data de disponibilização: ${_fmtDate(it.data_disponibilizacao)}` : '',
           (it as any).meio ? `Meio: ${(it as any).meio}` : '',
