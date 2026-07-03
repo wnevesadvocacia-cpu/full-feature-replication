@@ -165,6 +165,7 @@ export default function Tarefas() {
 
   const handleCreate = async () => {
     if (!form.title) return;
+    if (!form.assignee) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       await createTask.mutateAsync({
