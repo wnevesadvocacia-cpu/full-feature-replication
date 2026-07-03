@@ -158,16 +158,27 @@ export default function Intimacoes() {
     },
   });
 
+  // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
+  // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
+  const dayItems = useMemo(
+    () => items.filter((i) => {
+      if (i.received_at?.slice(0, 10) !== selectedDate) return false;
+      if (i.process_id) return true;
+      return hasCnj(i.content);
+    }),
+    [items, selectedDate]
+  );
+
   const processNumbersForLookup = useMemo(() => {
     const variants = new Set<string>();
-    items.forEach((it) => {
+    dayItems.forEach((it) => {
       extractCnjs(it.content).forEach((cnj) => {
         variants.add(cnj);
         variants.add(cnj.replace(/\D/g, ''));
       });
     });
     return Array.from(variants);
-  }, [items]);
+  }, [dayItems]);
 
   // Números de processo já cadastrados para as publicações carregadas.
   // Não usa listagem geral: evita limite de paginação e falso botão "Cadastrar processo".
@@ -397,17 +408,6 @@ export default function Intimacoes() {
     });
     return Array.from(m.entries()).sort(([a], [b]) => b.localeCompare(a));
   }, [items]);
-
-  // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
-  // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
-  const dayItems = useMemo(
-    () => items.filter((i) => {
-      if (i.received_at?.slice(0, 10) !== selectedDate) return false;
-      if (i.process_id) return true;
-      return hasCnj(i.content);
-    }),
-    [items, selectedDate]
-  );
 
   const filtered = dayItems.filter((i) => filter === 'todas' || i.status === filter);
 
