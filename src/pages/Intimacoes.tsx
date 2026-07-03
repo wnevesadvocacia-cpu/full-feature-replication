@@ -158,18 +158,29 @@ export default function Intimacoes() {
     },
   });
 
-  // Números de processo já cadastrados (para ocultar botão "Cadastrar processo" quando já existe)
-  const { data: existingProcessNumbers = [] } = useQuery({
-    queryKey: ['process-numbers-all', user?.id],
+  const processNumbersForLookup = useMemo(() => {
+    const variants = new Set<string>();
+    items.forEach((it) => {
+      extractCnjs(it.content).forEach((cnj) => {
+        variants.add(cnj);
+        variants.add(cnj.replace(/\D/g, ''));
+      });
+    });
+    return Array.from(variants);
+  }, [items]);
+
+  // Números de processo já cadastrados para as publicações carregadas.
+  // Não usa listagem geral: evita limite de paginação e falso botão "Cadastrar processo".
+  const { data: existingProcessNumbers = [], isLoading: loadingExistingProcesses } = useQuery({
+    queryKey: ['process-numbers-for-intimations', user?.id, processNumbersForLookup.join('|')],
     enabled: !!user,
     staleTime: 60_000,
     queryFn: async () => {
-      // Sem filtro por user_id: confia na RLS (inclui processos do escritório compartilhados).
-      // range alto para superar o limite padrão do PostgREST (1000) — evita falso "não cadastrado".
+      if (processNumbersForLookup.length === 0) return [];
       const { data, error } = await (supabase as any)
         .from('processes')
         .select('number')
-        .range(0, 99999);
+        .in('number', processNumbersForLookup);
       if (error) throw error;
       return (data || []).map((r: any) => (r.number || '').replace(/\D/g, '')) as string[];
     },
@@ -245,10 +256,11 @@ export default function Intimacoes() {
       const cnjs = extractCnjs(it.content);
       if (cnjs.length === 0) throw new Error('Nenhum número CNJ encontrado na intimação.');
       const primary = cnjs[0];
+      const primaryDigits = primary.replace(/\D/g, '');
 
       // Idempotência: se já existir com esse número para o usuário, apenas vincula.
       const { data: existing } = await (supabase as any)
-        .from('processes').select('id').eq('user_id', user!.id).eq('number', primary).maybeSingle();
+        .from('processes').select('id').eq('user_id', user!.id).in('number', [primary, primaryDigits]).limit(1).maybeSingle();
 
       let processId = existing?.id as string | undefined;
 
@@ -256,7 +268,6 @@ export default function Intimacoes() {
         const fase = it.classification_meta?.fase;
         const isExec = fase === 'execucao';
         const norm = (s: string | null | undefined) => (s || '').replace(/\D/g, '');
-        const primaryDigits = norm(primary);
         const candidateParent = it.classification_meta?.processo_principal || cnjs.find((c) => norm(c) !== primaryDigits) || null;
         // Guard: nunca vincular o processo a si mesmo como originário.
         const parent = isExec && candidateParent && norm(candidateParent) !== primaryDigits ? candidateParent : null;
@@ -297,6 +308,7 @@ export default function Intimacoes() {
     onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: ['intimations'] });
       qc.invalidateQueries({ queryKey: ['processes'] });
+      qc.invalidateQueries({ queryKey: ['process-numbers-for-intimations'] });
       toast({
         title: r.reused ? 'Intimação vinculada' : 'Processo cadastrado',
         description: `${r.primary} — vincule o cliente em Processos.`,
@@ -625,7 +637,7 @@ export default function Intimacoes() {
                   {(() => {
                     const cnjs = extractCnjs(it.content).map((c: string) => c.replace(/\D/g, ''));
                     const alreadyExists = cnjs.some((c: string) => existingProcessSet.has(c));
-                    return !it.process_id && hasCnj(it.content) && !alreadyExists;
+                    return !loadingExistingProcesses && !it.process_id && hasCnj(it.content) && !alreadyExists;
                   })() && (
                     <Button
                       size="sm"
