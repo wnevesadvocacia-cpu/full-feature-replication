@@ -323,6 +323,10 @@ export default function Agenda() {
 
   const formBody = (
     <div className="space-y-2.5">
+      <div role="alert" className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900">
+        <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
+        <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
+      </div>
       <div>
         <Label>Processo *</Label>
         <ProcessSearchSelect
@@ -838,7 +842,7 @@ export default function Agenda() {
           {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
+            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.process_id || !form.due_date || !form.assignee.trim() || saving}>
               {saving ? 'Salvando…' : 'Salvar'}
             </Button>
           </DialogFooter>
@@ -852,7 +856,7 @@ export default function Agenda() {
           {formBody}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || !form.process_id || !form.due_date || !form.assignee || saving}>
+            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.process_id || !form.due_date || !form.assignee.trim() || saving}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
