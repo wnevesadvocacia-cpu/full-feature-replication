@@ -164,14 +164,14 @@ export default function Tarefas() {
   };
 
   const handleCreate = async () => {
-    if (!form.title) return;
-    if (!form.assignee) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (!form.title.trim()) return;
+    if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       await createTask.mutateAsync({
         title: form.title,
         description: form.description || undefined,
-        assignee: form.assignee || undefined,
+        assignee: form.assignee.trim(),
         priority: form.priority,
         due_date: form.due_date || undefined,
         start_date: form.start_date || undefined,
@@ -186,14 +186,14 @@ export default function Tarefas() {
   };
 
   const handleEdit = async () => {
-    if (!editTarget || !form.title) return;
-    if (!form.assignee) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (!editTarget || !form.title.trim()) return;
+    if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
         title: form.title,
         description: form.description || null,
-        assignee: form.assignee || null,
+        assignee: form.assignee.trim(),
         priority: form.priority,
         due_date: form.due_date || null,
         start_date: form.start_date || null,
@@ -614,7 +614,7 @@ export default function Tarefas() {
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title || saving}>
+            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || saving}>
               {saving ? 'Salvando…' : 'Criar Tarefa'}
             </Button>
           </DialogFooter>
@@ -647,7 +647,7 @@ export default function Tarefas() {
               </p>
             )}
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || saving || !canManage}>
+            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || saving || !canManage}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>

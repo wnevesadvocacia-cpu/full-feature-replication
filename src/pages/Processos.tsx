@@ -685,7 +685,7 @@ export default function Processos() {
   const [editMode, setEditMode] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Process | null>(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
 
   const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
@@ -759,12 +759,13 @@ export default function Processos() {
 
   // Add task + andamento ao processo (pipeline unificado Processo ↔ Tarefa ↔ Agenda)
   const addTask = useMutation({
-    mutationFn: async (payload: { title: string; description: string; due_date: string }) => {
+    mutationFn: async (payload: { title: string; description: string; due_date: string; assignee: string }) => {
       // 1) Cria a tarefa (aparece em /tarefas e /agenda)
       const { error: taskErr } = await supabase.from('tasks').insert({
         ...payload,
         start_date: new Date().toISOString().split('T')[0],
         process_id: selected?.id,
+        assignee: payload.assignee.trim(),
         completed: false,
         user_id: user?.id,
       });
@@ -793,7 +794,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['agenda-tasks'] });
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       toast({ title: 'Andamento adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
@@ -815,7 +816,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       qc.invalidateQueries({ queryKey: ['proc-movs'] });
       toast({ title: 'Comentário adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
@@ -875,7 +876,10 @@ export default function Processos() {
   });
 
   const submitTask = () => {
-    if (!newTask.title.trim()) return;
+    if (!newTask.title.trim() || !newTask.assignee.trim()) {
+      toast({ title: 'Responsável obrigatório', variant: 'destructive' });
+      return;
+    }
     addTask.mutate(newTask);
   };
 
@@ -1313,6 +1317,10 @@ export default function Processos() {
 
                     {showTaskForm && (
                       <div className="border rounded-md p-3 space-y-2 mb-3 bg-gray-50">
+                        <div role="alert" className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900">
+                          <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
+                          <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
+                        </div>
                         <Input
                           placeholder="Título do andamento"
                           value={newTask.title}
@@ -1329,8 +1337,13 @@ export default function Processos() {
                           value={newTask.due_date}
                           onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))}
                         />
+                        <Input
+                          placeholder="Responsável obrigatório"
+                          value={newTask.assignee}
+                          onChange={(e) => setNewTask((p) => ({ ...p, assignee: e.target.value }))}
+                        />
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={submitTask} disabled={addTask.isPending}>
+                          <Button size="sm" onClick={submitTask} disabled={!newTask.title.trim() || !newTask.assignee.trim() || addTask.isPending}>
                             {addTask.isPending ? 'Salvando…' : 'Salvar'}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setShowTaskForm(false)}>
