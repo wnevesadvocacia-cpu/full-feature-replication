@@ -853,7 +853,11 @@ export default function Intimacoes() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
             <Button
-              onClick={() => taskIntim && toTask.mutate({ intim: taskIntim, form: taskForm })}
+              onClick={() => {
+                if (!taskIntim) return;
+                if (!window.confirm('O prazo assinalado foi conferido? Deseja realmente continuar?')) return;
+                toTask.mutate({ intim: taskIntim, form: taskForm });
+              }}
               disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || toTask.isPending}
             >
               {toTask.isPending ? 'Criando…' : 'Criar Tarefa'}
