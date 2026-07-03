@@ -165,9 +165,11 @@ export default function Intimacoes() {
     staleTime: 60_000,
     queryFn: async () => {
       // Sem filtro por user_id: confia na RLS (inclui processos do escritório compartilhados).
+      // range alto para superar o limite padrão do PostgREST (1000) — evita falso "não cadastrado".
       const { data, error } = await (supabase as any)
         .from('processes')
-        .select('number');
+        .select('number')
+        .range(0, 99999);
       if (error) throw error;
       return (data || []).map((r: any) => (r.number || '').replace(/\D/g, '')) as string[];
     },
