@@ -70,6 +70,6 @@ export function looksLikeHtml(raw: string): boolean {
 /** Render seguro: retorna { html, text } — use html quando truthy, senão text. */
 export function renderSafeContent(raw: string): { html: string | null; text: string | null } {
   if (!raw) return { html: null, text: '' };
-  if (!looksLikeHtml(raw)) return { html: null, text: raw };
-  return { html: sanitizeIntimContent(raw), text: null };
+  if (!looksLikeHtml(raw)) return { html: null, text: normalizeCnjInText(raw) };
+  return { html: normalizeCnjInText(sanitizeIntimContent(raw)), text: null };
 }
