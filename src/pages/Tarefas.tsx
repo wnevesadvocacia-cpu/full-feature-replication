@@ -256,6 +256,17 @@ export default function Tarefas() {
 
   const taskFormFields = (
     <div className="space-y-4">
+      <div
+        role="alert"
+        className="rounded-md border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-400 p-3 text-[12px] leading-relaxed text-amber-900 dark:text-amber-100"
+      >
+        <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
+        <p>
+          Registre o prazo, preferencialmente, com <strong>no mínimo 2 (dois) dias úteis de antecedência</strong> ao prazo fatal.
+          Confira a data no ato judicial e faça <strong>dupla verificação</strong> (contagem em dias úteis, feriados locais e suspensões do tribunal).
+          <strong> Perda de prazo = perda do processo</strong>, com consequências disciplinares e indenizatórias.
+        </p>
+      </div>
       <div>
         <Label>Processo vinculado *</Label>
         <ProcessSearchSelect
