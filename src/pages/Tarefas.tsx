@@ -304,11 +304,12 @@ export default function Tarefas() {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <Label>Responsável</Label>
+          <Label>Responsável *</Label>
           <select
             className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
             value={form.assignee}
             onChange={set('assignee')}
+            required
           >
             <option value="">— Selecione —</option>
             {teamMembers.map((m) => (
