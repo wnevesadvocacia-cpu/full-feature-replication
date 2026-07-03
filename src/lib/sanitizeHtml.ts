@@ -7,6 +7,13 @@
 //   import { sanitizeIntimContent } from '@/lib/sanitizeHtml';
 //   <div dangerouslySetInnerHTML={{ __html: sanitizeIntimContent(rawHtml) }} />
 import DOMPurify from 'dompurify';
+import { CNJ_RE_G, maskCnj } from '@/lib/cnjRegex';
+
+/** Normaliza qualquer CNJ (mascarado ou 20 dígitos) para o formato padrão CNJ. */
+export function normalizeCnjInText(input: string): string {
+  if (!input) return input;
+  return input.replace(CNJ_RE_G, (m) => maskCnj(m) || m);
+}
 
 // Tags permitidas no render de intimações/publicações DJEN.
 // Foco: texto formatado, listas, tabelas simples (atos judiciais usam tabelas para ementas).
