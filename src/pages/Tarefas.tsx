@@ -614,7 +614,7 @@ export default function Tarefas() {
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title || saving}>
+            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || saving}>
               {saving ? 'Salvando…' : 'Criar Tarefa'}
             </Button>
           </DialogFooter>
@@ -647,7 +647,7 @@ export default function Tarefas() {
               </p>
             )}
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title || saving || !canManage}>
+            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || saving || !canManage}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>

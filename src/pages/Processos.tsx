@@ -1317,6 +1317,10 @@ export default function Processos() {
 
                     {showTaskForm && (
                       <div className="border rounded-md p-3 space-y-2 mb-3 bg-gray-50">
+                        <div role="alert" className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900">
+                          <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
+                          <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
+                        </div>
                         <Input
                           placeholder="Título do andamento"
                           value={newTask.title}
@@ -1333,8 +1337,13 @@ export default function Processos() {
                           value={newTask.due_date}
                           onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))}
                         />
+                        <Input
+                          placeholder="Responsável obrigatório"
+                          value={newTask.assignee}
+                          onChange={(e) => setNewTask((p) => ({ ...p, assignee: e.target.value }))}
+                        />
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={submitTask} disabled={addTask.isPending}>
+                          <Button size="sm" onClick={submitTask} disabled={!newTask.title.trim() || !newTask.assignee.trim() || addTask.isPending}>
                             {addTask.isPending ? 'Salvando…' : 'Salvar'}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setShowTaskForm(false)}>
