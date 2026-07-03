@@ -7,6 +7,13 @@
 //   import { sanitizeIntimContent } from '@/lib/sanitizeHtml';
 //   <div dangerouslySetInnerHTML={{ __html: sanitizeIntimContent(rawHtml) }} />
 import DOMPurify from 'dompurify';
+import { CNJ_RE_G, maskCnj } from '@/lib/cnjRegex';
+
+/** Normaliza qualquer CNJ (mascarado ou 20 dígitos) para o formato padrão CNJ. */
+export function normalizeCnjInText(input: string): string {
+  if (!input) return input;
+  return input.replace(CNJ_RE_G, (m) => maskCnj(m) || m);
+}
 
 // Tags permitidas no render de intimações/publicações DJEN.
 // Foco: texto formatado, listas, tabelas simples (atos judiciais usam tabelas para ementas).
@@ -63,6 +70,6 @@ export function looksLikeHtml(raw: string): boolean {
 /** Render seguro: retorna { html, text } — use html quando truthy, senão text. */
 export function renderSafeContent(raw: string): { html: string | null; text: string | null } {
   if (!raw) return { html: null, text: '' };
-  if (!looksLikeHtml(raw)) return { html: null, text: raw };
-  return { html: sanitizeIntimContent(raw), text: null };
+  if (!looksLikeHtml(raw)) return { html: null, text: normalizeCnjInText(raw) };
+  return { html: normalizeCnjInText(sanitizeIntimContent(raw)), text: null };
 }
