@@ -685,7 +685,7 @@ export default function Processos() {
   const [editMode, setEditMode] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Process | null>(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
 
   const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
@@ -759,12 +759,13 @@ export default function Processos() {
 
   // Add task + andamento ao processo (pipeline unificado Processo ↔ Tarefa ↔ Agenda)
   const addTask = useMutation({
-    mutationFn: async (payload: { title: string; description: string; due_date: string }) => {
+    mutationFn: async (payload: { title: string; description: string; due_date: string; assignee: string }) => {
       // 1) Cria a tarefa (aparece em /tarefas e /agenda)
       const { error: taskErr } = await supabase.from('tasks').insert({
         ...payload,
         start_date: new Date().toISOString().split('T')[0],
         process_id: selected?.id,
+        assignee: payload.assignee.trim(),
         completed: false,
         user_id: user?.id,
       });
@@ -793,7 +794,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['agenda-tasks'] });
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       toast({ title: 'Andamento adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
@@ -815,7 +816,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       qc.invalidateQueries({ queryKey: ['proc-movs'] });
       toast({ title: 'Comentário adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
@@ -875,7 +876,10 @@ export default function Processos() {
   });
 
   const submitTask = () => {
-    if (!newTask.title.trim()) return;
+    if (!newTask.title.trim() || !newTask.assignee.trim()) {
+      toast({ title: 'Responsável obrigatório', variant: 'destructive' });
+      return;
+    }
     addTask.mutate(newTask);
   };
 

@@ -333,11 +333,12 @@ export default function Intimacoes() {
   const toTask = useMutation({
     mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
       const { intim, form: tf } = payload;
+      if (!tf.assignee.trim()) throw new Error('Responsável obrigatório.');
       const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
         title: tf.title || `Intimação: ${intim.court || 'sem tribunal'}`,
         description: tf.description || null,
-        assignee: tf.assignee || null,
+        assignee: tf.assignee.trim(),
         due_date: tf.due_date || null,
         start_time: tf.start_time || null,
         location: tf.location || null,
@@ -694,6 +695,10 @@ export default function Intimacoes() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            <div role="alert" className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900">
+              <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
+              <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
+            </div>
             <div>
               <Label>Título da tarefa *</Label>
               <Input
@@ -769,7 +774,7 @@ export default function Intimacoes() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Responsável</Label>
+                <Label>Responsável *</Label>
                 <select
                   className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
                   value={
@@ -849,7 +854,7 @@ export default function Intimacoes() {
             <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
             <Button
               onClick={() => taskIntim && toTask.mutate({ intim: taskIntim, form: taskForm })}
-              disabled={!taskForm.title || toTask.isPending}
+              disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || toTask.isPending}
             >
               {toTask.isPending ? 'Criando…' : 'Criar Tarefa'}
             </Button>

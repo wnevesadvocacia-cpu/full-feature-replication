@@ -164,14 +164,14 @@ export default function Tarefas() {
   };
 
   const handleCreate = async () => {
-    if (!form.title) return;
-    if (!form.assignee) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (!form.title.trim()) return;
+    if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       await createTask.mutateAsync({
         title: form.title,
         description: form.description || undefined,
-        assignee: form.assignee || undefined,
+        assignee: form.assignee.trim(),
         priority: form.priority,
         due_date: form.due_date || undefined,
         start_date: form.start_date || undefined,
@@ -186,14 +186,14 @@ export default function Tarefas() {
   };
 
   const handleEdit = async () => {
-    if (!editTarget || !form.title) return;
-    if (!form.assignee) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (!editTarget || !form.title.trim()) return;
+    if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
         title: form.title,
         description: form.description || null,
-        assignee: form.assignee || null,
+        assignee: form.assignee.trim(),
         priority: form.priority,
         due_date: form.due_date || null,
         start_date: form.start_date || null,

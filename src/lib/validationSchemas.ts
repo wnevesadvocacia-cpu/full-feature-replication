@@ -63,7 +63,7 @@ export const taskCreateSchema = z.object({
   title: z.string().trim().min(1, 'Título obrigatório').max(300),
   description: z.string().max(5000).optional(),
   process_id: z.string().uuid().optional(),
-  assignee: z.string().trim().max(255).optional(),
+  assignee: z.string().trim().min(1, 'Responsável obrigatório').max(255),
   priority: z.enum(['baixa', 'media', 'alta', 'urgente']).optional(),
   due_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
