@@ -3,11 +3,13 @@
 // J = segmento do Poder Judiciário; TR = tribunal dentro do segmento.
 
 // Códigos CNJ dos Tribunais de Justiça (ordem alfabética oficial), NÃO confundir com IBGE.
+// Códigos oficiais CNJ (Res. 65/2008) — ordem alfabética das UFs.
+// Atenção: NÃO seguem IBGE. Ex.: 16=PR, 17=PE, 18=PI, 21=RS, 22=RO, 23=RR.
 const UF_BY_CODE: Record<string, string> = {
-  '01': 'AC', '02': 'AL', '03': 'AM', '04': 'AP', '05': 'BA', '06': 'CE',
+  '01': 'AC', '02': 'AL', '03': 'AP', '04': 'AM', '05': 'BA', '06': 'CE',
   '07': 'DF', '08': 'ES', '09': 'GO', '10': 'MA', '11': 'MT', '12': 'MS',
-  '13': 'MG', '14': 'PA', '15': 'PB', '16': 'PE', '17': 'PI', '18': 'PR',
-  '19': 'RJ', '20': 'RN', '21': 'RO', '22': 'RR', '23': 'RS', '24': 'SC',
+  '13': 'MG', '14': 'PA', '15': 'PB', '16': 'PR', '17': 'PE', '18': 'PI',
+  '19': 'RJ', '20': 'RN', '21': 'RS', '22': 'RO', '23': 'RR', '24': 'SC',
   '25': 'SE', '26': 'SP', '27': 'TO',
 };
 
