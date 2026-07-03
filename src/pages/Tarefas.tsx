@@ -187,6 +187,7 @@ export default function Tarefas() {
 
   const handleEdit = async () => {
     if (!editTarget || !form.title) return;
+    if (!form.assignee) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
