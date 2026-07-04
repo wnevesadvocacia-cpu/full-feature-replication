@@ -893,6 +893,18 @@ export default function Processos() {
       toast({ title: 'Responsável obrigatório', variant: 'destructive' });
       return;
     }
+    // Trava anti-duplicidade: tarefa pendente com mesmo título no mesmo processo
+    const norm = (s: string) => s.trim().toLowerCase();
+    const dup = (tasks || []).some(
+      (t: any) => !t.completed && norm(t.title || '') === norm(newTask.title),
+    );
+    if (dup) {
+      const ok = window.confirm(
+        'Já existe uma tarefa pendente com este mesmo título neste processo. Tem certeza que deseja criar outra?',
+      );
+      if (!ok) return;
+    }
+    if (!window.confirm('O prazo assinalado foi conferido? Deseja realmente continuar?')) return;
     addTask.mutate(newTask);
   };
 
