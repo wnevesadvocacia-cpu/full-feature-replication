@@ -829,7 +829,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       qc.invalidateQueries({ queryKey: ['proc-movs'] });
       toast({ title: 'Comentário adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '', comment: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
