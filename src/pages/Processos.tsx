@@ -685,7 +685,7 @@ export default function Processos() {
   const [editMode, setEditMode] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Process | null>(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '', comment: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
 
   const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
@@ -759,10 +759,12 @@ export default function Processos() {
 
   // Add task + andamento ao processo (pipeline unificado Processo ↔ Tarefa ↔ Agenda)
   const addTask = useMutation({
-    mutationFn: async (payload: { title: string; description: string; due_date: string; assignee: string }) => {
+    mutationFn: async (payload: { title: string; description: string; due_date: string; assignee: string; comment?: string }) => {
       // 1) Cria a tarefa (aparece em /tarefas e /agenda)
       const { error: taskErr } = await supabase.from('tasks').insert({
-        ...payload,
+        title: payload.title,
+        description: payload.description,
+        due_date: payload.due_date,
         start_date: new Date().toISOString().split('T')[0],
         process_id: selected?.id,
         assignee: payload.assignee.trim(),
@@ -786,6 +788,17 @@ export default function Processos() {
         type: 'andamento',
       });
       if (commentErr) throw commentErr;
+
+      // 3) Comentário adicional opcional
+      if (payload.comment?.trim()) {
+        await supabase.from('process_comments').insert({
+          content: payload.comment.trim(),
+          author_name: author,
+          process_id: selected?.id!,
+          user_id: user?.id!,
+          type: 'comentario',
+        });
+      }
     },
     onSuccess: () => {
       // Cross-page sync: invalida tudo que depende dessas tabelas
@@ -794,7 +807,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['agenda-tasks'] });
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       toast({ title: 'Andamento adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '', comment: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
@@ -816,7 +829,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       qc.invalidateQueries({ queryKey: ['proc-movs'] });
       toast({ title: 'Comentário adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '', comment: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
@@ -880,6 +893,18 @@ export default function Processos() {
       toast({ title: 'Responsável obrigatório', variant: 'destructive' });
       return;
     }
+    // Trava anti-duplicidade: tarefa pendente com mesmo título no mesmo processo
+    const norm = (s: string) => s.trim().toLowerCase();
+    const dup = (tasks || []).some(
+      (t: any) => !t.completed && norm(t.title || '') === norm(newTask.title),
+    );
+    if (dup) {
+      const ok = window.confirm(
+        'Já existe uma tarefa pendente com este mesmo título neste processo. Tem certeza que deseja criar outra?',
+      );
+      if (!ok) return;
+    }
+    if (!window.confirm('O prazo assinalado foi conferido? Deseja realmente continuar?')) return;
     addTask.mutate(newTask);
   };
 
@@ -1341,6 +1366,12 @@ export default function Processos() {
                           placeholder="Responsável obrigatório"
                           value={newTask.assignee}
                           onChange={(e) => setNewTask((p) => ({ ...p, assignee: e.target.value }))}
+                        />
+                        <Textarea
+                          placeholder="Comentário (opcional) — registrado como comentário interno do processo"
+                          value={newTask.comment}
+                          onChange={(e) => setNewTask((p) => ({ ...p, comment: e.target.value }))}
+                          rows={2}
                         />
                         <div className="flex gap-2">
                           <Button size="sm" onClick={submitTask} disabled={!newTask.title.trim() || !newTask.assignee.trim() || addTask.isPending}>
