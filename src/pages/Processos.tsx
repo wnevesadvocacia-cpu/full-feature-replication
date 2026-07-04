@@ -1367,6 +1367,12 @@ export default function Processos() {
                           value={newTask.assignee}
                           onChange={(e) => setNewTask((p) => ({ ...p, assignee: e.target.value }))}
                         />
+                        <Textarea
+                          placeholder="Comentário (opcional) — registrado como comentário interno do processo"
+                          value={newTask.comment}
+                          onChange={(e) => setNewTask((p) => ({ ...p, comment: e.target.value }))}
+                          rows={2}
+                        />
                         <div className="flex gap-2">
                           <Button size="sm" onClick={submitTask} disabled={!newTask.title.trim() || !newTask.assignee.trim() || addTask.isPending}>
                             {addTask.isPending ? 'Salvando…' : 'Salvar'}
