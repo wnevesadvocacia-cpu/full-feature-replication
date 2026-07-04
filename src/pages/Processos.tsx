@@ -759,10 +759,12 @@ export default function Processos() {
 
   // Add task + andamento ao processo (pipeline unificado Processo ↔ Tarefa ↔ Agenda)
   const addTask = useMutation({
-    mutationFn: async (payload: { title: string; description: string; due_date: string; assignee: string }) => {
+    mutationFn: async (payload: { title: string; description: string; due_date: string; assignee: string; comment?: string }) => {
       // 1) Cria a tarefa (aparece em /tarefas e /agenda)
       const { error: taskErr } = await supabase.from('tasks').insert({
-        ...payload,
+        title: payload.title,
+        description: payload.description,
+        due_date: payload.due_date,
         start_date: new Date().toISOString().split('T')[0],
         process_id: selected?.id,
         assignee: payload.assignee.trim(),
@@ -786,6 +788,17 @@ export default function Processos() {
         type: 'andamento',
       });
       if (commentErr) throw commentErr;
+
+      // 3) Comentário adicional opcional
+      if (payload.comment?.trim()) {
+        await supabase.from('process_comments').insert({
+          content: payload.comment.trim(),
+          author_name: author,
+          process_id: selected?.id!,
+          user_id: user?.id!,
+          type: 'comentario',
+        });
+      }
     },
     onSuccess: () => {
       // Cross-page sync: invalida tudo que depende dessas tabelas
@@ -794,7 +807,7 @@ export default function Processos() {
       qc.invalidateQueries({ queryKey: ['agenda-tasks'] });
       qc.invalidateQueries({ queryKey: ['proc-movs', selected?.id] });
       toast({ title: 'Andamento adicionado.' });
-      setNewTask({ title: '', description: '', due_date: '', assignee: '' });
+      setNewTask({ title: '', description: '', due_date: '', assignee: '', comment: '' });
       setShowTaskForm(false);
     },
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
