@@ -685,7 +685,7 @@ export default function Processos() {
   const [editMode, setEditMode] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Process | null>(null);
-  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '' });
+  const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '', comment: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
 
   const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
