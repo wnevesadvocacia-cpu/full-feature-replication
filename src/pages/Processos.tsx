@@ -509,6 +509,32 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
   const save = useMutation({
     mutationFn: async () => {
       const payload = formToPayload(form);
+      // Trava anti-duplicidade por CNJ (só no cadastro novo). Evita inflar KPIs.
+      if (!isEdit && payload.number && user?.id) {
+        const digits = String(payload.number).replace(/\D/g, '');
+        if (digits.length >= 15) {
+          const { data: dups } = await supabase
+            .from('processes')
+            .select('id, number, title, client_name, status')
+            .eq('user_id', user.id)
+            .ilike('number', `%${digits.slice(0, 7)}%`)
+            .limit(50);
+          const match = (dups ?? []).filter(
+            (p: any) => String(p.number || '').replace(/\D/g, '') === digits,
+          );
+          if (match.length > 0) {
+            const m = match[0] as any;
+            const ok = window.confirm(
+              `Já existe processo cadastrado com este CNJ:\n\n` +
+                `• ${m.number}\n` +
+                `• ${m.title || 'sem título'}${m.client_name ? ` — ${m.client_name}` : ''}\n` +
+                `• Status: ${m.status || '-'}\n\n` +
+                `Cadastrar duplicata infla KPIs e relatórios. Deseja realmente continuar?`,
+            );
+            if (!ok) throw new Error('Cadastro cancelado: processo duplicado.');
+          }
+        }
+      }
       // Auto-cria cliente quando o nome foi digitado manualmente (sem seleção no dropdown)
       if (!payload.client_id && payload.client_name?.trim() && user?.id) {
         const name = payload.client_name.trim();
