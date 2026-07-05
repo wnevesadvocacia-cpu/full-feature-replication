@@ -713,6 +713,36 @@ export default function Processos() {
   const [deleteTarget, setDeleteTarget] = useState<Process | null>(null);
   const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '', comment: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [dupOpen, setDupOpen] = useState(false);
+
+  // Detecção de processos duplicados por CNJ (mesmo user_id, mesmo número normalizado).
+  // Roda leve: só id/number/title/status/client_name, sem paginar UI.
+  const { data: duplicateGroups = [] } = useQuery({
+    queryKey: ['processes-duplicates', user?.id],
+    enabled: !!user?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processes')
+        .select('id, number, title, status, client_name, created_at')
+        .eq('user_id', user!.id)
+        .not('number', 'is', null)
+        .limit(10000);
+      if (error) throw error;
+      const groups = new Map<string, any[]>();
+      for (const p of (data ?? []) as any[]) {
+        const digits = String(p.number || '').replace(/\D/g, '');
+        if (digits.length < 20) continue; // só CNJs completos
+        if (!groups.has(digits)) groups.set(digits, []);
+        groups.get(digits)!.push(p);
+      }
+      return Array.from(groups.entries())
+        .filter(([, arr]) => arr.length > 1)
+        .map(([digits, arr]) => ({ digits, items: arr }));
+    },
+  });
+  const duplicateCount = duplicateGroups.reduce((s, g: any) => s + (g.items.length - 1), 0);
+
 
   const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
   const { data: processTypes = [] } = useProcessTypes();
