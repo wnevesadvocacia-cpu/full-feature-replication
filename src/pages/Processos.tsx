@@ -973,6 +973,22 @@ export default function Processos() {
 
   return (
     <div className="p-6 space-y-5">
+      {/* Alerta de duplicados — evita inflar KPIs */}
+      {duplicateCount > 0 && (
+        <div className="flex items-center justify-between gap-3 border border-amber-300 bg-amber-50 text-amber-900 rounded-md px-4 py-2.5">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              <b>{duplicateCount}</b> processo(s) duplicado(s) detectado(s) em{' '}
+              <b>{duplicateGroups.length}</b> grupo(s) por CNJ. Os KPIs podem estar inflados.
+            </span>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setDupOpen(true)}>
+            Revisar duplicados
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">
