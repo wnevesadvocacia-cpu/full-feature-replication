@@ -509,6 +509,32 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
   const save = useMutation({
     mutationFn: async () => {
       const payload = formToPayload(form);
+      // Trava anti-duplicidade por CNJ (só no cadastro novo). Evita inflar KPIs.
+      if (!isEdit && payload.number && user?.id) {
+        const digits = String(payload.number).replace(/\D/g, '');
+        if (digits.length >= 15) {
+          const { data: dups } = await supabase
+            .from('processes')
+            .select('id, number, title, client_name, status')
+            .eq('user_id', user.id)
+            .ilike('number', `%${digits.slice(0, 7)}%`)
+            .limit(50);
+          const match = (dups ?? []).filter(
+            (p: any) => String(p.number || '').replace(/\D/g, '') === digits,
+          );
+          if (match.length > 0) {
+            const m = match[0] as any;
+            const ok = window.confirm(
+              `Já existe processo cadastrado com este CNJ:\n\n` +
+                `• ${m.number}\n` +
+                `• ${m.title || 'sem título'}${m.client_name ? ` — ${m.client_name}` : ''}\n` +
+                `• Status: ${m.status || '-'}\n\n` +
+                `Cadastrar duplicata infla KPIs e relatórios. Deseja realmente continuar?`,
+            );
+            if (!ok) throw new Error('Cadastro cancelado: processo duplicado.');
+          }
+        }
+      }
       // Auto-cria cliente quando o nome foi digitado manualmente (sem seleção no dropdown)
       if (!payload.client_id && payload.client_name?.trim() && user?.id) {
         const name = payload.client_name.trim();
@@ -687,6 +713,36 @@ export default function Processos() {
   const [deleteTarget, setDeleteTarget] = useState<Process | null>(null);
   const [newTask, setNewTask] = useState({ title: '', description: '', due_date: '', assignee: '', comment: '' });
   const [showTaskForm, setShowTaskForm] = useState(false);
+  const [dupOpen, setDupOpen] = useState(false);
+
+  // Detecção de processos duplicados por CNJ (mesmo user_id, mesmo número normalizado).
+  // Roda leve: só id/number/title/status/client_name, sem paginar UI.
+  const { data: duplicateGroups = [] } = useQuery({
+    queryKey: ['processes-duplicates', user?.id],
+    enabled: !!user?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('processes')
+        .select('id, number, title, status, client_name, created_at')
+        .eq('user_id', user!.id)
+        .not('number', 'is', null)
+        .limit(10000);
+      if (error) throw error;
+      const groups = new Map<string, any[]>();
+      for (const p of (data ?? []) as any[]) {
+        const digits = String(p.number || '').replace(/\D/g, '');
+        if (digits.length < 20) continue; // só CNJs completos
+        if (!groups.has(digits)) groups.set(digits, []);
+        groups.get(digits)!.push(p);
+      }
+      return Array.from(groups.entries())
+        .filter(([, arr]) => arr.length > 1)
+        .map(([digits, arr]) => ({ digits, items: arr }));
+    },
+  });
+  const duplicateCount = duplicateGroups.reduce((s, g: any) => s + (g.items.length - 1), 0);
+
 
   const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
   const { data: processTypes = [] } = useProcessTypes();
@@ -917,6 +973,22 @@ export default function Processos() {
 
   return (
     <div className="p-6 space-y-5">
+      {/* Alerta de duplicados — evita inflar KPIs */}
+      {duplicateCount > 0 && (
+        <div className="flex items-center justify-between gap-3 border border-amber-300 bg-amber-50 text-amber-900 rounded-md px-4 py-2.5">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              <b>{duplicateCount}</b> processo(s) duplicado(s) detectado(s) em{' '}
+              <b>{duplicateGroups.length}</b> grupo(s) por CNJ. Os KPIs podem estar inflados.
+            </span>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => setDupOpen(true)}>
+            Revisar duplicados
+          </Button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">
@@ -1547,6 +1619,79 @@ export default function Processos() {
             >
               {deleteProcess.isPending ? 'Excluindo…' : 'Excluir'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Revisar processos duplicados ── */}
+      <Dialog open={dupOpen} onOpenChange={setDupOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-700">
+              <AlertTriangle className="h-5 w-5" /> Processos duplicados por CNJ
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-gray-600">
+            Cada grupo abaixo tem 2+ processos com o mesmo CNJ. Mantenha um e exclua os demais
+            para não inflar KPIs, relatórios e listagens.
+          </p>
+          <div className="space-y-4 mt-2">
+            {duplicateGroups.length === 0 && (
+              <p className="text-sm text-gray-500 italic">Nenhum duplicado encontrado.</p>
+            )}
+            {duplicateGroups.map((g: any) => (
+              <div key={g.digits} className="border rounded-md p-3">
+                <div className="text-xs font-mono text-gray-500 mb-2">CNJ dígitos: {g.digits}</div>
+                <div className="space-y-1.5">
+                  {g.items.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 text-sm border-b last:border-b-0 pb-1.5 last:pb-0">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-mono text-xs truncate">{p.number}</div>
+                        <div className="text-gray-700 truncate">
+                          {p.title || 'sem título'}
+                          {p.client_name ? ` — ${p.client_name}` : ''}
+                          <span className="text-gray-400"> · {p.status || '-'}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setDupOpen(false);
+                            setSelected(p);
+                            setEditMode(false);
+                            setDetailTab('details');
+                          }}
+                        >
+                          Abrir
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={async () => {
+                            if (!window.confirm(`Excluir definitivamente este processo duplicado?\n\n${p.number}`)) return;
+                            const { error } = await supabase.from('processes').delete().eq('id', p.id);
+                            if (error) {
+                              toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+                              return;
+                            }
+                            toast({ title: 'Duplicado removido.' });
+                            qc.invalidateQueries({ queryKey: ['processes'] });
+                            qc.invalidateQueries({ queryKey: ['processes-duplicates'] });
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDupOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
