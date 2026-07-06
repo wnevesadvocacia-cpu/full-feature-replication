@@ -298,9 +298,11 @@ export default function Intimacoes() {
         const fase = it.classification_meta?.fase;
         const isExec = fase === 'execucao';
         const norm = (s: string | null | undefined) => (s || '').replace(/\D/g, '');
-        const candidateParent = it.classification_meta?.processo_principal || cnjs.find((c) => norm(c) !== primaryDigits) || null;
+        // Com sufixo (/NN) o CNJ base é o processo principal por definição.
+        const hasSuffix = primaryDigits !== baseDigits;
+        const candidateParent = hasSuffix ? base : (it.classification_meta?.processo_principal || cnjs.find((c) => norm(c) !== primaryDigits) || null);
         // Guard: nunca vincular o processo a si mesmo como originário.
-        const parent = isExec && candidateParent && norm(candidateParent) !== primaryDigits ? candidateParent : null;
+        const parent = (hasSuffix || isExec) && candidateParent && norm(candidateParent) !== primaryDigits ? candidateParent : null;
 
         const { data: created, error: pErr } = await (supabase as any)
           .from('processes')
