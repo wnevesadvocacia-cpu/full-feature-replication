@@ -636,8 +636,12 @@ export default function Intimacoes() {
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   {(() => {
-                    const cnjs = extractCnjs(it.content).map((c: string) => c.replace(/\D/g, ''));
-                    const alreadyExists = cnjs.some((c: string) => existingProcessSet.has(c));
+                    // Só considera o CNJ primário da intimação (primeiro do texto).
+                    // Antes usava .some() sobre todos os CNJs, o que ocultava o botão
+                    // em cumprimentos de sentença quando o processo principal (citado
+                    // no corpo) já estava cadastrado, mesmo com o cumprimento inédito.
+                    const primaryCnj = (extractCnjs(it.content)[0] || '').replace(/\D/g, '');
+                    const alreadyExists = !!primaryCnj && existingProcessSet.has(primaryCnj);
                     return !loadingExistingProcesses && !it.process_id && hasCnj(it.content) && !alreadyExists;
                   })() && (
                     <Button
