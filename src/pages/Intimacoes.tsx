@@ -281,8 +281,12 @@ export default function Intimacoes() {
     mutationFn: async (it: Intim) => {
       const cnjs = extractCnjs(it.content);
       if (cnjs.length === 0) throw new Error('Nenhum número CNJ encontrado na intimação.');
-      const primary = cnjs[0];
+      const base = cnjs[0];
+      const eff = getEffectiveCnj(it.content);
+      // Se houver sufixo /NN (precatório, cumprimento, incidente), cadastra como processo distinto.
+      const primary = eff?.masked || base;
       const primaryDigits = primary.replace(/\D/g, '');
+      const baseDigits = base.replace(/\D/g, '');
 
       // Idempotência: se já existir com esse número para o usuário, apenas vincula.
       const { data: existing } = await (supabase as any)
