@@ -17,6 +17,19 @@ import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
+
+// Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
+// Retorna o número efetivo (com sufixo, se houver) e os dígitos correspondentes.
+const getEffectiveCnj = (content: string | null | undefined): { masked: string; digits: string } | null => {
+  const cnjs = extractCnjs(content);
+  const primary = cnjs[0];
+  if (!primary) return null;
+  const esc = primary.replace(/[.\-]/g, '\\$&');
+  const m = (content || '').match(new RegExp(esc + '\\s*/\\s*(\\d{2})'));
+  const suffix = m ? '/' + m[1] : '';
+  const masked = primary + suffix;
+  return { masked, digits: masked.replace(/\D/g, '') };
+};
 import { FilePlus2 } from 'lucide-react';
 import { DjenHealthBadge } from '@/components/DjenHealthBadge';
 
@@ -176,6 +189,8 @@ export default function Intimacoes() {
         variants.add(cnj);
         variants.add(cnj.replace(/\D/g, ''));
       });
+      const eff = getEffectiveCnj(it.content);
+      if (eff) { variants.add(eff.masked); variants.add(eff.digits); }
     });
     return Array.from(variants);
   }, [dayItems]);
@@ -266,8 +281,12 @@ export default function Intimacoes() {
     mutationFn: async (it: Intim) => {
       const cnjs = extractCnjs(it.content);
       if (cnjs.length === 0) throw new Error('Nenhum número CNJ encontrado na intimação.');
-      const primary = cnjs[0];
+      const base = cnjs[0];
+      const eff = getEffectiveCnj(it.content);
+      // Se houver sufixo /NN (precatório, cumprimento, incidente), cadastra como processo distinto.
+      const primary = eff?.masked || base;
       const primaryDigits = primary.replace(/\D/g, '');
+      const baseDigits = base.replace(/\D/g, '');
 
       // Idempotência: se já existir com esse número para o usuário, apenas vincula.
       const { data: existing } = await (supabase as any)
@@ -279,9 +298,11 @@ export default function Intimacoes() {
         const fase = it.classification_meta?.fase;
         const isExec = fase === 'execucao';
         const norm = (s: string | null | undefined) => (s || '').replace(/\D/g, '');
-        const candidateParent = it.classification_meta?.processo_principal || cnjs.find((c) => norm(c) !== primaryDigits) || null;
+        // Com sufixo (/NN) o CNJ base é o processo principal por definição.
+        const hasSuffix = primaryDigits !== baseDigits;
+        const candidateParent = hasSuffix ? base : (it.classification_meta?.processo_principal || cnjs.find((c) => norm(c) !== primaryDigits) || null);
         // Guard: nunca vincular o processo a si mesmo como originário.
-        const parent = isExec && candidateParent && norm(candidateParent) !== primaryDigits ? candidateParent : null;
+        const parent = (hasSuffix || isExec) && candidateParent && norm(candidateParent) !== primaryDigits ? candidateParent : null;
 
         const { data: created, error: pErr } = await (supabase as any)
           .from('processes')
@@ -640,8 +661,10 @@ export default function Intimacoes() {
                     // Antes usava .some() sobre todos os CNJs, o que ocultava o botão
                     // em cumprimentos de sentença quando o processo principal (citado
                     // no corpo) já estava cadastrado, mesmo com o cumprimento inédito.
-                    const primaryCnj = (extractCnjs(it.content)[0] || '').replace(/\D/g, '');
-                    const alreadyExists = !!primaryCnj && existingProcessSet.has(primaryCnj);
+                    // Considera sufixo /NN (precatório, cumprimento, incidente) como
+                    // processo distinto do CNJ base.
+                    const eff = getEffectiveCnj(it.content);
+                    const alreadyExists = !!eff && existingProcessSet.has(eff.digits);
                     return !loadingExistingProcesses && hasCnj(it.content) && !alreadyExists;
                   })() && (
                     <Button
