@@ -655,8 +655,10 @@ export default function Intimacoes() {
                     // Antes usava .some() sobre todos os CNJs, o que ocultava o botão
                     // em cumprimentos de sentença quando o processo principal (citado
                     // no corpo) já estava cadastrado, mesmo com o cumprimento inédito.
-                    const primaryCnj = (extractCnjs(it.content)[0] || '').replace(/\D/g, '');
-                    const alreadyExists = !!primaryCnj && existingProcessSet.has(primaryCnj);
+                    // Considera sufixo /NN (precatório, cumprimento, incidente) como
+                    // processo distinto do CNJ base.
+                    const eff = getEffectiveCnj(it.content);
+                    const alreadyExists = !!eff && existingProcessSet.has(eff.digits);
                     return !loadingExistingProcesses && hasCnj(it.content) && !alreadyExists;
                   })() && (
                     <Button
