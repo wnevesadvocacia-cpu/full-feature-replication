@@ -642,7 +642,7 @@ export default function Intimacoes() {
                     // no corpo) já estava cadastrado, mesmo com o cumprimento inédito.
                     const primaryCnj = (extractCnjs(it.content)[0] || '').replace(/\D/g, '');
                     const alreadyExists = !!primaryCnj && existingProcessSet.has(primaryCnj);
-                    return !loadingExistingProcesses && !it.process_id && hasCnj(it.content) && !alreadyExists;
+                    return !loadingExistingProcesses && hasCnj(it.content) && !alreadyExists;
                   })() && (
                     <Button
                       size="sm"
