@@ -17,6 +17,19 @@ import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
+
+// Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
+// Retorna o número efetivo (com sufixo, se houver) e os dígitos correspondentes.
+const getEffectiveCnj = (content: string | null | undefined): { masked: string; digits: string } | null => {
+  const cnjs = extractCnjs(content);
+  const primary = cnjs[0];
+  if (!primary) return null;
+  const esc = primary.replace(/[.\-]/g, '\\$&');
+  const m = (content || '').match(new RegExp(esc + '\\s*/\\s*(\\d{2})'));
+  const suffix = m ? '/' + m[1] : '';
+  const masked = primary + suffix;
+  return { masked, digits: masked.replace(/\D/g, '') };
+};
 import { FilePlus2 } from 'lucide-react';
 import { DjenHealthBadge } from '@/components/DjenHealthBadge';
 
