@@ -189,6 +189,8 @@ export default function Intimacoes() {
         variants.add(cnj);
         variants.add(cnj.replace(/\D/g, ''));
       });
+      const eff = getEffectiveCnj(it.content);
+      if (eff) { variants.add(eff.masked); variants.add(eff.digits); }
     });
     return Array.from(variants);
   }, [dayItems]);
