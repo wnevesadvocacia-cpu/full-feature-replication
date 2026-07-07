@@ -725,12 +725,29 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   if (!pecaSugerida) pecaSugerida = chosen.rule.peca;
 
-  // PR1: dobra Fazenda Pública restrita a triggers RULES (literal/contexto/fallback nunca dobram —
+  // PR1: dobra restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
   const allowsDoubling = triggerSource === 'rules';
-  const doubled = allowsDoubling && DOUBLE_PATTERNS.some((p) => p.test(text));
-  const fazendaCondenada = allowsDoubling && FAZENDA_NA_LIDE.test(text);
-  const effectiveDays = (doubled || fazendaCondenada) ? chosen.rule.days * 2 : chosen.rule.days;
+  const doubleReasons: string[] = [];
+  let doubleWaivedReason: string | undefined;
+  if (allowsDoubling) {
+    for (const s of DOUBLE_SOURCES) {
+      if (s.rx.test(text)) doubleReasons.push(`${s.label} — ${s.cite}`);
+    }
+    // Art. 229: litisconsortes com procuradores distintos. §2º afasta em autos eletrônicos.
+    if (LITISCONSORTES_RX.test(text) && PROC_DISTINTOS_RX.test(text)) {
+      if (ELETRONICO_RX.test(text)) {
+        doubleWaivedReason = 'Litisconsortes com procuradores distintos identificados, porém em autos eletrônicos — dobro AFASTADO (CPC art. 229 §2º).';
+      } else {
+        doubleReasons.push('Litisconsortes c/ procuradores distintos — CPC art. 229');
+      }
+    }
+    if (FAZENDA_NA_LIDE.test(text) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
+      doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
+    }
+  }
+  const doubled = doubleReasons.length > 0;
+  const effectiveDays = doubled ? chosen.rule.days * 2 : chosen.rule.days;
 
   // CPC art. 224 §3º
   let dueDate: string | null = null;
