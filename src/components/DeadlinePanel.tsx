@@ -121,14 +121,19 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-muted/60 text-[11px] font-mono">
           Lei 11.419/2006 art. 4º §§3º–4º · DJe
         </span>
-        {deadline.doubled && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/40 text-[11px] font-mono">
-            Prazo em dobro · CPC art. 183/186/229
+        {deadline.doubled && deadline.doubleReasons?.map((r) => (
+          <span key={r} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/40 text-[11px] font-mono">
+            2x · {r}
+          </span>
+        ))}
+        {deadline.doubleWaivedReason && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-warning/60 bg-warning/10 text-warning text-[11px] font-semibold">
+            <AlertOctagon className="h-3 w-3" /> Dobro afastado · CPC art. 229 §2º
           </span>
         )}
         {hasLocalHoliday && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-warning/60 bg-warning/15 text-warning text-[11px] font-semibold">
-            <AlertOctagon className="h-3 w-3" /> Contagem pendente de validação (feriado local)
+            <AlertOctagon className="h-3 w-3" /> Contagem pendente de validação (feriado local sem fonte oficial vinculada)
           </span>
         )}
         {!hasLocalHoliday && deadline.severity !== 'expired' && (
