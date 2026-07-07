@@ -224,18 +224,22 @@ const RULES: Rule[] = [
   { pattern: /\bagravo em recurso (especial|extraordinario)\b/, days: 15, unit: 'dias_uteis', label: 'AREsp/ARE', source: 'STF', article: 'art. 1.042 CPC', peca: { peca: 'Agravo em Recurso Especial/Extraordinário', fundamento_legal: 'CPC art. 1.042', prazo_dias: 15, observacoes: 'Contra decisão denegatória de RE/REsp.' }, confianca: 0.9 },
 ];
 
-// Detectores de prazo em dobro (Fazenda Pública, MP, Defensoria)
-const DOUBLE_PATTERNS = [
-  /\bfazenda publica\b/,
-  /\buniao\b(?!\s+europeia)/,
-  /\bestado de\b/,
-  /\bmunicipio de\b/,
-  /\bautarquia\b/,
-  /\bministerio publico\b/,
-  /\bdefensoria publica\b/,
-  /\binss\b/,
-  /\bcaixa economica federal\b/,
+// Detectores de prazo em dobro, com fundamento próprio por parte:
+//  - Fazenda Pública / entes públicos → CPC art. 183
+//  - Ministério Público                → CPC art. 180
+//  - Defensoria Pública                → CPC art. 186
+//  - Litisconsortes c/ procuradores distintos → CPC art. 229 (AFASTADO em autos eletrônicos, §2º)
+interface DoubleSource { rx: RegExp; label: string; cite: string; }
+const DOUBLE_SOURCES: DoubleSource[] = [
+  { rx: /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal)\b/, label: 'Fazenda Pública / ente público', cite: 'CPC art. 183' },
+  { rx: /\bministerio publico\b/, label: 'Ministério Público', cite: 'CPC art. 180' },
+  { rx: /\bdefensoria publica\b/, label: 'Defensoria Pública', cite: 'CPC art. 186' },
 ];
+const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
+const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b/;
+const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
+// Compat: mantido para código legado que importa DOUBLE_PATTERNS.
+const DOUBLE_PATTERNS = DOUBLE_SOURCES.map(s => s.rx);
 
 // Detector explícito do número de dias.
 const NUM_BY_EXTENSO: Record<string, number> = {
