@@ -76,6 +76,10 @@ export interface DetectedDeadline {
   classificacaoStatus: ClassificationStatus;
   /** Fonte do trigger acionado (telemetria PR3). */
   triggerSource: 'literal_dispositivo' | 'literal_strong' | 'literal_weak' | 'pauta' | 'context_rejeita' | 'context_acolhe' | 'context_homolog' | 'explicit' | 'rules' | 'fallback';
+  /** Fundamentos aplicados para o prazo em dobro (ex.: "Fazenda Pública (CPC art. 183)"). */
+  doubleReasons?: string[];
+  /** Motivo pelo qual o dobro foi detectado mas AFASTADO (ex.: art. 229 §2º autos eletrônicos). */
+  doubleWaivedReason?: string;
 }
 
 interface Rule {
