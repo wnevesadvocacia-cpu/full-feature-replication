@@ -154,8 +154,17 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
               {deadline.startDate && (
                 <li><strong>Início da contagem (dies a quo):</strong> {formatBR(deadline.startDate)} <span className="text-muted-foreground">(1º dia útil seguinte à publicação · CPC art. 224 §3º)</span></li>
               )}
-              <li><strong>Prazo legal:</strong> {deadline.days} {unitLabel}{deadline.doubled ? ' (em dobro)' : ''} <span className="text-muted-foreground">— {deadline.baseLegal}</span></li>
-              <li><span className="text-muted-foreground">Regra CPC art. 224: exclui o dia do começo, inclui o dia do vencimento. Vencimento em dia não útil prorroga para o próximo útil (art. 224 §1º).</span></li>
+              <li><strong>Prazo legal:</strong> {deadline.days} {unitLabel}{deadline.doubled ? ' (em dobro)' : ''} <span className="text-muted-foreground">— artigo do prazo: {deadline.source} {deadline.article}</span></li>
+              <li><strong>Forma de contagem:</strong> {deadline.unit === 'dias_uteis' ? 'dias úteis (CPC art. 219)' : 'dias corridos (CPC art. 219, parágrafo único)'} — exclui o dia do começo, inclui o do vencimento (art. 224); vencimento em dia não útil prorroga p/ próximo útil (art. 224 §1º).</li>
+              {deadline.doubled && deadline.doubleReasons && (
+                <li><strong>Prazo em dobro:</strong> {deadline.doubleReasons.join(' + ')}</li>
+              )}
+              {deadline.doubleWaivedReason && (
+                <li className="text-warning"><strong>Dobro afastado:</strong> {deadline.doubleWaivedReason}</li>
+              )}
+              {baseLegalExtra(deadline) && (
+                <li><strong>Fundamento adicional:</strong> {baseLegalExtra(deadline)}</li>
+              )}
               {deadline.dueDate && (
                 <li><strong>Vencimento (dies ad quem):</strong> <span className={`font-semibold ${sev.text}`}>{formatBR(deadline.dueDate)}</span> — {remaining}</li>
               )}
