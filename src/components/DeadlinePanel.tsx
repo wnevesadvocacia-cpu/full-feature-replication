@@ -50,6 +50,12 @@ const SEV = {
 } as const;
 
 export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
+  // extrai a parte "extra" do baseLegal (o motivo por trás do fundamento primário)
+  const baseLegalExtra = (d: DetectedDeadline) => {
+    const primary = `${d.source} ${d.article}`;
+    return d.baseLegal.replace(primary, '').replace(/^\s*·\s*/, '').trim();
+  };
+  // shim para preservar assinatura na JSX abaixo
   const [open, setOpen] = useState(false);
   const sev = SEV[deadline.severity];
   const unitLabel = deadline.unit === 'dias_uteis' ? 'dias úteis' : 'dias corridos';
