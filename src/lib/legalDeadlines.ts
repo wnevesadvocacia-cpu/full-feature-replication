@@ -76,6 +76,10 @@ export interface DetectedDeadline {
   classificacaoStatus: ClassificationStatus;
   /** Fonte do trigger acionado (telemetria PR3). */
   triggerSource: 'literal_dispositivo' | 'literal_strong' | 'literal_weak' | 'pauta' | 'context_rejeita' | 'context_acolhe' | 'context_homolog' | 'explicit' | 'rules' | 'fallback';
+  /** Fundamentos aplicados para o prazo em dobro (ex.: "Fazenda Pública (CPC art. 183)"). */
+  doubleReasons?: string[];
+  /** Motivo pelo qual o dobro foi detectado mas AFASTADO (ex.: art. 229 §2º autos eletrônicos). */
+  doubleWaivedReason?: string;
 }
 
 interface Rule {
@@ -167,6 +171,13 @@ const PECA_GENERICA = (label: string, dias: number): PecaSugerida => ({
 // Ordem importa: regras mais específicas primeiro.
 // Todas as regex devem rodar contra texto normalizado: minúsculas, sem acentos, espaços únicos.
 const RULES: Rule[] = [
+  // ===== Juizados Especiais (JEC/JEF) — PRECEDÊNCIA sobre CPC (Lei 9.099/95 art. 1º; CPC subsidiário no que compatível) =====
+  { pattern: /\b(embargos? de declaracao)\b[^.]{0,200}\b(juizado|turma recursal|lei 9\.?099)\b|\b(juizado|turma recursal)\b[^.]{0,200}\b(embargos? de declaracao)\b/, days: 5, unit: 'dias_uteis', label: 'EDcl (JEC)', source: 'JEC', article: 'Lei 9.099/95 art. 48', peca: { peca: 'Embargos de Declaração (JEC)', fundamento_legal: 'Lei 9.099/95 art. 48', prazo_dias: 5, observacoes: 'JEC/Turma Recursal — omissão/contradição/obscuridade/dúvida.' }, confianca: 0.9 },
+  { pattern: /\bpreparo\b[^.]{0,60}\b48\s*horas?\b|\b48\s*horas?\b[^.]{0,60}\bpreparo\b/, days: 2, unit: 'dias_corridos', label: 'Preparo JEC (48h)', source: 'JEC', article: 'Lei 9.099/95 art. 42 §1º', peca: { peca: 'Recolhimento de Preparo (JEC)', fundamento_legal: 'Lei 9.099/95 art. 42 §1º', prazo_dias: 2, observacoes: '48 horas após interposição do recurso inominado, sob pena de deserção.' }, confianca: 0.9 },
+  { pattern: /\bcumprimento de sentenca\b[^.]{0,100}\b(juizado|jec|lei 9\.?099)\b/, days: 15, unit: 'dias_uteis', label: 'Cumprimento sentença (JEC)', source: 'JEC', article: 'Lei 9.099/95 art. 52 c/c CPC 523', peca: { peca: 'Cumprimento de Sentença (JEC)', fundamento_legal: 'Lei 9.099/95 art. 52', prazo_dias: 15, observacoes: 'Rito especial do JEC; CPC 523 subsidiário quanto ao prazo de pagamento voluntário.' }, confianca: 0.85 },
+  { pattern: /\brecurso inominado\b/, days: 10, unit: 'dias_uteis', label: 'Recurso Inominado', source: 'JEC', article: 'Lei 9.099/95 art. 42', peca: { peca: 'Recurso Inominado', fundamento_legal: 'Lei 9.099/95 art. 42', prazo_dias: 10, observacoes: 'JEC. Preparo em 48h após interposição (art. 42 §1º).' }, confianca: 0.9 },
+  { pattern: /\bjuizado especial federal\b.*recurso/, days: 10, unit: 'dias_uteis', label: 'Recurso JEF', source: 'JEF', article: 'art. 5º Lei 10.259/01', peca: { peca: 'Recurso JEF', fundamento_legal: 'Lei 10.259/01 art. 5º', prazo_dias: 10, observacoes: 'JEF.' }, confianca: 0.9 },
+
   // ===== Recursos cíveis (CPC) =====
   { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'Embargos de Declaração', source: 'CPC', article: 'art. 1.023', peca: PECA_EMBARGOS_DECL, confianca: 0.9 },
   { pattern: /\bagravo (interno|regimental)\b/, days: 15, unit: 'dias_uteis', label: 'Agravo Interno', source: 'CPC', article: 'art. 1.021 §2º', peca: { peca: 'Agravo Interno', fundamento_legal: 'CPC art. 1.021', prazo_dias: 15, observacoes: 'Recurso interno em órgão colegiado.' }, confianca: 0.9 },
@@ -209,9 +220,7 @@ const RULES: Rule[] = [
   { pattern: /\bapelacao criminal\b/, days: 5, unit: 'dias_corridos', label: 'Apelação Criminal', source: 'CPP', article: 'art. 593 CPP', peca: { peca: 'Apelação Criminal', fundamento_legal: 'CPP art. 593', prazo_dias: 5, observacoes: 'Razões em 8 dias após interposição.' }, confianca: 0.9 },
   { pattern: /\bhabeas corpus\b/, days: 0, unit: 'dias_corridos', label: 'Habeas Corpus (sem prazo)', source: 'CPP', article: 'art. 647 CPP', peca: { peca: 'Habeas Corpus', fundamento_legal: 'CPP art. 647', prazo_dias: 0, observacoes: 'Sem prazo decadencial.' }, confianca: 0.7 },
 
-  // ===== Juizados Especiais =====
-  { pattern: /\brecurso inominado\b/, days: 10, unit: 'dias_uteis', label: 'Recurso Inominado', source: 'JEC', article: 'art. 42 Lei 9.099/95', peca: { peca: 'Recurso Inominado', fundamento_legal: 'Lei 9.099/95 art. 42', prazo_dias: 10, observacoes: 'JEC. Preparo em 48h após interposição.' }, confianca: 0.9 },
-  { pattern: /\bjuizado especial federal\b.*recurso/, days: 10, unit: 'dias_uteis', label: 'Recurso JEF', source: 'JEF', article: 'art. 5º Lei 10.259/01', peca: { peca: 'Recurso JEF', fundamento_legal: 'Lei 10.259/01 art. 5º', prazo_dias: 10, observacoes: 'JEF.' }, confianca: 0.9 },
+
 
   // ===== Tributário =====
   { pattern: /\bimpugnacao (?:tribut|fiscal|ao auto de infracao)\b/, days: 30, unit: 'dias_corridos', label: 'Impugnação Fiscal', source: 'CTN', article: 'art. 15 Dec 70.235/72', peca: { peca: 'Impugnação Fiscal', fundamento_legal: 'Decreto 70.235/72 art. 15', prazo_dias: 30, observacoes: 'Processo administrativo fiscal federal.' }, confianca: 0.85 },
@@ -220,18 +229,22 @@ const RULES: Rule[] = [
   { pattern: /\bagravo em recurso (especial|extraordinario)\b/, days: 15, unit: 'dias_uteis', label: 'AREsp/ARE', source: 'STF', article: 'art. 1.042 CPC', peca: { peca: 'Agravo em Recurso Especial/Extraordinário', fundamento_legal: 'CPC art. 1.042', prazo_dias: 15, observacoes: 'Contra decisão denegatória de RE/REsp.' }, confianca: 0.9 },
 ];
 
-// Detectores de prazo em dobro (Fazenda Pública, MP, Defensoria)
-const DOUBLE_PATTERNS = [
-  /\bfazenda publica\b/,
-  /\buniao\b(?!\s+europeia)/,
-  /\bestado de\b/,
-  /\bmunicipio de\b/,
-  /\bautarquia\b/,
-  /\bministerio publico\b/,
-  /\bdefensoria publica\b/,
-  /\binss\b/,
-  /\bcaixa economica federal\b/,
+// Detectores de prazo em dobro, com fundamento próprio por parte:
+//  - Fazenda Pública / entes públicos → CPC art. 183
+//  - Ministério Público                → CPC art. 180
+//  - Defensoria Pública                → CPC art. 186
+//  - Litisconsortes c/ procuradores distintos → CPC art. 229 (AFASTADO em autos eletrônicos, §2º)
+interface DoubleSource { rx: RegExp; label: string; cite: string; }
+const DOUBLE_SOURCES: DoubleSource[] = [
+  { rx: /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal)\b/, label: 'Fazenda Pública / ente público', cite: 'CPC art. 183' },
+  { rx: /\bministerio publico\b/, label: 'Ministério Público', cite: 'CPC art. 180' },
+  { rx: /\bdefensoria publica\b/, label: 'Defensoria Pública', cite: 'CPC art. 186' },
 ];
+const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
+const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b/;
+const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
+// Compat: mantido para código legado que importa DOUBLE_PATTERNS.
+const DOUBLE_PATTERNS = DOUBLE_SOURCES.map(s => s.rx);
 
 // Detector explícito do número de dias.
 const NUM_BY_EXTENSO: Record<string, number> = {
@@ -712,12 +725,29 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   if (!pecaSugerida) pecaSugerida = chosen.rule.peca;
 
-  // PR1: dobra Fazenda Pública restrita a triggers RULES (literal/contexto/fallback nunca dobram —
+  // PR1: dobra restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
   const allowsDoubling = triggerSource === 'rules';
-  const doubled = allowsDoubling && DOUBLE_PATTERNS.some((p) => p.test(text));
-  const fazendaCondenada = allowsDoubling && FAZENDA_NA_LIDE.test(text);
-  const effectiveDays = (doubled || fazendaCondenada) ? chosen.rule.days * 2 : chosen.rule.days;
+  const doubleReasons: string[] = [];
+  let doubleWaivedReason: string | undefined;
+  if (allowsDoubling) {
+    for (const s of DOUBLE_SOURCES) {
+      if (s.rx.test(text)) doubleReasons.push(`${s.label} — ${s.cite}`);
+    }
+    // Art. 229: litisconsortes com procuradores distintos. §2º afasta em autos eletrônicos.
+    if (LITISCONSORTES_RX.test(text) && PROC_DISTINTOS_RX.test(text)) {
+      if (ELETRONICO_RX.test(text)) {
+        doubleWaivedReason = 'Litisconsortes com procuradores distintos identificados, porém em autos eletrônicos — dobro AFASTADO (CPC art. 229 §2º).';
+      } else {
+        doubleReasons.push('Litisconsortes c/ procuradores distintos — CPC art. 229');
+      }
+    }
+    if (FAZENDA_NA_LIDE.test(text) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
+      doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
+    }
+  }
+  const doubled = doubleReasons.length > 0;
+  const effectiveDays = doubled ? chosen.rule.days * 2 : chosen.rule.days;
 
   // CPC art. 224 §3º
   let dueDate: string | null = null;
@@ -756,7 +786,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     source: chosen.rule.source,
     article: chosen.rule.article,
     matchedText: chosen.matched,
-    doubled: doubled || fazendaCondenada,
+    doubled,
     dueDate,
     startDate,
     severity,
@@ -767,5 +797,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     confianca: Math.round(confianca * 100) / 100,
     classificacaoStatus,
     triggerSource,
+    doubleReasons: doubleReasons.length ? doubleReasons : undefined,
+    doubleWaivedReason,
   };
 }

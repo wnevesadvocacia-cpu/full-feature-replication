@@ -50,6 +50,12 @@ const SEV = {
 } as const;
 
 export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
+  // extrai a parte "extra" do baseLegal (o motivo por trás do fundamento primário)
+  const baseLegalExtra = (d: DetectedDeadline) => {
+    const primary = `${d.source} ${d.article}`;
+    return d.baseLegal.replace(primary, '').replace(/^\s*·\s*/, '').trim();
+  };
+  // shim para preservar assinatura na JSX abaixo
   const [open, setOpen] = useState(false);
   const sev = SEV[deadline.severity];
   const unitLabel = deadline.unit === 'dias_uteis' ? 'dias úteis' : 'dias corridos';
@@ -121,14 +127,19 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-muted/60 text-[11px] font-mono">
           Lei 11.419/2006 art. 4º §§3º–4º · DJe
         </span>
-        {deadline.doubled && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/40 text-[11px] font-mono">
-            Prazo em dobro · CPC art. 183/186/229
+        {deadline.doubled && deadline.doubleReasons?.map((r) => (
+          <span key={r} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-primary/10 text-primary border-primary/40 text-[11px] font-mono">
+            2x · {r}
+          </span>
+        ))}
+        {deadline.doubleWaivedReason && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-warning/60 bg-warning/10 text-warning text-[11px] font-semibold">
+            <AlertOctagon className="h-3 w-3" /> Dobro afastado · CPC art. 229 §2º
           </span>
         )}
         {hasLocalHoliday && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-warning/60 bg-warning/15 text-warning text-[11px] font-semibold">
-            <AlertOctagon className="h-3 w-3" /> Contagem pendente de validação (feriado local)
+            <AlertOctagon className="h-3 w-3" /> Contagem pendente de validação (feriado local sem fonte oficial vinculada)
           </span>
         )}
         {!hasLocalHoliday && deadline.severity !== 'expired' && (
@@ -149,8 +160,17 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
               {deadline.startDate && (
                 <li><strong>Início da contagem (dies a quo):</strong> {formatBR(deadline.startDate)} <span className="text-muted-foreground">(1º dia útil seguinte à publicação · CPC art. 224 §3º)</span></li>
               )}
-              <li><strong>Prazo legal:</strong> {deadline.days} {unitLabel}{deadline.doubled ? ' (em dobro)' : ''} <span className="text-muted-foreground">— {deadline.baseLegal}</span></li>
-              <li><span className="text-muted-foreground">Regra CPC art. 224: exclui o dia do começo, inclui o dia do vencimento. Vencimento em dia não útil prorroga para o próximo útil (art. 224 §1º).</span></li>
+              <li><strong>Prazo legal:</strong> {deadline.days} {unitLabel}{deadline.doubled ? ' (em dobro)' : ''} <span className="text-muted-foreground">— artigo do prazo: {deadline.source} {deadline.article}</span></li>
+              <li><strong>Forma de contagem:</strong> {deadline.unit === 'dias_uteis' ? 'dias úteis (CPC art. 219)' : 'dias corridos (CPC art. 219, parágrafo único)'} — exclui o dia do começo, inclui o do vencimento (art. 224); vencimento em dia não útil prorroga p/ próximo útil (art. 224 §1º).</li>
+              {deadline.doubled && deadline.doubleReasons && (
+                <li><strong>Prazo em dobro:</strong> {deadline.doubleReasons.join(' + ')}</li>
+              )}
+              {deadline.doubleWaivedReason && (
+                <li className="text-warning"><strong>Dobro afastado:</strong> {deadline.doubleWaivedReason}</li>
+              )}
+              {baseLegalExtra(deadline) && (
+                <li><strong>Fundamento adicional:</strong> {baseLegalExtra(deadline)}</li>
+              )}
               {deadline.dueDate && (
                 <li><strong>Vencimento (dies ad quem):</strong> <span className={`font-semibold ${sev.text}`}>{formatBR(deadline.dueDate)}</span> — {remaining}</li>
               )}
