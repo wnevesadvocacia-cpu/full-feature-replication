@@ -642,12 +642,11 @@ export default function Intimacoes() {
                   )}
 
                   {!isUnsafe && detectedDeadline?.startDate && detectedDeadline?.dueDate && (
-                    <div className="mt-2 flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
-                      <span className="font-medium">Prazo:</span>
-                      <span>início {formatBR(detectedDeadline.startDate)}</span>
-                      <span>•</span>
-                      <span>vencimento {formatBR(detectedDeadline.dueDate)}</span>
-                    </div>
+                    <DeadlinePanel
+                      deadline={detectedDeadline}
+                      receivedAtISO={it.received_at.slice(0, 10)}
+                      tribunal={tribunalFromCNJ(extractCnjs(it.content)[0])?.sigla ?? null}
+                    />
                   )}
                   {(() => {
                     const r = renderSafeContent(it.content);
