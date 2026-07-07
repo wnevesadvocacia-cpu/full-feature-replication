@@ -786,7 +786,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     source: chosen.rule.source,
     article: chosen.rule.article,
     matchedText: chosen.matched,
-    doubled: doubled || fazendaCondenada,
+    doubled,
     dueDate,
     startDate,
     severity,
@@ -797,5 +797,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     confianca: Math.round(confianca * 100) / 100,
     classificacaoStatus,
     triggerSource,
+    doubleReasons: doubleReasons.length ? doubleReasons : undefined,
+    doubleWaivedReason,
   };
 }
