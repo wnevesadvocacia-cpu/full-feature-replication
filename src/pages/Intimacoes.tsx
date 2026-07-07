@@ -15,6 +15,8 @@ import { detectDeadline } from '@/lib/legalDeadlines';
 import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
+import { DeadlinePanel } from '@/components/DeadlinePanel';
+import { cnjToTribunal } from '@/lib/cnjTribunal';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 
