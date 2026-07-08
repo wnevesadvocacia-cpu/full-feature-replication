@@ -321,6 +321,10 @@ let OVERRIDE_START_DATE: string | null = null;
 let OVERRIDE_END_DATE: string | null = null;
 let OVERRIDE_DAYS_BACK: number | null = null;
 let OVERRIDE_MAX_PAGES: number | null = null;
+// Reconciliação manual: ignora filtro fuzzy de nome (usado quando o usuário
+// aciona "Reconciliar DJEN" para recuperar publicações grosseiramente perdidas
+// por mismatch de nome do advogado/destinatário).
+let BYPASS_NAME_FILTER = false;
 
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
   const daysBack = OVERRIDE_DAYS_BACK ?? DAYS_BACK;
