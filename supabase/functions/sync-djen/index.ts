@@ -554,9 +554,13 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     // campo destinatários). Só aplicamos filtro se o payload tem destinatário
     // estruturado E existe conflito — a função matchesConfiguredLawyer já trata
     // "no-candidates" como aceite.
-    if (refNames.length) {
+    if (refNames.length && !BYPASS_NAME_FILTER) {
       const filtered: DjenItem[] = [];
       for (const it of items) {
+        // Items obtidos via numeroProcesso são de processos JÁ cadastrados pelo
+        // usuário — pular filtro fuzzy evita perdas grosseiras (pautas, atos
+        // administrativos, publicações sem destinatário estruturado).
+        if ((it as any).__queryKind === 'process') { filtered.push(it); continue; }
         const m = matchesConfiguredLawyer(it as any, refNames, threshold);
         if (m.ok) filtered.push(it);
         else { nameRejected++; console.info(`[name-filter] descartado (score=${m.bestScore.toFixed(2)} < ${threshold})`); }
