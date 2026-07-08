@@ -419,6 +419,9 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
           const dedupKey = parsed.data.hash || String(parsed.data.id || '') || JSON.stringify(raw).slice(0, 200);
           if (seen.has(dedupKey)) continue;
           seen.add(dedupKey);
+          // Marca origem da query para o filtro server-side pular items obtidos
+          // por numeroProcesso (pautas/atos não citam nome do advogado).
+          (parsed.data as any).__queryKind = q.kind;
           validItems.push(parsed.data);
         } else {
           console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
