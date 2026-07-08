@@ -820,6 +820,7 @@ Deno.serve(async (req) => {
   OVERRIDE_END_DATE = typeof requestBody?.date_end === 'string' && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
   OVERRIDE_DAYS_BACK = Number.isFinite(Number(requestBody?.days_back)) ? Math.max(0, Math.min(90, Number(requestBody.days_back))) : null;
   OVERRIDE_MAX_PAGES = Number.isFinite(Number(requestBody?.max_pages)) ? Math.max(1, Math.min(20, Number(requestBody.max_pages))) : null;
+  BYPASS_NAME_FILTER = requestBody?.bypass_name_filter === true;
 
   // Resolve proxy URL configurado pela UI (tabela djen_proxy_config). Falha silenciosa
   // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.
