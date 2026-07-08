@@ -321,6 +321,10 @@ let OVERRIDE_START_DATE: string | null = null;
 let OVERRIDE_END_DATE: string | null = null;
 let OVERRIDE_DAYS_BACK: number | null = null;
 let OVERRIDE_MAX_PAGES: number | null = null;
+// Reconciliação manual: ignora filtro fuzzy de nome (usado quando o usuário
+// aciona "Reconciliar DJEN" para recuperar publicações grosseiramente perdidas
+// por mismatch de nome do advogado/destinatário).
+let BYPASS_NAME_FILTER = false;
 
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
   const daysBack = OVERRIDE_DAYS_BACK ?? DAYS_BACK;
@@ -345,25 +349,25 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
   //   3) por numeroProcesso para CADA processo cadastrado — cobre pautas de julgamento,
   //      listas de distribuição e atos administrativos que a API DJEN só retorna quando
   //      consultada pelo número do processo (não pela OAB).
-  const queries: Array<(p: number) => string> = [
-    (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
+  const queries: Array<{ kind: 'oab' | 'nome' | 'process'; build: (p: number) => string }> = [
+    { kind: 'oab', build: (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` },
   ];
   if (lawyerName && lawyerName.trim().length >= 5) {
-    queries.push((p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+    queries.push({ kind: 'nome', build: (p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` });
   }
   for (const numero of processNumbers) {
     const n = (numero || '').trim();
     if (n.length < 15) continue;
-    queries.push((p) => `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+    queries.push({ kind: 'process', build: (p) => `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` });
   }
 
 
-  for (const buildUrl of queries) {
+  for (const q of queries) {
     if (upstreamDegraded) break;
     let pagina = 1;
     let queryItems = 0;
     while (pagina <= maxPages) {
-      const url = buildUrl(pagina);
+      const url = q.build(pagina);
       totalAttempts++;
       let res: Response;
       try {
@@ -415,6 +419,9 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
           const dedupKey = parsed.data.hash || String(parsed.data.id || '') || JSON.stringify(raw).slice(0, 200);
           if (seen.has(dedupKey)) continue;
           seen.add(dedupKey);
+          // Marca origem da query para o filtro server-side pular items obtidos
+          // por numeroProcesso (pautas/atos não citam nome do advogado).
+          (parsed.data as any).__queryKind = q.kind;
           validItems.push(parsed.data);
         } else {
           console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
@@ -547,9 +554,13 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     // campo destinatários). Só aplicamos filtro se o payload tem destinatário
     // estruturado E existe conflito — a função matchesConfiguredLawyer já trata
     // "no-candidates" como aceite.
-    if (refNames.length) {
+    if (refNames.length && !BYPASS_NAME_FILTER) {
       const filtered: DjenItem[] = [];
       for (const it of items) {
+        // Items obtidos via numeroProcesso são de processos JÁ cadastrados pelo
+        // usuário — pular filtro fuzzy evita perdas grosseiras (pautas, atos
+        // administrativos, publicações sem destinatário estruturado).
+        if ((it as any).__queryKind === 'process') { filtered.push(it); continue; }
         const m = matchesConfiguredLawyer(it as any, refNames, threshold);
         if (m.ok) filtered.push(it);
         else { nameRejected++; console.info(`[name-filter] descartado (score=${m.bestScore.toFixed(2)} < ${threshold})`); }
@@ -809,6 +820,7 @@ Deno.serve(async (req) => {
   OVERRIDE_END_DATE = typeof requestBody?.date_end === 'string' && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
   OVERRIDE_DAYS_BACK = Number.isFinite(Number(requestBody?.days_back)) ? Math.max(0, Math.min(90, Number(requestBody.days_back))) : null;
   OVERRIDE_MAX_PAGES = Number.isFinite(Number(requestBody?.max_pages)) ? Math.max(1, Math.min(20, Number(requestBody.max_pages))) : null;
+  BYPASS_NAME_FILTER = requestBody?.bypass_name_filter === true;
 
   // Resolve proxy URL configurado pela UI (tabela djen_proxy_config). Falha silenciosa
   // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.

@@ -145,6 +145,33 @@ export default function Intimacoes() {
     finally { setSyncing(false); }
   };
 
+  // Reconciliação forçada: reprocessa os últimos 30 dias na DJEN ignorando o
+  // filtro fuzzy de nome do advogado. Recupera publicações perdidas por
+  // mismatch de destinatário (ex.: nome ausente/abreviado no payload DJEN).
+  const [reconciling, setReconciling] = useState(false);
+  const reconcileDjen = async () => {
+    if (!confirm('Reconciliar 30 dias com a DJEN ignorando filtro de nome? Pode reinserir publicações antes descartadas.')) return;
+    setReconciling(true);
+    try {
+      const today = new Date().toISOString().slice(0, 10);
+      const start = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+      const { data, error } = await supabase.functions.invoke('sync-djen', {
+        body: { bypass_name_filter: true, date_start: start, date_end: today },
+        method: 'POST',
+      });
+      if (error) throw error;
+      if (data?.upstream_unavailable) {
+        toast({ title: 'CNJ/DJEN indisponível', description: data.error, variant: 'destructive' });
+        return;
+      }
+      const totalIns = (data?.results || []).reduce((s: number, r: any) => s + (r?.inserted || 0), 0);
+      const totalFound = (data?.results || []).reduce((s: number, r: any) => s + (r?.total || 0), 0);
+      toast({ title: 'Reconciliação concluída', description: `${totalIns} recuperadas / ${totalFound} verificadas` });
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+    } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
+    finally { setReconciling(false); }
+  };
+
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['intimations'],
     enabled: !!user,
@@ -464,6 +491,10 @@ export default function Intimacoes() {
           <Button variant="outline" onClick={syncDjen} disabled={syncing}>
             {syncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
             Sincronizar
+          </Button>
+          <Button variant="outline" onClick={reconcileDjen} disabled={reconciling} title="Reprocessa 30 dias ignorando filtro de nome — recupera publicações perdidas">
+            {reconciling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            Reconciliar
           </Button>
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova Intimação</Button>
         </div>
