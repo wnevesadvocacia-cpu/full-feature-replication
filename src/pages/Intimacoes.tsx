@@ -492,6 +492,10 @@ export default function Intimacoes() {
             {syncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
             Sincronizar
           </Button>
+          <Button variant="outline" onClick={reconcileDjen} disabled={reconciling} title="Reprocessa 30 dias ignorando filtro de nome — recupera publicações perdidas">
+            {reconciling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            Reconciliar
+          </Button>
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova Intimação</Button>
         </div>
       </div>
