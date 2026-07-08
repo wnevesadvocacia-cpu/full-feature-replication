@@ -349,25 +349,25 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
   //   3) por numeroProcesso para CADA processo cadastrado — cobre pautas de julgamento,
   //      listas de distribuição e atos administrativos que a API DJEN só retorna quando
   //      consultada pelo número do processo (não pela OAB).
-  const queries: Array<(p: number) => string> = [
-    (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
+  const queries: Array<{ kind: 'oab' | 'nome' | 'process'; build: (p: number) => string }> = [
+    { kind: 'oab', build: (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` },
   ];
   if (lawyerName && lawyerName.trim().length >= 5) {
-    queries.push((p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+    queries.push({ kind: 'nome', build: (p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` });
   }
   for (const numero of processNumbers) {
     const n = (numero || '').trim();
     if (n.length < 15) continue;
-    queries.push((p) => `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`);
+    queries.push({ kind: 'process', build: (p) => `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` });
   }
 
 
-  for (const buildUrl of queries) {
+  for (const q of queries) {
     if (upstreamDegraded) break;
     let pagina = 1;
     let queryItems = 0;
     while (pagina <= maxPages) {
-      const url = buildUrl(pagina);
+      const url = q.build(pagina);
       totalAttempts++;
       let res: Response;
       try {
