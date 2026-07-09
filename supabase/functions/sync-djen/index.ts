@@ -803,11 +803,6 @@ Deno.serve(async (req) => {
   // S12: CSRF check apenas para execuções manuais (browser).
   // Cron interno chama sem Origin/Referer e passa pelo helper.
   const url = new URL(req.url);
-  const isManual = url.searchParams.get('manual') === '1';
-  if (isManual) {
-    const csrfBlock = rejectIfCsrfBlocked(req, corsHeaders);
-    if (csrfBlock) return csrfBlock;
-  }
   const runId = crypto.randomUUID();
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -821,6 +816,18 @@ Deno.serve(async (req) => {
   OVERRIDE_DAYS_BACK = Number.isFinite(Number(requestBody?.days_back)) ? Math.max(0, Math.min(90, Number(requestBody.days_back))) : null;
   OVERRIDE_MAX_PAGES = Number.isFinite(Number(requestBody?.max_pages)) ? Math.max(1, Math.min(20, Number(requestBody.max_pages))) : null;
   BYPASS_NAME_FILTER = requestBody?.bypass_name_filter === true;
+
+  // Manual = ?manual=1 OU reconciliação (bypass_name_filter=true) OU qualquer POST com body
+  // de override de datas (evita ficar preso no lock do cron durante recuperação manual).
+  const isManual = url.searchParams.get('manual') === '1'
+    || BYPASS_NAME_FILTER
+    || requestBody?.manual === true
+    || !!(OVERRIDE_START_DATE || OVERRIDE_END_DATE);
+  if (isManual) {
+    const csrfBlock = rejectIfCsrfBlocked(req, corsHeaders);
+    if (csrfBlock) return csrfBlock;
+  }
+
 
   // Resolve proxy URL configurado pela UI (tabela djen_proxy_config). Falha silenciosa
   // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.
