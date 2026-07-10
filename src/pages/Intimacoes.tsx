@@ -202,11 +202,11 @@ export default function Intimacoes() {
 
   // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
   // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
+  const isDisplayableIntimation = (i: Intim) => !!i.process_id || hasCnj(i.content);
   const dayItems = useMemo(
     () => items.filter((i) => {
       if (i.received_at?.slice(0, 10) !== selectedDate) return false;
-      if (i.process_id) return true;
-      return hasCnj(i.content);
+      return isDisplayableIntimation(i);
     }),
     [items, selectedDate]
   );
@@ -453,7 +453,7 @@ export default function Intimacoes() {
       if (it.status === 'tratada') return;
       const received = it.received_at?.slice(0, 10);
       const captured = saoPauloDate(it.created_at);
-      if (received && captured === today && received >= today) {
+      if (received && captured === today && received < today && isDisplayableIntimation(it)) {
         m.set(received, (m.get(received) ?? 0) + 1);
       }
     });
@@ -565,7 +565,7 @@ export default function Intimacoes() {
                     type="button"
                     size="sm"
                     variant={selectedDate === date ? 'default' : 'outline'}
-                    onClick={() => setSelectedDate(date)}
+                    onClick={() => { setSelectedDate(date); setFilter('pendente'); }}
                     className="h-8"
                   >
                     {formatBR(date)} · {count}
