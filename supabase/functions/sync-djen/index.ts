@@ -292,7 +292,7 @@ async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[]
       try {
         const res = await fetchWithRetry(url);
         if (!res.ok) continue;
-        html = await res.text();
+        html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
       } catch (e) {
         console.warn('[tjmg-dje] fallback falhou:', (e as Error).message);
         continue;
@@ -846,7 +846,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         const { data: insertedRow, error } = await supabase.from('intimations').insert({
           user_id: targetUserId,
           external_id: externalId,
-          source: 'djen',
+          source: (it as any).__source || 'djen',
           court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? ' - ' + it.nomeOrgao : ''}` : it.nomeOrgao,
           content: cleanText,
           received_at: receivedAt,
