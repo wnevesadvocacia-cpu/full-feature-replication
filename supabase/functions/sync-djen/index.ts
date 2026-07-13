@@ -684,19 +684,44 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     ...(Array.isArray(row.name_variations) ? row.name_variations.filter(Boolean).map(String) : []),
   ];
   const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.80;
+  const syncStartDate = OVERRIDE_START_DATE || new Date(Date.now() - (OVERRIDE_DAYS_BACK ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
+  const syncEndDate = OVERRIDE_END_DATE || new Date().toISOString().slice(0, 10);
 
   try {
-    // Carrega números de processos do usuário para varredura adicional (pautas,
+    const { data: roleRows } = await supabase.from('user_roles').select('user_id');
+    const officeUserIds = [...new Set([row.user_id, ...((roleRows || []).map((r: any) => r.user_id).filter(Boolean))])];
+
+    // Carrega números de processos do usuário da OAB para varredura adicional DJEN (pautas,
     // listas de distribuição, atos administrativos que só aparecem por numeroProcesso).
-    const { data: procs } = await supabase
+    const { data: ownProcs } = await supabase
       .from('processes')
       .select('number')
       .eq('user_id', row.user_id)
       .not('number', 'is', null);
-    const processNumbers = (procs || []).map((p: any) => p.number).filter(Boolean);
+    const processNumbers = (ownProcs || []).map((p: any) => p.number).filter(Boolean);
 
     const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers);
-    items = result.items;
+    const { data: officeProcs } = await supabase
+      .from('processes')
+      .select('number')
+      .in('user_id', officeUserIds)
+      .not('number', 'is', null);
+    const tjmgFallbackItems = await fetchTjmgDjeFallback(
+      (officeProcs || []).map((p: any) => p.number).filter(Boolean),
+      refNames,
+      syncStartDate,
+      syncEndDate,
+    );
+
+    const merged: DjenItem[] = [];
+    const mergedSeen = new Set<string>();
+    for (const it of [...result.items, ...tjmgFallbackItems]) {
+      const key = `${it.hash || it.id || ''}|${it.numero_processo || ''}|${it.data_disponibilizacao || ''}|${(it.texto || '').slice(0, 200)}`;
+      if (mergedSeen.has(key)) continue;
+      mergedSeen.add(key);
+      merged.push(it);
+    }
+    items = merged;
     attempts = result.attempts;
   } catch (e: any) {
     errorMessage = e.message || String(e);
@@ -727,14 +752,18 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     // Batch lookup de processes — inclui CNJs do cabeçalho E "processo principal" extraído do conteúdo
     const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
     const parents = items.map(it => extractParentProcess(cleanHtml(it.texto || ''), it.numero_processo || null) || '').filter(Boolean);
-    const processIndex = await buildProcessIndex(supabase, row.user_id, [...numeros, ...parents]);
+    const { data: roleRowsForIndex } = await supabase.from('user_roles').select('user_id');
+    const processUserIds = [...new Set([row.user_id, ...((roleRowsForIndex || []).map((r: any) => r.user_id).filter(Boolean))])];
+    const processIndex = await buildProcessIndex(supabase, processUserIds, [...numeros, ...parents]);
 
 
-    let userEmail: string | null = null;
-    try {
-      const { data: u } = await supabase.auth.admin.getUserById(row.user_id);
-      userEmail = u?.user?.email ?? null;
-    } catch (_) { /* segue sem email */ }
+    const userEmailById = new Map<string, string | null>();
+    for (const uid of processUserIds) {
+      try {
+        const { data: u } = await supabase.auth.admin.getUserById(uid);
+        userEmailById.set(uid, u?.user?.email ?? null);
+      } catch (_) { userEmailById.set(uid, null); }
+    }
 
     for (const it of items) {
       try {
@@ -796,13 +825,16 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           calculated_at: new Date().toISOString(),
         } : null;
         // Resolução de processo: tenta CNJ direto; se não houver match, tenta "processo principal" do conteúdo
-        let processId = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        let targetUserId = row.user_id;
+        const directProcess = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        let processId = directProcess?.id ?? null;
+        if (directProcess?.user_id) targetUserId = directProcess.user_id;
         const parentNumero = extractParentProcess(cleanText, it.numero_processo || null);
         const isExecution = detectsExecutionPhase(cleanText) || (!!parentNumero && parentNumero !== it.numero_processo);
         let linkedToParent = false;
         if (!processId && parentNumero) {
-          const parentId = processIndex.get(parentNumero) || null;
-          if (parentId) { processId = parentId; linkedToParent = true; }
+          const parentProcess = processIndex.get(parentNumero) || null;
+          if (parentProcess) { processId = parentProcess.id; targetUserId = parentProcess.user_id; linkedToParent = true; }
         }
         const classificationMeta: Record<string, any> | null = (isExecution || linkedToParent || parentNumero) ? {
           fase: isExecution ? 'execucao' : null,
@@ -812,7 +844,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         } : null;
 
         const { data: insertedRow, error } = await supabase.from('intimations').insert({
-          user_id: row.user_id,
+          user_id: targetUserId,
           external_id: externalId,
           source: 'djen',
           court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? ' - ' + it.nomeOrgao : ''}` : it.nomeOrgao,
@@ -835,7 +867,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           if (isUrgent) urgentDeadlines++;
 
           await supabase.from('notifications').insert({
-            user_id: row.user_id,
+            user_id: targetUserId,
             title: isUrgent ? '⚠️ Intimação URGENTE — prazo ≤ 5 dias úteis' : 'Nova intimação DJEN',
             message: `OAB/${row.oab_uf} ${row.oab_number} — ${it.siglaTribunal || 'Tribunal'} - ${it.numero_processo || 'Processo'}${deadline ? ` (vence ${deadline})` : ''}`,
             type: isUrgent ? 'destructive' : 'warning',
@@ -843,6 +875,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           });
 
           // GAP 5: enfileira email instantâneo se prazo ≤ 5 dias úteis
+          const userEmail = userEmailById.get(targetUserId) ?? null;
           if (isUrgent && userEmail && deadline) {
             const diasUteis = businessDaysUntil(deadline, tribunal);
             const subject = `🚨 PRAZO CRÍTICO: ${diasUteis} dia(s) útil(eis) — vence ${deadline}`;
