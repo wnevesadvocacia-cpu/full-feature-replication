@@ -45,6 +45,7 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 const DAYS_BACK = 30;
 const PAGE_DELAY_MS = 250; // gap entre páginas para não estressar API CNJ
+const TJMG_DJE_DELAY_MS = 150;
 
 // ============= Calendário CNJ (dias úteis) =============
 const FIXED_HOLIDAYS: Array<[number, number]> = [
@@ -201,6 +202,159 @@ function maskProcessNumber(raw?: string | null): string | null {
   const d = (raw || '').replace(/\D/g, '');
   if (d.length !== 20) return raw || null;
   return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
+}
+
+function normalizeProcessNumber(raw?: string | null): string | null {
+  const d = (raw || '').replace(/\D/g, '');
+  if (d.length !== 20) return null;
+  return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
+}
+
+function htmlDecode(raw: string): string {
+  return (raw || '')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&aacute;/gi, 'á').replace(/&agrave;/gi, 'à').replace(/&acirc;/gi, 'â').replace(/&atilde;/gi, 'ã')
+    .replace(/&eacute;/gi, 'é').replace(/&ecirc;/gi, 'ê')
+    .replace(/&iacute;/gi, 'í')
+    .replace(/&oacute;/gi, 'ó').replace(/&ocirc;/gi, 'ô').replace(/&otilde;/gi, 'õ')
+    .replace(/&uacute;/gi, 'ú')
+    .replace(/&ccedil;/gi, 'ç');
+}
+
+function stripHtmlToText(raw: string): string {
+  return htmlDecode(raw)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function addCalendarDaysISO(iso: string, days: number): string {
+  return fmtISO(addDaysUTC(new Date(iso + 'T12:00:00Z'), days));
+}
+
+function dateToTjmgDia(iso: string): string {
+  const [, m, d] = iso.split('-');
+  return `${d}${m}`;
+}
+
+function tjmgComarcaParamFromProcess(numero: string): string | null {
+  const d = numero.replace(/\D/g, '');
+  if (d.length !== 20 || d.slice(14, 16) !== '13') return null;
+  const foro = d.slice(16, 20);
+  return foro === '0024' ? 'capital|j1' : `interior|${foro}`;
+}
+
+function buildTjmgExpedienteDates(dataInicio: string, dataFim: string): string[] {
+  const dates: string[] = [];
+  let d = new Date(addCalendarDaysISO(dataInicio, -3) + 'T12:00:00Z');
+  const end = new Date(dataFim + 'T12:00:00Z').getTime();
+  while (d.getTime() <= end) {
+    const iso = fmtISO(d);
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.push(iso);
+    d = addDaysUTC(d, 1);
+  }
+  return dates;
+}
+
+function looksLikeHeading(line: string): boolean {
+  if (!line || /^Expediente de/i.test(line)) return false;
+  if (/^(JUIZ|PROMOTOR|ESCRIV|ÍNDICE|INDICE|COMARCA)/i.test(line)) return false;
+  if (/^\d{5}\s*-/.test(line)) return false;
+  return line === line.toUpperCase() && /[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(line) && line.length <= 80;
+}
+
+async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string): Promise<DjenItem[]> {
+  const normalizedNumbers = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
+  const tjmgNumbers = normalizedNumbers.filter(n => n.includes('.8.13.'));
+  if (!tjmgNumbers.length) return [];
+
+  const numberSet = new Set(tjmgNumbers);
+  const normalizedRefs = refNames.map(normalizeName).filter(Boolean);
+  const comarcas = [...new Set(tjmgNumbers.map(tjmgComarcaParamFromProcess).filter(Boolean) as string[])];
+  const dates = buildTjmgExpedienteDates(dataInicio, dataFim);
+  const items: DjenItem[] = [];
+  const seen = new Set<string>();
+
+  for (const completa of comarcas) {
+    for (const expedienteDate of dates) {
+      const disponibilizacao = nextBusinessDay(expedienteDate, 'TJMG');
+      if (disponibilizacao < dataInicio || disponibilizacao > dataFim) continue;
+
+      const url = `https://www8.tjmg.jus.br/juridico/diario/index.jsp?dia=${dateToTjmgDia(expedienteDate)}&completa=${encodeURIComponent(completa)}`;
+      let html = '';
+      try {
+        const res = await fetchWithRetry(url);
+        if (!res.ok) continue;
+        html = await res.text();
+      } catch (e) {
+        console.warn('[tjmg-dje] fallback falhou:', (e as Error).message);
+        continue;
+      }
+
+      const paragraphs = Array.from(html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi))
+        .map(m => stripHtmlToText(m[1]))
+        .filter(Boolean);
+
+      let comarca = 'COMARCA';
+      let vara = '';
+      let classe = '';
+      for (let i = 0; i < paragraphs.length; i++) {
+        const line = paragraphs[i];
+        if (/^COMARCA\s+DE\s+/i.test(line)) { comarca = line; continue; }
+        if (/VARA|JUIZADO|TURMA RECURSAL/i.test(line) && line.length <= 90) { vara = line; continue; }
+        if (looksLikeHeading(line)) { classe = line; continue; }
+
+        const m = line.match(/^(\d{5})\s*-\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/);
+        if (!m) continue;
+        const seq = m[1];
+        const numero = m[2];
+        const detail = paragraphs[i + 1] || '';
+        const detailNorm = normalizeName(detail);
+        const byProcess = numberSet.has(numero);
+        const byName = normalizedRefs.length > 0 && normalizedRefs.some(n => detailNorm.includes(n));
+        if (!byProcess && !byName) continue;
+
+        const key = `tjmg-dje:${expedienteDate}:${seq}:${numero}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const orgao = [vara, comarca].filter(Boolean).join(' DA ');
+        const content = [
+          `Disponibilização: ${disponibilizacao}`,
+          `Expediente TJMG: ${expedienteDate}`,
+          comarca,
+          vara,
+          classe,
+          `${seq} - ${numero}`,
+          detail,
+        ].filter(Boolean).join('\n');
+
+        items.push({
+          id: key,
+          hash: key,
+          numero_processo: numero,
+          texto: content,
+          data_disponibilizacao: disponibilizacao,
+          siglaTribunal: 'TJMG',
+          nomeOrgao: orgao || comarca,
+          tipoComunicacao: classe || 'Publicação TJMG',
+          __queryKind: 'process',
+          __source: 'tjmg-dje',
+        } as DjenItem);
+      }
+
+      await new Promise(r => setTimeout(r, TJMG_DJE_DELAY_MS));
+    }
+  }
+
+  return items;
 }
 
 // ============= Fetch com retry =============
@@ -460,16 +614,17 @@ function classifyIntimation(text: string, receivedAt: string) {
 }
 
 // ============= Batch lookup (elimina N+1) =============
-async function buildProcessIndex(supabase: any, userId: string, numeros: string[]): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
+async function buildProcessIndex(supabase: any, userIds: string[], numeros: string[]): Promise<Map<string, { id: string; user_id: string }>> {
+  const map = new Map<string, { id: string; user_id: string }>();
   const unique = [...new Set(numeros.filter(Boolean))];
-  if (!unique.length) return map;
+  const users = [...new Set(userIds.filter(Boolean))];
+  if (!unique.length || !users.length) return map;
   // Postgres aceita IN com lotes grandes; quebrando em 500 por segurança
   const BATCH = 500;
   for (let i = 0; i < unique.length; i += BATCH) {
     const chunk = unique.slice(i, i + BATCH);
-    const { data } = await supabase.from('processes').select('id, number').eq('user_id', userId).in('number', chunk);
-    (data || []).forEach((p: any) => map.set(p.number, p.id));
+    const { data } = await supabase.from('processes').select('id, number, user_id').in('user_id', users).in('number', chunk);
+    (data || []).forEach((p: any) => map.set(p.number, { id: p.id, user_id: p.user_id }));
   }
   return map;
 }
