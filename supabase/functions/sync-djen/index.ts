@@ -182,6 +182,8 @@ async function sha256Hex(input: string): Promise<string> {
 }
 
 async function buildExternalId(it: DjenItem): Promise<string> {
+  // Fontes estaduais fallback já usam chave canônica própria.
+  if ((it as any).__source && it.hash) return String(it.hash);
   // Camada 1: hash oficial da CNJ se existir
   if (it.hash) return `djen:hash:${it.hash}`;
   // Camada 2: id oficial
