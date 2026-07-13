@@ -686,6 +686,10 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.80;
   const syncStartDate = OVERRIDE_START_DATE || new Date(Date.now() - (OVERRIDE_DAYS_BACK ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
   const syncEndDate = OVERRIDE_END_DATE || new Date().toISOString().slice(0, 10);
+  // Fallback TJMG estadual é pesado (HTML por comarca/data). No cron, cobre a
+  // semana corrente/redundante; em reconciliação manual respeita a janela pedida.
+  const stateFallbackStartDate = OVERRIDE_START_DATE
+    || new Date(Date.now() - Math.min(7, OVERRIDE_DAYS_BACK ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
 
   try {
     const { data: roleRows } = await supabase.from('user_roles').select('user_id');
@@ -709,7 +713,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     const tjmgFallbackItems = await fetchTjmgDjeFallback(
       (officeProcs || []).map((p: any) => p.number).filter(Boolean),
       refNames,
-      syncStartDate,
+      stateFallbackStartDate,
       syncEndDate,
     );
 
