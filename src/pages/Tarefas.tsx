@@ -639,6 +639,16 @@ export default function Tarefas() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-stone-400 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40"
+                          onClick={() => openAttach(task)}
+                          disabled={uploading || !task.process_id}
+                          title={task.process_id ? 'Anexar documento ao processo/cliente' : 'Vincule um processo para anexar'}
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-stone-400 hover:text-stone-900 dark:hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => openEdit(task)}
                         >
