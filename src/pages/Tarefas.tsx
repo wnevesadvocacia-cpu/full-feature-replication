@@ -675,6 +675,12 @@ export default function Tarefas() {
           </div>
         )}
       </div>
+      <input
+        ref={attachInputRef}
+        type="file"
+        className="hidden"
+        onChange={(e) => handleAttachFile(e.target.files?.[0] ?? null)}
+      />
 
 
 
