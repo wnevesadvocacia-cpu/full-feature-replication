@@ -237,6 +237,69 @@ export default function Tarefas() {
     } finally { setSaving(false); }
   };
 
+  const attachInputRef = useRef<HTMLInputElement | null>(null);
+  const [attachTarget, setAttachTarget] = useState<any | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const openAttach = (task: any) => {
+    if (!task.process_id) {
+      toast({ title: 'Vincule um processo à tarefa antes de anexar documentos.', variant: 'destructive' });
+      return;
+    }
+    setAttachTarget(task);
+    setTimeout(() => attachInputRef.current?.click(), 0);
+  };
+
+  const handleAttachFile = async (file: File | null) => {
+    const task = attachTarget;
+    if (!file || !task || !user) { setAttachTarget(null); return; }
+    if (file.size > 50 * 1024 * 1024) {
+      toast({ title: 'Arquivo muito grande', description: 'Limite: 50 MB', variant: 'destructive' });
+      setAttachTarget(null);
+      if (attachInputRef.current) attachInputRef.current.value = '';
+      return;
+    }
+    setUploading(true);
+    try {
+      // Puxa client_id do processo para vincular também à pasta do cliente
+      let clientId: string | null = null;
+      if (task.process_id) {
+        const { data: proc } = await supabase.from('processes').select('client_id').eq('id', task.process_id).maybeSingle();
+        clientId = proc?.client_id ?? null;
+      }
+      const ext = file.name.split('.').pop() ?? 'bin';
+      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from('documents').upload(path, file, {
+        contentType: file.type || undefined,
+        upsert: false,
+      });
+      if (upErr) throw upErr;
+      const { error: insErr } = await supabase.from('documents').insert({
+        user_id: user.id,
+        name: file.name,
+        description: `Anexo da tarefa: ${task.title}`,
+        category: 'tarefa',
+        storage_path: path,
+        mime_type: file.type || null,
+        size_bytes: file.size,
+        process_id: task.process_id || null,
+        client_id: clientId,
+      });
+      if (insErr) {
+        await supabase.storage.from('documents').remove([path]);
+        throw insErr;
+      }
+      toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
+      qc.invalidateQueries({ queryKey: ['documentos'] });
+    } catch (e: any) {
+      toast({ title: 'Erro ao anexar', description: e.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      setAttachTarget(null);
+      if (attachInputRef.current) attachInputRef.current.value = '';
+    }
+  };
+
   const openEdit = (t: any) => {
     setForm({
       title: t.title ?? '',
