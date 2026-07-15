@@ -71,6 +71,38 @@ export default function Dashboard() {
   const [recentProcesses, setRecentProcesses] = useState<RecentProcess[]>([]);
   const [upcomingTasks, setUpcomingTasks] = useState<RecentTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [attachProcessId, setAttachProcessId] = useState('');
+  const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [attachUploading, setAttachUploading] = useState(false);
+  const attachFileRef = useRef<HTMLInputElement | null>(null);
+  const { toast } = useToast();
+
+  const handleDashboardAttach = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast({ title: 'Sessão expirada', variant: 'destructive' }); return; }
+    if (!attachProcessId) { toast({ title: 'Selecione um processo', variant: 'destructive' }); return; }
+    if (!attachFile) { toast({ title: 'Selecione um arquivo', variant: 'destructive' }); return; }
+    setAttachUploading(true);
+    try {
+      await attachDocumentToProcess({
+        userId: user.id,
+        file: attachFile,
+        processId: attachProcessId,
+        description: 'Anexado via Dashboard',
+        category: 'dashboard',
+      });
+      toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
+      setAttachOpen(false);
+      setAttachFile(null);
+      setAttachProcessId('');
+      if (attachFileRef.current) attachFileRef.current.value = '';
+    } catch (e: any) {
+      toast({ title: 'Erro ao anexar', description: e.message, variant: 'destructive' });
+    } finally {
+      setAttachUploading(false);
+    }
+  };
 
   useEffect(() => {
     async function loadDashboard() {
