@@ -385,6 +385,43 @@ export default function Dashboard() {
           ))}
         </section>
       </div>
+
+      {/* Dialog: anexar documento a um processo */}
+      <Dialog open={attachOpen} onOpenChange={(o) => { if (!attachUploading) setAttachOpen(o); }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader><DialogTitle>Anexar documento a um processo</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Processo *</Label>
+              <ProcessSearchSelect
+                value={attachProcessId}
+                onChange={setAttachProcessId}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Digite o número do processo, CPF/CNPJ ou nome do cliente.
+              </p>
+            </div>
+            <div>
+              <Label>Arquivo *</Label>
+              <input
+                ref={attachFileRef}
+                type="file"
+                className="mt-1 block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-primary file:text-primary-foreground file:font-semibold hover:file:opacity-90"
+                onChange={(e) => setAttachFile(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Limite: 50 MB. O documento fica vinculado ao processo e à pasta do cliente.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAttachOpen(false)} disabled={attachUploading}>Cancelar</Button>
+            <Button onClick={handleDashboardAttach} disabled={attachUploading || !attachProcessId || !attachFile}>
+              {attachUploading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enviando…</> : <><Paperclip className="h-4 w-4 mr-2" /> Anexar</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
