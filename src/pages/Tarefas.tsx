@@ -253,42 +253,15 @@ export default function Tarefas() {
   const handleAttachFile = async (file: File | null) => {
     const task = attachTarget;
     if (!file || !task || !user) { setAttachTarget(null); return; }
-    if (file.size > 50 * 1024 * 1024) {
-      toast({ title: 'Arquivo muito grande', description: 'Limite: 50 MB', variant: 'destructive' });
-      setAttachTarget(null);
-      if (attachInputRef.current) attachInputRef.current.value = '';
-      return;
-    }
     setUploading(true);
     try {
-      // Puxa client_id do processo para vincular também à pasta do cliente
-      let clientId: string | null = null;
-      if (task.process_id) {
-        const { data: proc } = await supabase.from('processes').select('client_id').eq('id', task.process_id).maybeSingle();
-        clientId = proc?.client_id ?? null;
-      }
-      const ext = file.name.split('.').pop() ?? 'bin';
-      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('documents').upload(path, file, {
-        contentType: file.type || undefined,
-        upsert: false,
-      });
-      if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from('documents').insert({
-        user_id: user.id,
-        name: file.name,
+      await attachDocumentToProcess({
+        userId: user.id,
+        file,
+        processId: task.process_id,
         description: `Anexo da tarefa: ${task.title}`,
         category: 'tarefa',
-        storage_path: path,
-        mime_type: file.type || null,
-        size_bytes: file.size,
-        process_id: task.process_id || null,
-        client_id: clientId,
       });
-      if (insErr) {
-        await supabase.storage.from('documents').remove([path]);
-        throw insErr;
-      }
       toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
       qc.invalidateQueries({ queryKey: ['documentos'] });
     } catch (e: any) {
@@ -299,6 +272,15 @@ export default function Tarefas() {
       if (attachInputRef.current) attachInputRef.current.value = '';
     }
   };
+
+  // Aviso de possível duplicidade: tarefas pendentes já cadastradas no mesmo processo.
+  const duplicateHint = (() => {
+    if (!form.process_id) return null;
+    const matches = (tasks as any[]).filter(
+      (t) => !t.completed && t.process_id === form.process_id && t.id !== editTarget?.id,
+    );
+    return matches.length > 0 ? matches : null;
+  })();
 
   const openEdit = (t: any) => {
     setForm({
