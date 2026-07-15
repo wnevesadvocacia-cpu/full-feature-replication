@@ -197,12 +197,23 @@ export default function Dashboard() {
             </h1>
             <p className="text-sm text-muted-foreground">Visão consolidada do escritório · atualizado agora</p>
           </div>
-          <Link to="/processos">
-            <Button size="default" className="bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] text-primary-foreground shadow-[var(--shadow-gold)] hover:opacity-90 transition-all">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Processo
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => setAttachOpen(true)}
+              className="border-primary/40 text-primary hover:bg-primary/5"
+            >
+              <Paperclip className="h-4 w-4 mr-2" />
+              Anexar Documento
             </Button>
-          </Link>
+            <Link to="/processos">
+              <Button size="default" className="bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] text-primary-foreground shadow-[var(--shadow-gold)] hover:opacity-90 transition-all">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Processo
+              </Button>
+            </Link>
+          </div>
         </header>
 
         {/* KPI Bento */}
