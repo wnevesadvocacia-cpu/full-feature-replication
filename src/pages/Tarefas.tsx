@@ -25,6 +25,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { HistoricoConversas } from '@/components/HistoricoConversas';
 import { PRAXIS_TASK_TITLES } from '@/lib/praxisTitles';
+import { attachDocumentToProcess } from '@/lib/attachDocument';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
@@ -253,42 +254,15 @@ export default function Tarefas() {
   const handleAttachFile = async (file: File | null) => {
     const task = attachTarget;
     if (!file || !task || !user) { setAttachTarget(null); return; }
-    if (file.size > 50 * 1024 * 1024) {
-      toast({ title: 'Arquivo muito grande', description: 'Limite: 50 MB', variant: 'destructive' });
-      setAttachTarget(null);
-      if (attachInputRef.current) attachInputRef.current.value = '';
-      return;
-    }
     setUploading(true);
     try {
-      // Puxa client_id do processo para vincular também à pasta do cliente
-      let clientId: string | null = null;
-      if (task.process_id) {
-        const { data: proc } = await supabase.from('processes').select('client_id').eq('id', task.process_id).maybeSingle();
-        clientId = proc?.client_id ?? null;
-      }
-      const ext = file.name.split('.').pop() ?? 'bin';
-      const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from('documents').upload(path, file, {
-        contentType: file.type || undefined,
-        upsert: false,
-      });
-      if (upErr) throw upErr;
-      const { error: insErr } = await supabase.from('documents').insert({
-        user_id: user.id,
-        name: file.name,
+      await attachDocumentToProcess({
+        userId: user.id,
+        file,
+        processId: task.process_id,
         description: `Anexo da tarefa: ${task.title}`,
         category: 'tarefa',
-        storage_path: path,
-        mime_type: file.type || null,
-        size_bytes: file.size,
-        process_id: task.process_id || null,
-        client_id: clientId,
       });
-      if (insErr) {
-        await supabase.storage.from('documents').remove([path]);
-        throw insErr;
-      }
       toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
       qc.invalidateQueries({ queryKey: ['documentos'] });
     } catch (e: any) {
@@ -299,6 +273,15 @@ export default function Tarefas() {
       if (attachInputRef.current) attachInputRef.current.value = '';
     }
   };
+
+  // Aviso de possível duplicidade: tarefas pendentes já cadastradas no mesmo processo.
+  const duplicateHint = (() => {
+    if (!form.process_id) return null;
+    const matches = (tasks as any[]).filter(
+      (t) => !t.completed && t.process_id === form.process_id && t.id !== editTarget?.id,
+    );
+    return matches.length > 0 ? matches : null;
+  })();
 
   const openEdit = (t: any) => {
     setForm({
@@ -339,6 +322,22 @@ export default function Tarefas() {
         <p className="text-[11px] text-muted-foreground mt-1">
           Comece pelo processo: digite o número ou CPF/CNPJ do cliente.
         </p>
+        {duplicateHint && (
+          <div className="mt-2 rounded-md border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-2.5 text-[12px] text-amber-900 dark:text-amber-100">
+            <p className="font-semibold flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Possível duplicidade</p>
+            <p className="mt-1">
+              Já existe(m) <strong>{duplicateHint.length}</strong> tarefa(s) pendente(s) neste processo:
+            </p>
+            <ul className="mt-1 list-disc list-inside space-y-0.5">
+              {duplicateHint.slice(0, 3).map((t: any) => (
+                <li key={t.id} className="truncate">
+                  “{t.title}”{t.due_date ? ` — prazo ${fmtDate(t.due_date)}` : ''}
+                </li>
+              ))}
+              {duplicateHint.length > 3 && <li>+ {duplicateHint.length - 3} outra(s)…</li>}
+            </ul>
+          </div>
+        )}
       </div>
       <div>
         <Label>Título *</Label>

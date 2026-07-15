@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, CheckSquare, AlertCircle, TrendingUp, Clock, Plus } from 'lucide-react';
+import { FileText, Users, CheckSquare, AlertCircle, TrendingUp, Clock, Plus, Paperclip, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
+import { attachDocumentToProcess } from '@/lib/attachDocument';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProcessStats {
   total: number;
@@ -66,6 +71,38 @@ export default function Dashboard() {
   const [recentProcesses, setRecentProcesses] = useState<RecentProcess[]>([]);
   const [upcomingTasks, setUpcomingTasks] = useState<RecentTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [attachProcessId, setAttachProcessId] = useState('');
+  const [attachFile, setAttachFile] = useState<File | null>(null);
+  const [attachUploading, setAttachUploading] = useState(false);
+  const attachFileRef = useRef<HTMLInputElement | null>(null);
+  const { toast } = useToast();
+
+  const handleDashboardAttach = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast({ title: 'Sessão expirada', variant: 'destructive' }); return; }
+    if (!attachProcessId) { toast({ title: 'Selecione um processo', variant: 'destructive' }); return; }
+    if (!attachFile) { toast({ title: 'Selecione um arquivo', variant: 'destructive' }); return; }
+    setAttachUploading(true);
+    try {
+      await attachDocumentToProcess({
+        userId: user.id,
+        file: attachFile,
+        processId: attachProcessId,
+        description: 'Anexado via Dashboard',
+        category: 'dashboard',
+      });
+      toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
+      setAttachOpen(false);
+      setAttachFile(null);
+      setAttachProcessId('');
+      if (attachFileRef.current) attachFileRef.current.value = '';
+    } catch (e: any) {
+      toast({ title: 'Erro ao anexar', description: e.message, variant: 'destructive' });
+    } finally {
+      setAttachUploading(false);
+    }
+  };
 
   useEffect(() => {
     async function loadDashboard() {
@@ -160,12 +197,23 @@ export default function Dashboard() {
             </h1>
             <p className="text-sm text-muted-foreground">Visão consolidada do escritório · atualizado agora</p>
           </div>
-          <Link to="/processos">
-            <Button size="default" className="bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] text-primary-foreground shadow-[var(--shadow-gold)] hover:opacity-90 transition-all">
-              <Plus className="h-4 w-4 mr-2" />
-              Novo Processo
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => setAttachOpen(true)}
+              className="border-primary/40 text-primary hover:bg-primary/5"
+            >
+              <Paperclip className="h-4 w-4 mr-2" />
+              Anexar Documento
             </Button>
-          </Link>
+            <Link to="/processos">
+              <Button size="default" className="bg-gradient-to-r from-primary to-[hsl(var(--primary-glow))] text-primary-foreground shadow-[var(--shadow-gold)] hover:opacity-90 transition-all">
+                <Plus className="h-4 w-4 mr-2" />
+                Novo Processo
+              </Button>
+            </Link>
+          </div>
         </header>
 
         {/* KPI Bento */}
@@ -337,6 +385,43 @@ export default function Dashboard() {
           ))}
         </section>
       </div>
+
+      {/* Dialog: anexar documento a um processo */}
+      <Dialog open={attachOpen} onOpenChange={(o) => { if (!attachUploading) setAttachOpen(o); }}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader><DialogTitle>Anexar documento a um processo</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Processo *</Label>
+              <ProcessSearchSelect
+                value={attachProcessId}
+                onChange={setAttachProcessId}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Digite o número do processo, CPF/CNPJ ou nome do cliente.
+              </p>
+            </div>
+            <div>
+              <Label>Arquivo *</Label>
+              <input
+                ref={attachFileRef}
+                type="file"
+                className="mt-1 block w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-primary file:text-primary-foreground file:font-semibold hover:file:opacity-90"
+                onChange={(e) => setAttachFile(e.target.files?.[0] ?? null)}
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Limite: 50 MB. O documento fica vinculado ao processo e à pasta do cliente.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAttachOpen(false)} disabled={attachUploading}>Cancelar</Button>
+            <Button onClick={handleDashboardAttach} disabled={attachUploading || !attachProcessId || !attachFile}>
+              {attachUploading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Enviando…</> : <><Paperclip className="h-4 w-4 mr-2" /> Anexar</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

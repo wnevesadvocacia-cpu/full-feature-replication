@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Send, Loader2, MessageSquare } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Paperclip } from 'lucide-react';
+import { attachDocumentToProcess } from '@/lib/attachDocument';
 
 export type CommentType =
   | 'comentario' | 'andamento' | 'despacho' | 'publicacao' | 'conclusao' | 'documento';
@@ -73,6 +74,8 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<CommentType>('comentario');
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
 
   if (!processId && !taskId) {
@@ -140,6 +143,41 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
     setText('');
     setType('comentario');
     qc.invalidateQueries({ queryKey });
+  }
+
+  async function handleAttach(file: File | null) {
+    if (!file || !user) return;
+    if (!processId) {
+      toast({ title: 'Anexo requer processo', description: 'Abra a partir de um processo para anexar documentos.', variant: 'destructive' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const doc = await attachDocumentToProcess({
+        userId: user.id,
+        file,
+        processId,
+        description: 'Anexado via comentário',
+        category: 'comentario',
+      });
+      const author_name = (user.user_metadata as any)?.full_name || user.email || 'Usuário';
+      await supabase.from('process_comments' as any).insert({
+        user_id: user.id,
+        author_name,
+        content: `📎 Documento anexado: ${doc?.name ?? file.name}`,
+        type: 'documento' as CommentType,
+        process_id: processId ?? null,
+        task_id: taskId ?? null,
+      });
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ['documentos'] });
+      toast({ title: 'Documento anexado ao processo.' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao anexar', description: e.message, variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
   }
 
   return (
@@ -215,7 +253,23 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend(); }
           }}
         />
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 items-center">
+          <input
+            ref={fileRef}
+            type="file"
+            className="hidden"
+            onChange={(e) => handleAttach(e.target.files?.[0] ?? null)}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading || !user || !processId}
+            title={processId ? 'Anexar documento ao processo/cliente' : 'Disponível quando aberto por processo'}
+          >
+            {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Paperclip className="h-3.5 w-3.5 mr-1" />}
+            Anexar
+          </Button>
           <span className="text-[10px] text-muted-foreground self-center">Ctrl/⌘ + Enter para enviar</span>
           <Button size="sm" onClick={handleSend} disabled={sending || !text.trim() || !user}>
             {sending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
