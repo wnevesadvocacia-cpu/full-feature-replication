@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, CheckSquare, AlertCircle, TrendingUp, Clock, Plus } from 'lucide-react';
+import { FileText, Users, CheckSquare, AlertCircle, TrendingUp, Clock, Plus, Paperclip, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
+import { attachDocumentToProcess } from '@/lib/attachDocument';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProcessStats {
   total: number;
