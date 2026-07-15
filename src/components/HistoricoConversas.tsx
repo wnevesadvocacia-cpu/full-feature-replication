@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Send, Loader2, MessageSquare } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Paperclip } from 'lucide-react';
+import { attachDocumentToProcess } from '@/lib/attachDocument';
 
 export type CommentType =
   | 'comentario' | 'andamento' | 'despacho' | 'publicacao' | 'conclusao' | 'documento';
@@ -73,6 +74,8 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
   const [text, setText] = useState('');
   const [type, setType] = useState<CommentType>('comentario');
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
 
   if (!processId && !taskId) {
