@@ -713,7 +713,7 @@ export default function Tarefas() {
               </p>
               {editTarget?.id && (
                 <div className="flex-1">
-                  <HistoricoConversas taskId={editTarget.id} />
+                  <HistoricoConversas taskId={editTarget.id} processId={editTarget.process_id ?? undefined} />
                 </div>
               )}
             </div>
