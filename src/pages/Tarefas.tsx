@@ -167,6 +167,14 @@ export default function Tarefas() {
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (duplicateHint && duplicateHint.length > 0) {
+      const ok = window.confirm(
+        `Já existe(m) ${duplicateHint.length} tarefa(s) pendente(s) neste processo:\n\n` +
+        duplicateHint.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${fmtDate(t.due_date)})` : ''}`).join('\n') +
+        `\n\nDeseja mesmo criar outra tarefa neste processo?`
+      );
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       await createTask.mutateAsync({
@@ -713,7 +721,7 @@ export default function Tarefas() {
               </p>
               {editTarget?.id && (
                 <div className="flex-1">
-                  <HistoricoConversas taskId={editTarget.id} />
+                  <HistoricoConversas taskId={editTarget.id} processId={editTarget.process_id ?? undefined} />
                 </div>
               )}
             </div>
