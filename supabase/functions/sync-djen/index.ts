@@ -383,14 +383,13 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
   const dtFim = toBrDate(dataFim);
 
   for (const numero of tjspNumbers) {
-    const body = new URLSearchParams({
-      dadosConsulta.pesquisaLivre: numero,
-      cbPesquisa: 'NUMPROC',
-      tipoConsulta: 'BUSCA_AVANCADA',
-      'dadosConsulta.dtInicio': dtInicio,
-      'dadosConsulta.dtFim': dtFim,
-      'dadosConsulta.cdCaderno': '-1',
-    } as Record<string, string>);
+    const body = new URLSearchParams();
+    body.set('dadosConsulta.pesquisaLivre', numero);
+    body.set('cbPesquisa', 'NUMPROC');
+    body.set('tipoConsulta', 'BUSCA_AVANCADA');
+    body.set('dadosConsulta.dtInicio', dtInicio);
+    body.set('dadosConsulta.dtFim', dtFim);
+    body.set('dadosConsulta.cdCaderno', '-1');
 
     let html = '';
     try {
