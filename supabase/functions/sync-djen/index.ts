@@ -461,6 +461,7 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
   return items;
 }
 
+// ============= Fetch com retry =============
 async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
