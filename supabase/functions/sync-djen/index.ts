@@ -360,7 +360,108 @@ async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[]
   return items;
 }
 
-// ============= Fetch com retry =============
+// ============= Fallback TJSP (eSAJ / cdje) =============
+// Consulta processo-a-processo no DJE de São Paulo (cdje). Igual ao TJMG:
+// só roda quando há CNJs .8.26. no cadastro. Falha isolada — não afeta DJEN
+// nem TJMG. Primeira execução em produção pode vir vazia até calibrarmos o
+// parser conforme HTML real devolvido pelo eSAJ.
+function toBrDate(iso: string): string {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string): Promise<DjenItem[]> {
+  const normalized = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
+  const tjspNumbers = normalized.filter(n => n.includes('.8.26.'));
+  if (!tjspNumbers.length) return [];
+
+  const normalizedRefs = refNames.map(normalizeName).filter(Boolean);
+  const items: DjenItem[] = [];
+  const seen = new Set<string>();
+
+  const dtInicio = toBrDate(dataInicio);
+  const dtFim = toBrDate(dataFim);
+
+  for (const numero of tjspNumbers) {
+    const body = new URLSearchParams({
+      dadosConsulta.pesquisaLivre: numero,
+      cbPesquisa: 'NUMPROC',
+      tipoConsulta: 'BUSCA_AVANCADA',
+      'dadosConsulta.dtInicio': dtInicio,
+      'dadosConsulta.dtFim': dtFim,
+      'dadosConsulta.cdCaderno': '-1',
+    } as Record<string, string>);
+
+    let html = '';
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      const res = await fetch('https://esaj.tjsp.jus.br/cdje/consultaAvancada.do', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'text/html,application/xhtml+xml',
+          'Accept-Language': 'pt-BR,pt;q=0.9',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        body: body.toString(),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
+    } catch (e) {
+      console.warn('[tjsp-dje] fallback falhou para', numero, (e as Error).message);
+      continue;
+    }
+
+    // Blocos de resultado: <tr class="fundocinza1"> ... </tr>
+    const rows = Array.from(html.matchAll(/<tr[^>]*class="fundocinza1"[^>]*>([\s\S]*?)<\/tr>/gi));
+    for (const r of rows) {
+      const block = r[1];
+      // Data de disponibilização em formato DD/MM/YYYY dentro do bloco
+      const dateMatch = block.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      const disponibilizacao = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : '';
+      if (!disponibilizacao || disponibilizacao < dataInicio || disponibilizacao > dataFim) continue;
+
+      // Caderno / vara
+      const cadernoMatch = block.match(/Caderno[^<]*<[^>]*>\s*([^<]+)/i);
+      const caderno = cadernoMatch ? cadernoMatch[1].trim() : '';
+
+      // Trecho de texto (conteúdo do popup vem via ecx.js; usamos o resumo visível)
+      const detail = stripHtmlToText(block).replace(/\s+/g, ' ').trim();
+      if (!detail) continue;
+
+      const detailNorm = normalizeName(detail);
+      const byName = normalizedRefs.length > 0 && normalizedRefs.some(n => detailNorm.includes(n));
+      // Consulta é por NUMPROC — resultado já é do processo em questão.
+      // Se houver refNames, filtra por nome para reduzir falso-positivo em processos com muitas partes.
+      if (normalizedRefs.length > 0 && !byName) continue;
+
+      const key = `tjsp-dje:${disponibilizacao}:${numero}:${detail.slice(0, 80)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      items.push({
+        id: key,
+        hash: key,
+        numero_processo: numero,
+        texto: [`Disponibilização: ${disponibilizacao}`, caderno, numero, detail].filter(Boolean).join('\n'),
+        data_disponibilizacao: disponibilizacao,
+        siglaTribunal: 'TJSP',
+        nomeOrgao: caderno || 'TJSP',
+        tipoComunicacao: 'Publicação TJSP',
+        __queryKind: 'process',
+        __source: 'tjsp-dje',
+      } as DjenItem);
+    }
+
+    await new Promise(r => setTimeout(r, TJSP_DJE_DELAY_MS));
+  }
+
+  return items;
+}
+
 async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
