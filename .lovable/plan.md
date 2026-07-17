@@ -1,73 +1,54 @@
-# Fallback DJEN Inteligente — Multi-fonte com Failover Automático
+# Fase 1 — Cobertura Estadual Ampliada
 
 ## Objetivo
-Eliminar o ponto único de falha (CNJ/DJEN). Quando o DJEN cair, o sistema continua capturando publicações por outras rotas, sem intervenção manual e sem duplicar dados.
+Reduzir dependência do DJEN/CNJ adicionando raspagem/consulta direta aos diários oficiais que concentram ~80% do volume: **TJSP (eSAJ/DJE)**, **TJMG (fallback já existente — endurecer)**, **TJRJ**, **TJRS (eproc)**, e **TRF1 a TRF6**.
 
-## Arquitetura em 3 camadas (ordem de preferência)
+## Arquitetura
 
 ```text
-┌─────────────────────────────────────────────────────┐
-│  sync-djen (orquestrador)                           │
-│                                                     │
-│  1º DJEN/CNJ oficial      ← fonte primária          │
-│      ↓ se 5xx/429/timeout                           │
-│  2º Proxy DJEN alt. (Cloudflare BR)  ← já existe   │
-│      ↓ se falhar                                    │
-│  3º Scraper DJE-SP direto (PDF diário por OAB)      │
-│      ↓ se falhar (ou tribunal ≠ SP)                 │
-│  4º Fila de retry agressivo (15/15/30/60 min)       │
-└─────────────────────────────────────────────────────┘
-                     ↓
-        Idempotência SHA-256 (já existe) → intimations
+sync-djen (orquestrador atual)
+    ├── 1. DJEN oficial (primário)          ← já existe
+    ├── 2. Proxy DJEN alternativo           ← já existe
+    ├── 3. TJMG fallback (HTML DJe)         ← já existe, endurecer parser
+    ├── 4. TJSP fallback (NOVO)             ← eSAJ consultaAvancada por OAB
+    ├── 5. TJRJ fallback (NOVO)             ← DJERJ consulta por OAB
+    ├── 6. TJRS fallback (NOVO)             ← eproc consulta por OAB
+    └── 7. TRF1-6 fallback (NOVO)           ← PJe/eproc federal por OAB
 ```
 
-## Escopo desta entrega
+Todos os fallbacks compartilham:
+- **Gatilho**: só executam quando DJEN devolve 0 itens para (OAB, data, UF esperada).
+- **Idempotência**: SHA-256 do conteúdo (já implementado em `intimations`).
+- **Enfileiramento**: mesmo pipeline `record_intimation` → `intimations` → notificações.
+- **Health tracking**: cada fonte grava sucesso/erro em `djen_source_health` para o badge de UI já existente.
 
-### 1. Health-check + circuit breaker (novo módulo)
-- Nova tabela `djen_source_health`: last_ok, last_fail, consecutive_failures, current_source.
-- Se DJEN falhar 2x seguidas → marca `degraded` e pula direto para próxima fonte por 30min.
-- Se voltar OK → volta a DJEN automaticamente.
+## Escopo desta entrega (Fase 1)
 
-### 2. Scraper DJE-SP (nova edge function `scrape-dje-sp`)
-- Alvo: `https://esaj.tjsp.jus.br/cdje/consultaAvancada.do` (busca por OAB).
-- Cobre 100% TJSP (o tribunal com mais volume — provavelmente o seu caso).
-- Roda apenas quando DJEN estiver degradado ou como reconciliação D-1.
-- Parseia PDF do dia, extrai bloco por OAB, gera SHA-256 → mesma tabela `intimations`.
+### Arquivos novos
+- `supabase/functions/sync-djen/fallbacks/tjsp.ts` — scraper eSAJ (busca por OAB).
+- `supabase/functions/sync-djen/fallbacks/tjrj.ts` — DJERJ HTML.
+- `supabase/functions/sync-djen/fallbacks/tjrs.ts` — eproc TJRS.
+- `supabase/functions/sync-djen/fallbacks/trf.ts` — parametrizável por região (1–6).
+- `supabase/functions/sync-djen/fallbacks/_shared.ts` — helpers de parsing HTML, extração de bloco por OAB, geração de SHA-256, normalização de datas BR.
 
-### 3. Retry queue agressivo
-- Ajuste no cron: quando DJEN falhar, agenda re-tentativa em 15min (hoje é só a próxima janela de 6h).
-- Notificação destrutiva ao admin após 3 falhas consecutivas.
+### Arquivos modificados
+- `supabase/functions/sync-djen/index.ts` — chain de fallbacks com short-circuit e log por fonte.
+- `src/components/DjenHealthBadge.tsx` — badge por-fonte (verde/amarelo/vermelho) quando qualquer fonte estiver degradada.
 
-### 4. UI — badge de saúde da fonte
-- Em `/intimacoes`: pequeno indicador no topo — 🟢 DJEN OK / 🟡 Fallback ativo (fonte X) / 🔴 Todas fontes fora.
+### Sem migrations novas
+Reaproveita `djen_source_health` e `intimations` existentes; adiciona apenas registros novos por fonte (`source_provider` já é aceito).
 
-## Fora do escopo (avisar depois se quiser)
-- AASP Push por e-mail (exige credenciais AASP + parser MIME dedicado).
-- Jusbrasil/Escavador (pago, requer contrato).
-- Tribunais fora de SP no scraper (TRF/TST/TJs — cada um é um parser).
+## Fora do escopo (Fase 2/3 depois)
+- Tribunais PJe-padrão (TJPR, TJSC, TJDFT, TJBA, etc.) — Fase 2.
+- Tribunais com PDF-only (TJAM, TJRR, TJAP, etc.) — Fase 3.
+- Superiores (STJ, STF, TST) — os relevantes já vêm no DJEN.
 
-## Detalhes técnicos
+## Riscos
+- Sites estaduais mudam HTML sem aviso → parser quebra. Mitigação: cada scraper roda em try/catch isolado; falha em um não afeta os outros; falhas geram notificação destrutiva ao admin via `djen-watchdog`.
+- Rate-limit dos tribunais → chamadas serializadas com backoff de 2s entre requisições.
+- Tempo de execução da edge function → cada fallback tem timeout de 30s e cache de 6h por (OAB, UF, data).
 
-**Novos arquivos:**
-- `supabase/functions/scrape-dje-sp/index.ts` — scraper com deno-dom + pdf-parse.
-- `supabase/functions/_shared/djenHealth.ts` — leitura/escrita circuit breaker.
-- Migration: tabela `djen_source_health` + coluna `source_provider` em `intimations`.
+## Entrega
+Uma iteração. ~5 arquivos novos, ~2 modificados, zero migration.
 
-**Modificados:**
-- `supabase/functions/sync-djen/index.ts` — orquestração com fallback chain.
-- `src/pages/Intimacoes.tsx` — badge de saúde (usa `djen_source_health` via realtime).
-
-**Idempotência:** mantém SHA-256 atual, então a mesma publicação vinda de duas fontes não duplica.
-
-**Custo:** zero incremental (tudo roda nas edge functions existentes).
-
-## Riscos conhecidos
-- Scraper DJE-SP pode quebrar se ESAJ mudar HTML/PDF (baixo, mudam ~1x/ano).
-- Só cobre TJSP nesta versão — se sua OAB tem processos em outros tribunais, esses ficam dependentes do DJEN.
-
-## Estimativa
-~4 arquivos novos, ~2 modificados, 1 migration. Entrega funcional em uma iteração.
-
----
-
-**Aprova para eu implementar?** Se preferir escopo ainda menor (só o circuit breaker + retry agressivo, sem scraper), me avise.
+**Aprova ou quer ajuste antes de eu implementar?**
