@@ -46,6 +46,7 @@ const MAX_RETRIES = 3;
 const DAYS_BACK = 30;
 const PAGE_DELAY_MS = 250; // gap entre páginas para não estressar API CNJ
 const TJMG_DJE_DELAY_MS = 150;
+const TJSP_DJE_DELAY_MS = 200;
 
 // ============= Calendário CNJ (dias úteis) =============
 const FIXED_HOLIDAYS: Array<[number, number]> = [
