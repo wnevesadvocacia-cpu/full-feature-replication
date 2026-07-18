@@ -167,13 +167,23 @@ export default function Tarefas() {
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
-    if (duplicateHint && duplicateHint.length > 0) {
-      const ok = window.confirm(
-        `Já existe(m) ${duplicateHint.length} tarefa(s) pendente(s) neste processo:\n\n` +
-        duplicateHint.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${fmtDate(t.due_date)})` : ''}`).join('\n') +
-        `\n\nDeseja mesmo criar outra tarefa neste processo?`
-      );
-      if (!ok) return;
+    // Verificação de duplicidade — consulta o banco no submit para não depender
+    // do cache do React Query (evita falso-negativo se o cache estiver defasado).
+    if (form.process_id) {
+      const { data: pend } = await supabase
+        .from('tasks')
+        .select('id, title, due_date, completed, status')
+        .eq('process_id', form.process_id)
+        .eq('completed', false);
+      const dups = (pend ?? []).filter((t: any) => (t.status ?? 'pendente') !== 'concluida');
+      if (dups.length > 0) {
+        const ok = window.confirm(
+          `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
+          dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${fmtDate(t.due_date)})` : ''}`).join('\n') +
+          `\n\nDeseja mesmo criar outra tarefa neste processo?`
+        );
+        if (!ok) return;
+      }
     }
     setSaving(true);
     try {
