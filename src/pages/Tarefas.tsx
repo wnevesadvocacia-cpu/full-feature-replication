@@ -169,15 +169,25 @@ export default function Tarefas() {
 
   const setTaskStatus = async (task: any, status: string) => {
     const prevStatus = task.status;
-    await updateTask.mutateAsync({ id: task.id, status, completed: false });
-    toast({
-      title: status === 'em_elaboracao' ? 'Tarefa em elaboração' : `Status: ${status}`,
-      action: (
-        <ToastAction altText="Desfazer" onClick={() => {
-          updateTask.mutate({ id: task.id, status: prevStatus || 'pendente', completed: false });
-        }}>Desfazer</ToastAction>
-      ),
-    });
+    qc.setQueryData(['tasks'], (old: any[] | undefined) =>
+      old?.map((t) => (t.id === task.id ? { ...t, status, completed: false } : t)) ?? old
+    );
+    try {
+      await updateTask.mutateAsync({ id: task.id, status, completed: false });
+      toast({
+        title: status === 'em_elaboracao' ? 'Tarefa em elaboração' : 'Tarefa pendente',
+        action: (
+          <ToastAction altText="Desfazer" onClick={() => {
+            updateTask.mutate({ id: task.id, status: prevStatus || 'pendente', completed: false });
+          }}>Desfazer</ToastAction>
+        ),
+      });
+    } catch (e: any) {
+      qc.setQueryData(['tasks'], (old: any[] | undefined) =>
+        old?.map((t) => (t.id === task.id ? { ...t, status: prevStatus || 'pendente', completed: false } : t)) ?? old
+      );
+      toast({ title: 'Erro ao alterar status', description: e.message, variant: 'destructive' });
+    }
   };
 
   const handleCreate = async () => {
@@ -706,11 +716,7 @@ export default function Tarefas() {
                               disabled={updateTask.isPending}
                               title="Concluir tarefa (mantida no histórico para auditoria)"
                             >
-                              {task.status === 'em_elaboracao' ? (
-                                <><Hourglass className="h-3.5 w-3.5 mr-1.5" /> Em elaboração</>
-                              ) : (
-                                <><Check className="h-3.5 w-3.5 mr-1.5" /> Concluir</>
-                              )}
+                              <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
                             </Button>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
