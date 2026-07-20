@@ -628,6 +628,12 @@ export default function Tarefas() {
                         })()}
                       </div>
                       <div className="flex flex-wrap gap-2 items-center">
+                        {task.status === 'em_elaboracao' && !task.completed && (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30">
+                            <Hourglass className="h-3 w-3" />
+                            Em elaboração
+                          </span>
+                        )}
                         {showDeadlineAlert && (
                           <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border ${daysLeft! < 0 ? 'bg-red-50 text-red-600 border-red-100 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30' : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-warning/10 dark:text-warning dark:border-warning/30'}`}>
                             <AlertTriangle className="h-3 w-3" />
