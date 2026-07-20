@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 import { Input } from '@/components/ui/input';
