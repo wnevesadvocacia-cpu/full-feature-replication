@@ -7,8 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip,
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass,
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { Link } from 'react-router-dom';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { useCanDelete } from '@/hooks/useUserRole';
