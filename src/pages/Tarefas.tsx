@@ -167,6 +167,19 @@ export default function Tarefas() {
     });
   };
 
+  const setTaskStatus = async (task: any, status: string) => {
+    const prevStatus = task.status;
+    await updateTask.mutateAsync({ id: task.id, status, completed: false });
+    toast({
+      title: status === 'em_elaboracao' ? 'Tarefa em elaboração' : `Status: ${status}`,
+      action: (
+        <ToastAction altText="Desfazer" onClick={() => {
+          updateTask.mutate({ id: task.id, status: prevStatus || 'pendente', completed: false });
+        }}>Desfazer</ToastAction>
+      ),
+    });
+  };
+
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
