@@ -7,8 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip,
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass,
 } from 'lucide-react';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import { Link } from 'react-router-dom';
 import { useTasks, useCreateTask, useUpdateTask } from '@/hooks/useTasks';
 import { useCanDelete } from '@/hooks/useUserRole';
@@ -159,6 +162,19 @@ export default function Tarefas() {
             completed: !willComplete,
             status: !willComplete ? 'concluida' : 'pendente',
           });
+        }}>Desfazer</ToastAction>
+      ),
+    });
+  };
+
+  const setTaskStatus = async (task: any, status: string) => {
+    const prevStatus = task.status;
+    await updateTask.mutateAsync({ id: task.id, status, completed: false });
+    toast({
+      title: status === 'em_elaboracao' ? 'Tarefa em elaboração' : `Status: ${status}`,
+      action: (
+        <ToastAction altText="Desfazer" onClick={() => {
+          updateTask.mutate({ id: task.id, status: prevStatus || 'pendente', completed: false });
         }}>Desfazer</ToastAction>
       ),
     });
@@ -675,16 +691,46 @@ export default function Tarefas() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         {!task.completed && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm"
-                            onClick={() => toggleTask(task)}
-                            disabled={updateTask.isPending}
-                            title="Concluir tarefa (mantida no histórico para auditoria)"
-                          >
-                            <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
-                          </Button>
+                          <div className="flex items-stretch">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm rounded-r-none border-r-0"
+                              onClick={() => toggleTask(task)}
+                              disabled={updateTask.isPending}
+                              title="Concluir tarefa (mantida no histórico para auditoria)"
+                            >
+                              {task.status === 'em_elaboracao' ? (
+                                <><Hourglass className="h-3.5 w-3.5 mr-1.5" /> Em elaboração</>
+                              ) : (
+                                <><Check className="h-3.5 w-3.5 mr-1.5" /> Concluir</>
+                              )}
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="px-2 py-2.5 h-auto border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm rounded-l-none"
+                                  disabled={updateTask.isPending}
+                                  title="Mais opções de status"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => toggleTask(task)}>
+                                  <Check className="h-3.5 w-3.5 mr-2" /> Concluir
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => setTaskStatus(task, task.status === 'em_elaboracao' ? 'pendente' : 'em_elaboracao')}
+                                >
+                                  <Hourglass className="h-3.5 w-3.5 mr-2" />
+                                  {task.status === 'em_elaboracao' ? 'Marcar como pendente' : 'Em elaboração'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         )}
                       </div>
                     </div>
