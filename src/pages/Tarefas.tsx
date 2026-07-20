@@ -166,6 +166,7 @@ export default function Tarefas() {
 
   const handleCreate = async () => {
     if (!form.title.trim()) return;
+    if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     // Verificação de duplicidade — consulta o banco no submit para não depender
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
