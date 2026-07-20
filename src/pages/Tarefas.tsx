@@ -171,11 +171,8 @@ export default function Tarefas() {
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
     if (form.process_id) {
       const { data: pend } = await supabase
-        .from('tasks')
-        .select('id, title, due_date, completed, status')
-        .eq('process_id', form.process_id)
-        .eq('completed', false);
-      const dups = (pend ?? []).filter((t: any) => (t.status ?? 'pendente') !== 'concluida');
+        .rpc('list_pending_tasks_for_process', { _process_id: form.process_id });
+      const dups = (pend ?? []) as any[];
       if (dups.length > 0) {
         const ok = window.confirm(
           `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
