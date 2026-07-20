@@ -1854,6 +1854,16 @@ export type Database = {
       }
       is_email_locked: { Args: { _email: string }; Returns: boolean }
       is_office_member: { Args: { _user_id: string }; Returns: boolean }
+      list_pending_tasks_for_process: {
+        Args: { _process_id: string }
+        Returns: {
+          assignee: string
+          due_date: string
+          id: string
+          title: string
+          user_id: string
+        }[]
+      }
       list_team_members: {
         Args: never
         Returns: {

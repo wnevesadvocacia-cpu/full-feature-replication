@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 import { Input } from '@/components/ui/input';
@@ -171,11 +171,8 @@ export default function Tarefas() {
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
     if (form.process_id) {
       const { data: pend } = await supabase
-        .from('tasks')
-        .select('id, title, due_date, completed, status')
-        .eq('process_id', form.process_id)
-        .eq('completed', false);
-      const dups = (pend ?? []).filter((t: any) => (t.status ?? 'pendente') !== 'concluida');
+        .rpc('list_pending_tasks_for_process', { _process_id: form.process_id });
+      const dups = (pend ?? []) as any[];
       if (dups.length > 0) {
         const ok = window.confirm(
           `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
@@ -293,13 +290,18 @@ export default function Tarefas() {
   };
 
   // Aviso de possível duplicidade: tarefas pendentes já cadastradas no mesmo processo.
-  const duplicateHint = (() => {
-    if (!form.process_id) return null;
-    const matches = (tasks as any[]).filter(
-      (t) => !t.completed && t.process_id === form.process_id && t.id !== editTarget?.id,
-    );
-    return matches.length > 0 ? matches : null;
-  })();
+  const [duplicateHint, setDuplicateHint] = useState<any[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!form.process_id) { setDuplicateHint(null); return; }
+    supabase.rpc('list_pending_tasks_for_process', { _process_id: form.process_id })
+      .then(({ data }) => {
+        if (cancelled) return;
+        const list = (data ?? []).filter((t: any) => t.id !== editTarget?.id);
+        setDuplicateHint(list.length > 0 ? list : null);
+      });
+    return () => { cancelled = true; };
+  }, [form.process_id, editTarget?.id]);
 
   const openEdit = (t: any) => {
     setForm({
