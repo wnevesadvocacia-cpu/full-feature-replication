@@ -430,24 +430,47 @@ export default function Intimacoes() {
     const { data, error } = await supabase.rpc('list_pending_tasks_for_process', { _process_id: processId });
     if (error) throw error;
     const dups = (data ?? []) as any[];
-    if (dups.length === 0) return true;
+    if (dups.length === 0) return { ok: true, processId };
     const ok = window.confirm(
       `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
       dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
       `\n\nDeseja mesmo criar outra tarefa neste processo?`
     );
     if (ok) setDuplicateConfirmedProcessId(processId);
-    return ok;
+    return { ok, processId };
+  };
+
+  const confirmPendingTasksForProcessNumber = async (processNumber: string) => {
+    const digits = processNumber.replace(/\D/g, '');
+    const { data, error } = await supabase.rpc('list_pending_tasks_for_process_number', { _process_number: processNumber });
+    if (error) throw error;
+    const dups = (data ?? []) as any[];
+    const processId = dups[0]?.process_id || '';
+    if (dups.length === 0) return { ok: true, processId: '' };
+    const ok = window.confirm(
+      `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
+      dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
+      `\n\nDeseja mesmo criar outra tarefa neste processo?`
+    );
+    if (ok) setDuplicateConfirmedProcessId(processId || digits);
+    return { ok, processId };
   };
 
   const handleOpenTaskDialog = async (it: Intim) => {
     setOpeningTaskId(it.id);
     setDuplicateConfirmedProcessId(null);
     try {
-      const processId = await resolveProcessIdForIntimation(it);
+      let processId = await resolveProcessIdForIntimation(it);
       if (processId) {
-        const ok = await confirmPendingTasksForProcess(processId);
-        if (!ok) return;
+        const result = await confirmPendingTasksForProcess(processId);
+        if (!result.ok) return;
+      } else {
+        const eff = getEffectiveCnj(it.content);
+        if (eff) {
+          const result = await confirmPendingTasksForProcessNumber(eff.masked);
+          if (!result.ok) return;
+          processId = result.processId;
+        }
       }
       openTaskDialog(it, processId);
     } catch (e: any) {
@@ -965,8 +988,8 @@ export default function Intimacoes() {
                 if (!taskIntim) return;
                 const processId = taskForm.process_id || taskIntim.process_id || '';
                 if (processId && duplicateConfirmedProcessId !== processId) {
-                  const ok = await confirmPendingTasksForProcess(processId);
-                  if (!ok) return;
+                  const result = await confirmPendingTasksForProcess(processId);
+                  if (!result.ok) return;
                 }
                 if (!window.confirm('O prazo assinalado foi conferido? Deseja realmente continuar?')) return;
                 toTask.mutate({ intim: taskIntim, form: taskForm });
