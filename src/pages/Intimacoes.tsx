@@ -108,8 +108,10 @@ export default function Intimacoes() {
   const [taskIntim, setTaskIntim] = useState<Intim | null>(null);
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', assignee: '', priority: 'alta',
-    due_date: '', start_time: '', location: '',
+    due_date: '', start_time: '', location: '', process_id: '',
   });
+  const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
+  const [duplicateConfirmedProcessId, setDuplicateConfirmedProcessId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const t = todayISO();
     return isBusinessDay(t) ? t : previousBusinessDay(t);
@@ -384,6 +386,7 @@ export default function Intimacoes() {
     mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
       const { intim, form: tf } = payload;
       if (!tf.assignee.trim()) throw new Error('Responsável obrigatório.');
+      const processId = tf.process_id || intim.process_id;
       const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
         title: tf.title || `Intimação: ${intim.court || 'sem tribunal'}`,
@@ -394,7 +397,7 @@ export default function Intimacoes() {
         location: tf.location || null,
         priority: tf.priority,
         status: 'pendente',
-        process_id: intim.process_id,
+        process_id: processId || null,
       }).select().single();
       if (error) throw error;
       return data;
@@ -410,7 +413,74 @@ export default function Intimacoes() {
     onError: (e: any) => toast({ title: 'Erro ao criar tarefa', description: e.message, variant: 'destructive' }),
   });
 
-  const openTaskDialog = (it: Intim) => {
+  const resolveProcessIdForIntimation = async (it: Intim) => {
+    if (it.process_id) return it.process_id;
+    const eff = getEffectiveCnj(it.content);
+    if (!eff) return '';
+    const { data, error } = await (supabase as any)
+      .from('processes')
+      .select('id')
+      .in('number', [eff.masked, eff.digits])
+      .limit(1);
+    if (error) throw error;
+    return data?.[0]?.id || '';
+  };
+
+  const confirmPendingTasksForProcess = async (processId: string) => {
+    const { data, error } = await supabase.rpc('list_pending_tasks_for_process', { _process_id: processId });
+    if (error) throw error;
+    const dups = (data ?? []) as any[];
+    if (dups.length === 0) return { ok: true, processId };
+    const ok = window.confirm(
+      `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
+      dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
+      `\n\nDeseja mesmo criar outra tarefa neste processo?`
+    );
+    if (ok) setDuplicateConfirmedProcessId(processId);
+    return { ok, processId };
+  };
+
+  const confirmPendingTasksForProcessNumber = async (processNumber: string) => {
+    const digits = processNumber.replace(/\D/g, '');
+    const { data, error } = await supabase.rpc('list_pending_tasks_for_process_number', { _process_number: processNumber });
+    if (error) throw error;
+    const dups = (data ?? []) as any[];
+    const processId = dups[0]?.process_id || '';
+    if (dups.length === 0) return { ok: true, processId: '' };
+    const ok = window.confirm(
+      `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
+      dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
+      `\n\nDeseja mesmo criar outra tarefa neste processo?`
+    );
+    if (ok) setDuplicateConfirmedProcessId(processId || digits);
+    return { ok, processId };
+  };
+
+  const handleOpenTaskDialog = async (it: Intim) => {
+    setOpeningTaskId(it.id);
+    setDuplicateConfirmedProcessId(null);
+    try {
+      let processId = await resolveProcessIdForIntimation(it);
+      if (processId) {
+        const result = await confirmPendingTasksForProcess(processId);
+        if (!result.ok) return;
+      } else {
+        const eff = getEffectiveCnj(it.content);
+        if (eff) {
+          const result = await confirmPendingTasksForProcessNumber(eff.masked);
+          if (!result.ok) return;
+          processId = result.processId;
+        }
+      }
+      openTaskDialog(it, processId);
+    } catch (e: any) {
+      toast({ title: 'Erro ao verificar tarefas pendentes', description: e.message, variant: 'destructive' });
+    } finally {
+      setOpeningTaskId(null);
+    }
+  };
+
+  const openTaskDialog = (it: Intim, processId = '') => {
     // Decode HTML entities (&iacute; → í) e tags para que o textarea mostre texto limpo.
     const decodeEntities = (s: string) => {
       const ta = document.createElement('textarea');
@@ -428,6 +498,7 @@ export default function Intimacoes() {
       due_date: (it.deadline || detectedDeadline?.dueDate || '').slice(0, 10),
       start_time: '',
       location: it.court || '',
+      process_id: processId,
     });
     setTaskIntim(it);
   };
@@ -710,8 +781,9 @@ export default function Intimacoes() {
                       {registerProcess.isPending ? 'Cadastrando…' : 'Cadastrar processo'}
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => openTaskDialog(it)}>
-                    <CheckSquare className="h-3 w-3 mr-1" /> Criar Tarefa
+                  <Button size="sm" variant="outline" onClick={() => handleOpenTaskDialog(it)} disabled={openingTaskId === it.id}>
+                    {openingTaskId === it.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckSquare className="h-3 w-3 mr-1" />}
+                    Criar Tarefa
                   </Button>
                   {it.status !== 'tratada' && (
                     <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
@@ -912,8 +984,13 @@ export default function Intimacoes() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
             <Button
-              onClick={() => {
+              onClick={async () => {
                 if (!taskIntim) return;
+                const processId = taskForm.process_id || taskIntim.process_id || '';
+                if (processId && duplicateConfirmedProcessId !== processId) {
+                  const result = await confirmPendingTasksForProcess(processId);
+                  if (!result.ok) return;
+                }
                 if (!window.confirm('O prazo assinalado foi conferido? Deseja realmente continuar?')) return;
                 toTask.mutate({ intim: taskIntim, form: taskForm });
               }}

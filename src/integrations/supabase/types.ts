@@ -1864,6 +1864,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      list_pending_tasks_for_process_number: {
+        Args: { _process_number: string }
+        Returns: {
+          assignee: string
+          due_date: string
+          id: string
+          process_id: string
+          title: string
+          user_id: string
+        }[]
+      }
       list_team_members: {
         Args: never
         Returns: {
