@@ -92,8 +92,9 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
     enabled: !!(processId || taskId),
     queryFn: async () => {
       let q = supabase.from('process_comments' as any).select('*').order('created_at', { ascending: true }).limit(500);
-      if (processId) q = q.eq('process_id', processId);
-      if (taskId) q = q.eq('task_id', taskId);
+      if (processId && taskId) q = q.or(`process_id.eq.${processId},task_id.eq.${taskId}`);
+      else if (processId) q = q.eq('process_id', processId);
+      else if (taskId) q = q.eq('task_id', taskId);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as unknown as Comment[];
@@ -103,16 +104,23 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
   // Realtime subscription
   useEffect(() => {
     if (!processId && !taskId) return;
-    const filter = processId ? `process_id=eq.${processId}` : `task_id=eq.${taskId}`;
     const channelName = `process_comments:${processId ?? taskId}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
+    let channel = supabase.channel(channelName);
+    if (processId) {
+      channel = channel.on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'process_comments', filter },
+        { event: '*', schema: 'public', table: 'process_comments', filter: `process_id=eq.${processId}` },
         () => { qc.invalidateQueries({ queryKey }); },
-      )
-      .subscribe();
+      );
+    }
+    if (taskId) {
+      channel = channel.on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'process_comments', filter: `task_id=eq.${taskId}` },
+        () => { qc.invalidateQueries({ queryKey }); },
+      );
+    }
+    channel.subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [processId, taskId, qc, queryKey]);
 
