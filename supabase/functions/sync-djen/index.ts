@@ -938,17 +938,20 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
           trigger_source: detected.triggerSource,
           calculated_at: new Date().toISOString(),
         } : null;
-        // Resolução de processo: tenta CNJ direto; se não houver match, tenta "processo principal" do conteúdo
-        let targetUserId = row.user_id;
+        // Resolução de processo: tenta CNJ direto; se não houver match, tenta "processo principal" do conteúdo.
+        // IMPORTANTE: a intimação SEMPRE fica sob o user_id do dono da OAB que a capturou
+        // (row.user_id). Só o process_id pode apontar para processo de outro membro do escritório —
+        // caso contrário, intimações endereçadas à SUA OAB somem quando o processo foi cadastrado
+        // por um colega cuja config de OAB está inativa (bug histórico de "sumiço" de publicações).
+        const targetUserId = row.user_id;
         const directProcess = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
         let processId = directProcess?.id ?? null;
-        if (directProcess?.user_id) targetUserId = directProcess.user_id;
         const parentNumero = extractParentProcess(cleanText, it.numero_processo || null);
         const isExecution = detectsExecutionPhase(cleanText) || (!!parentNumero && parentNumero !== it.numero_processo);
         let linkedToParent = false;
         if (!processId && parentNumero) {
           const parentProcess = processIndex.get(parentNumero) || null;
-          if (parentProcess) { processId = parentProcess.id; targetUserId = parentProcess.user_id; linkedToParent = true; }
+          if (parentProcess) { processId = parentProcess.id; linkedToParent = true; }
         }
         const classificationMeta: Record<string, any> | null = (isExecution || linkedToParent || parentNumero) ? {
           fase: isExecution ? 'execucao' : null,
