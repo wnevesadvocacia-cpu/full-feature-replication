@@ -920,6 +920,61 @@ export default function Intimacoes() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog: Marcar como tratada — exige motivo */}
+      <Dialog open={!!treatTarget} onOpenChange={(o) => { if (!o) { setTreatTarget(null); setTreatReason(''); setTreatNote(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" /> Marcar intimação como tratada
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div role="alert" className="rounded-md border-l-4 border-warning bg-warning/10 p-3 text-[12px] leading-relaxed">
+              <p className="font-semibold mb-1">Confirme antes de prosseguir.</p>
+              <p>Ao marcar como tratada, a intimação sai da lista de pendentes. O motivo escolhido fica <strong>registrado em auditoria</strong> (usuário, data/hora e justificativa).</p>
+            </div>
+            {treatTarget?.court && (
+              <div className="text-sm text-muted-foreground"><strong>Intimação:</strong> {treatTarget.court}</div>
+            )}
+            <div>
+              <Label>Motivo *</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={treatReason}
+                onChange={(e) => setTreatReason(e.target.value)}
+              >
+                <option value="">Selecione um motivo…</option>
+                <option value="Tarefa já cadastrada no processo">Tarefa já cadastrada no processo</option>
+                <option value="Prazo da parte contrária (sem providência nossa)">Prazo da parte contrária (sem providência nossa)</option>
+                <option value="Apenas ciência / sem prazo processual">Apenas ciência / sem prazo processual</option>
+                <option value="Peça já protocolada">Peça já protocolada</option>
+                <option value="Intimação duplicada">Intimação duplicada</option>
+                <option value="Não pertence ao escritório">Não pertence ao escritório</option>
+                <option value="Outro">Outro (descrever abaixo)</option>
+              </select>
+            </div>
+            <div>
+              <Label>Observações {treatReason === 'Outro' && <span className="text-destructive">*</span>}</Label>
+              <Textarea
+                rows={3}
+                value={treatNote}
+                onChange={(e) => setTreatNote(e.target.value)}
+                placeholder="Justifique brevemente (opcional, exceto para 'Outro')"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTreatTarget(null); setTreatReason(''); setTreatNote(''); }}>Cancelar</Button>
+            <Button
+              disabled={!treatReason || (treatReason === 'Outro' && treatNote.trim().length < 5) || markDone.isPending}
+              onClick={() => markDone.mutate({ it: treatTarget, reason: treatReason, note: treatNote.trim() })}
+            >
+              {markDone.isPending ? 'Salvando…' : 'Confirmar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de delegação de tarefa */}
       <Dialog open={!!taskIntim} onOpenChange={(o) => { if (!o) setTaskIntim(null); }}>
         <DialogContent className="max-w-lg">
