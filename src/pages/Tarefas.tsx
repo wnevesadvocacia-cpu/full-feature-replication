@@ -23,6 +23,7 @@ import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { ToastAction } from '@/components/ui/toast';
 import { tribunalFromCNJ } from '@/lib/cnjTribunal';
 import { supabase } from '@/integrations/supabase/client';
+import { confirmModal } from '@/lib/confirmModal';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 import { DeleteGuard } from '@/components/DeleteGuard';
@@ -201,10 +202,11 @@ export default function Tarefas() {
         .rpc('list_pending_tasks_for_process', { _process_id: form.process_id });
       const dups = (pend ?? []) as any[];
       if (dups.length > 0) {
-        const ok = window.confirm(
+        const ok = await confirmModal(
           `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
           dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${fmtDate(t.due_date)})` : ''}`).join('\n') +
-          `\n\nDeseja mesmo criar outra tarefa neste processo?`
+          `\n\nDeseja mesmo criar outra tarefa neste processo?`,
+          { title: 'Tarefas pendentes neste processo', okLabel: 'Criar mesmo assim' }
         );
         if (!ok) return;
       }

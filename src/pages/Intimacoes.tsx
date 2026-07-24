@@ -19,6 +19,7 @@ import { DeadlinePanel } from '@/components/DeadlinePanel';
 import { tribunalFromCNJ } from '@/lib/cnjTribunal';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
+import { confirmModal } from '@/lib/confirmModal';
 
 // Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
 // Retorna o número efetivo (com sufixo, se houver) e os dígitos correspondentes.
@@ -469,10 +470,11 @@ export default function Intimacoes() {
     if (error) throw error;
     const dups = (data ?? []) as any[];
     if (dups.length === 0) return { ok: true, processId };
-    const ok = window.confirm(
+    const ok = await confirmModal(
       `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
       dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
-      `\n\nDeseja mesmo criar outra tarefa neste processo?`
+      `\n\nDeseja mesmo criar outra tarefa neste processo?`,
+      { title: 'Tarefas pendentes neste processo', okLabel: 'Criar mesmo assim' }
     );
     if (ok) setDuplicateConfirmedProcessId(processId);
     return { ok, processId };
@@ -485,10 +487,11 @@ export default function Intimacoes() {
     const dups = (data ?? []) as any[];
     const processId = dups[0]?.process_id || '';
     if (dups.length === 0) return { ok: true, processId: '' };
-    const ok = window.confirm(
+    const ok = await confirmModal(
       `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
       dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
-      `\n\nDeseja mesmo criar outra tarefa neste processo?`
+      `\n\nDeseja mesmo criar outra tarefa neste processo?`,
+      { title: 'Tarefas pendentes neste processo', okLabel: 'Criar mesmo assim' }
     );
     if (ok) setDuplicateConfirmedProcessId(processId || digits);
     return { ok, processId };
@@ -1070,7 +1073,7 @@ export default function Intimacoes() {
                   const result = await confirmPendingTasksForProcess(processId);
                   if (!result.ok) return;
                 }
-                if (!window.confirm('O prazo assinalado foi conferido? Deseja realmente continuar?')) return;
+                if (!(await confirmModal('O prazo assinalado foi conferido? Deseja realmente continuar?', { title: 'Conferência de prazo' }))) return;
                 toTask.mutate({ intim: taskIntim, form: taskForm });
               }}
               disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || toTask.isPending}
