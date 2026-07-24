@@ -322,9 +322,30 @@ export default function Intimacoes() {
     onError: (e: any) => toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' }),
   });
 
+  const [treatTarget, setTreatTarget] = useState<any>(null);
+  const [treatReason, setTreatReason] = useState<string>('');
+  const [treatNote, setTreatNote] = useState<string>('');
+
   const markDone = useMutation({
-    mutationFn: async (id: string) => { const { error } = await (supabase as any).from('intimations').update({ status: 'tratada' }).eq('id', id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['intimations'] }),
+    mutationFn: async ({ it, reason, note }: { it: any; reason: string; note: string }) => {
+      const sb: any = supabase;
+      await sb.from('audit_logs').insert({
+        user_id: user!.id,
+        user_email: user!.email,
+        action: 'MARK_TREATED',
+        table_name: 'intimations',
+        record_id: it.id,
+        new_data: { status: 'tratada', reason, note, court: it.court ?? null },
+      });
+      const { error } = await sb.from('intimations').update({ status: 'tratada' }).eq('id', it.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+      setTreatTarget(null); setTreatReason(''); setTreatNote('');
+      toast({ title: 'Marcada como tratada', description: 'Motivo registrado em auditoria.' });
+    },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
   // Marca classificação como revisada pelo advogado + grava prazo manual.
@@ -827,7 +848,7 @@ export default function Intimacoes() {
                     Criar Tarefa
                   </Button>
                   {it.status !== 'tratada' && (
-                    <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setTreatTarget(it); setTreatReason(''); setTreatNote(''); }}>Marcar tratada</Button>
                   )}
                   <DeleteGuard>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(it)}>
@@ -894,6 +915,61 @@ export default function Intimacoes() {
               onClick={() => del.mutate({ it: deleteTarget, reason: deleteReason.trim() })}
             >
               {del.isPending ? 'Excluindo…' : 'Confirmar exclusão'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Marcar como tratada — exige motivo */}
+      <Dialog open={!!treatTarget} onOpenChange={(o) => { if (!o) { setTreatTarget(null); setTreatReason(''); setTreatNote(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckSquare className="h-5 w-5 text-primary" /> Marcar intimação como tratada
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div role="alert" className="rounded-md border-l-4 border-warning bg-warning/10 p-3 text-[12px] leading-relaxed">
+              <p className="font-semibold mb-1">Confirme antes de prosseguir.</p>
+              <p>Ao marcar como tratada, a intimação sai da lista de pendentes. O motivo escolhido fica <strong>registrado em auditoria</strong> (usuário, data/hora e justificativa).</p>
+            </div>
+            {treatTarget?.court && (
+              <div className="text-sm text-muted-foreground"><strong>Intimação:</strong> {treatTarget.court}</div>
+            )}
+            <div>
+              <Label>Motivo *</Label>
+              <select
+                className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                value={treatReason}
+                onChange={(e) => setTreatReason(e.target.value)}
+              >
+                <option value="">Selecione um motivo…</option>
+                <option value="Tarefa já cadastrada no processo">Tarefa já cadastrada no processo</option>
+                <option value="Prazo da parte contrária (sem providência nossa)">Prazo da parte contrária (sem providência nossa)</option>
+                <option value="Apenas ciência / sem prazo processual">Apenas ciência / sem prazo processual</option>
+                <option value="Peça já protocolada">Peça já protocolada</option>
+                <option value="Intimação duplicada">Intimação duplicada</option>
+                <option value="Não pertence ao escritório">Não pertence ao escritório</option>
+                <option value="Outro">Outro (descrever abaixo)</option>
+              </select>
+            </div>
+            <div>
+              <Label>Observações {treatReason === 'Outro' && <span className="text-destructive">*</span>}</Label>
+              <Textarea
+                rows={3}
+                value={treatNote}
+                onChange={(e) => setTreatNote(e.target.value)}
+                placeholder="Justifique brevemente (opcional, exceto para 'Outro')"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTreatTarget(null); setTreatReason(''); setTreatNote(''); }}>Cancelar</Button>
+            <Button
+              disabled={!treatReason || (treatReason === 'Outro' && treatNote.trim().length < 5) || markDone.isPending}
+              onClick={() => markDone.mutate({ it: treatTarget, reason: treatReason, note: treatNote.trim() })}
+            >
+              {markDone.isPending ? 'Salvando…' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>
