@@ -848,7 +848,7 @@ export default function Intimacoes() {
                     Criar Tarefa
                   </Button>
                   {it.status !== 'tratada' && (
-                    <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
+                    <Button size="sm" variant="ghost" onClick={() => { setTreatTarget(it); setTreatReason(''); setTreatNote(''); }}>Marcar tratada</Button>
                   )}
                   <DeleteGuard>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(it)}>
