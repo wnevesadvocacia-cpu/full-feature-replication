@@ -20,6 +20,7 @@ import { DeleteGuard } from '@/components/DeleteGuard';
 import { SearchAutocomplete } from '@/components/SearchAutocomplete';
 import { HistoricoConversas } from '@/components/HistoricoConversas';
 import { tribunalFromCNJ } from '@/lib/cnjTribunal';
+import { confirmModal } from '@/lib/confirmModal';
 
 interface Process {
   id: string;
@@ -524,12 +525,13 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
           );
           if (match.length > 0) {
             const m = match[0] as any;
-            const ok = window.confirm(
+            const ok = await confirmModal(
               `Já existe processo cadastrado com este CNJ:\n\n` +
                 `• ${m.number}\n` +
                 `• ${m.title || 'sem título'}${m.client_name ? ` — ${m.client_name}` : ''}\n` +
                 `• Status: ${m.status || '-'}\n\n` +
                 `Cadastrar duplicata infla KPIs e relatórios. Deseja realmente continuar?`,
+              { title: 'Processo duplicado', okLabel: 'Cadastrar mesmo assim' }
             );
             if (!ok) throw new Error('Cadastro cancelado: processo duplicado.');
           }
@@ -944,7 +946,7 @@ export default function Processos() {
     onError: (err: Error) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
-  const submitTask = () => {
+  const submitTask = async () => {
     if (!newTask.title.trim() || !newTask.assignee.trim()) {
       toast({ title: 'Responsável obrigatório', variant: 'destructive' });
       return;
@@ -955,12 +957,13 @@ export default function Processos() {
       (t: any) => !t.completed && norm(t.title || '') === norm(newTask.title),
     );
     if (dup) {
-      const ok = window.confirm(
+      const ok = await confirmModal(
         'Já existe uma tarefa pendente com este mesmo título neste processo. Tem certeza que deseja criar outra?',
+        { title: 'Tarefa duplicada', okLabel: 'Criar mesmo assim' }
       );
       if (!ok) return;
     }
-    if (!window.confirm('O prazo assinalado foi conferido? Deseja realmente continuar?')) return;
+    if (!(await confirmModal('O prazo assinalado foi conferido? Deseja realmente continuar?', { title: 'Conferência de prazo' }))) return;
     addTask.mutate(newTask);
   };
 
@@ -1670,7 +1673,7 @@ export default function Processos() {
                           size="sm"
                           variant="destructive"
                           onClick={async () => {
-                            if (!window.confirm(`Excluir definitivamente este processo duplicado?\n\n${p.number}`)) return;
+                            if (!(await confirmModal(`Excluir definitivamente este processo duplicado?\n\n${p.number}`, { title: 'Excluir duplicado', okLabel: 'Excluir' }))) return;
                             const { error } = await supabase.from('processes').delete().eq('id', p.id);
                             if (error) {
                               toast({ title: 'Erro', description: error.message, variant: 'destructive' });
