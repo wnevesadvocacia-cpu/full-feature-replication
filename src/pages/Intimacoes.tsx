@@ -278,9 +278,47 @@ export default function Intimacoes() {
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+
   const del = useMutation({
-    mutationFn: async (id: string) => { const { error } = await (supabase as any).from('intimations').delete().eq('id', id); if (error) throw error; },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['intimations'] }); toast({ title: 'Excluída' }); },
+    mutationFn: async ({ it, reason }: { it: any; reason: string }) => {
+      const sb: any = supabase;
+      // 1) Snapshot + motivo em audit_logs (imutável).
+      await sb.from('audit_logs').insert({
+        user_id: user!.id,
+        user_email: user!.email,
+        action: 'DELETE',
+        table_name: 'intimations',
+        record_id: it.id,
+        old_data: { ...it, __deletion_reason: reason },
+      });
+      // 2) Notifica todos admin/gerente ("supervisores").
+      const { data: sups } = await sb.rpc('list_supervisors');
+      const supIds: string[] = (sups || []).map((r: any) => r.user_id).filter(Boolean);
+      const uniq = Array.from(new Set([...supIds, user!.id]));
+      if (uniq.length) {
+        await sb.from('notifications').insert(
+          uniq.map((uid) => ({
+            user_id: uid,
+            title: '🗑️ Intimação excluída',
+            message: `${user!.email} excluiu intimação${it.court ? ` (${it.court})` : ''}. Motivo: ${reason}`,
+            type: 'warning',
+            link: '/auditoria',
+          }))
+        );
+      }
+      // 3) Exclusão efetiva.
+      const { error } = await sb.from('intimations').delete().eq('id', it.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+      setDeleteTarget(null);
+      setDeleteReason('');
+      toast({ title: 'Excluída', description: 'Registro auditado e supervisores notificados.' });
+    },
+    onError: (e: any) => toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' }),
   });
 
   const markDone = useMutation({
@@ -789,7 +827,7 @@ export default function Intimacoes() {
                     <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
                   )}
                   <DeleteGuard>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(it.id)}>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(it)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </DeleteGuard>
@@ -812,6 +850,47 @@ export default function Intimacoes() {
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
             <Button onClick={() => create.mutate()} disabled={!form.content || create.isPending}>
               {create.isPending ? 'Salvando…' : 'Registrar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmação de exclusão com motivo obrigatório */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteReason(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Excluir intimação
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div role="alert" className="rounded-md border-l-4 border-destructive bg-destructive/10 p-3 text-[12px] leading-relaxed">
+              <p className="font-semibold mb-1">Esta ação é IRREVERSÍVEL.</p>
+              <p>A exclusão ficará <strong>registrada em auditoria</strong> (usuário, data/hora, conteúdo integral e motivo) e <strong>uma cópia será enviada imediatamente aos supervisores/administradores</strong> do sistema.</p>
+            </div>
+            {deleteTarget?.court && (
+              <div className="text-sm text-muted-foreground">
+                <strong>Intimação:</strong> {deleteTarget.court}
+              </div>
+            )}
+            <div>
+              <Label>Motivo da exclusão *</Label>
+              <Textarea
+                rows={4}
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Descreva de forma clara por que esta intimação deve ser excluída (mín. 10 caracteres)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteReason(''); }}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteReason.trim().length < 10 || del.isPending}
+              onClick={() => del.mutate({ it: deleteTarget, reason: deleteReason.trim() })}
+            >
+              {del.isPending ? 'Excluindo…' : 'Confirmar exclusão'}
             </Button>
           </DialogFooter>
         </DialogContent>
