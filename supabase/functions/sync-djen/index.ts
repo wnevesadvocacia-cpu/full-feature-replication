@@ -900,21 +900,18 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       .in('user_id', officeUserIds)
       .not('number', 'is', null);
     const officeProcessNumbers = (officeProcs || []).map((p: any) => p.number).filter(Boolean);
-    const [tjmgFallbackItems, tjspFallbackItems] = await Promise.all([
+    const [tjmgFallbackItems, tjspFallbackItems, tjspOabFallbackItems] = await Promise.all([
       fetchTjmgDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate)
         .catch((e) => { console.warn('[tjmg-dje] falhou geral:', (e as Error).message); return [] as DjenItem[]; }),
       fetchTjspDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate)
         .catch((e) => { console.warn('[tjsp-dje] falhou geral:', (e as Error).message); return [] as DjenItem[]; }),
+      fetchTjspDjeByOabFallback(row.oab_number, row.oab_uf, stateFallbackStartDate, syncEndDate)
+        .catch((e) => { console.warn('[tjsp-dje-oab] falhou geral:', (e as Error).message); return [] as DjenItem[]; }),
     ]);
 
     const merged: DjenItem[] = [];
     const mergedSeen = new Set<string>();
-    for (const it of [...result.items, ...tjmgFallbackItems, ...tjspFallbackItems]) {
-      const key = `${it.hash || it.id || ''}|${it.numero_processo || ''}|${it.data_disponibilizacao || ''}|${(it.texto || '').slice(0, 200)}`;
-      if (mergedSeen.has(key)) continue;
-      mergedSeen.add(key);
-      merged.push(it);
-    }
+    for (const it of [...result.items, ...tjmgFallbackItems, ...tjspFallbackItems, ...tjspOabFallbackItems]) {
       const key = `${it.hash || it.id || ''}|${it.numero_processo || ''}|${it.data_disponibilizacao || ''}|${(it.texto || '').slice(0, 200)}`;
       if (mergedSeen.has(key)) continue;
       mergedSeen.add(key);
