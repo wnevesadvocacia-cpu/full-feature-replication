@@ -904,6 +904,7 @@ export default function Tarefas() {
               </div>
             );
           })()}
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOverviewTarget(null)}>Fechar</Button>
           </DialogFooter>
