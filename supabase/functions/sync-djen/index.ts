@@ -461,6 +461,91 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
   return items;
 }
 
+// ============= Fallback TJSP eSAJ POR OAB =============
+// Consulta o DJE do TJSP (DEJESP) diretamente por OAB do advogado, cobrindo
+// publicações que NÃO replicam no DJEN nacional (pautas de sessão virtual,
+// atas de julgamento, listas de distribuição da Secretaria Judiciária) e
+// cujos CNJs podem nem estar cadastrados no sistema. Definitivo para o gap
+// DEJESP → DJEN. Falha isolada — não afeta as demais fontes.
+async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataInicio: string, dataFim: string): Promise<DjenItem[]> {
+  if (!oabNumber || (oabUf || '').toUpperCase() !== 'SP') return [];
+  const items: DjenItem[] = [];
+  const seen = new Set<string>();
+  const dtInicio = toBrDate(dataInicio);
+  const dtFim = toBrDate(dataFim);
+
+  const body = new URLSearchParams();
+  // eSAJ: pesquisa por OAB usa cbPesquisa=NUMOAB e o número puro no campo pesquisaLivre.
+  body.set('dadosConsulta.pesquisaLivre', String(oabNumber).replace(/\D/g, ''));
+  body.set('cbPesquisa', 'NUMOAB');
+  body.set('tipoConsulta', 'BUSCA_AVANCADA');
+  body.set('dadosConsulta.dtInicio', dtInicio);
+  body.set('dadosConsulta.dtFim', dtFim);
+  body.set('dadosConsulta.cdCaderno', '-1');
+
+  let html = '';
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const res = await fetch('https://esaj.tjsp.jus.br/cdje/consultaAvancada.do', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'pt-BR,pt;q=0.9',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      body: body.toString(),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) return [];
+    html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
+  } catch (e) {
+    console.warn('[tjsp-dje-oab] falhou:', (e as Error).message);
+    return [];
+  }
+
+  const rows = Array.from(html.matchAll(/<tr[^>]*class="fundocinza1"[^>]*>([\s\S]*?)<\/tr>/gi));
+  for (const r of rows) {
+    const block = r[1];
+    const dateMatch = block.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    const disponibilizacao = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : '';
+    if (!disponibilizacao || disponibilizacao < dataInicio || disponibilizacao > dataFim) continue;
+
+    const cadernoMatch = block.match(/Caderno[^<]*<[^>]*>\s*([^<]+)/i);
+    const caderno = cadernoMatch ? cadernoMatch[1].trim() : '';
+    const detail = stripHtmlToText(block).replace(/\s+/g, ' ').trim();
+    if (!detail) continue;
+
+    // Extrai CNJ do bloco quando presente; se não houver, mantém publicação
+    // com numero_processo vazio (será tratada como intimação sem processo).
+    const cnjRaw = detail.match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}/);
+    const numero = cnjRaw ? normalizeProcessNumber(cnjRaw[0]) || '' : '';
+
+    // Dedup por (data + numero + primeiros 120 chars) para não gerar variantes
+    // por espaços/HTML diferentes entre execuções.
+    const key = `tjsp-dje-oab:${disponibilizacao}:${numero}:${detail.slice(0, 120)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    items.push({
+      id: key,
+      hash: key,
+      numero_processo: numero,
+      texto: [`Disponibilização: ${disponibilizacao}`, caderno, numero, detail].filter(Boolean).join('\n'),
+      data_disponibilizacao: disponibilizacao,
+      siglaTribunal: 'TJSP',
+      nomeOrgao: caderno || 'TJSP - DEJESP',
+      tipoComunicacao: 'Publicação TJSP',
+      __queryKind: 'oab',
+      __source: 'tjsp-dje-oab',
+    } as DjenItem);
+  }
+
+  return items;
+}
+
 // ============= Fetch com retry =============
 async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
   const controller = new AbortController();
