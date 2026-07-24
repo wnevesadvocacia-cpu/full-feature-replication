@@ -855,6 +855,47 @@ export default function Intimacoes() {
         </DialogContent>
       </Dialog>
 
+      {/* Confirmação de exclusão com motivo obrigatório */}
+      <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteReason(''); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" /> Excluir intimação
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div role="alert" className="rounded-md border-l-4 border-destructive bg-destructive/10 p-3 text-[12px] leading-relaxed">
+              <p className="font-semibold mb-1">Esta ação é IRREVERSÍVEL.</p>
+              <p>A exclusão ficará <strong>registrada em auditoria</strong> (usuário, data/hora, conteúdo integral e motivo) e <strong>uma cópia será enviada imediatamente aos supervisores/administradores</strong> do sistema.</p>
+            </div>
+            {deleteTarget?.court && (
+              <div className="text-sm text-muted-foreground">
+                <strong>Intimação:</strong> {deleteTarget.court}
+              </div>
+            )}
+            <div>
+              <Label>Motivo da exclusão *</Label>
+              <Textarea
+                rows={4}
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Descreva de forma clara por que esta intimação deve ser excluída (mín. 10 caracteres)"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeleteReason(''); }}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteReason.trim().length < 10 || del.isPending}
+              onClick={() => del.mutate({ it: deleteTarget, reason: deleteReason.trim() })}
+            >
+              {del.isPending ? 'Excluindo…' : 'Confirmar exclusão'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de delegação de tarefa */}
       <Dialog open={!!taskIntim} onOpenChange={(o) => { if (!o) setTaskIntim(null); }}>
         <DialogContent className="max-w-lg">
