@@ -1875,6 +1875,12 @@ export type Database = {
           user_id: string
         }[]
       }
+      list_supervisors: {
+        Args: never
+        Returns: {
+          user_id: string
+        }[]
+      }
       list_team_members: {
         Args: never
         Returns: {
