@@ -10,10 +10,10 @@ export function confirmModal(message: string, opts?: { title?: string; okLabel?:
     const overlay = document.createElement('div');
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
-    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit;';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:16px;font-family:inherit;pointer-events:auto !important;';
 
     const box = document.createElement('div');
-    box.style.cssText = 'background:hsl(var(--background,0 0% 100%));color:hsl(var(--foreground,222 47% 11%));max-width:520px;width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:20px;border:1px solid hsl(var(--border,214 32% 91%));';
+    box.style.cssText = 'background:hsl(var(--background,0 0% 100%));color:hsl(var(--foreground,222 47% 11%));max-width:520px;width:100%;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.35);padding:20px;border:1px solid hsl(var(--border,214 32% 91%));pointer-events:auto !important;'
 
     const h = document.createElement('div');
     h.textContent = title;
@@ -29,12 +29,12 @@ export function confirmModal(message: string, opts?: { title?: string; okLabel?:
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.textContent = cancelLabel;
-    cancelBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--border,214 32% 91%));background:transparent;color:inherit;cursor:pointer;font-size:14px;';
+    cancelBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--border,214 32% 91%));background:transparent;color:inherit;cursor:pointer;font-size:14px;pointer-events:auto !important;';
 
     const okBtn = document.createElement('button');
     okBtn.type = 'button';
     okBtn.textContent = okLabel;
-    okBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--primary,222 47% 11%));background:hsl(var(--primary,222 47% 11%));color:hsl(var(--primary-foreground,0 0% 100%));cursor:pointer;font-size:14px;font-weight:500;';
+    okBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--primary,222 47% 11%));background:hsl(var(--primary,222 47% 11%));color:hsl(var(--primary-foreground,0 0% 100%));cursor:pointer;font-size:14px;font-weight:500;pointer-events:auto !important;';
 
     const close = (result: boolean) => {
       document.removeEventListener('keydown', onKey);
