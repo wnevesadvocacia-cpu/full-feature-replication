@@ -827,7 +827,7 @@ export default function Intimacoes() {
                     <Button size="sm" variant="ghost" onClick={() => markDone.mutate(it.id)}>Marcar tratada</Button>
                   )}
                   <DeleteGuard>
-                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => del.mutate(it.id)}>
+                    <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setDeleteTarget(it)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </DeleteGuard>
