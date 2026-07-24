@@ -832,12 +832,13 @@ export default function Tarefas() {
       </Dialog>
       {/* Overview Dialog (read-only) */}
       <Dialog open={!!overviewTarget} onOpenChange={(o) => { if (!o) setOverviewTarget(null); }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-blue-500" /> {overviewTarget?.title}
             </DialogTitle>
           </DialogHeader>
+          <div className="flex-1 overflow-y-auto pr-1">
           {overviewTarget && (() => {
             const t = overviewTarget;
             const dueDate = t.due_date ? new Date(t.due_date.slice(0,10) + 'T12:00:00') : null;
