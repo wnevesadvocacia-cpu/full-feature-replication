@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass,
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass, MessageSquare,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -780,24 +780,51 @@ export default function Tarefas() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
-          <DialogHeader><DialogTitle>Editar Tarefa</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-y-auto pr-1">
-            <div>
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
+          <DialogHeader className="pb-2 border-b">
+            <DialogTitle className="flex flex-wrap items-center gap-2">
+              <span>Editar Tarefa</span>
+              {editTarget?.processes?.number && (
+                <span className="font-mono text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                  {editTarget.processes.number}
+                </span>
+              )}
+              {editTarget?.assignee && (
+                <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground border">
+                  {editTarget.assignee}
+                </span>
+              )}
+              {editTarget?.due_date && (
+                <span className="text-xs px-2 py-0.5 rounded bg-red-50 text-red-700 border border-red-200">
+                  Prazo: {new Date(editTarget.due_date.slice(0,10) + 'T12:00:00').toLocaleDateString('pt-BR')}
+                </span>
+              )}
+              {editTarget?.priority && (
+                <Badge variant="outline" className={priorityConfig[editTarget.priority as TaskPriority]?.className || ''}>
+                  {priorityConfig[editTarget.priority as TaskPriority]?.label || editTarget.priority}
+                </Badge>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6 flex-1 overflow-hidden">
+            <div className="overflow-y-auto pr-2 py-1">
+              <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados da tarefa
+              </div>
               {taskFormFields}
             </div>
-            <div className="border-l md:pl-4 flex flex-col min-h-[400px]">
-              <p className="text-sm font-semibold mb-2 flex items-center gap-1">
-                Histórico de conversas
-              </p>
+            <div className="border-l md:pl-4 flex flex-col overflow-hidden min-h-[400px]">
+              <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <MessageSquare className="h-3.5 w-3.5" /> Histórico de conversas
+              </div>
               {editTarget?.id && (
-                <div className="flex-1">
+                <div className="flex-1 overflow-hidden">
                   <HistoricoConversas taskId={editTarget.id} processId={editTarget.process_id ?? undefined} />
                 </div>
               )}
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="border-t pt-3">
             {!canManage && (
               <p className="text-xs text-muted-foreground mr-auto">
                 Apenas administradores e gerentes podem salvar alterações.
