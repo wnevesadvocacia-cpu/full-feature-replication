@@ -322,9 +322,30 @@ export default function Intimacoes() {
     onError: (e: any) => toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' }),
   });
 
+  const [treatTarget, setTreatTarget] = useState<any>(null);
+  const [treatReason, setTreatReason] = useState<string>('');
+  const [treatNote, setTreatNote] = useState<string>('');
+
   const markDone = useMutation({
-    mutationFn: async (id: string) => { const { error } = await (supabase as any).from('intimations').update({ status: 'tratada' }).eq('id', id); if (error) throw error; },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['intimations'] }),
+    mutationFn: async ({ it, reason, note }: { it: any; reason: string; note: string }) => {
+      const sb: any = supabase;
+      await sb.from('audit_logs').insert({
+        user_id: user!.id,
+        user_email: user!.email,
+        action: 'MARK_TREATED',
+        table_name: 'intimations',
+        record_id: it.id,
+        new_data: { status: 'tratada', reason, note, court: it.court ?? null },
+      });
+      const { error } = await sb.from('intimations').update({ status: 'tratada' }).eq('id', it.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+      setTreatTarget(null); setTreatReason(''); setTreatNote('');
+      toast({ title: 'Marcada como tratada', description: 'Motivo registrado em auditoria.' });
+    },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
   // Marca classificação como revisada pelo advogado + grava prazo manual.
