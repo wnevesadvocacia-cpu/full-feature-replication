@@ -278,9 +278,47 @@ export default function Intimacoes() {
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+
   const del = useMutation({
-    mutationFn: async (id: string) => { const { error } = await (supabase as any).from('intimations').delete().eq('id', id); if (error) throw error; },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['intimations'] }); toast({ title: 'Excluída' }); },
+    mutationFn: async ({ it, reason }: { it: any; reason: string }) => {
+      const sb: any = supabase;
+      // 1) Snapshot + motivo em audit_logs (imutável).
+      await sb.from('audit_logs').insert({
+        user_id: user!.id,
+        user_email: user!.email,
+        action: 'DELETE',
+        table_name: 'intimations',
+        record_id: it.id,
+        old_data: { ...it, __deletion_reason: reason },
+      });
+      // 2) Notifica todos admin/gerente ("supervisores").
+      const { data: sups } = await sb.rpc('list_supervisors');
+      const supIds: string[] = (sups || []).map((r: any) => r.user_id).filter(Boolean);
+      const uniq = Array.from(new Set([...supIds, user!.id]));
+      if (uniq.length) {
+        await sb.from('notifications').insert(
+          uniq.map((uid) => ({
+            user_id: uid,
+            title: '🗑️ Intimação excluída',
+            message: `${user!.email} excluiu intimação${it.court ? ` (${it.court})` : ''}. Motivo: ${reason}`,
+            type: 'warning',
+            link: '/auditoria',
+          }))
+        );
+      }
+      // 3) Exclusão efetiva.
+      const { error } = await sb.from('intimations').delete().eq('id', it.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['intimations'] });
+      setDeleteTarget(null);
+      setDeleteReason('');
+      toast({ title: 'Excluída', description: 'Registro auditado e supervisores notificados.' });
+    },
+    onError: (e: any) => toast({ title: 'Erro ao excluir', description: e.message, variant: 'destructive' }),
   });
 
   const markDone = useMutation({
