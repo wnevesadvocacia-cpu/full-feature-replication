@@ -29,12 +29,12 @@ export function confirmModal(message: string, opts?: { title?: string; okLabel?:
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.textContent = cancelLabel;
-    cancelBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--border,214 32% 91%));background:transparent;color:inherit;cursor:pointer;font-size:14px;';
+    cancelBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--border,214 32% 91%));background:transparent;color:inherit;cursor:pointer;font-size:14px;pointer-events:auto !important;';
 
     const okBtn = document.createElement('button');
     okBtn.type = 'button';
     okBtn.textContent = okLabel;
-    okBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--primary,222 47% 11%));background:hsl(var(--primary,222 47% 11%));color:hsl(var(--primary-foreground,0 0% 100%));cursor:pointer;font-size:14px;font-weight:500;';
+    okBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--primary,222 47% 11%));background:hsl(var(--primary,222 47% 11%));color:hsl(var(--primary-foreground,0 0% 100%));cursor:pointer;font-size:14px;font-weight:500;pointer-events:auto !important;';
 
     const close = (result: boolean) => {
       document.removeEventListener('keydown', onKey);
