@@ -456,7 +456,13 @@ export default function Configuracoes() {
                   const isWarning = failures === 1 || (hoursSinceSuccess !== null && hoursSinceSuccess >= 12 && hoursSinceSuccess < 24);
                   const isCritical = failures >= 2 || (hoursSinceSuccess !== null && hoursSinceSuccess >= 24);
                   const statusColor = !row.active ? 'bg-gray-400' : isCritical ? 'bg-red-500' : isWarning ? 'bg-yellow-500' : 'bg-green-500';
-                  const statusLabel = !row.active ? 'Inativa' : isCritical ? `${failures} falha(s)` : isWarning ? 'Atrasada' : 'Saudável';
+                  const statusLabel = !row.active
+                    ? 'Inativa'
+                    : isCritical
+                      ? (failures >= 2 ? `${failures} falha(s)` : 'Sem sync há +24h')
+                      : isWarning
+                        ? (failures === 1 ? '1 falha' : 'Atrasada')
+                        : 'Saudável';
                   return (
                     <div key={row.id} className={`p-3 border rounded-lg ${isCritical && row.active ? 'border-red-300 bg-red-50/50' : 'hover:bg-gray-50'}`}>
                       <div className="flex items-center justify-between">
