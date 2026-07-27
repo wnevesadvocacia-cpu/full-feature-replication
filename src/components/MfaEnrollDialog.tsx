@@ -27,6 +27,15 @@ export function MfaEnrollDialog({ open, onOpenChange, onEnrolled }: Props) {
       try {
         // Limpa fatores não-verificados pendentes
         const { data: list } = await supabase.auth.mfa.listFactors();
+        const verified = (list?.totp ?? []).find((f: any) => f.status === 'verified');
+        if (verified) {
+          // Já existe MFA ativo — sincroniza metadata e encerra sem tentar enroll (evita "AAL2 required").
+          await supabase.auth.updateUser({ data: { mfa_enrolled: true } });
+          toast({ title: '2FA já está ativo', description: 'Sua conta já possui autenticação em 2 fatores configurada.' });
+          onEnrolled?.();
+          onOpenChange(false);
+          return;
+        }
         const pending = (list?.totp ?? []).filter((f: any) => f.status !== 'verified');
         for (const f of pending) await supabase.auth.mfa.unenroll({ factorId: f.id });
 
