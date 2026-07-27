@@ -1243,7 +1243,8 @@ Deno.serve(async (req) => {
     cronRunId = cronRow?.id ?? null;
   }
 
-  try {
+  const runSync = async (): Promise<Response> => {
+   try {
     const authHeader = req.headers.get('Authorization');
     const triggeredBy = isManual ? 'manual' : 'cron';
 
@@ -1279,7 +1280,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Health tracking — fonte primária DJEN
     try {
       const anyOk = results.some((r: any) => r?.status === 'success' || r?.status === 'partial');
       const allFailed = results.length > 0 && results.every((r: any) => r?.status === 'failed');
@@ -1306,8 +1306,6 @@ Deno.serve(async (req) => {
     } catch (e) { console.warn('[sync-djen] health update falhou:', (e as Error).message); }
 
     if (cronRunId) {
-      // Telemetria PR3: agrega contagem de triggerSource por execução para
-      // monitorar distribuição diária dos gatilhos do detectDeadline.
       const aggTriggers: Record<string, number> = {};
       for (const r of results) {
         const tc = (r as any)?.trigger_counts as Record<string, number> | undefined;
@@ -1319,8 +1317,6 @@ Deno.serve(async (req) => {
       }).eq('id', cronRunId);
     }
 
-    // Enriquecimento DataJud: vincula intimações com nº CNJ mas sem process_id.
-    // Best-effort: falhas não afetam o resultado da sync.
     try {
       await supabase.functions.invoke('enrich-datajud', {
         body: { limit: 100 },
@@ -1341,9 +1337,6 @@ Deno.serve(async (req) => {
         status: 'failed', ended_at: new Date().toISOString(), error_message: String(e?.message || e).slice(0, 1000),
       }).eq('id', cronRunId);
     }
-    // Detecta instabilidade upstream do DJEN/CNJ (504/502/timeout) e devolve 200
-    // com payload estruturado para a UI exibir mensagem amigável em vez do erro
-    // genérico "non-2xx status code" do supabase-js.
     const msg = String(e?.message || e);
     const isUpstream = /DJEN\s+(502|503|504)|timeout|aborted|ETIMEDOUT|ECONNRESET/i.test(msg);
     try {
@@ -1374,4 +1367,17 @@ Deno.serve(async (req) => {
       await supabase.rpc('release_cron_lock', { _job_name: 'sync-djen' });
     }
   }
+  };
+
+  // Cron/watchdog: roda em background para escapar do idle timeout de 150s
+  // do gateway. Manual (UI): aguarda a resposta para exibir os resultados.
+  if (!isManual) {
+    // @ts-ignore EdgeRuntime disponível no runtime Supabase
+    EdgeRuntime.waitUntil(runSync());
+    return new Response(JSON.stringify({ success: true, run_id: runId, background: true }), {
+      status: 202,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+  return await runSync();
 });
