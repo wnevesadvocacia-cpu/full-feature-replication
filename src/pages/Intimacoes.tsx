@@ -199,7 +199,7 @@ export default function Intimacoes() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('list_team_members');
       if (error) throw error;
-      return (data || []) as { user_id: string; email: string; roles: string[] }[];
+      return (data || []) as { user_id: string; email: string; full_name: string; roles: string[] }[];
     },
   });
 
@@ -1162,7 +1162,7 @@ export default function Intimacoes() {
               >
                 <option value="">— Selecionar —</option>
                 {supervisors.map((m) => (
-                  <option key={m.user_id} value={m.user_id}>{m.email}</option>
+                  <option key={m.user_id} value={m.user_id} title={m.full_name || m.email}>{m.full_name || m.email}</option>
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
