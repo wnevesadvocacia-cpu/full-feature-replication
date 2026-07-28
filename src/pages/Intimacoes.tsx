@@ -1183,7 +1183,7 @@ export default function Intimacoes() {
                 if (!(await confirmModal('O prazo assinalado foi conferido? Deseja realmente continuar?', { title: 'Conferência de prazo' }))) return;
                 toTask.mutate({ intim: taskIntim, form: taskForm });
               }}
-              disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || toTask.isPending}
+              disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || !taskForm.cc_user_id || toTask.isPending}
             >
               {toTask.isPending ? 'Criando…' : 'Criar Tarefa'}
             </Button>
