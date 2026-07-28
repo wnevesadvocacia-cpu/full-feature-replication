@@ -230,9 +230,16 @@ export default function Tarefas() {
         start_date: form.start_date || undefined,
         process_id: form.process_id || undefined,
       });
+      await (supabase as any).from('notifications').insert({
+        user_id: form.cc_user_id,
+        title: '📋 Cópia de nova tarefa',
+        message: `${user?.email} criou a tarefa "${form.title}" para ${form.assignee.trim()}${form.due_date ? ` — prazo ${fmtDate(form.due_date)}` : ''}.`,
+        type: 'info',
+        link: '/tarefas',
+      });
       setCreateOpen(false);
       setForm(EMPTY_FORM);
-      toast({ title: 'Tarefa criada!' });
+      toast({ title: 'Tarefa criada!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
