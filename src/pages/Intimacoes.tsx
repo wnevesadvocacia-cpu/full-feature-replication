@@ -203,6 +203,11 @@ export default function Intimacoes() {
     },
   });
 
+  // Gestores/administradores disponíveis para cópia obrigatória da tarefa.
+  const supervisors = teamMembers.filter((m) =>
+    (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
+  );
+
   // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
   // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
   const isDisplayableIntimation = (i: Intim) => !!i.process_id || hasCnj(i.content);
