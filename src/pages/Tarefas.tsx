@@ -43,10 +43,12 @@ const priorityConfig: Record<TaskPriority, { label: string; className: string }>
 interface TaskForm {
   title: string; description: string; assignee: string;
   priority: string; due_date: string; start_date: string; process_id: string;
+  cc_user_id: string;
 }
 const EMPTY_FORM: TaskForm = {
   title: '', description: '', assignee: '',
   priority: 'media', due_date: '', start_date: '', process_id: '',
+  cc_user_id: '',
 };
 
 const TASK_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-full sm:!max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
