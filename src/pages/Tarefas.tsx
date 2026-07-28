@@ -116,6 +116,11 @@ export default function Tarefas() {
     staleTime: 60_000,
   });
 
+  // Gestores/administradores disponíveis para cópia obrigatória da tarefa.
+  const supervisors = teamMembers.filter((m) =>
+    (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
+  );
+
   const set = (k: keyof TaskForm) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(f => ({ ...f, [k]: e.target.value }));
