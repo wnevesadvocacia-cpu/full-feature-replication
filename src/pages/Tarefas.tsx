@@ -478,7 +478,9 @@ export default function Tarefas() {
         >
           <option value="">— Selecione —</option>
           {supervisors.map((m) => (
-            <option key={m.user_id} value={m.user_id}>{m.full_name || m.email}</option>
+            <option key={m.user_id} value={m.user_id} title={`${m.full_name || m.email} (${m.email})`}>
+              {m.full_name ? `${m.full_name} (${m.email})` : m.email}
+            </option>
           ))}
         </select>
         <p className="text-[11px] text-muted-foreground mt-1">
