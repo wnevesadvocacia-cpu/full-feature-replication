@@ -1147,6 +1147,23 @@ export default function Intimacoes() {
                 className="mt-1"
               />
             </div>
+            <div>
+              <Label>Com cópia para (gestor/administrador) *</Label>
+              <select
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
+                value={taskForm.cc_user_id}
+                onChange={(e) => setTaskForm({ ...taskForm, cc_user_id: e.target.value })}
+                required
+              >
+                <option value="">— Selecionar —</option>
+                {supervisors.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>{m.email}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Obrigatório: o gestor selecionado receberá notificação imediata desta tarefa.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
