@@ -446,6 +446,7 @@ export default function Intimacoes() {
     mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
       const { intim, form: tf } = payload;
       if (!tf.assignee.trim()) throw new Error('Responsável obrigatório.');
+      if (!tf.cc_user_id) throw new Error('Cópia para gestor/administrador é obrigatória.');
       const processId = tf.process_id || intim.process_id;
       const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
@@ -460,6 +461,13 @@ export default function Intimacoes() {
         process_id: processId || null,
       }).select().single();
       if (error) throw error;
+      await (supabase as any).from('notifications').insert({
+        user_id: tf.cc_user_id,
+        title: '📋 Cópia de nova tarefa',
+        message: `${user!.email} criou a tarefa "${data.title}" para ${tf.assignee.trim()}${tf.due_date ? ` — prazo ${tf.due_date}` : ''}.`,
+        type: 'info',
+        link: '/tarefas',
+      });
       return data;
     },
     onSuccess: () => {
