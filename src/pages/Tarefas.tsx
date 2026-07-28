@@ -343,6 +343,7 @@ export default function Tarefas() {
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
       start_date: t.start_date ? t.start_date.slice(0, 10) : '',
       process_id: t.process_id ?? '',
+      cc_user_id: '',
     });
     setEditTarget(t);
   };
