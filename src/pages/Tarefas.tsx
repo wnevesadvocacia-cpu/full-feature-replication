@@ -43,10 +43,12 @@ const priorityConfig: Record<TaskPriority, { label: string; className: string }>
 interface TaskForm {
   title: string; description: string; assignee: string;
   priority: string; due_date: string; start_date: string; process_id: string;
+  cc_user_id: string;
 }
 const EMPTY_FORM: TaskForm = {
   title: '', description: '', assignee: '',
   priority: 'media', due_date: '', start_date: '', process_id: '',
+  cc_user_id: '',
 };
 
 const TASK_DIALOG_CLASS = "!w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] sm:!w-full sm:!max-w-[34rem] max-h-[calc(100dvh-2rem)] overflow-y-auto p-4 sm:p-6";
@@ -113,6 +115,11 @@ export default function Tarefas() {
     enabled: !!user,
     staleTime: 60_000,
   });
+
+  // Gestores/administradores disponíveis para cópia obrigatória da tarefa.
+  const supervisors = teamMembers.filter((m) =>
+    (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
+  );
 
   const set = (k: keyof TaskForm) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -195,6 +202,7 @@ export default function Tarefas() {
     if (!form.title.trim()) return;
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da tarefa a um gestor/administrador.', variant: 'destructive' }); return; }
     // Verificação de duplicidade — consulta o banco no submit para não depender
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
     if (form.process_id) {
@@ -222,9 +230,16 @@ export default function Tarefas() {
         start_date: form.start_date || undefined,
         process_id: form.process_id || undefined,
       });
+      await (supabase as any).from('notifications').insert({
+        user_id: form.cc_user_id,
+        title: '📋 Cópia de nova tarefa',
+        message: `${user?.email} criou a tarefa "${form.title}" para ${form.assignee.trim()}${form.due_date ? ` — prazo ${fmtDate(form.due_date)}` : ''}.`,
+        type: 'info',
+        link: '/tarefas',
+      });
       setCreateOpen(false);
       setForm(EMPTY_FORM);
-      toast({ title: 'Tarefa criada!' });
+      toast({ title: 'Tarefa criada!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -341,6 +356,7 @@ export default function Tarefas() {
       due_date: t.due_date ? t.due_date.slice(0, 10) : '',
       start_date: t.start_date ? t.start_date.slice(0, 10) : '',
       process_id: t.process_id ?? '',
+      cc_user_id: '',
     });
     setEditTarget(t);
   };
@@ -451,6 +467,23 @@ export default function Tarefas() {
             <option value="alta">Alta</option>
           </select>
         </div>
+      </div>
+      <div>
+        <Label>Com cópia para (gestor/administrador) *</Label>
+        <select
+          className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
+          value={form.cc_user_id}
+          onChange={set('cc_user_id')}
+          required
+        >
+          <option value="">— Selecione —</option>
+          {supervisors.map((m) => (
+            <option key={m.user_id} value={m.user_id}>{m.full_name || m.email}</option>
+          ))}
+        </select>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Obrigatório: o gestor selecionado receberá notificação imediata desta tarefa.
+        </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -773,7 +806,7 @@ export default function Tarefas() {
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || saving}>
+            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || saving}>
               {saving ? 'Salvando…' : 'Criar Tarefa'}
             </Button>
           </DialogFooter>

@@ -109,7 +109,7 @@ export default function Intimacoes() {
   const [taskIntim, setTaskIntim] = useState<Intim | null>(null);
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', assignee: '', priority: 'alta',
-    due_date: '', start_time: '', location: '', process_id: '',
+    due_date: '', start_time: '', location: '', process_id: '', cc_user_id: '',
   });
   const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
   const [duplicateConfirmedProcessId, setDuplicateConfirmedProcessId] = useState<string | null>(null);
@@ -202,6 +202,11 @@ export default function Intimacoes() {
       return (data || []) as { user_id: string; email: string; roles: string[] }[];
     },
   });
+
+  // Gestores/administradores disponíveis para cópia obrigatória da tarefa.
+  const supervisors = teamMembers.filter((m) =>
+    (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
+  );
 
   // Oculta publicações sem dados processuais, mas aceita CNJ com ou sem máscara.
   // O DJEN às vezes grava "50069408220238130637" em vez de "5006940-82.2023.8.13.0637".
@@ -446,6 +451,7 @@ export default function Intimacoes() {
     mutationFn: async (payload: { intim: Intim; form: typeof taskForm }) => {
       const { intim, form: tf } = payload;
       if (!tf.assignee.trim()) throw new Error('Responsável obrigatório.');
+      if (!tf.cc_user_id) throw new Error('Cópia para gestor/administrador é obrigatória.');
       const processId = tf.process_id || intim.process_id;
       const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
@@ -460,6 +466,13 @@ export default function Intimacoes() {
         process_id: processId || null,
       }).select().single();
       if (error) throw error;
+      await (supabase as any).from('notifications').insert({
+        user_id: tf.cc_user_id,
+        title: '📋 Cópia de nova tarefa',
+        message: `${user!.email} criou a tarefa "${data.title}" para ${tf.assignee.trim()}${tf.due_date ? ` — prazo ${tf.due_date}` : ''}.`,
+        type: 'info',
+        link: '/tarefas',
+      });
       return data;
     },
     onSuccess: () => {
@@ -561,6 +574,7 @@ export default function Intimacoes() {
       start_time: '',
       location: it.court || '',
       process_id: processId,
+      cc_user_id: '',
     });
     setTaskIntim(it);
   };
@@ -1138,6 +1152,23 @@ export default function Intimacoes() {
                 className="mt-1"
               />
             </div>
+            <div>
+              <Label>Com cópia para (gestor/administrador) *</Label>
+              <select
+                className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm h-10"
+                value={taskForm.cc_user_id}
+                onChange={(e) => setTaskForm({ ...taskForm, cc_user_id: e.target.value })}
+                required
+              >
+                <option value="">— Selecionar —</option>
+                {supervisors.map((m) => (
+                  <option key={m.user_id} value={m.user_id}>{m.email}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Obrigatório: o gestor selecionado receberá notificação imediata desta tarefa.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
@@ -1152,7 +1183,7 @@ export default function Intimacoes() {
                 if (!(await confirmModal('O prazo assinalado foi conferido? Deseja realmente continuar?', { title: 'Conferência de prazo' }))) return;
                 toTask.mutate({ intim: taskIntim, form: taskForm });
               }}
-              disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || toTask.isPending}
+              disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || !taskForm.cc_user_id || toTask.isPending}
             >
               {toTask.isPending ? 'Criando…' : 'Criar Tarefa'}
             </Button>
