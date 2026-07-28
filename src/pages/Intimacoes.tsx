@@ -199,7 +199,7 @@ export default function Intimacoes() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc('list_team_members');
       if (error) throw error;
-      return (data || []) as { user_id: string; email: string; roles: string[] }[];
+      return (data || []) as { user_id: string; email: string; full_name: string; roles: string[] }[];
     },
   });
 
