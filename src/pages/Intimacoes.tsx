@@ -561,6 +561,7 @@ export default function Intimacoes() {
       start_time: '',
       location: it.court || '',
       process_id: processId,
+      cc_user_id: '',
     });
     setTaskIntim(it);
   };
