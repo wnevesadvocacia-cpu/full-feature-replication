@@ -52,6 +52,39 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+// Get or create a one-click unsubscribe token for a recipient.
+// Transactional sends are rejected (400 missing_unsubscribe) without it.
+async function getUnsubscribeToken(
+  supabase: ReturnType<typeof createClient>,
+  email: string
+): Promise<string | undefined> {
+  try {
+    const { data: existing } = await supabase
+      .from('email_unsubscribe_tokens')
+      .select('token')
+      .eq('email', email)
+      .maybeSingle()
+    if (existing?.token) return existing.token as string
+
+    const token = crypto.randomUUID().replaceAll('-', '')
+    const { error } = await supabase
+      .from('email_unsubscribe_tokens')
+      .insert({ email, token })
+    if (error) {
+      const { data: retry } = await supabase
+        .from('email_unsubscribe_tokens')
+        .select('token')
+        .eq('email', email)
+        .maybeSingle()
+      return (retry?.token as string) ?? undefined
+    }
+    return token
+  } catch {
+    return undefined
+  }
+}
+
+
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
   supabase: ReturnType<typeof createClient>,
