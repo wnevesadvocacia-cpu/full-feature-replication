@@ -466,13 +466,14 @@ export default function Intimacoes() {
         process_id: processId || null,
       }).select().single();
       if (error) throw error;
-      await (supabase as any).from('notifications').insert({
-        user_id: tf.cc_user_id,
-        title: '📋 Cópia de nova tarefa',
-        message: `${user!.email} criou a tarefa "${data.title}" para ${tf.assignee.trim()}${tf.due_date ? ` — prazo ${tf.due_date}` : ''}.`,
-        type: 'info',
-        link: '/tarefas',
+      await (supabase as any).rpc('notify_task_cc', {
+        _cc_user_id: tf.cc_user_id,
+        _title: data.title,
+        _assignee: tf.assignee.trim(),
+        _due_date: tf.due_date || null,
+        _process_number: null,
       });
+
       return data;
     },
     onSuccess: () => {

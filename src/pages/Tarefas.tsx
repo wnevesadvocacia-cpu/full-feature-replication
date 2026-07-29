@@ -230,13 +230,14 @@ export default function Tarefas() {
         start_date: form.start_date || undefined,
         process_id: form.process_id || undefined,
       });
-      await (supabase as any).from('notifications').insert({
-        user_id: form.cc_user_id,
-        title: '📋 Cópia de nova tarefa',
-        message: `${user?.email} criou a tarefa "${form.title}" para ${form.assignee.trim()}${form.due_date ? ` — prazo ${fmtDate(form.due_date)}` : ''}.`,
-        type: 'info',
-        link: '/tarefas',
+      await (supabase as any).rpc('notify_task_cc', {
+        _cc_user_id: form.cc_user_id,
+        _title: form.title,
+        _assignee: form.assignee.trim(),
+        _due_date: form.due_date || null,
+        _process_number: null,
       });
+
       setCreateOpen(false);
       setForm(EMPTY_FORM);
       toast({ title: 'Tarefa criada!', description: 'Cópia enviada ao gestor selecionado.' });
