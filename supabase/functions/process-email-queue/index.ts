@@ -52,6 +52,39 @@ function parseJwtClaims(token: string): Record<string, unknown> | null {
   }
 }
 
+// Get or create a one-click unsubscribe token for a recipient.
+// Transactional sends are rejected (400 missing_unsubscribe) without it.
+async function getUnsubscribeToken(
+  supabase: ReturnType<typeof createClient>,
+  email: string
+): Promise<string | undefined> {
+  try {
+    const { data: existing } = await supabase
+      .from('email_unsubscribe_tokens')
+      .select('token')
+      .eq('email', email)
+      .maybeSingle()
+    if (existing?.token) return existing.token as string
+
+    const token = crypto.randomUUID().replaceAll('-', '')
+    const { error } = await supabase
+      .from('email_unsubscribe_tokens')
+      .insert({ email, token })
+    if (error) {
+      const { data: retry } = await supabase
+        .from('email_unsubscribe_tokens')
+        .select('token')
+        .eq('email', email)
+        .maybeSingle()
+      return (retry?.token as string) ?? undefined
+    }
+    return token
+  } catch {
+    return undefined
+  }
+}
+
+
 // Move a message to the dead letter queue and log the reason.
 async function moveToDlq(
   supabase: ReturnType<typeof createClient>,
@@ -249,6 +282,20 @@ Deno.serve(async (req) => {
       }
 
       try {
+        const unsubscribeToken =
+          (payload.unsubscribe_token as string | undefined) ??
+          (payload.purpose === 'transactional'
+            ? await getUnsubscribeToken(supabase, payload.to as string)
+            : undefined)
+
+        // Retries need a fresh idempotency key: the provider rejects (409) a key
+        // that already belongs to a failed send.
+        const idempotencyKey = payload.idempotency_key
+          ? failedAttempts > 0
+            ? `${payload.idempotency_key}-r${failedAttempts}`
+            : payload.idempotency_key
+          : undefined
+
         await sendLovableEmail(
           {
             run_id: payload.run_id,
@@ -260,10 +307,11 @@ Deno.serve(async (req) => {
             text: payload.text,
             purpose: payload.purpose,
             label: payload.label,
-            idempotency_key: payload.idempotency_key,
-            unsubscribe_token: payload.unsubscribe_token,
+            idempotency_key: idempotencyKey,
+            unsubscribe_token: unsubscribeToken,
             message_id: payload.message_id,
           },
+
           // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
           // falls back to the default Lovable API endpoint (https://api.lovable.dev).
           // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
