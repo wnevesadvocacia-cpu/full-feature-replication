@@ -282,6 +282,20 @@ Deno.serve(async (req) => {
       }
 
       try {
+        const unsubscribeToken =
+          (payload.unsubscribe_token as string | undefined) ??
+          (payload.purpose === 'transactional'
+            ? await getUnsubscribeToken(supabase, payload.to as string)
+            : undefined)
+
+        // Retries need a fresh idempotency key: the provider rejects (409) a key
+        // that already belongs to a failed send.
+        const idempotencyKey = payload.idempotency_key
+          ? failedAttempts > 0
+            ? `${payload.idempotency_key}-r${failedAttempts}`
+            : payload.idempotency_key
+          : undefined
+
         await sendLovableEmail(
           {
             run_id: payload.run_id,
@@ -293,10 +307,11 @@ Deno.serve(async (req) => {
             text: payload.text,
             purpose: payload.purpose,
             label: payload.label,
-            idempotency_key: payload.idempotency_key,
-            unsubscribe_token: payload.unsubscribe_token,
+            idempotency_key: idempotencyKey,
+            unsubscribe_token: unsubscribeToken,
             message_id: payload.message_id,
           },
+
           // sendUrl is optional — when LOVABLE_SEND_URL is not set, the library
           // falls back to the default Lovable API endpoint (https://api.lovable.dev).
           // Set LOVABLE_SEND_URL as a Supabase secret to override (e.g. for local dev).
