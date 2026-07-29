@@ -1903,6 +1903,16 @@ export type Database = {
         }
         Returns: number
       }
+      notify_task_cc: {
+        Args: {
+          _assignee: string
+          _cc_user_id: string
+          _due_date?: string
+          _process_number?: string
+          _title: string
+        }
+        Returns: Json
+      }
       notify_tasks_due_soon: { Args: { _days_ahead?: number }; Returns: number }
       purge_client: { Args: { _client_id: string }; Returns: Json }
       read_email_batch: {
