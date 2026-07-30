@@ -225,6 +225,17 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
 
   return (
     <div className={`flex flex-col h-full ${className ?? ''}`}>
+      {unread.length > 0 && (
+        <div className="mb-2 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+          <span className="flex-1">
+            {unread.length} mensagem(ns) não lida(s) de outros usuários.
+          </span>
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => markRead(unread.map((u) => u.id))}>
+            Marcar todas como lidas
+          </Button>
+        </div>
+      )}
       {/* Timeline */}
       <div className="flex-1 overflow-y-auto pr-1 space-y-4">
         {isLoading && (
@@ -243,6 +254,7 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
         {comments.map((c, idx) => {
           const tipo = TIPO_MAP[c.type] ?? TIPO_MAP.comentario;
           const isLast = idx === comments.length - 1;
+          const isUnread = c.user_id !== user?.id && !readIds.has(c.id);
           return (
             <div key={c.id} className="flex gap-3 relative">
               {/* timeline line */}
@@ -254,10 +266,23 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
                 {initialsFor(c.author_name)}
               </div>
               {/* card */}
-              <div className="flex-1 min-w-0 bg-card border rounded-md p-3 shadow-sm overflow-visible">
+              <div className={`flex-1 min-w-0 bg-card border rounded-md p-3 shadow-sm overflow-visible ${isUnread ? 'border-amber-400 bg-amber-50/40' : ''}`}>
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span className="text-sm font-semibold break-words">{c.author_name}</span>
                   <Badge variant="outline" className={`${tipo.className} text-[10px] px-1.5 py-0`}>{tipo.label}</Badge>
+                  {c.user_id !== user?.id && (
+                    isUnread ? (
+                      <button
+                        type="button"
+                        onClick={() => markRead([c.id])}
+                        className="text-[10px] px-1.5 py-0 rounded border border-amber-300 bg-amber-100 text-amber-800"
+                      >
+                        Não lida — marcar como lida
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">Lida</span>
+                    )
+                  )}
                   <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">{formatDateTime(c.created_at)}</span>
                 </div>
                 <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
@@ -267,6 +292,7 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
             </div>
           );
         })}
+
         <div ref={listEndRef} />
       </div>
 
