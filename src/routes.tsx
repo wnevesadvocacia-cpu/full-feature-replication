@@ -36,6 +36,8 @@ const ImportarAdvbox = lazy(() => import("./pages/ImportarAdvbox"));
 const Versoes = lazy(() => import("./pages/Versoes"));
 const KanbanConfig = lazy(() => import("./pages/KanbanConfig"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
+const AuditoriaTarefas = lazy(() => import("./pages/AuditoriaTarefas"));
+
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 interface EBState { hasError: boolean; error?: Error }
@@ -145,6 +147,8 @@ export default function AppRoutes() {
         <Route path="/versoes"       element={wrap(Versoes)} />
         <Route path="/kanban-config" element={wrap(KanbanConfig)} />
         <Route path="/auditoria"     element={wrap(Auditoria)} />
+        <Route path="/auditoria-tarefas" element={wrap(AuditoriaTarefas)} />
+
       </Route>
       <Route path="*" element={wrap(NotFound)} />
     </Routes>

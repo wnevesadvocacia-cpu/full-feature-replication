@@ -200,6 +200,32 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_reads: {
+        Row: {
+          comment_id: string
+          read_at: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          read_at?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_reads_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "process_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cron_runs: {
         Row: {
           created_at: string
@@ -1880,6 +1906,25 @@ export type Database = {
         Args: never
         Returns: {
           user_id: string
+        }[]
+      }
+      list_task_audit: {
+        Args: { _from?: string; _limit?: number; _to?: string }
+        Returns: {
+          assignee: string
+          completed: boolean
+          completed_at: string
+          completed_by_email: string
+          created_at: string
+          created_by_email: string
+          due_date: string
+          id: string
+          priority: string
+          process_id: string
+          process_number: string
+          start_date: string
+          status: string
+          title: string
         }[]
       }
       list_team_members: {
