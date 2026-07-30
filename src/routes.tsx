@@ -36,6 +36,8 @@ const ImportarAdvbox = lazy(() => import("./pages/ImportarAdvbox"));
 const Versoes = lazy(() => import("./pages/Versoes"));
 const KanbanConfig = lazy(() => import("./pages/KanbanConfig"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
+const AuditoriaTarefas = lazy(() => import("./pages/AuditoriaTarefas"));
+
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 interface EBState { hasError: boolean; error?: Error }
