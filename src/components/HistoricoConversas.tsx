@@ -101,6 +101,41 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
     },
   });
 
+  // Leitura das mensagens (lida/não lida) — apenas mensagens de outros usuários
+  const readsKey = useMemo(() => ['comment-reads', processId ?? null, taskId ?? null], [processId, taskId]);
+  const { data: readIds = new Set<string>() } = useQuery<Set<string>>({
+    queryKey: readsKey,
+    enabled: !!user && comments.length > 0,
+    queryFn: async () => {
+      const ids = comments.map((c) => c.id);
+      const { data, error } = await (supabase as any)
+        .from('comment_reads')
+        .select('comment_id')
+        .eq('user_id', user!.id)
+        .in('comment_id', ids);
+      if (error) throw error;
+      return new Set<string>((data ?? []).map((r: any) => r.comment_id));
+    },
+  });
+
+  const unread = useMemo(
+    () => comments.filter((c) => c.user_id !== user?.id && !readIds.has(c.id)),
+    [comments, readIds, user?.id],
+  );
+
+  async function markRead(ids: string[]) {
+    if (!user || ids.length === 0) return;
+    const { error } = await (supabase as any)
+      .from('comment_reads')
+      .upsert(ids.map((id) => ({ comment_id: id, user_id: user.id })), { onConflict: 'comment_id,user_id' });
+    if (error) {
+      toast({ title: 'Erro ao marcar como lida', description: error.message, variant: 'destructive' });
+      return;
+    }
+    qc.invalidateQueries({ queryKey: readsKey });
+  }
+
+
   // Realtime subscription
   useEffect(() => {
     if (!processId && !taskId) return;
