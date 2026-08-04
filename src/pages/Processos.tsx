@@ -1433,7 +1433,7 @@ export default function Processos() {
                           onChange={(e) => setNewTask((p) => ({ ...p, description: e.target.value }))}
                           rows={2}
                         />
-                        <Input
+                        <DateInputBR
                           value={newTask.due_date}
                           onChange={(v) => setNewTask((p) => ({ ...p, due_date: v }))}
                         />

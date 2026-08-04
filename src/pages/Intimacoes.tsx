@@ -35,6 +35,7 @@ const getEffectiveCnj = (content: string | null | undefined): { masked: string; 
 };
 import { FilePlus2 } from 'lucide-react';
 import { DjenHealthBadge } from '@/components/DjenHealthBadge';
+import { DateInputBR } from '@/components/DateInputBR';
 
 interface Intim {
   id: string;
@@ -655,12 +656,10 @@ export default function Intimacoes() {
         </Button>
         <div className="flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
-          <Input
-            type="date"
+          <DateInputBR
             value={selectedDate}
-            onChange={(e) => e.target.value && setSelectedDate(e.target.value)}
+            onChange={(v) => v && setSelectedDate(v)}
             className="h-9 w-44"
-            max={todayISO()}
           />
         </div>
         <Button variant="outline" size="icon" className="h-9 w-9" onClick={goNext} title="Próximo dia útil" disabled={nextBusinessDay(selectedDate) > todayISO()}>
@@ -804,12 +803,9 @@ export default function Intimacoes() {
                         O advogado responsável deve confirmar manualmente o prazo cabível conforme o teor da decisão.
                       </p>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Input
-                          type="date"
+                        <DateInputBR
                           className="h-8 w-40 text-xs"
-                          min={it.received_at.slice(0, 10)}
-                          onChange={(e) => {
-                            const v = e.target.value;
+                          onChange={(v) => {
                             if (v) markReviewed.mutate({ id: it.id, deadline: v });
                           }}
                         />
@@ -883,7 +879,7 @@ export default function Intimacoes() {
           <div className="space-y-3">
             <div><Label>Tribunal/Vara</Label><Input value={form.court} onChange={(e) => setForm({ ...form, court: e.target.value })} placeholder="Ex: 2ª Vara Cível - TJSP" /></div>
             <div><Label>Conteúdo *</Label><Textarea rows={5} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} /></div>
-            <div><Label>Prazo</Label><Input type="date" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} /></div>
+            <div><Label>Prazo</Label><DateInputBR value={form.deadline} onChange={(v) => setForm({ ...form, deadline: v })} /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
@@ -1128,10 +1124,9 @@ export default function Intimacoes() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Prazo</Label>
-                <Input
-                  type="date"
+                <DateInputBR
                   value={taskForm.due_date}
-                  onChange={(e) => setTaskForm({ ...taskForm, due_date: e.target.value })}
+                  onChange={(v) => setTaskForm({ ...taskForm, due_date: v })}
                   className="mt-1"
                 />
               </div>
