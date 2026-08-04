@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, ClipboardList, Download } from 'lucide-react';
+import { DateInputBR } from '@/components/DateInputBR';
 
 interface AuditRow {
   id: string;
@@ -111,11 +112,11 @@ export default function AuditoriaTarefas() {
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label className="text-xs text-muted-foreground">De</label>
-          <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 w-[150px]" />
+          <DateInputBR value={from} onChange={(v) => setFrom(v)} className="h-9 w-[150px]" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground">Até</label>
-          <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="h-9 w-[150px]" />
+          <DateInputBR value={to} onChange={(v) => setTo(v)} className="h-9 w-[150px]" />
         </div>
         <div className="flex-1 min-w-[220px]">
           <label className="text-xs text-muted-foreground">Buscar</label>

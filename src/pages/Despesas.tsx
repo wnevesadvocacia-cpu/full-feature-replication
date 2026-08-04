@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, TrendingDown, Wallet, Receipt as ReceiptIcon } from 'lucide-react';
 import { MetricCard } from '@/components/MetricCard';
+import { DateInputBR } from '@/components/DateInputBR';
 
 const CATEGORIES = ['custas', 'transporte', 'salarios', 'aluguel', 'software', 'marketing', 'escritorio', 'geral'];
 const PAYMENT_METHODS = ['dinheiro', 'pix', 'boleto', 'cartao_credito', 'cartao_debito', 'transferencia'];
@@ -107,7 +108,7 @@ export default function Despesas() {
                 </div>
                 <div>
                   <Label>Data</Label>
-                  <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+                  <DateInputBR value={form.date} onChange={(v) => setForm({ ...form, date: v })} />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

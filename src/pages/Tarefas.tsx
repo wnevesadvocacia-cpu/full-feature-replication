@@ -30,6 +30,7 @@ import { DeleteGuard } from '@/components/DeleteGuard';
 import { HistoricoConversas } from '@/components/HistoricoConversas';
 import { PRAXIS_TASK_TITLES } from '@/lib/praxisTitles';
 import { attachDocumentToProcess } from '@/lib/attachDocument';
+import { DateInputBR } from '@/components/DateInputBR';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
@@ -493,7 +494,7 @@ export default function Tarefas() {
           <Label className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-primary" /> Data inicial
           </Label>
-          <Input className="mt-1" type="date" value={form.start_date} onChange={set('start_date')} />
+          <DateInputBR className="mt-1" value={form.start_date} onChange={(v) => set('start_date')({ target: { value: v } } as any)} />
           <p className="text-[11px] text-muted-foreground mt-1">
             Aparece na agenda a partir desta data e permanece até ser concluída.
           </p>
@@ -502,7 +503,7 @@ export default function Tarefas() {
           <Label className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final
           </Label>
-          <Input className="mt-1" type="date" value={form.due_date} onChange={set('due_date')} />
+          <DateInputBR className="mt-1" value={form.due_date} onChange={(v) => set('due_date')({ target: { value: v } } as any)} />
         </div>
       </div>
     </div>

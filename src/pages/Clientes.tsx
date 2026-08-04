@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import CsvImportDialog from '@/components/CsvImportDialog';
 import { SearchAutocomplete } from '@/components/SearchAutocomplete';
+import { DateInputBR } from '@/components/DateInputBR';
 
 const formatCurrency = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -280,7 +281,7 @@ export default function Clientes() {
           <>
             <div>
               <Label>Data de Nascimento</Label>
-              <Input className="mt-1" type="date" value={form.birth_date} onChange={set('birth_date')} />
+              <DateInputBR className="mt-1" value={form.birth_date} onChange={(v) => set('birth_date')({ target: { value: v } } as any)} />
             </div>
             <div>
               <Label>Estado Civil</Label>
