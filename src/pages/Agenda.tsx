@@ -71,6 +71,7 @@ const priorityLabel: Record<string, string> = {
 };
 
 import { SYSTEM_ASSIGNEES, isUserTask as isVisibleAgendaTask } from '@/lib/taskVisibility';
+import { DateInputBR } from '@/components/DateInputBR';
 
 function dateOnly(value?: string | null) {
   return value ? value.toString().split('T')[0] : '';
@@ -348,8 +349,8 @@ export default function Agenda() {
           <Label className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-blue-600" /> Data inicial *
           </Label>
-          <Input className="mt-1 h-9" type="date" value={form.start_date}
-            onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required />
+          <DateInputBR className="mt-1 h-9" value={form.start_date}
+            onChange={v => setForm(f => ({ ...f, start_date: v }))} required />
           <p className="text-[11px] text-gray-500 mt-1 leading-snug">
             Referência da agenda. A tarefa fica visível a partir desta data e permanece até ser concluída.
           </p>
@@ -358,8 +359,8 @@ export default function Agenda() {
           <Label className="flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5 text-red-500" /> Prazo final *
           </Label>
-          <Input className="mt-1 h-9" type="date" value={form.due_date}
-            onChange={e => setForm(f => ({ ...f, due_date: e.target.value }))} required />
+          <DateInputBR className="mt-1 h-9" value={form.due_date}
+            onChange={v => setForm(f => ({ ...f, due_date: v }))} required />
         </div>
       </div>
       <div>

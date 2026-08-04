@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Plus, Search, Trash2, Clock, FileText, Pencil, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { DateInputBR } from '@/components/DateInputBR';
 
 const TIPOS = [
   { value: 'despacho', label: 'Despacho' },
@@ -218,8 +219,8 @@ export default function Movimentacoes() {
         </div>
         <div>
           <Label>Data</Label>
-          <Input className="mt-1" type="date" value={form.date}
-            onChange={e => setF('date')(e.target.value)} />
+          <DateInputBR className="mt-1" value={form.date}
+            onChange={v => setF('date')(v)} />
         </div>
       </div>
       <div>

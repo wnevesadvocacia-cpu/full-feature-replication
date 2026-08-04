@@ -16,6 +16,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { DateInputBR } from '@/components/DateInputBR';
 
 type InvoiceStatus = 'pago' | 'pendente' | 'atrasado' | 'cancelado';
 type StatusFilter = '' | InvoiceStatus;
@@ -202,11 +203,11 @@ export default function Financeiro() {
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Vencimento</Label>
-          <Input className="mt-1" type="date" value={form.due_date} onChange={set('due_date')} />
+          <DateInputBR className="mt-1" value={form.due_date} onChange={(v) => set('due_date')({ target: { value: v } } as any)} />
         </div>
         <div>
           <Label>Data Pagamento</Label>
-          <Input className="mt-1" type="date" value={form.paid_date} onChange={set('paid_date')} />
+          <DateInputBR className="mt-1" value={form.paid_date} onChange={(v) => set('paid_date')({ target: { value: v } } as any)} />
         </div>
       </div>
     </div>

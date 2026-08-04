@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Loader2, Trash2, Clock, DollarSign, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DateInputBR } from '@/components/DateInputBR';
 
 interface TE { id: string; date: string; hours: number; hourly_rate: number; description: string | null; billable: boolean; invoiced: boolean; process_id: string | null; client_id: string | null; }
 interface Proc { id: string; number: string; title: string; }
@@ -194,7 +195,7 @@ export default function Timesheet() {
           <DialogHeader><DialogTitle>Novo Apontamento</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-3">
-              <div><Label>Data</Label><Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+              <div><Label>Data</Label><DateInputBR value={form.date} onChange={(v) => setForm({ ...form, date: v })} /></div>
               <div><Label>Horas</Label><Input type="number" step="0.25" value={form.hours} onChange={(e) => setForm({ ...form, hours: e.target.value })} /></div>
               <div><Label>R$ / hora</Label><Input type="number" step="0.01" value={form.hourly_rate} onChange={(e) => setForm({ ...form, hourly_rate: e.target.value })} /></div>
             </div>

@@ -21,6 +21,7 @@ import { SearchAutocomplete } from '@/components/SearchAutocomplete';
 import { HistoricoConversas } from '@/components/HistoricoConversas';
 import { tribunalFromCNJ } from '@/lib/cnjTribunal';
 import { confirmModal } from '@/lib/confirmModal';
+import { DateInputBR } from '@/components/DateInputBR';
 
 interface Process {
   id: string;
@@ -1433,9 +1434,8 @@ export default function Processos() {
                           rows={2}
                         />
                         <Input
-                          type="date"
                           value={newTask.due_date}
-                          onChange={(e) => setNewTask((p) => ({ ...p, due_date: e.target.value }))}
+                          onChange={(v) => setNewTask((p) => ({ ...p, due_date: v }))}
                         />
                         <Input
                           placeholder="Responsável obrigatório"
