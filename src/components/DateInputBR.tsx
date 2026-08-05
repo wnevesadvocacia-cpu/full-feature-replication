@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { ptBR } from 'date-fns/locale';
+
 
 function isoToBr(iso?: string) {
   if (!iso) return '';
@@ -30,26 +35,60 @@ type Props = Omit<React.ComponentProps<typeof Input>, 'type' | 'value' | 'onChan
 };
 
 /** Campo de data no padrão brasileiro (dd/mm/aaaa), mantendo valor ISO no estado. */
-export function DateInputBR({ value, onChange, ...rest }: Props) {
+export function DateInputBR({ value, onChange, className, ...rest }: Props) {
   const [text, setText] = useState(isoToBr(value));
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     setText(isoToBr(value));
   }, [value]);
 
+  const selected = value && /^\d{4}-\d{2}-\d{2}/.test(value) ? new Date(`${value.slice(0, 10)}T12:00:00`) : undefined;
+
   return (
-    <Input
-      {...rest}
-      type="text"
-      inputMode="numeric"
-      placeholder={rest.placeholder ?? 'dd/mm/aaaa'}
-      value={text}
-      onChange={(e) => {
-        const masked = mask(e.target.value);
-        setText(masked);
-        const iso = brToIso(masked);
-        if (iso || masked === '') onChange?.(iso);
-      }}
-    />
+    <div className="relative">
+      <Input
+        {...rest}
+        className={`pr-9 ${className ?? ''}`}
+        type="text"
+        inputMode="numeric"
+        placeholder={rest.placeholder ?? 'dd/mm/aaaa'}
+        value={text}
+        onChange={(e) => {
+          const masked = mask(e.target.value);
+          setText(masked);
+          const iso = brToIso(masked);
+          if (iso || masked === '') onChange?.(iso);
+        }}
+      />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label="Abrir calendário"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <CalendarIcon className="h-4 w-4" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0 z-50" align="end">
+          <Calendar
+            mode="single"
+            locale={ptBR}
+            selected={selected}
+            defaultMonth={selected}
+            onSelect={(d) => {
+              if (!d) return;
+              const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+              setText(isoToBr(iso));
+              onChange?.(iso);
+              setOpen(false);
+            }}
+            initialFocus
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
   );
+
 }
