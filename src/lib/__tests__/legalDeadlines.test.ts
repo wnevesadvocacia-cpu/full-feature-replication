@@ -124,9 +124,9 @@ describe('legalDeadlines — regressões críticas de contexto', () => {
 
   it('aplica feriado específico do tribunal ao vencimento', () => {
     clearLegalCalendarCache();
-    setTribunalHolidaySet('TJSP', ['2026-08-12']);
+    setTribunalHolidaySet('TJSP', ['2026-08-11']);
     const det = detectDeadline('Manifeste-se no prazo de 5 dias.', '2026-08-03', '2026-08-03', { tribunal: 'TJSP' });
-    expect(det?.dueDate).toBe('2026-08-13');
+    expect(det?.dueDate).toBe('2026-08-12');
     clearLegalCalendarCache();
   });
 });

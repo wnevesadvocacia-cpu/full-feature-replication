@@ -235,7 +235,7 @@ const DOUBLE_PATTERNS = [
   /\bcaixa economica federal\b/,
 ];
 const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|processo trabalhista|reclamante|reclamada)\b/;
-const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|reu|acusado|denunciado|ministerio publico)\b/;
+const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|acusado|denunciado)\b/;
 const PUBLIC_ENTITY_ACTING_RX = /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b[^.]{0,140}\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intimad|citad|apresent|interpo|manifest)|\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intim|cit|apresent|interpo|manifest)[^.]{0,140}\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b/;
 
 // Detector explícito do número de dias.
