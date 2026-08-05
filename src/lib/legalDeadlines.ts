@@ -684,7 +684,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== CAMADA EXPLÍCITA: "prazo de N dias" tem alta prioridade quando contexto não venceu ======
   if (!chosen) {
-    const explicit = text.match(EXPLICIT_DAYS);
+    const explicit = text.match(EXPLICIT_DAYS) ?? text.match(EXPLICIT_DAYS_PAREN);
     if (explicit) {
       const n = explicit[1]
         ? parseInt(explicit[1], 10)
