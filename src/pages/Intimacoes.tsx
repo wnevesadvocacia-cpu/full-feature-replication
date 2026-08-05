@@ -157,8 +157,10 @@ export default function Intimacoes() {
     if (!confirm('Reconciliar 30 dias com a DJEN ignorando filtro de nome? Pode reinserir publicações antes descartadas.')) return;
     setReconciling(true);
     try {
-      const today = new Date().toISOString().slice(0, 10);
-      const start = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
+      const today = todayISO();
+      const startDate = new Date(`${today}T12:00:00Z`);
+      startDate.setUTCDate(startDate.getUTCDate() - 30);
+      const start = startDate.toISOString().slice(0, 10);
       const { data, error } = await supabase.functions.invoke('sync-djen', {
         body: { bypass_name_filter: true, date_start: start, date_end: today },
         method: 'POST',

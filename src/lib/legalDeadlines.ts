@@ -112,7 +112,7 @@ const ACOLHE_EMBARGOS  = /\b(acolho|recebo|conheco e acolho|dou provimento)\b[^.
 
 /** Detecta sentença (encerra fase cognitiva) vs decisão interlocutória. */
 const TERMO_SENTENCA = /\b(sentenca|julgo (procedente|improcedente|parcialmente procedente|extinto)|extingo o (processo|feito)|homologo (o )?(acordo|transacao)|condeno|absolvo)\b/;
-const TERMO_INTERLOCUTORIA = /\b(defiro|indefiro) (a )?(liminar|tutela|antecipacao)|\b(decido|despacho)\b/;
+const TERMO_INTERLOCUTORIA = /\b(defiro|indefiro) (a )?(liminar|tutela|antecipacao)|\bdespacho\b/;
 
 /** Sentença homologatória (acordo, transação, partilha) — apelação 15 d.u. (CPC 1.009). */
 const SENTENCA_HOMOLOGATORIA = /\bhomologo (o )?(acordo|transacao|partilha|conciliacao|desistencia)\b/;
@@ -250,7 +250,7 @@ const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b
 const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
 const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|processo trabalhista|reclamante|reclamada)\b/;
 const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|acusado|denunciado)\b/;
-const PUBLIC_ENTITY_ACTING_RX = /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b[^.]{0,140}\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intimad|citad|apresent|interpo|manifest)|\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intim|cit|apresent|interpo|manifest)[^.]{0,140}\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b/;
+const PUBLIC_ENTITY_ACTING_RX = /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b[^.]{0,140}\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intimad|citad|apresent|interpo|manifest|opos|embarg)|\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intim|cit|apresent|interpo|manifest|opos|embarg)[^.]{0,140}\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b/;
 // Compat: mantido para código legado que importa DOUBLE_PATTERNS.
 const DOUBLE_PATTERNS = DOUBLE_SOURCES.map(s => s.rx);
 
@@ -756,7 +756,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // PR1: dobra restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
-  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit';
+  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit' || triggerSource === 'context_rejeita' || triggerSource === 'context_acolhe' || triggerSource === 'context_homolog';
   const doubleReasons: string[] = [];
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {
