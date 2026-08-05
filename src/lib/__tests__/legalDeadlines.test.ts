@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { detectDeadline, addBusinessDays, businessDaysBetween } from '../legalDeadlines';
+import { clearLegalCalendarCache, setTribunalHolidaySet } from '../cnjCalendar';
 
 // Regra adotada (CPC art. 224 §3º + art. 219):
 //   disponibilização (received_at) → publicação = nextBusinessDay(received_at)
@@ -105,5 +106,27 @@ describe('legalDeadlines — utilitários', () => {
 
   it('businessDaysBetween retorna negativo para data passada', () => {
     expect(businessDaysBetween('2025-06-13', '2025-05-26')).toBe(-14);
+  });
+});
+
+describe('legalDeadlines — regressões críticas de contexto', () => {
+  it('prioriza recurso ordinário trabalhista de 8 dias sobre a regra cível de 15 dias', () => {
+    const det = detectDeadline('TRT. Justiça do Trabalho. Interposto recurso ordinário trabalhista.', '2026-08-03', '2026-08-03');
+    expect(det?.source).toBe('CLT');
+    expect(det?.days).toBe(8);
+  });
+
+  it('não dobra prazo por mera menção histórica a ente público', () => {
+    const det = detectDeadline('A sentença mencionou o Município de São Paulo. Intime-se o banco réu para apresentar apelação.', '2026-08-03', '2026-08-03');
+    expect(det?.doubled).toBe(false);
+    expect(det?.days).toBe(15);
+  });
+
+  it('aplica feriado específico do tribunal ao vencimento', () => {
+    clearLegalCalendarCache();
+    setTribunalHolidaySet('TJSP', ['2026-08-12']);
+    const det = detectDeadline('Manifeste-se no prazo de 5 dias.', '2026-08-03', '2026-08-03', { tribunal: 'TJSP' });
+    expect(det?.dueDate).toBe('2026-08-13');
+    clearLegalCalendarCache();
   });
 });
