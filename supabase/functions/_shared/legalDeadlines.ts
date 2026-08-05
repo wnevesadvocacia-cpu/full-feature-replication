@@ -249,6 +249,17 @@ const TRIGGER = '(?:no\\s+)?(?:dentro\\s+(?:do\\s+)?)?prazo(?:\\s+legal)?\\s+de|
 const EXPLICIT_DAYS = new RegExp(
   `\\b(?:${TRIGGER})\\s+(?:(\\d{1,3})(?:\\s*\\([^)]+\\))?|(${EXTENSO_RX})(?:\\s*\\(\\d{1,3}\\))?)\\s+dias?(?:\\s+(uteis|corridos))?\\b`,
 );
+// "no prazo de 15 (quinze) apresentar..." — palavra "dias" omitida.
+const EXPLICIT_DAYS_PAREN = new RegExp(
+  `\\b(?:${TRIGGER})\\s+(\\d{1,3})\\s*\\((?:${EXTENSO_RX})\\)`,
+);
+// Cabeçalho institucional não indica ente público como parte (evita dobro indevido — CPC 183).
+const HEADER_ENTE_NOISE =
+  /\b(?:poder judiciario|tribunal de justica|justica (?:estadual|de primeira instancia)|comarca)\b[^.]{0,80}?\bestado de [a-z]+(?:\s+[a-z]+){0,2}/g;
+function stripInstitutionalHeader(t: string): string {
+  return t.replace(HEADER_ENTE_NOISE, ' ');
+}
+
 
 // ====================================================================
 // PARSER LITERAL DE PRAZO — P0 #3 (prevalece sobre classificador/contexto).
@@ -657,7 +668,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== CAMADA EXPLÍCITA: "prazo de N dias" tem alta prioridade quando contexto não venceu ======
   if (!chosen) {
-    const explicit = text.match(EXPLICIT_DAYS);
+    const explicit = text.match(EXPLICIT_DAYS) ?? text.match(EXPLICIT_DAYS_PAREN);
     if (explicit) {
       const n = explicit[1]
         ? parseInt(explicit[1], 10)
@@ -714,9 +725,10 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // PR1: dobra Fazenda Pública restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
-  const allowsDoubling = triggerSource === 'rules';
-  const doubled = allowsDoubling && DOUBLE_PATTERNS.some((p) => p.test(text));
-  const fazendaCondenada = allowsDoubling && FAZENDA_NA_LIDE.test(text);
+  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit';
+  const textParties = stripInstitutionalHeader(text);
+  const doubled = allowsDoubling && DOUBLE_PATTERNS.some((p) => p.test(textParties));
+  const fazendaCondenada = allowsDoubling && FAZENDA_NA_LIDE.test(textParties);
   const effectiveDays = (doubled || fazendaCondenada) ? chosen.rule.days * 2 : chosen.rule.days;
 
   // CPC art. 224 §3º

@@ -262,6 +262,20 @@ const TRIGGER = '(?:no\\s+)?(?:dentro\\s+(?:do\\s+)?)?prazo(?:\\s+legal)?\\s+de|
 const EXPLICIT_DAYS = new RegExp(
   `\\b(?:${TRIGGER})\\s+(?:(\\d{1,3})(?:\\s*\\([^)]+\\))?|(${EXTENSO_RX})(?:\\s*\\(\\d{1,3}\\))?)\\s+dias?(?:\\s+(uteis|corridos))?\\b`,
 );
+// Variante tolerante: "no prazo de 15 (quinze) apresentar..." — a palavra "dias"
+// é omitida na publicação, mas o numeral por extenso entre parênteses confirma o prazo.
+const EXPLICIT_DAYS_PAREN = new RegExp(
+  `\\b(?:${TRIGGER})\\s+(\\d{1,3})\\s*\\((?:${EXTENSO_RX})\\)`,
+);
+// Cabeçalho institucional ("PODER JUDICIÁRIO DO ESTADO DE MINAS GERAIS", "TRIBUNAL DE
+// JUSTIÇA DO ESTADO DE SÃO PAULO") não indica ente público como parte — remover antes
+// de avaliar prazo em dobro (CPC art. 183), sob pena de dobrar todo prazo estadual.
+const HEADER_ENTE_NOISE =
+  /\b(?:poder judiciario|tribunal de justica|justica (?:estadual|de primeira instancia)|comarca)\b[^.]{0,80}?\bestado de [a-z]+(?:\s+[a-z]+){0,2}/g;
+function stripInstitutionalHeader(t: string): string {
+  return t.replace(HEADER_ENTE_NOISE, ' ');
+}
+
 
 // ====================================================================
 // PARSER LITERAL DE PRAZO — P0 #3 (prevalece sobre classificador/contexto).
@@ -670,7 +684,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== CAMADA EXPLÍCITA: "prazo de N dias" tem alta prioridade quando contexto não venceu ======
   if (!chosen) {
-    const explicit = text.match(EXPLICIT_DAYS);
+    const explicit = text.match(EXPLICIT_DAYS) ?? text.match(EXPLICIT_DAYS_PAREN);
     if (explicit) {
       const n = explicit[1]
         ? parseInt(explicit[1], 10)
@@ -727,12 +741,13 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // PR1: dobra restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
-  const allowsDoubling = triggerSource === 'rules';
+  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit';
   const doubleReasons: string[] = [];
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {
+    const textParties = stripInstitutionalHeader(text);
     for (const s of DOUBLE_SOURCES) {
-      if (s.rx.test(text)) doubleReasons.push(`${s.label} — ${s.cite}`);
+      if (s.rx.test(textParties)) doubleReasons.push(`${s.label} — ${s.cite}`);
     }
     // Art. 229: litisconsortes com procuradores distintos. §2º afasta em autos eletrônicos.
     if (LITISCONSORTES_RX.test(text) && PROC_DISTINTOS_RX.test(text)) {
@@ -742,7 +757,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
         doubleReasons.push('Litisconsortes c/ procuradores distintos — CPC art. 229');
       }
     }
-    if (FAZENDA_NA_LIDE.test(text) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
+    if (FAZENDA_NA_LIDE.test(textParties) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
       doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
     }
   }
