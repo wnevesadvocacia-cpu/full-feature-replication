@@ -745,8 +745,9 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   const doubleReasons: string[] = [];
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {
+    const textParties = stripInstitutionalHeader(text);
     for (const s of DOUBLE_SOURCES) {
-      if (s.rx.test(text)) doubleReasons.push(`${s.label} — ${s.cite}`);
+      if (s.rx.test(textParties)) doubleReasons.push(`${s.label} — ${s.cite}`);
     }
     // Art. 229: litisconsortes com procuradores distintos. §2º afasta em autos eletrônicos.
     if (LITISCONSORTES_RX.test(text) && PROC_DISTINTOS_RX.test(text)) {
@@ -756,7 +757,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
         doubleReasons.push('Litisconsortes c/ procuradores distintos — CPC art. 229');
       }
     }
-    if (FAZENDA_NA_LIDE.test(text) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
+    if (FAZENDA_NA_LIDE.test(textParties) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
       doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
     }
   }
