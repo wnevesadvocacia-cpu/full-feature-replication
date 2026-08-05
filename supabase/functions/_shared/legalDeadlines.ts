@@ -249,6 +249,17 @@ const TRIGGER = '(?:no\\s+)?(?:dentro\\s+(?:do\\s+)?)?prazo(?:\\s+legal)?\\s+de|
 const EXPLICIT_DAYS = new RegExp(
   `\\b(?:${TRIGGER})\\s+(?:(\\d{1,3})(?:\\s*\\([^)]+\\))?|(${EXTENSO_RX})(?:\\s*\\(\\d{1,3}\\))?)\\s+dias?(?:\\s+(uteis|corridos))?\\b`,
 );
+// "no prazo de 15 (quinze) apresentar..." — palavra "dias" omitida.
+const EXPLICIT_DAYS_PAREN = new RegExp(
+  `\\b(?:${TRIGGER})\\s+(\\d{1,3})\\s*\\((?:${EXTENSO_RX})\\)`,
+);
+// Cabeçalho institucional não indica ente público como parte (evita dobro indevido — CPC 183).
+const HEADER_ENTE_NOISE =
+  /\b(?:poder judiciario|tribunal de justica|justica (?:estadual|de primeira instancia)|comarca)\b[^.]{0,80}?\bestado de [a-z]+(?:\s+[a-z]+){0,2}/g;
+function stripInstitutionalHeader(t: string): string {
+  return t.replace(HEADER_ENTE_NOISE, ' ');
+}
+
 
 // ====================================================================
 // PARSER LITERAL DE PRAZO — P0 #3 (prevalece sobre classificador/contexto).
