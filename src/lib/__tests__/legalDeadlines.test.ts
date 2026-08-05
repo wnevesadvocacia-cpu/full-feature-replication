@@ -129,4 +129,16 @@ describe('legalDeadlines — regressões críticas de contexto', () => {
     expect(det?.dueDate).toBe('2026-08-12');
     clearLegalCalendarCache();
   });
+
+  it('classifica sentença com verbo decido como apelação, sem falsa ambiguidade', () => {
+    const det = detectDeadline('Rejeito os embargos de declaração. Ante o exposto, decido: julgo procedente o pedido.', '2026-08-03', '2026-08-03');
+    expect(det?.label).toContain('Apelação');
+    expect(det?.classificacaoStatus).not.toBe('ambigua_urgente');
+  });
+
+  it('aplica dobro ao ente público que opôs embargos rejeitados', () => {
+    const det = detectDeadline('O Município de São Paulo opôs embargos de declaração. Rejeito os embargos de declaração contra a sentença.', '2026-08-03', '2026-08-03');
+    expect(det?.doubled).toBe(true);
+    expect(det?.days).toBe(30);
+  });
 });
