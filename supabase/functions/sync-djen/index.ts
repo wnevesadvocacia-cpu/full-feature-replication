@@ -20,6 +20,7 @@ import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
 import { captureException } from '../_shared/sentry.ts';
 // PR2 — edge unificada: detectDeadline canônico (mesma engine do frontend).
 import { detectDeadline } from '../_shared/legalDeadlines.ts';
+import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from '../_shared/cnjCalendar.ts';
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
 // Se um item falhar na validação, sync marca status='partial', preserva
@@ -797,9 +798,9 @@ function cleanHtml(raw: string): string {
 
 // PR2 — fonte única de verdade. Wrapper sobre detectDeadline (Deno port).
 // Retorna o objeto completo para que o insert decida deadline canônico vs sugestão insegura.
-function classifyIntimation(text: string, receivedAt: string) {
+function classifyIntimation(text: string, receivedAt: string, tribunal?: string | null) {
   const today = new Date().toISOString().slice(0, 10);
-  return detectDeadline(text, receivedAt, today);
+  return detectDeadline(text, receivedAt, today, { tribunal });
 }
 
 // ============= Batch lookup (elimina N+1) =============
@@ -881,6 +882,26 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     || new Date(Date.now() - Math.min(7, OVERRIDE_DAYS_BACK ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
 
   try {
+    clearLegalCalendarCache();
+    const [{ data: suspensions }, { data: tribunalHolidays }] = await Promise.all([
+      supabase.from('judicial_suspensions').select('tribunal_codigo,start_date,end_date'),
+      supabase.from('tribunal_holidays').select('tribunal_codigo,holiday_date'),
+    ]);
+    const suspended: string[] = [];
+    for (const s of suspensions || []) {
+      const start = new Date(`${s.start_date}T12:00:00Z`);
+      const end = new Date(`${s.end_date}T12:00:00Z`);
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) suspended.push(d.toISOString().slice(0, 10));
+    }
+    setSuspensionWindow(suspended);
+    const holidaysByTribunal = new Map<string, string[]>();
+    for (const h of tribunalHolidays || []) {
+      const dates = holidaysByTribunal.get(h.tribunal_codigo) || [];
+      dates.push(h.holiday_date);
+      holidaysByTribunal.set(h.tribunal_codigo, dates);
+    }
+    holidaysByTribunal.forEach((dates, code) => setTribunalHolidaySet(code, dates));
+
     const { data: roleRows } = await supabase.from('user_roles').select('user_id');
     const officeUserIds = [...new Set([row.user_id, ...((roleRows || []).map((r: any) => r.user_id).filter(Boolean))])];
 
@@ -1004,7 +1025,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         // Política de segurança jurídica:
         //   * auto_alta (≥0.9): grava deadline canônico.
         //   * demais (auto_media/baixa/ambigua_urgente): deadline=null + dump em deadline_sugerido_inseguro.
-        const detected = classifyIntimation(cleanText, receivedAt);
+        const detected = classifyIntimation(cleanText, receivedAt, tribunal);
         const trigKey = detected?.triggerSource ?? 'none';
         triggerCounts[trigKey] = (triggerCounts[trigKey] || 0) + 1;
         const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;

@@ -82,6 +82,11 @@ export interface DetectedDeadline {
   doubleWaivedReason?: string;
 }
 
+/** Contexto jurisdicional usado em toda a cadeia de cálculo. */
+export interface DeadlineContext {
+  tribunal?: string | null;
+}
+
 interface Rule {
   /** Regex sobre o texto normalizado (lowercase, sem acentos, espaços simples) */
   pattern: RegExp;
@@ -107,7 +112,7 @@ const ACOLHE_EMBARGOS  = /\b(acolho|recebo|conheco e acolho|dou provimento)\b[^.
 
 /** Detecta sentença (encerra fase cognitiva) vs decisão interlocutória. */
 const TERMO_SENTENCA = /\b(sentenca|julgo (procedente|improcedente|parcialmente procedente|extinto)|extingo o (processo|feito)|homologo (o )?(acordo|transacao)|condeno|absolvo)\b/;
-const TERMO_INTERLOCUTORIA = /\b(defiro|indefiro) (a )?(liminar|tutela|antecipacao)|\b(decido|despacho)\b/;
+const TERMO_INTERLOCUTORIA = /\b(defiro|indefiro) (a )?(liminar|tutela|antecipacao)|\bdespacho\b/;
 
 /** Sentença homologatória (acordo, transação, partilha) — apelação 15 d.u. (CPC 1.009). */
 const SENTENCA_HOMOLOGATORIA = /\bhomologo (o )?(acordo|transacao|partilha|conciliacao|desistencia)\b/;
@@ -243,6 +248,9 @@ const DOUBLE_SOURCES: DoubleSource[] = [
 const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
 const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b/;
 const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
+const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|processo trabalhista|reclamante|reclamada)\b/;
+const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|acusado|denunciado)\b/;
+const PUBLIC_ENTITY_ACTING_RX = /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b[^.]{0,140}\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intimad|citad|apresent|interpo|manifest|opos|embarg)|\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intim|cit|apresent|interpo|manifest|opos|embarg)[^.]{0,140}\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b/;
 // Compat: mantido para código legado que importa DOUBLE_PATTERNS.
 const DOUBLE_PATTERNS = DOUBLE_SOURCES.map(s => s.rx);
 
@@ -453,31 +461,31 @@ function normalize(text: string): string {
 }
 
 /** Adiciona N dias úteis a uma data ISO. CPC art. 224: dia inicial não conta. */
-export function addBusinessDays(startISO: string, days: number): string {
+export function addBusinessDays(startISO: string, days: number, context?: DeadlineContext): string {
   if (days <= 0) return startISO;
   let cursor = startISO;
   let count = 0;
-  cursor = nextBusinessDay(cursor);
+  cursor = nextBusinessDay(cursor, context?.tribunal ? { tribunal: context.tribunal } : undefined);
   count = 1;
   while (count < days) {
-    cursor = nextBusinessDay(cursor);
+    cursor = nextBusinessDay(cursor, context?.tribunal ? { tribunal: context.tribunal } : undefined);
     count++;
   }
-  while (!isBusinessDay(cursor)) cursor = nextBusinessDay(cursor);
+  while (!isBusinessDay(cursor, context?.tribunal ? { tribunal: context.tribunal } : undefined)) cursor = nextBusinessDay(cursor, context?.tribunal ? { tribunal: context.tribunal } : undefined);
   return cursor;
 }
 
 /** Adiciona N dias corridos com prorrogação se cair em dia não-útil. */
-export function addCalendarDays(startISO: string, days: number): string {
+export function addCalendarDays(startISO: string, days: number, context?: DeadlineContext): string {
   const d = new Date(startISO + 'T12:00:00Z');
   d.setUTCDate(d.getUTCDate() + days);
   let iso = d.toISOString().slice(0, 10);
-  while (!isBusinessDay(iso)) iso = nextBusinessDay(iso);
+  while (!isBusinessDay(iso, context?.tribunal ? { tribunal: context.tribunal } : undefined)) iso = nextBusinessDay(iso, context?.tribunal ? { tribunal: context.tribunal } : undefined);
   return iso;
 }
 
 /** Conta dias úteis entre duas datas ISO (positivo se end > start). */
-export function businessDaysBetween(startISO: string, endISO: string): number {
+export function businessDaysBetween(startISO: string, endISO: string, context?: DeadlineContext): number {
   if (startISO === endISO) return 0;
   const sign = endISO > startISO ? 1 : -1;
   let cursor = startISO;
@@ -485,15 +493,15 @@ export function businessDaysBetween(startISO: string, endISO: string): number {
   const guard = 3650;
   let i = 0;
   while (cursor !== endISO && i++ < guard) {
-    cursor = sign > 0 ? nextBusinessDay(cursor) : prevBusinessDay(cursor);
+    cursor = sign > 0 ? nextBusinessDay(cursor, context?.tribunal ? { tribunal: context.tribunal } : undefined) : prevBusinessDay(cursor, context);
     count += sign;
   }
   return count;
 }
 
-function prevBusinessDay(iso: string): string {
+function prevBusinessDay(iso: string, context?: DeadlineContext): string {
   const d = new Date(iso + 'T12:00:00Z');
-  do { d.setUTCDate(d.getUTCDate() - 1); } while (!isBusinessDay(d.toISOString().slice(0, 10)));
+  do { d.setUTCDate(d.getUTCDate() - 1); } while (!isBusinessDay(d.toISOString().slice(0, 10), context?.tribunal ? { tribunal: context.tribunal } : undefined));
   return d.toISOString().slice(0, 10);
 }
 
@@ -512,7 +520,7 @@ function scoreToStatus(c: number): ClassificationStatus {
  * à disponibilização no DJE; o prazo COMEÇA A CONTAR no primeiro dia útil que se seguir
  * ao da publicação.
  */
-export function detectDeadline(content: string, receivedAtISO: string, todayISO: string): DetectedDeadline | null {
+export function detectDeadline(content: string, receivedAtISO: string, todayISO: string, context?: DeadlineContext): DetectedDeadline | null {
   if (!content || !receivedAtISO) return null;
   const text = normalize(content);
   if (!text) return null;
@@ -542,7 +550,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
         safeDueDate = y.toISOString().slice(0, 10);
       }
     }
-    const bdLeft = businessDaysBetween(todayISO, safeDueDate);
+    const bdLeft = businessDaysBetween(todayISO, safeDueDate, context);
     const sev: DetectedDeadline['severity'] =
       bdLeft < 0 ? 'expired' : bdLeft <= 2 ? 'critical' : bdLeft <= 5 ? 'warning' : 'normal';
     const timeLabel = pauta.sessionTime ? ` às ${pauta.sessionTime}` : '';
@@ -712,7 +720,14 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== CAMADA REGEX (regras específicas → genéricas) ======
   if (!chosen) {
-    for (const rule of RULES) {
+    // O mesmo nome de recurso pode existir em ritos distintos. Em contexto laboral/penal,
+    // as regras cíveis genéricas não podem vencer apenas por aparecerem antes na lista.
+    const contextualRules = LABOR_CONTEXT_RX.test(text)
+      ? RULES.filter((r) => r.source === 'CLT' || r.source === 'TST')
+      : CRIMINAL_CONTEXT_RX.test(text)
+        ? RULES.filter((r) => r.source === 'CPP')
+        : RULES;
+    for (const rule of contextualRules) {
       const m = text.match(rule.pattern);
       if (m) { chosen = { rule, matched: m[0] }; confianca = rule.confianca ?? 0.8; triggerSource = 'rules'; break; }
     }
@@ -741,13 +756,16 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // PR1: dobra restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
-  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit';
+  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit' || triggerSource === 'context_rejeita' || triggerSource === 'context_acolhe' || triggerSource === 'context_homolog';
   const doubleReasons: string[] = [];
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {
     const textParties = stripInstitutionalHeader(text);
-    for (const s of DOUBLE_SOURCES) {
-      if (s.rx.test(textParties)) doubleReasons.push(`${s.label} — ${s.cite}`);
+    // A simples menção institucional não demonstra que o beneficiário atua como parte.
+    if (PUBLIC_ENTITY_ACTING_RX.test(textParties) || FAZENDA_NA_LIDE.test(textParties)) {
+      for (const s of DOUBLE_SOURCES) {
+        if (s.rx.test(textParties)) doubleReasons.push(`${s.label} — ${s.cite}`);
+      }
     }
     // Art. 229: litisconsortes com procuradores distintos. §2º afasta em autos eletrônicos.
     if (LITISCONSORTES_RX.test(text) && PROC_DISTINTOS_RX.test(text)) {
@@ -768,17 +786,18 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let dueDate: string | null = null;
   let startDate: string | null = null;
   if (effectiveDays > 0) {
-    const publicacao = nextBusinessDay(receivedAtISO);
-    startDate = nextBusinessDay(publicacao);
+    const calendarContext = context?.tribunal ? { tribunal: context.tribunal } : undefined;
+    const publicacao = nextBusinessDay(receivedAtISO, calendarContext);
+    startDate = nextBusinessDay(publicacao, calendarContext);
     dueDate = chosen.rule.unit === 'dias_uteis'
-      ? addBusinessDays(publicacao, effectiveDays)
-      : addCalendarDays(publicacao, effectiveDays);
+      ? addBusinessDays(publicacao, effectiveDays, context)
+      : addCalendarDays(publicacao, effectiveDays, context);
   }
 
   let businessDaysLeft = 0;
   let severity: DetectedDeadline['severity'] = 'normal';
   if (dueDate) {
-    businessDaysLeft = businessDaysBetween(todayISO, dueDate);
+    businessDaysLeft = businessDaysBetween(todayISO, dueDate, context);
     if (businessDaysLeft < 0) severity = 'expired';
     else if (businessDaysLeft <= 2) severity = 'critical';
     else if (businessDaysLeft <= 5) severity = 'warning';
