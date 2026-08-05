@@ -741,7 +741,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // PR1: dobra restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
-  const allowsDoubling = triggerSource === 'rules';
+  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit';
   const doubleReasons: string[] = [];
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {

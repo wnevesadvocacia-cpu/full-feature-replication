@@ -725,7 +725,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // PR1: dobra Fazenda Pública restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
-  const allowsDoubling = triggerSource === 'rules';
+  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'literal_strong' || triggerSource === 'explicit';
   const textParties = stripInstitutionalHeader(text);
   const doubled = allowsDoubling && DOUBLE_PATTERNS.some((p) => p.test(textParties));
   const fazendaCondenada = allowsDoubling && FAZENDA_NA_LIDE.test(textParties);
