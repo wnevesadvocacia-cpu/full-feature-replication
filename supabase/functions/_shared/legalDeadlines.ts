@@ -106,9 +106,19 @@ interface Rule {
 // Ordem CRÍTICA: contexto sempre vence regex de termo isolado.
 // ====================================================================
 
-/** Detecta rejeição/acolhimento de embargos de declaração — CPC art. 1.026 §1º. */
-const REJEITA_EMBARGOS = /\b(rejeito|nao acolho|nao conheco|desacolho|indefiro|conheco e rejeito)\b[^.]{0,120}\bembargos? de declaracao\b/;
-const ACOLHE_EMBARGOS  = /\b(acolho|recebo|conheco e acolho|dou provimento)\b[^.]{0,120}\bembargos? de declaracao\b/;
+/** Detecta rejeição/acolhimento de embargos de declaração — CPC art. 1.026 §1º.
+ *  Cobre 1ª pessoa (rejeito), 3ª pessoa singular/plural do colegiado (rejeitou/rejeitaram),
+ *  particípio ("embargos rejeitados") e "nego/negaram provimento aos embargos". */
+const REJEITA_EMBARGOS =
+  /\b(rejeito|rejeitou|rejeitaram|nao acolho|nao acolheu|nao acolheram|nao conheco|nao conheceu|nao conheceram|desacolho|desacolheu|desacolheram|indefiro|nego provimento|negou provimento|negaram provimento|conheco e rejeito)\b[^.]{0,160}\bembargos?\b|\bembargos? (?:de declaracao )?(?:foram )?(?:rejeitad|desacolhid|nao acolhid|improvid)/;
+const ACOLHE_EMBARGOS  = /\b(acolho|acolheu|acolheram|recebo|conheco e acolho|dou provimento|deu provimento|deram provimento)\b[^.]{0,160}\bembargos? de declaracao\b/;
+
+/** Instância recursal (acórdão de tribunal): esgotada a via ordinária, o recurso cabível
+ *  é RE/REsp (CPC art. 1.029/1.030), não apelação nem agravo de instrumento. */
+const ACORDAO_RX = /\bacordao\b|\bcamara\b|\bturma (?:julgadora|recursal|cível|civel|criminal)\b|\borgao julgador\b|\bdesembargador|\bvotacao unanime\b|\bv\. ?u\.|\bem grau de (?:apelacao|recurso)\b|\bsessao de julgamento\b/;
+/** Marcador de EDcl efetivamente OPOSTOS (não julgados) — mantém prazo de 5 d.u. */
+const EDCL_MENCIONADOS = /\bembargos? de declaracao\b/;
+
 
 /** Detecta sentença (encerra fase cognitiva) vs decisão interlocutória. */
 const TERMO_SENTENCA = /\b(sentenca|julgo (procedente|improcedente|parcialmente procedente|extinto)|extingo o (processo|feito)|homologo (o )?(acordo|transacao)|condeno|absolvo)\b/;
@@ -144,6 +154,17 @@ const PECA_EMBARGOS_DECL: PecaSugerida = {
   prazo_dias: 5,
   observacoes: 'Cabíveis para sanar omissão, contradição, obscuridade ou erro material.',
 };
+
+/** Acórdão de tribunal: via ordinária esgotada → RE/REsp (CPC 1.029/1.030). */
+const PECA_RESP_RE: PecaSugerida = {
+  peca: 'Recurso Especial e/ou Recurso Extraordinário',
+  fundamento_legal: 'CPC art. 1.029 c/c 1.003 §5º (STJ/STF)',
+  prazo_dias: 15,
+  observacoes: 'Acórdão de tribunal com embargos de declaração rejeitados: prazo recursal reaberto (CPC 1.026 §1º). Exige prequestionamento (Súmulas 211/STJ e 282/356 STF), repercussão geral no RE e vedação de reexame de prova (Súmula 7/STJ, 279/STF). Se remanescer omissão, cabem novos EDcl em 5 d.u. (art. 1.022), sem efeito interruptivo se protelatórios (art. 1.026 §2º).',
+  peca_alternativa: { peca: 'Embargos de Declaração (nova omissão/contradição)', fundamento_legal: 'CPC art. 1.022/1.023', prazo_dias: 5 },
+};
+
+
 
 const PECA_CONTESTACAO: PecaSugerida = {
   peca: 'Contestação',
@@ -606,11 +627,24 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // (A) REJEITO embargos de declaração → reabre prazo recurso original (CPC 1.026 §1º).
   // GUARDA: literal vence — só aplica se nenhum literal foi detectado.
   if (!chosen) {
-  const mRejeita = text.match(REJEITA_EMBARGOS);
+  const mRejeita = EDCL_MENCIONADOS.test(text) ? text.match(REJEITA_EMBARGOS) : null;
   if (mRejeita) {
     const isSentenca = TERMO_SENTENCA.test(text);
     const isInterloc = TERMO_INTERLOCUTORIA.test(text);
-    if (isSentenca && !isInterloc) {
+    const isAcordao = ACORDAO_RX.test(text);
+    if (isAcordao) {
+      // Acórdão de tribunal com EDcl rejeitados → via ordinária esgotada: RE/REsp 15 d.u.
+      chosen = {
+        rule: { pattern: REJEITA_EMBARGOS, days: 15, unit: 'dias_uteis', label: 'RE/REsp (reaberto após rejeição de EDcl em acórdão)', source: 'CPC', article: 'art. 1.026 §1º + 1.029 + 1.003 §5º', peca: PECA_RESP_RE },
+        matched: mRejeita[0],
+      };
+      confianca = 0.88;
+      classificacaoStatus = 'auto_media';
+      triggerSource = 'context_rejeita';
+      pecaSugerida = PECA_RESP_RE;
+      baseLegalExtra = 'CPC art. 1.026 §1º (rejeição de EDcl reabre prazo) + art. 1.029 (RE/REsp contra acórdão)';
+    } else if (isSentenca && !isInterloc) {
+
       // Pista forte de sentença → apelação 15 d.u.
       chosen = {
         rule: { pattern: REJEITA_EMBARGOS, days: 15, unit: 'dias_uteis', label: 'Apelação (reaberta após rejeição de EDcl)', source: 'CPC', article: 'art. 1.026 §1º + 1.003 §5º + 1.009', peca: PECA_APELACAO },
