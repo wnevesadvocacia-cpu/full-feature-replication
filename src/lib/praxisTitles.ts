@@ -27,6 +27,7 @@ export const PRAXIS_TASK_TITLES = [
   'Atualizar cálculos',
   'Realizar audiência de conciliação',
   'Verificar publicação no DJE',
+  'MLE - Juntada',
   'Fallow Up (Execução)',
   'Fallow Up (Sobrestado)',
   'Fallow Up (Aguardando Despacho)',
@@ -34,4 +35,5 @@ export const PRAXIS_TASK_TITLES = [
   'Impugnação (Cumprimento de Sentença)',
   'Impugnação (Cálculos)',
   'Impugnação (Diversos)',
+  'Elaborar recurso cabível',
 ];
