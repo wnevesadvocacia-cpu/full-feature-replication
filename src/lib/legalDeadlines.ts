@@ -805,11 +805,15 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {
     const textParties = stripInstitutionalHeader(text);
-    // A simples menção institucional não demonstra que o beneficiário atua como parte.
-    if (PUBLIC_ENTITY_ACTING_RX.test(textParties) || FAZENDA_NA_LIDE.test(textParties)) {
+    const enteMencionado = DOUBLE_SOURCES.some(s => s.rx.test(textParties));
+    const enteAtuante = PUBLIC_ENTITY_ACTING_RX.test(textParties) || FAZENDA_NA_LIDE.test(textParties) || PRERROGATIVA_RX.test(textParties);
+    // A simples menção institucional/etiqueta de polo não demonstra prerrogativa de dobro.
+    if (enteAtuante) {
       for (const s of DOUBLE_SOURCES) {
         if (s.rx.test(textParties)) doubleReasons.push(`${s.label} — ${s.cite}`);
       }
+    } else if (enteMencionado) {
+      doubleWaivedReason = 'Ente público apenas mencionado/como parte adversa — dobro NÃO aplicado (prerrogativa do art. 183/180/186 é do ente, não do particular). Confirmar quem é o intimado.';
     }
     // Art. 229: litisconsortes com procuradores distintos. §2º afasta em autos eletrônicos.
     if (LITISCONSORTES_RX.test(text) && PROC_DISTINTOS_RX.test(text)) {
@@ -819,7 +823,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
         doubleReasons.push('Litisconsortes c/ procuradores distintos — CPC art. 229');
       }
     }
-    if (FAZENDA_NA_LIDE.test(textParties) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
+    if (enteAtuante && FAZENDA_NA_LIDE.test(textParties) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
       doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
     }
   }
