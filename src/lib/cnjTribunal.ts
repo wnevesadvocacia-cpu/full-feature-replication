@@ -58,7 +58,15 @@ export function sistemaFromSigla(sigla?: string | null): { sistema?: string; alt
   return {};
 }
 
+/** Wrapper público: resolve tribunal e enriquece com o sistema de tramitação eletrônica. */
 export function tribunalFromCNJ(numero?: string | null): TribunalInfo | null {
+  const base = resolveTribunal(numero);
+  if (!base) return null;
+  const { sistema, alternativos } = sistemaFromSigla(base.sigla);
+  return { ...base, sistema, sistemasAlternativos: alternativos };
+}
+
+function resolveTribunal(numero?: string | null): TribunalInfo | null {
   if (!numero) return null;
   const digits = numero.replace(/\D/g, '');
   if (digits.length !== 20) return { sigla: '—', nome: 'Número CNJ inválido', segmento: '—', cnjValido: false };
