@@ -764,13 +764,17 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== CAMADA REGEX (regras específicas → genéricas) ======
   if (!chosen) {
-    // O mesmo nome de recurso pode existir em ritos distintos. Em contexto laboral/penal,
+    // O mesmo nome de recurso pode existir em ritos distintos. Em contexto laboral/penal/JEC,
     // as regras cíveis genéricas não podem vencer apenas por aparecerem antes na lista.
+    // Cada rito tem regras supletivas próprias para o caso de o texto citar o recurso
+    // sem repetir o marcador do rito na mesma frase (ex.: "TRT ... recurso ordinário").
     const contextualRules = LABOR_CONTEXT_RX.test(text)
-      ? RULES.filter((r) => r.source === 'CLT' || r.source === 'TST')
+      ? [...RULES.filter((r) => r.source === 'CLT' || r.source === 'TST'), ...LABOR_SUPPL_RULES]
       : CRIMINAL_CONTEXT_RX.test(text)
-        ? RULES.filter((r) => r.source === 'CPP')
-        : RULES;
+        ? [...RULES.filter((r) => r.source === 'CPP'), ...CRIMINAL_SUPPL_RULES]
+        : JEC_CONTEXT_RX.test(text)
+          ? [...RULES.filter((r) => r.source === 'JEC' || r.source === 'JEF'), ...JEC_SUPPL_RULES, ...RULES]
+          : RULES;
     for (const rule of contextualRules) {
       const m = text.match(rule.pattern);
       if (m) { chosen = { rule, matched: m[0] }; confianca = rule.confianca ?? 0.8; triggerSource = 'rules'; break; }
