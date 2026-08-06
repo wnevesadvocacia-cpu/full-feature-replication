@@ -19,7 +19,44 @@ export type TribunalInfo = {
   segmento: string;     // ex.: "Justiça Estadual"
   uf?: string;          // quando aplicável
   cnjValido: boolean;
+  /** Sistema de tramitação eletrônica principal do tribunal (ex.: e-SAJ, PJe, eproc). */
+  sistema?: string;
+  /** Sistemas secundários/legados ainda em uso no mesmo tribunal. */
+  sistemasAlternativos?: string[];
 };
+
+// Sistemas de tramitação eletrônica por tribunal (praxis 2026). Vários tribunais operam
+// mais de um sistema (migração em curso) — o principal vem em `sistema` e os demais em
+// `sistemasAlternativos`; o advogado confere no cabeçalho da publicação.
+const SISTEMA_BY_SIGLA: Record<string, [string, string[]?]> = {
+  // ===== Justiça Estadual =====
+  TJAC: ['e-SAJ'], TJAL: ['e-SAJ', ['PJe']], TJAP: ['PJe'], TJAM: ['Projudi', ['e-SAJ', 'PJe']],
+  TJBA: ['PJe', ['Projudi']], TJCE: ['PJe', ['e-SAJ']], TJDFT: ['PJe'], TJES: ['PJe'],
+  TJGO: ['Projudi', ['PJe']], TJMA: ['PJe'], TJMT: ['PJe'], TJMS: ['e-SAJ'],
+  TJMG: ['PJe', ['Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
+  TJPR: ['Projudi', ['PJe']], TJPE: ['PJe'], TJPI: ['PJe'], TJRJ: ['PJe', ['e-Proc / Portal TJRJ']],
+  TJRN: ['PJe'], TJRS: ['eproc', ['Themis']], TJRO: ['PJe'], TJRR: ['PJe', ['Projudi']],
+  TJSC: ['eproc', ['e-SAJ']], TJSP: ['e-SAJ', ['PJe (2º grau/JEF)']], TJSE: ['PJe'], TJTO: ['eproc'],
+  // ===== Justiça Federal =====
+  TRF1: ['PJe'], TRF2: ['eproc', ['PJe']], TRF3: ['PJe'], TRF4: ['eproc'], TRF5: ['PJe'], TRF6: ['PJe'],
+  CJF: ['PJe'],
+  // ===== Superiores / especiais =====
+  STF: ['STF Digital (peticionamento eletrônico)'], STJ: ['e-STJ / Processo Eletrônico'],
+  TST: ['PJe'], TSE: ['PJe'], STM: ['e-Proc STM'],
+  // ===== Justiça Militar Estadual =====
+  'TJM-SP': ['e-SAJ'], 'TJM-MG': ['PJe'], 'TJM-RS': ['eproc'],
+};
+
+/** Resolve o sistema eletrônico a partir da sigla (TRTs e TREs usam PJe em todas as regiões). */
+export function sistemaFromSigla(sigla?: string | null): { sistema?: string; alternativos?: string[] } {
+  if (!sigla) return {};
+  const s = sigla.toUpperCase();
+  const hit = SISTEMA_BY_SIGLA[s];
+  if (hit) return { sistema: hit[0], alternativos: hit[1] };
+  if (/^TRT\d+/.test(s)) return { sistema: 'PJe' };
+  if (/^TRE-/.test(s)) return { sistema: 'PJe' };
+  return {};
+}
 
 export function tribunalFromCNJ(numero?: string | null): TribunalInfo | null {
   if (!numero) return null;
