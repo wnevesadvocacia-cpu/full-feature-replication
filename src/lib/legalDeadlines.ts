@@ -155,6 +155,17 @@ const PECA_EMBARGOS_DECL: PecaSugerida = {
   observacoes: 'Cabíveis para sanar omissão, contradição, obscuridade ou erro material.',
 };
 
+/** Acórdão de tribunal: via ordinária esgotada → RE/REsp (CPC 1.029/1.030). */
+const PECA_RESP_RE: PecaSugerida = {
+  peca: 'Recurso Especial e/ou Recurso Extraordinário',
+  fundamento_legal: 'CPC art. 1.029 c/c 1.003 §5º (STJ/STF)',
+  prazo_dias: 15,
+  observacoes: 'Acórdão de tribunal com embargos de declaração rejeitados: prazo recursal reaberto (CPC 1.026 §1º). Exige prequestionamento (Súmulas 211/STJ e 282/356 STF), repercussão geral no RE e vedação de reexame de prova (Súmula 7/STJ, 279/STF). Se remanescer omissão, cabem novos EDcl em 5 d.u. (art. 1.022), sem efeito interruptivo se protelatórios (art. 1.026 §2º).',
+  peca_alternativa: { peca: 'Embargos de Declaração (nova omissão/contradição)', fundamento_legal: 'CPC art. 1.022/1.023', prazo_dias: 5 },
+};
+
+
+
 const PECA_CONTESTACAO: PecaSugerida = {
   peca: 'Contestação',
   fundamento_legal: 'CPC art. 335',
