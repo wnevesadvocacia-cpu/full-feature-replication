@@ -115,7 +115,9 @@ const ACOLHE_EMBARGOS  = /\b(acolho|acolheu|acolheram|recebo|conheco e acolho|do
 
 /** Instância recursal (acórdão de tribunal): esgotada a via ordinária, o recurso cabível
  *  é RE/REsp (CPC art. 1.029/1.030), não apelação nem agravo de instrumento. */
-const ACORDAO_RX = /\b(acordao|intimacao de acordao|\d+ª? camara|camara (?:de )?direito|turma julgadora|orgao julgador|desembargador|relator(?:a)?\b[^.]{0,60}\bvoto|v\.? ?u\.?|votacao unanime)\b/;
+const ACORDAO_RX = /\bacordao\b|\bcamara\b|\bturma (?:julgadora|recursal|cível|civel|criminal)\b|\borgao julgador\b|\bdesembargador|\bvotacao unanime\b|\bv\. ?u\.|\bem grau de (?:apelacao|recurso)\b|\bsessao de julgamento\b/;
+/** Marcador de EDcl efetivamente OPOSTOS (não julgados) — mantém prazo de 5 d.u. */
+const EDCL_MENCIONADOS = /\bembargos? de declaracao\b/;
 
 
 /** Detecta sentença (encerra fase cognitiva) vs decisão interlocutória. */
