@@ -250,6 +250,7 @@ export default function Tarefas() {
   const handleEdit = async () => {
     if (!editTarget || !form.title.trim()) return;
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da alteração a um gestor/administrador.', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
