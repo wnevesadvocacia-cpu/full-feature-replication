@@ -68,36 +68,7 @@ const saoPauloDate = (value?: string | null) => {
   }).format(new Date(value));
 };
 
-// Títulos comuns da praxis jurídica para tarefas delegadas a partir de intimações
-const PRAXIS_TASK_TITLES = [
-  'Acompanhar expedição de guia',
-  'Acompanhar expedição de MLE/alvará',
-  'Avisar cliente sobre perícia',
-  'Avisar cliente sobre audiência',
-  'Juntar petição',
-  'Petições diversas',
-  'Elaborar contestação',
-  'Elaborar réplica',
-  'Elaborar recurso (apelação)',
-  'Elaborar embargos de declaração',
-  'Elaborar agravo de instrumento',
-  'Cumprir diligência',
-  'Cumprir despacho',
-  'Comparecer à audiência',
-  'Comparecer à perícia',
-  'Solicitar documentos ao cliente',
-  'Solicitar cópia integral dos autos',
-  'Protocolar manifestação',
-  'Protocolar memoriais',
-  'Pagar custas processuais',
-  'Pagar guia GRU / DARF',
-  'Levantar alvará',
-  'Substabelecer poderes',
-  'Apresentar contrarrazões',
-  'Atualizar cálculos',
-  'Realizar audiência de conciliação',
-  'Verificar publicação no DJE',
-];
+import { PRAXIS_TASK_TITLES } from '@/lib/praxisTitles';
 
 export default function Intimacoes() {
   const { user } = useAuth();
