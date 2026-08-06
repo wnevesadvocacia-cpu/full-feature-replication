@@ -106,9 +106,17 @@ interface Rule {
 // Ordem CRÍTICA: contexto sempre vence regex de termo isolado.
 // ====================================================================
 
-/** Detecta rejeição/acolhimento de embargos de declaração — CPC art. 1.026 §1º. */
-const REJEITA_EMBARGOS = /\b(rejeito|nao acolho|nao conheco|desacolho|indefiro|conheco e rejeito)\b[^.]{0,120}\bembargos? de declaracao\b/;
-const ACOLHE_EMBARGOS  = /\b(acolho|recebo|conheco e acolho|dou provimento)\b[^.]{0,120}\bembargos? de declaracao\b/;
+/** Detecta rejeição/acolhimento de embargos de declaração — CPC art. 1.026 §1º.
+ *  Cobre 1ª pessoa (rejeito), 3ª pessoa singular/plural do colegiado (rejeitou/rejeitaram),
+ *  particípio ("embargos rejeitados") e "nego/negaram provimento aos embargos". */
+const REJEITA_EMBARGOS =
+  /\b(rejeito|rejeitou|rejeitaram|nao acolho|nao acolheu|nao acolheram|nao conheco|nao conheceu|nao conheceram|desacolho|desacolheu|desacolheram|indefiro|nego provimento|negou provimento|negaram provimento|conheco e rejeito)\b[^.]{0,160}\bembargos?\b|\bembargos? (?:de declaracao )?(?:foram )?(?:rejeitad|desacolhid|nao acolhid|improvid)/;
+const ACOLHE_EMBARGOS  = /\b(acolho|acolheu|acolheram|recebo|conheco e acolho|dou provimento|deu provimento|deram provimento)\b[^.]{0,160}\bembargos? de declaracao\b/;
+
+/** Instância recursal (acórdão de tribunal): esgotada a via ordinária, o recurso cabível
+ *  é RE/REsp (CPC art. 1.029/1.030), não apelação nem agravo de instrumento. */
+const ACORDAO_RX = /\b(acordao|intimacao de acordao|\d+ª? camara|camara (?:de )?direito|turma julgadora|orgao julgador|desembargador|relator(?:a)?\b[^.]{0,60}\bvoto|v\.? ?u\.?|votacao unanime)\b/;
+
 
 /** Detecta sentença (encerra fase cognitiva) vs decisão interlocutória. */
 const TERMO_SENTENCA = /\b(sentenca|julgo (procedente|improcedente|parcialmente procedente|extinto)|extingo o (processo|feito)|homologo (o )?(acordo|transacao)|condeno|absolvo)\b/;
