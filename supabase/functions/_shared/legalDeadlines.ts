@@ -262,16 +262,48 @@ const RULES: Rule[] = [
 //  - Litisconsortes c/ procuradores distintos → CPC art. 229 (AFASTADO em autos eletrônicos, §2º)
 interface DoubleSource { rx: RegExp; label: string; cite: string; }
 const DOUBLE_SOURCES: DoubleSource[] = [
-  { rx: /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal)\b/, label: 'Fazenda Pública / ente público', cite: 'CPC art. 183' },
+  { rx: /\b(fazenda publica|fazenda (?:estadual|municipal|nacional|do estado)|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|procuradoria|procurador(?:a)?\s+(?:do estado|do municipio|federal|da fazenda|geral)|advocacia geral da uniao|agu|pge|pgm|pgf)\b/, label: 'Fazenda Pública / ente público', cite: 'CPC art. 183' },
   { rx: /\bministerio publico\b/, label: 'Ministério Público', cite: 'CPC art. 180' },
   { rx: /\bdefensoria publica\b/, label: 'Defensoria Pública', cite: 'CPC art. 186' },
 ];
+/** Contexto de Juizado Especial (Lei 9.099/95 e 10.259/01) — precede o CPC. */
+const JEC_CONTEXT_RX = /\b(juizado especial|turma recursal|lei 9\.?099|lei 10\.?259|jec\b|jef\b)/;
+
+/** Regras supletivas por rito: aplicadas quando o rito está no contexto mas o recurso
+ *  é citado sem repetir o marcador do rito na mesma frase. Evita queda indevida na
+ *  regra geral de 5 dias (CPC 218 §3º) ou na regra cível de 15 dias. */
+const LABOR_SUPPL_RULES: Rule[] = [
+  { pattern: /\brecurso ordinario\b/, days: 8, unit: 'dias_uteis', label: 'RO Trabalhista', source: 'CLT', article: 'art. 895 CLT', peca: { peca: 'Recurso Ordinário Trabalhista', fundamento_legal: 'CLT art. 895', prazo_dias: 8, observacoes: 'Dias úteis (CLT art. 775 pós Lei 13.467/17). Custas e depósito recursal no mesmo prazo.' }, confianca: 0.88 },
+  { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'EDcl Trabalhistas', source: 'CLT', article: 'art. 897-A CLT', peca: { peca: 'Embargos de Declaração Trabalhistas', fundamento_legal: 'CLT art. 897-A', prazo_dias: 5, observacoes: 'Omissão/contradição/manifesto equívoco no exame de pressupostos extrínsecos.' }, confianca: 0.85 },
+  { pattern: /\bcontrarrazoes\b/, days: 8, unit: 'dias_uteis', label: 'Contrarrazões (CLT)', source: 'CLT', article: 'art. 900 CLT', peca: { peca: 'Contrarrazões Trabalhistas', fundamento_legal: 'CLT art. 900', prazo_dias: 8, observacoes: 'Mesmo prazo do recurso (8 d.u.).' }, confianca: 0.85 },
+  { pattern: /\bmanifest|\bimpugn|\bcumpra-se|\bintime-se/, days: 5, unit: 'dias_uteis', label: 'Manifestação (CLT)', source: 'CLT', article: 'CLT art. 775 c/c CPC 218 §3º', peca: PECA_GENERICA('Manifestação (rito trabalhista)', 5), confianca: 0.6 },
+];
+const CRIMINAL_SUPPL_RULES: Rule[] = [
+  { pattern: /\bapelacao\b/, days: 5, unit: 'dias_corridos', label: 'Apelação Criminal', source: 'CPP', article: 'art. 593 CPP', peca: { peca: 'Apelação Criminal', fundamento_legal: 'CPP art. 593', prazo_dias: 5, observacoes: 'Interposição em 5 dias corridos; razões em 8 dias (art. 600).' }, confianca: 0.88 },
+  { pattern: /\bembargos? de declaracao\b/, days: 2, unit: 'dias_corridos', label: 'EDcl Criminais', source: 'CPP', article: 'art. 619 CPP', peca: { peca: 'Embargos de Declaração (Penal)', fundamento_legal: 'CPP art. 619', prazo_dias: 2, observacoes: 'Prazo de 2 dias, contado da publicação do acórdão.' }, confianca: 0.85 },
+  { pattern: /\bmanifest|\bcumpra-se|\bintime-se|\bvista\b/, days: 5, unit: 'dias_corridos', label: 'Manifestação (Penal)', source: 'CPP', article: 'CPP art. 798 (dias corridos)', peca: PECA_GENERICA('Manifestação (rito penal)', 5), confianca: 0.6 },
+];
+const JEC_SUPPL_RULES: Rule[] = [
+  { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'EDcl (JEC)', source: 'JEC', article: 'Lei 9.099/95 art. 48', peca: { peca: 'Embargos de Declaração (JEC)', fundamento_legal: 'Lei 9.099/95 art. 48', prazo_dias: 5, observacoes: 'Turma Recursal/JEC — omissão, contradição, obscuridade ou dúvida.' }, confianca: 0.88 },
+  { pattern: /\bapelacao\b/, days: 10, unit: 'dias_uteis', label: 'Recurso Inominado', source: 'JEC', article: 'Lei 9.099/95 art. 42', peca: { peca: 'Recurso Inominado', fundamento_legal: 'Lei 9.099/95 art. 42', prazo_dias: 10, observacoes: 'No JEC não cabe apelação: o recurso é inominado (10 dias), com preparo em 48h.' }, confianca: 0.8 },
+];
+
 const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
 const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b/;
 const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
 const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|processo trabalhista|reclamante|reclamada)\b/;
 const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|acusado|denunciado)\b/;
-const PUBLIC_ENTITY_ACTING_RX = /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b[^.]{0,140}\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intimad|citad|apresent|interpo|manifest|opos|embarg)|\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intim|cit|apresent|interpo|manifest|opos|embarg)[^.]{0,140}\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b/;
+// Ente público como PARTE ATUANTE: exige adjacência estreita (≤40 chars) entre o ente e um
+// verbo de ato processual. Mera etiqueta de polo ("Embargdo: Estado de São Paulo") NÃO basta —
+// a prerrogativa do dobro (CPC 183/180/186) é da Fazenda/MP/Defensoria, não do particular
+// adverso; presumir dobro para o particular seria o erro mais grave possível (perda de prazo).
+const ENTE_RX = String.raw`(?:fazenda publica|fazenda (?:estadual|municipal|nacional|do estado)|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)`;
+const ATO_RX = String.raw`(?:interpo\w*|interpos\w*|apresent\w*|manifest\w*|op[oô]s|opoe|requer\w*|recorr\w*|contest\w*|impugn\w*|peticion\w*|junt\w*|comprov\w*|informa\w*|intime-se|intimad\w*|cientifique-se)`;
+const PUBLIC_ENTITY_ACTING_RX = new RegExp(
+  String.raw`\b${ENTE_RX}\b[^.]{0,40}?\b${ATO_RX}\b|\b${ATO_RX}\b[^.]{0,40}?\b${ENTE_RX}\b`,
+);
+/** Marcador explícito de prerrogativa/representação pública (procuradoria, AGU, PGE/PGM, MP). */
+const PRERROGATIVA_RX = /\b(procuradoria|procurador(?:a)?\s+(?:do\s+estado|do\s+municipio|federal|da\s+fazenda|geral)|advocacia geral da uniao|\bagu\b|\bpge\b|\bpgm\b|\bpgf\b|promotor(?:a)? de justica|defensor(?:a)? public[oa]|prazo em dobro|prerrogativa de prazo)\b/;
 // Compat: mantido para código legado que importa DOUBLE_PATTERNS.
 const DOUBLE_PATTERNS = DOUBLE_SOURCES.map(s => s.rx);
 
@@ -754,13 +786,17 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== CAMADA REGEX (regras específicas → genéricas) ======
   if (!chosen) {
-    // O mesmo nome de recurso pode existir em ritos distintos. Em contexto laboral/penal,
+    // O mesmo nome de recurso pode existir em ritos distintos. Em contexto laboral/penal/JEC,
     // as regras cíveis genéricas não podem vencer apenas por aparecerem antes na lista.
+    // Cada rito tem regras supletivas próprias para o caso de o texto citar o recurso
+    // sem repetir o marcador do rito na mesma frase (ex.: "TRT ... recurso ordinário").
     const contextualRules = LABOR_CONTEXT_RX.test(text)
-      ? RULES.filter((r) => r.source === 'CLT' || r.source === 'TST')
+      ? [...RULES.filter((r) => r.source === 'CLT' || r.source === 'TST'), ...LABOR_SUPPL_RULES]
       : CRIMINAL_CONTEXT_RX.test(text)
-        ? RULES.filter((r) => r.source === 'CPP')
-        : RULES;
+        ? [...RULES.filter((r) => r.source === 'CPP'), ...CRIMINAL_SUPPL_RULES]
+        : JEC_CONTEXT_RX.test(text)
+          ? [...RULES.filter((r) => r.source === 'JEC' || r.source === 'JEF'), ...JEC_SUPPL_RULES, ...RULES]
+          : RULES;
     for (const rule of contextualRules) {
       const m = text.match(rule.pattern);
       if (m) { chosen = { rule, matched: m[0] }; confianca = rule.confianca ?? 0.8; triggerSource = 'rules'; break; }
@@ -795,11 +831,15 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {
     const textParties = stripInstitutionalHeader(text);
-    // A simples menção institucional não demonstra que o beneficiário atua como parte.
-    if (PUBLIC_ENTITY_ACTING_RX.test(textParties) || FAZENDA_NA_LIDE.test(textParties)) {
+    const enteMencionado = DOUBLE_SOURCES.some(s => s.rx.test(textParties));
+    const enteAtuante = PUBLIC_ENTITY_ACTING_RX.test(textParties) || FAZENDA_NA_LIDE.test(textParties) || PRERROGATIVA_RX.test(textParties);
+    // A simples menção institucional/etiqueta de polo não demonstra prerrogativa de dobro.
+    if (enteAtuante) {
       for (const s of DOUBLE_SOURCES) {
         if (s.rx.test(textParties)) doubleReasons.push(`${s.label} — ${s.cite}`);
       }
+    } else if (enteMencionado) {
+      doubleWaivedReason = 'Ente público apenas mencionado/como parte adversa — dobro NÃO aplicado (prerrogativa do art. 183/180/186 é do ente, não do particular). Confirmar quem é o intimado.';
     }
     // Art. 229: litisconsortes com procuradores distintos. §2º afasta em autos eletrônicos.
     if (LITISCONSORTES_RX.test(text) && PROC_DISTINTOS_RX.test(text)) {
@@ -809,7 +849,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
         doubleReasons.push('Litisconsortes c/ procuradores distintos — CPC art. 229');
       }
     }
-    if (FAZENDA_NA_LIDE.test(textParties) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
+    if (enteAtuante && FAZENDA_NA_LIDE.test(textParties) && !doubleReasons.some(r => r.startsWith('Fazenda'))) {
       doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
     }
   }
