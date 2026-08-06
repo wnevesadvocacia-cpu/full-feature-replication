@@ -36,4 +36,5 @@ export const PRAXIS_TASK_TITLES = [
   'Impugnação (Cálculos)',
   'Impugnação (Diversos)',
   'Elaborar recurso cabível',
+  'Razões Finais',
 ];
