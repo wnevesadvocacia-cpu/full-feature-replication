@@ -250,6 +250,7 @@ export default function Tarefas() {
   const handleEdit = async () => {
     if (!editTarget || !form.title.trim()) return;
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
+    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da alteração a um gestor/administrador.', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
@@ -262,9 +263,16 @@ export default function Tarefas() {
         process_id: form.process_id || null,
       }).eq('id', editTarget.id);
       if (error) throw error;
+      await (supabase as any).rpc('notify_task_cc', {
+        _cc_user_id: form.cc_user_id,
+        _title: form.title,
+        _assignee: form.assignee.trim(),
+        _due_date: form.due_date || null,
+        _process_number: editTarget.processes?.number ?? null,
+      });
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setEditTarget(null);
-      toast({ title: 'Tarefa atualizada!' });
+      toast({ title: 'Tarefa atualizada!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -870,7 +878,7 @@ export default function Tarefas() {
               </p>
             )}
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || saving || !canManage}>
+            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || saving || !canManage}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
