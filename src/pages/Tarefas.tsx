@@ -675,12 +675,22 @@ export default function Tarefas() {
                           const trib = tribunalFromCNJ(cnjCandidate);
                           if (!trib || !trib.cnjValido) return null;
                           return (
-                            <span
-                              title={trib.nome}
-                              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold tracking-wide rounded-full border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-900 shadow-sm"
-                            >
-                              ⚖ {trib.sigla}{trib.uf && trib.sigla.indexOf(trib.uf) === -1 ? ` · ${trib.uf}` : ''}
-                            </span>
+                            <>
+                              <span
+                                title={trib.nome}
+                                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold tracking-wide rounded-full border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-900 shadow-sm"
+                              >
+                                ⚖ {trib.sigla}{trib.uf && trib.sigla.indexOf(trib.uf) === -1 ? ` · ${trib.uf}` : ''}
+                              </span>
+                              {trib.sistema && (
+                                <span
+                                  title={trib.sistemasAlternativos?.length ? `Também em uso: ${trib.sistemasAlternativos.join(', ')}` : 'Sistema de tramitação eletrônica'}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border border-sky-400 bg-sky-50 text-sky-800"
+                                >
+                                  {trib.sistema}
+                                </span>
+                              )}
+                            </>
                           );
                         })()}
                       </div>
