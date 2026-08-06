@@ -707,7 +707,8 @@ export default function Intimacoes() {
       ) : (
         <div className="space-y-2">
           {filtered.map((it) => {
-            const tribunal = tribunalFromCNJ(extractCnjs(it.content)[0])?.sigla ?? null;
+            const tribInfo = tribunalFromCNJ(extractCnjs(it.content)[0]);
+            const tribunal = tribInfo?.sigla ?? null;
             const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO(), { tribunal });
             const isUnsafe = !!it.classificacao_status && UNSAFE_STATUSES.has(it.classificacao_status);
 
@@ -716,6 +717,17 @@ export default function Intimacoes() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
+                    {tribInfo?.sistema && (
+                      <Badge
+                        variant="outline"
+                        className="text-xs border-sky-400 text-sky-800 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-200"
+                        title={tribInfo.sistemasAlternativos?.length
+                          ? `${tribInfo.sigla} — também em uso: ${tribInfo.sistemasAlternativos.join(', ')}`
+                          : `${tribInfo.sigla} — sistema de tramitação eletrônica`}
+                      >
+                        {tribInfo.sistema}
+                      </Badge>
+                    )}
                     <Badge variant={it.status === 'tratada' ? 'outline' : 'default'} className="text-xs">{it.status}</Badge>
                     {it.classification_meta?.fase === 'execucao' && (
                       <Badge
