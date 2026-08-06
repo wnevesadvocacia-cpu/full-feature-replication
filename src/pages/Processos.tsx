@@ -1229,9 +1229,19 @@ export default function Processos() {
                             {t.uf && (
                               <Badge variant="secondary" className="text-[10px]">UF {t.uf}</Badge>
                             )}
+                            {t.sistema && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] border-sky-400 text-sky-800 bg-sky-50"
+                                title={t.sistemasAlternativos?.length ? `Também em uso: ${t.sistemasAlternativos.join(', ')}` : 'Sistema de tramitação eletrônica'}
+                              >
+                                Sistema: {t.sistema}
+                              </Badge>
+                            )}
                           </div>
                           <p className={`text-xs mt-0.5 truncate ${ok ? 'text-amber-800' : 'text-red-700'}`}>
                             {t.nome}
+                            {t.sistemasAlternativos?.length ? ` · outros sistemas: ${t.sistemasAlternativos.join(', ')}` : ''}
                           </p>
                         </div>
                         <span className="text-[10px] text-gray-500 hidden sm:block">via CNJ</span>
