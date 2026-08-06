@@ -271,7 +271,17 @@ const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b
 const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
 const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|processo trabalhista|reclamante|reclamada)\b/;
 const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|acusado|denunciado)\b/;
-const PUBLIC_ENTITY_ACTING_RX = /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b[^.]{0,140}\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intimad|citad|apresent|interpo|manifest|opos|embarg)|\b(parte|autor|reu|requerente|requerido|recorrente|recorrido|intim|cit|apresent|interpo|manifest|opos|embarg)[^.]{0,140}\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)\b/;
+// Ente público como PARTE ATUANTE: exige adjacência estreita (≤40 chars) entre o ente e um
+// verbo de ato processual. Mera etiqueta de polo ("Embargdo: Estado de São Paulo") NÃO basta —
+// a prerrogativa do dobro (CPC 183/180/186) é da Fazenda/MP/Defensoria, não do particular
+// adverso; presumir dobro para o particular seria o erro mais grave possível (perda de prazo).
+const ENTE_RX = String.raw`(?:fazenda publica|fazenda (?:estadual|municipal|nacional|do estado)|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|ministerio publico|defensoria publica)`;
+const ATO_RX = String.raw`(?:interpo\w*|interpos\w*|apresent\w*|manifest\w*|op[oô]s|opoe|requer\w*|recorr\w*|contest\w*|impugn\w*|peticion\w*|junt\w*|comprov\w*|informa\w*|intime-se|intimad\w*|cientifique-se)`;
+const PUBLIC_ENTITY_ACTING_RX = new RegExp(
+  String.raw`\b${ENTE_RX}\b[^.]{0,40}?\b${ATO_RX}\b|\b${ATO_RX}\b[^.]{0,40}?\b${ENTE_RX}\b`,
+);
+/** Marcador explícito de prerrogativa/representação pública (procuradoria, AGU, PGE/PGM, MP). */
+const PRERROGATIVA_RX = /\b(procuradoria|procurador(?:a)?\s+(?:do\s+estado|do\s+municipio|federal|da\s+fazenda|geral)|advocacia geral da uniao|\bagu\b|\bpge\b|\bpgm\b|\bpgf\b|promotor(?:a)? de justica|defensor(?:a)? public[oa]|prazo em dobro|prerrogativa de prazo)\b/;
 // Compat: mantido para código legado que importa DOUBLE_PATTERNS.
 const DOUBLE_PATTERNS = DOUBLE_SOURCES.map(s => s.rx);
 
