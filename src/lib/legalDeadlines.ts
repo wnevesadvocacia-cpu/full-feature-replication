@@ -262,7 +262,7 @@ const RULES: Rule[] = [
 //  - Litisconsortes c/ procuradores distintos → CPC art. 229 (AFASTADO em autos eletrônicos, §2º)
 interface DoubleSource { rx: RegExp; label: string; cite: string; }
 const DOUBLE_SOURCES: DoubleSource[] = [
-  { rx: /\b(fazenda publica|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal)\b/, label: 'Fazenda Pública / ente público', cite: 'CPC art. 183' },
+  { rx: /\b(fazenda publica|fazenda (?:estadual|municipal|nacional|do estado)|uniao(?!\s+europeia)|estado de [a-z]+|municipio de [a-z]+|autarquia|inss|caixa economica federal|procuradoria|procurador(?:a)?\s+(?:do estado|do municipio|federal|da fazenda|geral)|advocacia geral da uniao|agu|pge|pgm|pgf)\b/, label: 'Fazenda Pública / ente público', cite: 'CPC art. 183' },
   { rx: /\bministerio publico\b/, label: 'Ministério Público', cite: 'CPC art. 180' },
   { rx: /\bdefensoria publica\b/, label: 'Defensoria Pública', cite: 'CPC art. 186' },
 ];
