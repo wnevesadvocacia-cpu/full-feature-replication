@@ -627,11 +627,24 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // (A) REJEITO embargos de declaração → reabre prazo recurso original (CPC 1.026 §1º).
   // GUARDA: literal vence — só aplica se nenhum literal foi detectado.
   if (!chosen) {
-  const mRejeita = text.match(REJEITA_EMBARGOS);
+  const mRejeita = EDCL_MENCIONADOS.test(text) ? text.match(REJEITA_EMBARGOS) : null;
   if (mRejeita) {
     const isSentenca = TERMO_SENTENCA.test(text);
     const isInterloc = TERMO_INTERLOCUTORIA.test(text);
-    if (isSentenca && !isInterloc) {
+    const isAcordao = ACORDAO_RX.test(text);
+    if (isAcordao) {
+      // Acórdão de tribunal com EDcl rejeitados → via ordinária esgotada: RE/REsp 15 d.u.
+      chosen = {
+        rule: { pattern: REJEITA_EMBARGOS, days: 15, unit: 'dias_uteis', label: 'RE/REsp (reaberto após rejeição de EDcl em acórdão)', source: 'CPC', article: 'art. 1.026 §1º + 1.029 + 1.003 §5º', peca: PECA_RESP_RE },
+        matched: mRejeita[0],
+      };
+      confianca = 0.88;
+      classificacaoStatus = 'auto_media';
+      triggerSource = 'context_rejeita';
+      pecaSugerida = PECA_RESP_RE;
+      baseLegalExtra = 'CPC art. 1.026 §1º (rejeição de EDcl reabre prazo) + art. 1.029 (RE/REsp contra acórdão)';
+    } else if (isSentenca && !isInterloc) {
+
       // Pista forte de sentença → apelação 15 d.u.
       chosen = {
         rule: { pattern: REJEITA_EMBARGOS, days: 15, unit: 'dias_uteis', label: 'Apelação (reaberta após rejeição de EDcl)', source: 'CPC', article: 'art. 1.026 §1º + 1.003 §5º + 1.009', peca: PECA_APELACAO },
