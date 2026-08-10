@@ -473,6 +473,13 @@ export const LITERAL_DEADLINE_RX = LITERAL_STRONG_RX;
 // Solução completa: persistir `session_datetime timestamptz` em intimations,
 // calcular `due = session_datetime - interval '48h'` e exibir hora no card.
 // ====================================================================
+// ====== ENCAMINHAMENTO À PAUTA VIRTUAL SEM DATA DE SESSÃO ======
+// Despacho de admissibilidade de recurso JÁ INTERPOSTO ("recurso de apelação hábil a
+// processamento") + remessa para inserção em pauta de julgamento eletrônico. Não abre
+// prazo recursal algum: a apelação já foi protocolada e a pauta ainda será publicada.
+// A janela de destaque/oposição (48h antes) só nasce com a publicação da pauta.
+const RECURSO_JA_INTERPOSTO_RX = /\b(habil a processamento|recebo o recurso|recebida a apelacao|recebo a apelacao|conheco do recurso|juizo de admissibilidade|processamento em ambos os efeitos)\b/;
+const ENCAMINHA_PAUTA_RX = /\b(insercao do recurso em pauta|inser(?:cao|ir) (?:do recurso )?em pauta|inclusao em pauta|pauta de julgamento (?:virtual|eletronic\w+)|julgamento eletronico \(virtual\)|com publicacao previa da pauta)\b/;
 const PAUTA_VIRTUAL_RX = /\b(data da pauta|sessao de julgamento|processo pautado|sessao virtual|resolucao\s+(?:cnj\s+)?591|pautado para (?:a )?sessao)\b/;
 const SESSION_DATE_RX = /\b(\d{2})\/(\d{2})\/(\d{4})(?:[\s,]+(?:as\s+)?(\d{1,2})[h:](\d{2}))?/;
 
@@ -628,6 +635,34 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       },
       baseLegal: `Res. CNJ 591/2024 (sessão virtual) — janela de destaque até 48h antes da sessão`,
       confianca: 0.92,
+      classificacaoStatus: 'auto_alta',
+      triggerSource: 'pauta',
+    };
+  }
+
+  // Despacho meramente ordinatório de remessa à pauta (sem data de sessão): informativo.
+  if (!pauta && ENCAMINHA_PAUTA_RX.test(text) && RECURSO_JA_INTERPOSTO_RX.test(text)) {
+    return {
+      days: 0,
+      unit: 'dias_corridos',
+      label: 'Sem prazo — recurso admitido e remetido à pauta de julgamento virtual',
+      source: 'CPC',
+      article: 'art. 1.010 §3º + Res. CNJ 591/2024',
+      matchedText: (text.match(ENCAMINHA_PAUTA_RX) || [''])[0],
+      doubled: false,
+      dueDate: null,
+      startDate: null,
+      severity: 'normal',
+      businessDaysLeft: 0,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Acompanhamento (sem peça devida)',
+        fundamento_legal: 'Res. CNJ 591/2024 art. 9º',
+        prazo_dias: 0,
+        observacoes: 'Recurso já interposto e admitido; autos remetidos para inserção em pauta de julgamento eletrônico. Prazo de 48h para pedido de destaque/oposição só corre após a publicação da pauta com a data da sessão.',
+      },
+      baseLegal: 'Despacho de admissibilidade + remessa à pauta virtual — não abre prazo recursal',
+      confianca: 0.9,
       classificacaoStatus: 'auto_alta',
       triggerSource: 'pauta',
     };
