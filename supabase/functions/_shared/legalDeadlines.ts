@@ -1,7 +1,7 @@
 // Detector de prazos processuais a partir do conteúdo de publicações/intimações.
 // Regra geral: contagem em dias úteis (CPC art. 219), excluindo o dia do início
 // e incluindo o dia do vencimento, com prorrogação para o próximo dia útil.
-// Calendário CNJ aplicado via lib/cnjCalendar.ts (feriados nacionais + recesso 20/12-20/01).
+// Calendário CNJ aplicado via lib/cnjCalendar (feriados nacionais + recesso 20/12-20/01).
 //
 // IMPORTANTE: Esta detecção é uma SUGESTÃO baseada em padrões textuais da praxis forense.
 // O advogado responsável deve SEMPRE conferir o prazo no diploma processual aplicável
@@ -18,7 +18,7 @@
 //     'ambigua_urgente' + sugestão dupla (apelação OU agravo de instrumento).
 //   * Confiança < 0.8 → 'auto_baixa', UI deve mostrar badge âmbar e exigir revisão.
 
-import { isBusinessDay, nextBusinessDay } from './cnjCalendar.ts';
+import { isBusinessDay, nextBusinessDay } from './cnjCalendar';
 
 export type DeadlineSource = 'CPC' | 'CPP' | 'CLT' | 'JEC' | 'JEF' | 'TST' | 'STF' | 'CTN' | 'desconhecido';
 export type DeadlineUnit = 'dias_uteis' | 'dias_corridos';
@@ -508,6 +508,11 @@ const ATO_SEM_PRAZO_RX = /\b(arquive[ -]?se|arquivem[ -]?se os autos|baixa defin
 // Se houver qualquer determinação de ato ou prazo, NÃO é ato informativo.
 const ATO_COM_DETERMINACAO_RX = /\b(prazo|manifeste[ -]?se|manifestem[ -]?se|apresente|apresentem|cumpra[ -]?se a decisao|comprove|impugne|conteste|recolha|pague|providencie|informe|esclareca|requeira|sob pena|intime[ -]?se .{0,40}para|especifiquem|contrarrazoes|contraminuta|emende|regularize)\b/;
 
+// ====== MIGRAÇÃO DE SISTEMA PROCESSUAL (MERA CIÊNCIA, SEM PRAZO) ======
+// Ex.: TJSP comunicando que o processo passa do e-SAJ para o eproc, com pedido de
+// credenciamento/verificação cadastral — providência administrativa, não ato processual.
+const MIGRACAO_SISTEMA_RX = /\b(pass(?:ara|ou|a) a tramitar (?:eletronicamente )?(?:no|pelo) sistema|migra(?:cao|do|r) (?:para|ao) o? ?sistema (?:eproc|pje|esaj|e-saj|projudi)|credenciamento no (?:sistema )?(?:eproc|pje|projudi)|comunicacoes subsequentes serao realizadas pelo sistema)\b/;
+
 const PAUTA_VIRTUAL_RX = /\b(data da pauta|sessao de julgamento|processo pautado|sessao virtual|resolucao\s+(?:cnj\s+)?591|pautado para (?:a )?sessao)\b/;
 const SESSION_DATE_RX = /\b(\d{2})\/(\d{2})\/(\d{4})(?:[\s,]+(?:as\s+)?(\d{1,2})[h:](\d{2}))?/;
 
@@ -709,6 +714,36 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       triggerSource: 'pauta',
     };
   }
+
+  // Comunicação de migração de sistema processual (ex.: e-SAJ → eproc): mera ciência,
+  // sem ato a praticar e sem prazo. O "credenciamento" é providência administrativa.
+  if (MIGRACAO_SISTEMA_RX.test(text)) {
+    return {
+      days: 0,
+      unit: 'dias_corridos',
+      label: 'Sem prazo — ciência de migração de sistema processual',
+      source: 'CPC',
+      article: 'art. 218 §3º (não há ato processual a praticar)',
+      matchedText: (text.match(MIGRACAO_SISTEMA_RX) || [''])[0],
+      doubled: false,
+      dueDate: null,
+      startDate: null,
+      severity: 'normal',
+      businessDaysLeft: 0,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Ciência (sem peça devida)',
+        fundamento_legal: 'Res. CNJ — tramitação eletrônica',
+        prazo_dias: 0,
+        observacoes: 'Publicação apenas cientifica as partes de que o processo passará a tramitar em outro sistema eletrônico (credenciamento/verificação cadastral). Não há prazo processual em curso.',
+      },
+      baseLegal: 'Comunicação administrativa de migração de sistema — não abre prazo processual',
+      confianca: 0.93,
+      classificacaoStatus: 'auto_alta',
+      triggerSource: 'fallback',
+    };
+  }
+
 
   // ====== P0 #3: PARSER LITERAL DE PRAZO (TRAVA OVERRIDE de RULES e contexto) ======
   const literal = extractLiteralDeadline(text);

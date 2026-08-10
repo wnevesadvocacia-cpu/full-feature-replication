@@ -176,3 +176,16 @@ describe('motor — publicações sem prazo (coerência)', () => {
     expect(det?.days).toBe(5);
   });
 });
+
+describe('motor — migração de sistema processual', () => {
+  it('comunicação de migração para o eproc é apenas ciência, sem prazo', () => {
+    const d = detectDeadline(
+      'Ficam as partes e respectivos representantes cientificados de que o presente processo passará a tramitar eletronicamente no Sistema Eproc do Tribunal de Justiça do Estado de São Paulo. Ficam intimados os procuradores para que providenciem o credenciamento no eproc. As comunicações subsequentes serão realizadas pelo sistema eproc.',
+      REF, REF,
+    )!;
+    expect(d.days).toBe(0);
+    expect(d.dueDate).toBeNull();
+    expect(d.isFallback).toBe(false);
+    expect(d.label).toMatch(/ciência de migração/);
+  });
+});
