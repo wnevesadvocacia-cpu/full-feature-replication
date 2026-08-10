@@ -33,7 +33,8 @@ const SISTEMA_BY_SIGLA: Record<string, [string, string[]?]> = {
   TJAC: ['e-SAJ'], TJAL: ['e-SAJ', ['PJe']], TJAP: ['PJe'], TJAM: ['Projudi', ['e-SAJ', 'PJe']],
   TJBA: ['PJe', ['Projudi']], TJCE: ['PJe', ['e-SAJ']], TJDFT: ['PJe'], TJES: ['PJe'],
   TJGO: ['Projudi', ['PJe']], TJMA: ['PJe'], TJMT: ['PJe'], TJMS: ['e-SAJ'],
-  TJMG: ['PJe', ['Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
+  // TJMG: migração para eproc (implantação por comarcas desde 2025); PJe/Themis/SEEU seguem como legado.
+  TJMG: ['eproc', ['PJe', 'Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
   TJPR: ['Projudi', ['PJe']], TJPE: ['PJe'], TJPI: ['PJe'], TJRJ: ['PJe', ['e-Proc / Portal TJRJ']],
   TJRN: ['PJe'], TJRS: ['eproc', ['Themis']], TJRO: ['PJe'], TJRR: ['PJe', ['Projudi']],
   TJSC: ['eproc', ['e-SAJ']], TJSP: ['e-SAJ', ['PJe (2º grau/JEF)']], TJSE: ['PJe'], TJTO: ['eproc'],
