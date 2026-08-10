@@ -4,6 +4,11 @@
 // Acesso restrito a admin via has_role().
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { detectDeadline } from '../_shared/legalDeadlines.ts';
+import {
+  clearLegalCalendarCache,
+  setSuspensionWindow,
+  setTribunalHolidaySet,
+} from '../_shared/cnjCalendar.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,10 +53,35 @@ Deno.serve(async (req) => {
     let withoutDeadline = 0;
     const triggerCounts: Record<string, number> = {};
 
+    clearLegalCalendarCache();
+    const [{ data: suspensions, error: suspensionsError }, { data: tribunalHolidays, error: holidaysError }] = await Promise.all([
+      admin.from('judicial_suspensions').select('start_date,end_date'),
+      admin.from('tribunal_holidays').select('tribunal_codigo,holiday_date'),
+    ]);
+    if (suspensionsError || holidaysError) {
+      return json({ error: suspensionsError?.message || holidaysError?.message }, 500);
+    }
+    const suspendedDates: string[] = [];
+    for (const suspension of suspensions || []) {
+      const start = new Date(`${suspension.start_date}T12:00:00Z`);
+      const end = new Date(`${suspension.end_date}T12:00:00Z`);
+      for (let date = new Date(start); date <= end; date.setUTCDate(date.getUTCDate() + 1)) {
+        suspendedDates.push(date.toISOString().slice(0, 10));
+      }
+    }
+    setSuspensionWindow(suspendedDates);
+    const holidaysByTribunal = new Map<string, string[]>();
+    for (const holiday of tribunalHolidays || []) {
+      const dates = holidaysByTribunal.get(holiday.tribunal_codigo) || [];
+      dates.push(holiday.holiday_date);
+      holidaysByTribunal.set(holiday.tribunal_codigo, dates);
+    }
+    holidaysByTribunal.forEach((dates, tribunal) => setTribunalHolidaySet(tribunal, dates));
+
     while (true) {
       const { data: rows, error } = await admin
         .from('intimations')
-        .select('id, content, received_at')
+        .select('id, content, received_at, court')
         .order('id', { ascending: true })
         .range(from, from + PAGE - 1);
       if (error) return json({ error: error.message, processed }, 500);
@@ -59,7 +89,8 @@ Deno.serve(async (req) => {
 
       for (const r of rows) {
         try {
-          const detected = detectDeadline(r.content || '', r.received_at, today);
+          const tribunal = String(r.court || '').toUpperCase().match(/\b(?:STF|STJ|TST|TSE|STM|TRF[1-6]|TRT\d{1,2}|TRE-[A-Z]{2}|TJ[A-Z]{2})\b/)?.[0];
+          const detected = detectDeadline(r.content || '', r.received_at, today, { tribunal });
           const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;
           const deadlineV2 = isSafe ? detected!.dueDate : null;
           const meta = detected ? {
