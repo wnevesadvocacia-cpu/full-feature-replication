@@ -31,18 +31,20 @@ export type TribunalInfo = {
 const SISTEMA_BY_SIGLA: Record<string, [string, string[]?]> = {
   // ===== Justiça Estadual =====
   TJAC: ['e-SAJ'], TJAL: ['e-SAJ', ['PJe']], TJAP: ['PJe'], TJAM: ['Projudi', ['e-SAJ', 'PJe']],
-  TJBA: ['PJe', ['Projudi']], TJCE: ['PJe', ['e-SAJ']], TJDFT: ['PJe'], TJES: ['PJe'],
-  TJGO: ['Projudi', ['PJe']], TJMA: ['PJe'], TJMT: ['PJe'], TJMS: ['e-SAJ'],
-  // TJMG: migração para eproc (implantação por comarcas desde 2025); PJe/Themis/SEEU seguem como legado.
+  TJBA: ['PJe', ['eproc (em implantação)']], TJCE: ['PJe', ['e-SAJ']], TJDFT: ['PJe'], TJES: ['PJe'],
+  TJGO: ['Projudi', ['PJe']], TJMA: ['PJe'], TJMT: ['PJe'], TJMS: ['e-SAJ', ['eproc (em implantação)']],
+  // TJMG: eproc é sistema único (Port. Conjunta 1720/PR/2025); PJe/Themis/SEEU seguem como legado.
   TJMG: ['eproc', ['PJe', 'Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
-  TJPR: ['Projudi', ['PJe']], TJPE: ['PJe'], TJPI: ['PJe'], TJRJ: ['PJe', ['e-Proc / Portal TJRJ']],
+  TJPR: ['Projudi', ['eproc (em implantação)']], TJPE: ['PJe'], TJPI: ['PJe'],
+  TJRJ: ['PJe', ['eproc (em implantação)', 'Portal de Serviços TJRJ']],
   TJRN: ['PJe'], TJRS: ['eproc', ['Themis']], TJRO: ['PJe'], TJRR: ['PJe', ['Projudi']],
   TJSC: ['eproc', ['e-SAJ']], TJSP: ['e-SAJ', ['PJe (2º grau/JEF)']], TJSE: ['PJe'], TJTO: ['eproc'],
   // ===== Justiça Federal =====
-  TRF1: ['PJe'], TRF2: ['eproc', ['PJe']], TRF3: ['PJe'], TRF4: ['eproc'], TRF5: ['PJe'], TRF6: ['PJe'],
+  TRF1: ['PJe'], TRF2: ['eproc', ['PJe']], TRF3: ['PJe'], TRF4: ['eproc'], TRF5: ['PJe'],
+  TRF6: ['eproc', ['PJe (legado)']],
   CJF: ['PJe'],
   // ===== Superiores / especiais =====
-  STF: ['STF Digital (peticionamento eletrônico)'], STJ: ['e-STJ / Processo Eletrônico'],
+  STF: ['e-STF (Portal do Processo Eletrônico)'], STJ: ['CPE — Central do Processo Eletrônico'],
   TST: ['PJe'], TSE: ['PJe'], STM: ['e-Proc STM'],
   // ===== Justiça Militar Estadual =====
   'TJM-SP': ['e-SAJ'], 'TJM-MG': ['PJe'], 'TJM-RS': ['eproc'],
