@@ -21,7 +21,7 @@ describe('regressões permanentes — pauta e diligências do juízo', () => {
   it(cases[1].name, () => {
     const d = detectDeadline(cases[1].text, '2026-08-10', '2026-08-10', { tribunal: 'TJSP' });
     expect(d?.days).toBe(15);
-    expect(d?.matchedText).toMatch(/manifeste-se/);
+    expect(d?.matchedText).toMatch(/prazo de 15/);
   });
 
   for (const testCase of cases) {
