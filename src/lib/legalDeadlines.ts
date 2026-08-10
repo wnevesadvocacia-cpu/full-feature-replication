@@ -515,6 +515,10 @@ const ATO_COM_DETERMINACAO_RX = /\b(prazo|manifeste[ -]?se|manifestem[ -]?se|apr
 // ====== MIGRAÇÃO DE SISTEMA PROCESSUAL (MERA CIÊNCIA, SEM PRAZO) ======
 // Ex.: TJSP comunicando que o processo passa do e-SAJ para o eproc, com pedido de
 // credenciamento/verificação cadastral — providência administrativa, não ato processual.
+function temDiligenciaFora(t: string): boolean {
+  return !!extractLiteralDeadline(t) || COMANDO_PARTE_RX.test(t) || ATO_COM_DETERMINACAO_RX.test(t);
+}
+
 const MIGRACAO_SISTEMA_RX = /\b(pass(?:ara|ou|a) a tramitar (?:eletronicamente )?(?:no|pelo) sistema|migra(?:cao|do|r) (?:para|ao) o? ?sistema (?:eproc|pje|esaj|e-saj|projudi)|credenciamento no (?:sistema )?(?:eproc|pje|projudi)|comunicacoes subsequentes serao realizadas pelo sistema)\b/;
 
 const PAUTA_VIRTUAL_RX = /\b(data da pauta|sessao de julgamento|processo pautado|sessao virtual|resolucao\s+(?:cnj\s+)?591|pautado para (?:a )?sessao)\b/;
@@ -721,7 +725,11 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // Comunicação de migração de sistema processual (ex.: e-SAJ → eproc): mera ciência,
   // sem ato a praticar e sem prazo. O "credenciamento" é providência administrativa.
-  if (MIGRACAO_SISTEMA_RX.test(text)) {
+  // Só é mera ciência se, retirados os trechos de migração/credenciamento, não sobrar
+  // nenhuma diligência a cumprir. Havendo diligência (com prazo literal ou não), o motor
+  // segue o fluxo normal — inclusive o fallback de 5 d.u. (CPC art. 218 §3º).
+  const MIGRACAO_TRECHO_RX = /[^.;]*(?:pass(?:ara|ou|a) a tramitar|credenciamento no|credenciada|comunicacoes subsequentes|migra(?:cao|do|r) (?:para|ao)|cadastro imediato|cronograma d\w+ implantacao|dados cadastrais)[^.;]*/g;
+  if (MIGRACAO_SISTEMA_RX.test(text) && !temDiligenciaFora(text.replace(MIGRACAO_TRECHO_RX, ' '))) {
     return {
       days: 0,
       unit: 'dias_corridos',
