@@ -154,3 +154,25 @@ describe('motor de prazos — atos postulatórios e regra geral', () => {
     expect(d.startDate).toBeTruthy();
   });
 });
+
+describe('motor — publicações sem prazo (coerência)', () => {
+  it('despacho que admite recurso já interposto e remete à pauta virtual não abre prazo', () => {
+    const det = detectDeadline(
+      'Recurso de apelação hábil a processamento em ambos os efeitos, nos termos do art. 1.012 do CPC. Encaminhem-se os autos para inserção do recurso em pauta de julgamento eletrônico (virtual), com publicação prévia da pauta.',
+      '2026-08-10', '2026-08-10',
+    );
+    expect(det?.days).toBe(0);
+    expect(det?.dueDate).toBeNull();
+  });
+
+  it('arquivamento/trânsito em julgado é informativo, sem fallback de 5 dias', () => {
+    const det = detectDeadline('Certifico o trânsito em julgado da sentença. Arquive-se.', '2026-08-10', '2026-08-10');
+    expect(det?.days).toBe(0);
+    expect(det?.isFallback).toBe(false);
+  });
+
+  it('ato informativo com determinação expressa mantém prazo', () => {
+    const det = detectDeadline('Expeça-se ofício. Manifeste-se a parte autora no prazo de 5 dias.', '2026-08-10', '2026-08-10');
+    expect(det?.days).toBe(5);
+  });
+});
