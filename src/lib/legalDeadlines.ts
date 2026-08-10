@@ -480,6 +480,15 @@ export const LITERAL_DEADLINE_RX = LITERAL_STRONG_RX;
 // A janela de destaque/oposição (48h antes) só nasce com a publicação da pauta.
 const RECURSO_JA_INTERPOSTO_RX = /\b(habil a processamento|recebo o recurso|recebida a apelacao|recebo a apelacao|conheco do recurso|juizo de admissibilidade|processamento em ambos os efeitos)\b/;
 const ENCAMINHA_PAUTA_RX = /\b(insercao do recurso em pauta|inser(?:cao|ir) (?:do recurso )?em pauta|inclusao em pauta|pauta de julgamento (?:virtual|eletronic\w+)|julgamento eletronico \(virtual\)|com publicacao previa da pauta)\b/;
+// ====== ATOS MERAMENTE ORDINATÓRIOS / INFORMATIVOS (SEM PRAZO) ======
+// Publicações que não intimam a praticar ato algum não podem receber o fallback de
+// 5 dias úteis (CPC art. 218 §3º), que só incide quando a lei/juiz determina ato
+// sem fixar prazo. Ex.: arquivamento, baixa, trânsito em julgado certificado,
+// mera ciência, juntada certificada, expedição de ofício/mandado, remessa/conclusão.
+const ATO_SEM_PRAZO_RX = /\b(arquive[ -]?se|arquivem[ -]?se os autos|baixa definitiva|arquivamento definitivo|transit(?:ou|ado) em julgado|certifico o transito em julgado|de[ -]?se ciencia|dou ciencia|ciencia as partes|para ciencia|certifico (?:a )?juntada|juntada (?:de|da) peticao|expeca[ -]?se|expedido (?:o )?(?:oficio|mandado|alvara)|remetam[ -]?se os autos|redistribuido|conclusos ao|nada mais a decidir)\b/;
+// Se houver qualquer determinação de ato ou prazo, NÃO é ato informativo.
+const ATO_COM_DETERMINACAO_RX = /\b(prazo|manifeste[ -]?se|manifestem[ -]?se|apresente|apresentem|cumpra[ -]?se a decisao|comprove|impugne|conteste|recolha|pague|providencie|informe|esclareca|requeira|sob pena|intime[ -]?se .{0,40}para|especifiquem|contrarrazoes|contraminuta|emende|regularize)\b/;
+
 const PAUTA_VIRTUAL_RX = /\b(data da pauta|sessao de julgamento|processo pautado|sessao virtual|resolucao\s+(?:cnj\s+)?591|pautado para (?:a )?sessao)\b/;
 const SESSION_DATE_RX = /\b(\d{2})\/(\d{2})\/(\d{4})(?:[\s,]+(?:as\s+)?(\d{1,2})[h:](\d{2}))?/;
 
@@ -836,6 +845,34 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       const m = text.match(rule.pattern);
       if (m) { chosen = { rule, matched: m[0] }; confianca = rule.confianca ?? 0.8; triggerSource = 'rules'; break; }
     }
+  }
+
+  // ====== ATO ORDINATÓRIO/INFORMATIVO: não aplica fallback de 5 dias ======
+  if (!chosen && ATO_SEM_PRAZO_RX.test(text) && !ATO_COM_DETERMINACAO_RX.test(text)) {
+    return {
+      days: 0,
+      unit: 'dias_corridos',
+      label: 'Sem prazo — ato ordinatório/informativo',
+      source: 'CPC',
+      article: 'art. 218 §3º (inaplicável — não há ato a praticar)',
+      matchedText: (text.match(ATO_SEM_PRAZO_RX) || [''])[0],
+      doubled: false,
+      dueDate: null,
+      startDate: null,
+      severity: 'normal',
+      businessDaysLeft: 0,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Acompanhamento (sem peça devida)',
+        fundamento_legal: 'CPC art. 218 §3º',
+        prazo_dias: 0,
+        observacoes: 'Publicação de conteúdo ordinatório/informativo (arquivamento, ciência, juntada, expedição, remessa). Não há determinação de ato — nenhum prazo corre. Conferir o inteiro teor.',
+      },
+      baseLegal: 'Ato ordinatório/informativo — não abre prazo (CPC art. 218 §3º pressupõe ato a praticar)',
+      confianca: 0.85,
+      classificacaoStatus: 'auto_media',
+      triggerSource: 'pauta',
+    };
   }
 
   // ====== FALLBACK CPC 218 §3º (5 dias úteis) ======
