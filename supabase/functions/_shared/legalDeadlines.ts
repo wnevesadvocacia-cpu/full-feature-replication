@@ -417,9 +417,13 @@ function collectMatches(rx: RegExp, text: string): RegExpExecArray[] {
 // (SISBAJUD reiterada/teimosinha), suspensão do art. 921, arquivamento provisório,
 // prescrição intercorrente, bloqueio/penhora online.
 const NAO_PRAZO_PARTE_CTX_RX = /(sisbajud|reiterad\w*|teimosinh\w*|bloqueio de ativos|penhora online|suspend\w+|suspens\w+|arquivamento provisorio|921|prescric\w+)/;
+const COMANDO_PARTE_RX = /\b(manifeste[ -]?se|manifestem[ -]?se|apresente|apresentem|comprove|comprovem|impugne|impugnem|conteste|contestem|recolha|recolham|pague|paguem|providencie|providenciem|informe|informem|esclareca|esclarecam|requeira|requeiram|emende|emendem|regularize|regularizem)\b/;
 
 /** Verifica se o match de prazo literal está em contexto de prazo da parte. */
-function isPartyDeadlineMatch(normText: string, index: number): boolean {
+function isPartyDeadlineMatch(normText: string, index: number, matched: string): boolean {
+  // Um comando dirigido à parte no próprio match sempre prevalece sobre menções
+  // anteriores a SISBAJUD, suspensão ou arquivamento na mesma publicação.
+  if (COMANDO_PARTE_RX.test(matched)) return true;
   const before = normText.slice(Math.max(0, index - 140), index);
   return !NAO_PRAZO_PARTE_CTX_RX.test(before);
 }
@@ -438,7 +442,7 @@ export function extractLiteralDeadline(normText: string): LiteralMatch | null {
 
   // 1) STRONG dentro do dispositivo (ou no texto inteiro, último match).
   const strong = collectMatches(LITERAL_STRONG_RX, haystack)
-    .filter((m) => isPartyDeadlineMatch(haystack, m.index));
+    .filter((m) => isPartyDeadlineMatch(haystack, m.index, m[0]));
   if (strong.length) {
     const pick = dispIdx >= 0 ? strong[0] : strong[strong.length - 1];
     const parsed = parseMatch(pick);
@@ -454,7 +458,7 @@ export function extractLiteralDeadline(normText: string): LiteralMatch | null {
 
   // 2) WEAK fallback (delta 1).
   const weak = collectMatches(LITERAL_WEAK_RX, haystack)
-    .filter((m) => isPartyDeadlineMatch(haystack, m.index));
+    .filter((m) => isPartyDeadlineMatch(haystack, m.index, m[0]));
   if (weak.length) {
 
     const pick = dispIdx >= 0 ? weak[0] : weak[weak.length - 1];

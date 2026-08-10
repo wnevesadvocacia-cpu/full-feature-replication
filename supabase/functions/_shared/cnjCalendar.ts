@@ -1,7 +1,7 @@
 // Port Deno-compatível de src/lib/cnjCalendar.ts (PR2 — edge unificada).
 // Mantém API idêntica. Diferenças vs frontend:
 //   * cityHolidays removido (edge não exibe agenda municipal).
-//   * suspensions/tribunal_holidays mantidos como setters no-op (edge pode hidratar via DB no futuro).
+//   * suspensions/tribunal_holidays são hidratados pelas funções antes do cálculo.
 
 const FIXED: Array<[number, number]> = [
   [1, 1], [4, 21], [5, 1], [9, 7], [10, 12], [11, 2], [11, 15], [11, 20], [12, 25], [12, 8],
