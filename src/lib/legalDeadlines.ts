@@ -710,6 +710,36 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     };
   }
 
+  // Comunicação de migração de sistema processual (ex.: e-SAJ → eproc): mera ciência,
+  // sem ato a praticar e sem prazo. O "credenciamento" é providência administrativa.
+  if (MIGRACAO_SISTEMA_RX.test(text)) {
+    return {
+      days: 0,
+      unit: 'dias_corridos',
+      label: 'Sem prazo — ciência de migração de sistema processual',
+      source: 'CPC',
+      article: 'art. 218 §3º (não há ato processual a praticar)',
+      matchedText: (text.match(MIGRACAO_SISTEMA_RX) || [''])[0],
+      doubled: false,
+      dueDate: null,
+      startDate: null,
+      severity: 'normal',
+      businessDaysLeft: 0,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Ciência (sem peça devida)',
+        fundamento_legal: 'Res. CNJ — tramitação eletrônica',
+        prazo_dias: 0,
+        observacoes: 'Publicação apenas cientifica as partes de que o processo passará a tramitar em outro sistema eletrônico (credenciamento/verificação cadastral). Não há prazo processual em curso.',
+      },
+      baseLegal: 'Comunicação administrativa de migração de sistema — não abre prazo processual',
+      confianca: 0.93,
+      classificacaoStatus: 'auto_alta',
+      triggerSource: 'informativo',
+    };
+  }
+
+
   // ====== P0 #3: PARSER LITERAL DE PRAZO (TRAVA OVERRIDE de RULES e contexto) ======
   const literal = extractLiteralDeadline(text);
   if (literal) {
