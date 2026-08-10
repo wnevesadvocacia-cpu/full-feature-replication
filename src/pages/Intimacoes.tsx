@@ -707,7 +707,7 @@ export default function Intimacoes() {
       ) : (
         <div className="space-y-2">
           {filtered.map((it) => {
-            const tribInfo = tribunalFromCNJ(extractCnjs(it.content)[0]);
+            const tribInfo = tribunalFromCNJ(extractCnjs(it.content)[0], it.content);
             const tribunal = tribInfo?.sigla ?? null;
             const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO(), { tribunal });
             const isUnsafe = !!it.classificacao_status && UNSAFE_STATUSES.has(it.classificacao_status);
