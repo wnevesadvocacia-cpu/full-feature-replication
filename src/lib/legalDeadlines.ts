@@ -413,6 +413,17 @@ function collectMatches(rx: RegExp, text: string): RegExpExecArray[] {
   return out;
 }
 
+// Contextos em que "prazo de N dias" NÃO é prazo da parte: diligências do juízo
+// (SISBAJUD reiterada/teimosinha), suspensão do art. 921, arquivamento provisório,
+// prescrição intercorrente, bloqueio/penhora online.
+const NAO_PRAZO_PARTE_CTX_RX = /(sisbajud|reiterad\w*|teimosinh\w*|bloqueio de ativos|penhora online|suspend\w+|suspens\w+|arquivamento provisorio|921|prescric\w+)/;
+
+/** Verifica se o match de prazo literal está em contexto de prazo da parte. */
+function isPartyDeadlineMatch(normText: string, index: number): boolean {
+  const before = normText.slice(Math.max(0, index - 140), index);
+  return !NAO_PRAZO_PARTE_CTX_RX.test(before);
+}
+
 /**
  * Extrai prazo literal aplicando heurística de dispositivo:
  *  - Se houver marcador ("ANTE O EXPOSTO" etc.), aplica trigger SOMENTE depois →
@@ -421,6 +432,7 @@ function collectMatches(rx: RegExp, text: string): RegExpExecArray[] {
  *  - Se nenhum strong, tenta WEAK ("em N dias" puro) com mesma heurística → 0.85.
  */
 export function extractLiteralDeadline(normText: string): LiteralMatch | null {
+
   const dispIdx = findLastDispositivoIndex(normText);
   const haystack = dispIdx >= 0 ? normText.slice(dispIdx) : normText;
 
