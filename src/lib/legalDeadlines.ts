@@ -509,16 +509,30 @@ const SESSION_DATE_RX = /\b(\d{2})\/(\d{2})\/(\d{4})(?:[\s,]+(?:as\s+)?(\d{1,2})
 
 interface PautaMatch { sessionISO: string; sessionTime: string | null; matched: string; }
 
+// Datas que NUNCA são data de sessão (cabeçalho da intimação, disponibilização, etc.).
+const DATA_NAO_SESSAO_CTX_RX = /(disponibiliza\w*|publicac\w*|data-base|transito em julgado|distribuic\w*|autuad\w*|protocol\w*)[^.]{0,40}$/;
+
 function extractPautaSessao(normText: string): PautaMatch | null {
-  if (!PAUTA_VIRTUAL_RX.test(normText)) return null;
-  // Busca primeira data DD/MM/AAAA próxima do gatilho ou no texto inteiro
-  const dm = normText.match(SESSION_DATE_RX);
-  if (!dm) return null;
-  const [, dd, mm, yyyy, hh, mi] = dm;
+  const trigger = normText.match(PAUTA_VIRTUAL_RX);
+  if (!trigger) return null;
+  // Prefere a data que aparece APÓS o gatilho de pauta; ignora datas de cabeçalho
+  // ("Data de disponibilização: ..."), que não são a data da sessão.
+  const triggerIdx = trigger.index ?? 0;
+  const re = new RegExp(SESSION_DATE_RX.source, 'g');
+  let m: RegExpExecArray | null;
+  let fallback: RegExpExecArray | null = null;
+  while ((m = re.exec(normText)) !== null) {
+    if (DATA_NAO_SESSAO_CTX_RX.test(normText.slice(Math.max(0, m.index - 60), m.index))) continue;
+    if (m.index >= triggerIdx) { fallback = m; break; }
+    if (!fallback) fallback = m;
+  }
+  if (!fallback) return null;
+  const [, dd, mm, yyyy, hh, mi] = fallback;
   const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
   const time = hh ? `${hh.padStart(2, '0')}:${mi}` : null;
-  return { sessionISO: iso, sessionTime: time, matched: dm[0] };
+  return { sessionISO: iso, sessionTime: time, matched: fallback[0] };
 }
+
 
 /** Subtrai N dias corridos de uma data ISO; recua para dia útil anterior se cair em não-útil. */
 function subCalendarDaysToBusiness(iso: string, days: number): string {
