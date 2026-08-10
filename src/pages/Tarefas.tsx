@@ -672,7 +672,7 @@ export default function Tarefas() {
                           const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
                           const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
                           const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
-                          const trib = tribunalFromCNJ(cnjCandidate);
+                          const trib = tribunalFromCNJ(cnjCandidate, rawText);
                           if (!trib || !trib.cnjValido) return null;
                           return (
                             <>

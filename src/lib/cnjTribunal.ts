@@ -33,8 +33,9 @@ const SISTEMA_BY_SIGLA: Record<string, [string, string[]?]> = {
   TJAC: ['e-SAJ'], TJAL: ['e-SAJ', ['PJe']], TJAP: ['PJe'], TJAM: ['Projudi', ['e-SAJ', 'PJe']],
   TJBA: ['PJe', ['eproc (em implantação)']], TJCE: ['PJe', ['e-SAJ']], TJDFT: ['PJe'], TJES: ['PJe'],
   TJGO: ['Projudi', ['PJe']], TJMA: ['PJe'], TJMT: ['PJe'], TJMS: ['e-SAJ', ['eproc (em implantação)']],
-  // TJMG: eproc é sistema único (Port. Conjunta 1720/PR/2025); PJe/Themis/SEEU seguem como legado.
-  TJMG: ['eproc', ['PJe', 'Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
+  // TJMG: migração para o eproc é gradual por comarca/unidade (Port. Conjunta 1720/PR/2025);
+  // sem indicação no texto da publicação o sistema é ambíguo (PJe ainda ativo em muitas unidades).
+  TJMG: ['PJe ou eproc', ['PJe', 'eproc', 'Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
   TJPR: ['Projudi', ['eproc (em implantação)']], TJPE: ['PJe'], TJPI: ['PJe'],
   TJRJ: ['PJe', ['eproc (em implantação)', 'Portal de Serviços TJRJ']],
   TJRN: ['PJe'], TJRS: ['eproc', ['Themis']], TJRO: ['PJe'], TJRR: ['PJe', ['Projudi']],
@@ -61,13 +62,32 @@ export function sistemaFromSigla(sigla?: string | null): { sistema?: string; alt
   return {};
 }
 
+/** Detecta menção explícita ao sistema no texto da publicação (prevalece sobre o padrão do tribunal). */
+export function sistemaFromContent(content?: string | null): string | null {
+  if (!content) return null;
+  const t = content.toLowerCase();
+  if (/\beproc\b|e-?proc\b/.test(t)) return 'eproc';
+  if (/\bpje\b|processo judicial eletr[oô]nico/.test(t)) return 'PJe';
+  if (/\be-?saj\b|esaj\b/.test(t)) return 'e-SAJ';
+  if (/\bprojudi\b/.test(t)) return 'Projudi';
+  if (/\bthemis\b/.test(t)) return 'Themis';
+  if (/\blibra\b/.test(t)) return 'Libra';
+  return null;
+}
+
 /** Wrapper público: resolve tribunal e enriquece com o sistema de tramitação eletrônica. */
-export function tribunalFromCNJ(numero?: string | null): TribunalInfo | null {
+export function tribunalFromCNJ(numero?: string | null, content?: string | null): TribunalInfo | null {
   const base = resolveTribunal(numero);
   if (!base) return null;
   const { sistema, alternativos } = sistemaFromSigla(base.sigla);
+  const hint = sistemaFromContent(content);
+  if (hint) {
+    const alt = (alternativos ?? (sistema ? [sistema] : [])).filter((s) => s !== hint);
+    return { ...base, sistema: hint, sistemasAlternativos: alt.length ? alt : undefined };
+  }
   return { ...base, sistema, sistemasAlternativos: alternativos };
 }
+
 
 function resolveTribunal(numero?: string | null): TribunalInfo | null {
   if (!numero) return null;
