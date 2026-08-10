@@ -428,6 +428,11 @@ function isPartyDeadlineMatch(normText: string, index: number, matched: string):
   // Um comando dirigido à parte no próprio match sempre prevalece sobre menções
   // anteriores a SISBAJUD, suspensão ou arquivamento na mesma publicação.
   if (COMANDO_PARTE_RX.test(matched)) return true;
+  // Comando dirigido à parte na MESMA frase (ex.: "recolha o interessado a taxa ... em 15 dias")
+  // também prevalece: o prazo é da parte, ainda que a frase enumere sistemas (Sisbajud etc.).
+  const sentStart = Math.max(normText.lastIndexOf('.', index), normText.lastIndexOf(';', index));
+  const sameSentence = normText.slice(sentStart + 1, index);
+  if (COMANDO_PARTE_RX.test(sameSentence)) return true;
   const before = normText.slice(Math.max(0, index - 140), index);
   return !NAO_PRAZO_PARTE_CTX_RX.test(before);
 }
