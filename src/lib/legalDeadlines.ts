@@ -437,7 +437,8 @@ export function extractLiteralDeadline(normText: string): LiteralMatch | null {
   const haystack = dispIdx >= 0 ? normText.slice(dispIdx) : normText;
 
   // 1) STRONG dentro do dispositivo (ou no texto inteiro, último match).
-  const strong = collectMatches(LITERAL_STRONG_RX, haystack);
+  const strong = collectMatches(LITERAL_STRONG_RX, haystack)
+    .filter((m) => isPartyDeadlineMatch(haystack, m.index));
   if (strong.length) {
     const pick = dispIdx >= 0 ? strong[0] : strong[strong.length - 1];
     const parsed = parseMatch(pick);
@@ -452,8 +453,10 @@ export function extractLiteralDeadline(normText: string): LiteralMatch | null {
   }
 
   // 2) WEAK fallback (delta 1).
-  const weak = collectMatches(LITERAL_WEAK_RX, haystack);
+  const weak = collectMatches(LITERAL_WEAK_RX, haystack)
+    .filter((m) => isPartyDeadlineMatch(haystack, m.index));
   if (weak.length) {
+
     const pick = dispIdx >= 0 ? weak[0] : weak[weak.length - 1];
     const parsed = parseMatch(pick);
     if (parsed) {
