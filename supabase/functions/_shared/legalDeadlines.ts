@@ -18,7 +18,7 @@
 //     'ambigua_urgente' + sugestão dupla (apelação OU agravo de instrumento).
 //   * Confiança < 0.8 → 'auto_baixa', UI deve mostrar badge âmbar e exigir revisão.
 
-import { isBusinessDay, nextBusinessDay } from './cnjCalendar';
+import { isBusinessDay, nextBusinessDay } from './cnjCalendar.ts';
 
 export type DeadlineSource = 'CPC' | 'CPP' | 'CLT' | 'JEC' | 'JEF' | 'TST' | 'STF' | 'CTN' | 'desconhecido';
 export type DeadlineUnit = 'dias_uteis' | 'dias_corridos';
