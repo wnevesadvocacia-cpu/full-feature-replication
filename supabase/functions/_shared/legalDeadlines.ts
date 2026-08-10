@@ -18,7 +18,7 @@
 //     'ambigua_urgente' + sugestão dupla (apelação OU agravo de instrumento).
 //   * Confiança < 0.8 → 'auto_baixa', UI deve mostrar badge âmbar e exigir revisão.
 
-import { isBusinessDay, nextBusinessDay } from './cnjCalendar';
+import { isBusinessDay, nextBusinessDay } from './cnjCalendar.ts';
 
 export type DeadlineSource = 'CPC' | 'CPP' | 'CLT' | 'JEC' | 'JEF' | 'TST' | 'STF' | 'CTN' | 'desconhecido';
 export type DeadlineUnit = 'dias_uteis' | 'dias_corridos';
@@ -286,6 +286,10 @@ const CRIMINAL_SUPPL_RULES: Rule[] = [
 const JEC_SUPPL_RULES: Rule[] = [
   { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'EDcl (JEC)', source: 'JEC', article: 'Lei 9.099/95 art. 48', peca: { peca: 'Embargos de Declaração (JEC)', fundamento_legal: 'Lei 9.099/95 art. 48', prazo_dias: 5, observacoes: 'Turma Recursal/JEC — omissão, contradição, obscuridade ou dúvida.' }, confianca: 0.88 },
   { pattern: /\bapelacao\b/, days: 10, unit: 'dias_uteis', label: 'Recurso Inominado', source: 'JEC', article: 'Lei 9.099/95 art. 42', peca: { peca: 'Recurso Inominado', fundamento_legal: 'Lei 9.099/95 art. 42', prazo_dias: 10, observacoes: 'No JEC não cabe apelação: o recurso é inominado (10 dias), com preparo em 48h.' }, confianca: 0.8 },
+  // Sentença no JEC (inclusive extinção da execução — Lei 9.099/95 art. 53 §4º): recurso inominado 10 d.u.,
+  // com alternativa de embargos de declaração em 5 d.u. (art. 48). Sem esta regra o motor caía no fallback de 5 dias.
+  { pattern: /\b(?:sentenca|julgo extinto|extingo o (?:processo|feito)|julgo (?:procedente|improcedente|parcialmente procedente)|homologo)\b/, days: 10, unit: 'dias_uteis', label: 'Recurso Inominado (sentença JEC)', source: 'JEC', article: 'Lei 9.099/95 art. 41/42 (c/c art. 48 e art. 53 §4º)', peca: { peca: 'Recurso Inominado', fundamento_legal: 'Lei 9.099/95 art. 42', prazo_dias: 10, observacoes: 'Sentença em Juizado Especial: recurso inominado em 10 dias (preparo em 48h — art. 42 §1º). Alternativamente, embargos de declaração em 5 dias (art. 48). Em extinção da execução (art. 53 §4º), avaliar interesse recursal.', peca_alternativa: { peca: 'Embargos de Declaração (JEC)', fundamento_legal: 'Lei 9.099/95 art. 48', prazo_dias: 5 } }, confianca: 0.82 },
+
 ];
 
 const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
