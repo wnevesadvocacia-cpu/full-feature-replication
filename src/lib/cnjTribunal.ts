@@ -33,8 +33,9 @@ const SISTEMA_BY_SIGLA: Record<string, [string, string[]?]> = {
   TJAC: ['e-SAJ'], TJAL: ['e-SAJ', ['PJe']], TJAP: ['PJe'], TJAM: ['Projudi', ['e-SAJ', 'PJe']],
   TJBA: ['PJe', ['eproc (em implantação)']], TJCE: ['PJe', ['e-SAJ']], TJDFT: ['PJe'], TJES: ['PJe'],
   TJGO: ['Projudi', ['PJe']], TJMA: ['PJe'], TJMT: ['PJe'], TJMS: ['e-SAJ', ['eproc (em implantação)']],
-  // TJMG: eproc é sistema único (Port. Conjunta 1720/PR/2025); PJe/Themis/SEEU seguem como legado.
-  TJMG: ['eproc', ['PJe', 'Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
+  // TJMG: migração para o eproc é gradual por comarca/unidade (Port. Conjunta 1720/PR/2025);
+  // sem indicação no texto da publicação o sistema é ambíguo (PJe ainda ativo em muitas unidades).
+  TJMG: ['PJe ou eproc', ['PJe', 'eproc', 'Themis / SEEU']], TJPA: ['PJe', ['Libra']], TJPB: ['PJe'],
   TJPR: ['Projudi', ['eproc (em implantação)']], TJPE: ['PJe'], TJPI: ['PJe'],
   TJRJ: ['PJe', ['eproc (em implantação)', 'Portal de Serviços TJRJ']],
   TJRN: ['PJe'], TJRS: ['eproc', ['Themis']], TJRO: ['PJe'], TJRR: ['PJe', ['Projudi']],
