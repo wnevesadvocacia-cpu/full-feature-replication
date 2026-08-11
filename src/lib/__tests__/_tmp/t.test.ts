@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectDeadline } from '../../src/lib/legalDeadlines';
+import { detectDeadline } from '../legalDeadlines';
 
 describe('repro', () => {
   it('lista longa com boilerplate prazo', () => {
