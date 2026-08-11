@@ -511,7 +511,7 @@ export default function Tarefas() {
         </div>
         <div>
           <Label className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final
+            <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final *
           </Label>
           <DateInputBR className="mt-1" value={form.due_date} onChange={(v) => set('due_date')({ target: { value: v } } as any)} />
         </div>
