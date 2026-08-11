@@ -252,6 +252,7 @@ export default function Tarefas() {
     if (!editTarget || !form.title.trim()) return;
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da alteração a um gestor/administrador.', variant: 'destructive' }); return; }
+    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório.', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
