@@ -160,7 +160,7 @@ export default function Tarefas() {
       status: willComplete ? 'concluida' : 'pendente',
     });
     toast({
-      title: willComplete ? 'Tarefa concluída' : 'Tarefa reaberta',
+      title: willComplete ? 'Diligência concluída' : 'Diligência reaberta',
       description: willComplete && viewFilter === 'pendentes'
         ? 'Ela saiu da lista de pendentes. Veja em "Concluídas" ou "Todas".'
         : undefined,
@@ -184,7 +184,7 @@ export default function Tarefas() {
     try {
       await updateTask.mutateAsync({ id: task.id, status, completed: false });
       toast({
-        title: status === 'em_elaboracao' ? 'Tarefa em elaboração' : 'Tarefa pendente',
+        title: status === 'em_elaboracao' ? 'Diligência em elaboração' : 'Diligência pendente',
         action: (
           <ToastAction altText="Desfazer" onClick={() => {
             updateTask.mutate({ id: task.id, status: prevStatus || 'pendente', completed: false });
@@ -203,8 +203,8 @@ export default function Tarefas() {
     if (!form.title.trim()) return;
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
-    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da tarefa a um gestor/administrador.', variant: 'destructive' }); return; }
-    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar a tarefa.', variant: 'destructive' }); return; }
+    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da diligência a um gestor/administrador.', variant: 'destructive' }); return; }
+    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar a diligência.', variant: 'destructive' }); return; }
     // Verificação de duplicidade — consulta o banco no submit para não depender
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
     if (form.process_id) {
@@ -213,9 +213,9 @@ export default function Tarefas() {
       const dups = (pend ?? []) as any[];
       if (dups.length > 0) {
         const ok = await confirmModal(
-          `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
+          `Já existe(m) ${dups.length} diligência(s) pendente(s) neste processo:\n\n` +
           dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${fmtDate(t.due_date)})` : ''}`).join('\n') +
-          `\n\nDeseja mesmo criar outra tarefa neste processo?`,
+          `\n\nDeseja mesmo criar outra diligência neste processo?`,
           { title: 'Prazos/Diligências pendentes neste processo', okLabel: 'Criar mesmo assim' }
         );
         if (!ok) return;
@@ -242,7 +242,7 @@ export default function Tarefas() {
 
       setCreateOpen(false);
       setForm(EMPTY_FORM);
-      toast({ title: 'Tarefa criada!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Diligência criada!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -274,7 +274,7 @@ export default function Tarefas() {
       });
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setEditTarget(null);
-      toast({ title: 'Tarefa atualizada!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Diligência atualizada!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -290,7 +290,7 @@ export default function Tarefas() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setDeleteTarget(null);
       toast({
-        title: 'Tarefa excluída.',
+        title: 'Diligência excluída.',
         action: (
           <ToastAction altText="Desfazer" onClick={async () => {
             const { processes, ...row } = backup;
