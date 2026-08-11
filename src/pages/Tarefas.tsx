@@ -830,7 +830,7 @@ export default function Tarefas() {
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || saving}>
+            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || !form.due_date || saving}>
               {saving ? 'Salvando…' : 'Criar Tarefa'}
             </Button>
           </DialogFooter>
