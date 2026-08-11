@@ -352,7 +352,7 @@ export default function Agenda() {
           <DateInputBR className="mt-1 h-9" value={form.start_date}
             onChange={v => setForm(f => ({ ...f, start_date: v }))} required />
           <p className="text-[11px] text-gray-500 mt-1 leading-snug">
-            Referência da agenda. A tarefa fica visível a partir desta data e permanece até ser concluída.
+            Referência da agenda. A diligência fica visível a partir desta data e permanece até ser concluída.
           </p>
         </div>
         <div>
@@ -441,7 +441,7 @@ export default function Agenda() {
             onClick={handleRefresh}
             disabled={isRefreshing}
             className={isRefreshing ? 'animate-spin' : ''}
-            title="Atualizar tarefas"
+            title="Atualizar diligências"
           >
             <RefreshCw className="w-4 h-4" />
           </Button>
@@ -595,7 +595,7 @@ export default function Agenda() {
         </div>
       </div>
 
-      {/* Tarefas do dia selecionado */}
+      {/* Diligências do dia selecionado */}
       <div className="bg-white rounded-xl shadow-sm border p-4">
         <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
           <Calendar className="w-4 h-4 text-blue-500" />
@@ -613,8 +613,8 @@ export default function Agenda() {
                 <p>Usuário autenticado: <strong>{user?.email ?? '— não autenticado —'}</strong></p>
                 <p className="text-[11px] text-blue-600/80">user_id: <code>{user?.id ?? '—'}</code></p>
                 <p>Filtro de processo: <strong>{processFilter === 'all' ? 'Todos' : (processes.find(p => p.id === processFilter)?.number ?? processFilter)}</strong></p>
-                <p>Tarefas retornadas pelo backend (RLS): <strong>{tasks.length}</strong></p>
-                <p>Tarefas após filtro de processo: <strong>{filteredTasks.length}</strong></p>
+                <p>Diligências retornadas pelo backend (RLS): <strong>{tasks.length}</strong></p>
+                <p>Diligências após filtro de processo: <strong>{filteredTasks.length}</strong></p>
                 <p>Pendentes: <strong>{filteredTasks.filter(t => !t.completed).length}</strong> | Concluídas: <strong>{filteredTasks.filter(t => t.completed).length}</strong></p>
                 {(() => {
                   const userTasks = filteredTasks.filter(t => t.assignee && !SYSTEM_ASSIGNEES.has(t.assignee.trim().toLowerCase()));
@@ -637,7 +637,7 @@ export default function Agenda() {
                 })()}
                 {processFilter !== 'all' && (
                   <p className="text-[11px] text-blue-600/80 pt-1 border-t border-blue-200 mt-1">
-                    💡 Se 0 aqui mas há tarefas em "Todos os processos", o filtro está ocultando-as.
+                    💡 Se 0 aqui mas há diligências em "Todos os processos", o filtro está ocultando-as.
                   </p>
                 )}
               </div>
@@ -826,7 +826,7 @@ export default function Agenda() {
                     </Button>
                   ) : (
                     <Button onClick={() => { toggleTask.mutate({ id: t.id, completed: true }); setDetailTarget(null); }}>
-                      <CheckCircle2 className="h-4 w-4 mr-1" /> Resolver tarefa
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Resolver diligência
                     </Button>
                   )}
                 </DialogFooter>

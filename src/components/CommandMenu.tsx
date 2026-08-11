@@ -24,7 +24,7 @@ import {
 const commands = [
   { title: 'Dashboard', icon: LayoutDashboard, url: '/dashboard', group: 'Navegação' },
   { title: 'Processos', icon: Briefcase, url: '/processos', group: 'Navegação' },
-  { title: 'Tarefas', icon: CheckSquare, url: '/tarefas', group: 'Navegação' },
+  { title: 'Prazos/Diligências', icon: CheckSquare, url: '/tarefas', group: 'Navegação' },
   { title: 'Financeiro', icon: DollarSign, url: '/financeiro', group: 'Navegação' },
   { title: 'Clientes', icon: Users, url: '/clientes', group: 'Navegação' },
   { title: 'Agenda', icon: Calendar, url: '/agenda', group: 'Navegação' },
@@ -56,7 +56,7 @@ export function CommandMenu() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Buscar processo, cliente, tarefa..." />
+      <CommandInput placeholder="Buscar processo, cliente, prazo..." />
       <CommandList>
         <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
         <CommandGroup heading="Navegação">

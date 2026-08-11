@@ -177,7 +177,7 @@ export default function Intimacoes() {
     },
   });
 
-  // Gestores/administradores disponíveis para cópia obrigatória da tarefa.
+  // Gestores/administradores disponíveis para cópia obrigatória da diligência.
   const supervisors = teamMembers.filter((m) =>
     (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
   );
@@ -455,10 +455,10 @@ export default function Intimacoes() {
       setTaskIntim(null);
       toast({
         title: 'Responsável definido com sucesso',
-        description: 'Acesse o módulo Tarefas para acompanhar.',
+        description: 'Acesse o módulo Prazos/Diligências para acompanhar.',
       });
     },
-    onError: (e: any) => toast({ title: 'Erro ao criar tarefa', description: e.message, variant: 'destructive' }),
+    onError: (e: any) => toast({ title: 'Erro ao criar diligência', description: e.message, variant: 'destructive' }),
   });
 
   const resolveProcessIdForIntimation = async (it: Intim) => {
@@ -480,10 +480,10 @@ export default function Intimacoes() {
     const dups = (data ?? []) as any[];
     if (dups.length === 0) return { ok: true, processId };
     const ok = await confirmModal(
-      `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
+      `Já existe(m) ${dups.length} diligência(s) pendente(s) neste processo:\n\n` +
       dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
-      `\n\nDeseja mesmo criar outra tarefa neste processo?`,
-      { title: 'Tarefas pendentes neste processo', okLabel: 'Criar mesmo assim' }
+      `\n\nDeseja mesmo criar outra diligência neste processo?`,
+      { title: 'Diligências pendentes neste processo', okLabel: 'Criar mesmo assim' }
     );
     if (ok) setDuplicateConfirmedProcessId(processId);
     return { ok, processId };
@@ -497,10 +497,10 @@ export default function Intimacoes() {
     const processId = dups[0]?.process_id || '';
     if (dups.length === 0) return { ok: true, processId: '' };
     const ok = await confirmModal(
-      `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
+      `Já existe(m) ${dups.length} diligência(s) pendente(s) neste processo:\n\n` +
       dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
-      `\n\nDeseja mesmo criar outra tarefa neste processo?`,
-      { title: 'Tarefas pendentes neste processo', okLabel: 'Criar mesmo assim' }
+      `\n\nDeseja mesmo criar outra diligência neste processo?`,
+      { title: 'Diligências pendentes neste processo', okLabel: 'Criar mesmo assim' }
     );
     if (ok) setDuplicateConfirmedProcessId(processId || digits);
     return { ok, processId };
@@ -524,7 +524,7 @@ export default function Intimacoes() {
       }
       openTaskDialog(it, processId);
     } catch (e: any) {
-      toast({ title: 'Erro ao verificar tarefas pendentes', description: e.message, variant: 'destructive' });
+      toast({ title: 'Erro ao verificar diligências pendentes', description: e.message, variant: 'destructive' });
     } finally {
       setOpeningTaskId(null);
     }
@@ -843,7 +843,7 @@ export default function Intimacoes() {
                   )}
                   <Button size="sm" variant="outline" onClick={() => handleOpenTaskDialog(it)} disabled={openingTaskId === it.id}>
                     {openingTaskId === it.id ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <CheckSquare className="h-3 w-3 mr-1" />}
-                    Criar Tarefa
+                    Criar Diligência
                   </Button>
                   {it.status !== 'tratada' && (
                     <Button size="sm" variant="ghost" onClick={() => { setTreatTarget(it); setTreatReason(''); setTreatNote(''); }}>Marcar tratada</Button>
@@ -942,7 +942,7 @@ export default function Intimacoes() {
                 onChange={(e) => setTreatReason(e.target.value)}
               >
                 <option value="">Selecione um motivo…</option>
-                <option value="Tarefa já cadastrada no processo">Tarefa já cadastrada no processo</option>
+                <option value="Diligência já cadastrada no processo">Diligência já cadastrada no processo</option>
                 <option value="Prazo da parte contrária (sem providência nossa)">Prazo da parte contrária (sem providência nossa)</option>
                 <option value="Apenas ciência / sem prazo processual">Apenas ciência / sem prazo processual</option>
                 <option value="Peça já protocolada">Peça já protocolada</option>
@@ -973,12 +973,12 @@ export default function Intimacoes() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog de delegação de tarefa */}
+      {/* Dialog de delegação de diligência */}
       <Dialog open={!!taskIntim} onOpenChange={(o) => { if (!o) setTaskIntim(null); }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5 text-primary" /> Responsável pela Tarefa da Intimação
+              <CheckSquare className="h-5 w-5 text-primary" /> Responsável pela Diligência da Intimação
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
@@ -987,7 +987,7 @@ export default function Intimacoes() {
               <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
             </div>
             <div>
-              <Label>Título da tarefa *</Label>
+              <Label>Título da diligência *</Label>
               <Input
                 value={taskForm.title}
                 onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
@@ -1015,7 +1015,7 @@ export default function Intimacoes() {
                 ))}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Selecione um título da praxis ou digite um personalizado. A tarefa aparecerá na Agenda no dia escolhido.
+                Selecione um título da praxis ou digite um personalizado. A diligência aparecerá na Agenda no dia escolhido.
               </p>
             </div>
             <div>
@@ -1151,7 +1151,7 @@ export default function Intimacoes() {
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Obrigatório: o gestor selecionado receberá notificação imediata desta tarefa.
+                Obrigatório: o gestor selecionado receberá notificação imediata desta diligência.
               </p>
             </div>
           </div>
@@ -1170,7 +1170,7 @@ export default function Intimacoes() {
               }}
               disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || !taskForm.cc_user_id || toTask.isPending}
             >
-              {toTask.isPending ? 'Criando…' : 'Criar Tarefa'}
+              {toTask.isPending ? 'Criando…' : 'Criar Diligência'}
             </Button>
           </DialogFooter>
         </DialogContent>
