@@ -11,7 +11,7 @@ const cases = [
   { name: 'ignora SISBAJUD e suspensão e usa comando dirigido à parte', text: exec },
 ];
 
-describe('regressões permanentes — pauta e diligências do juízo', () => {
+describe('regressões permanentes — pauta e prazos do juízo', () => {
   it(cases[0].name, () => {
     const d = detectDeadline(cases[0].text, '2026-08-10', '2026-08-10', { tribunal: 'TJSP' });
     expect(d?.triggerSource).toBe('pauta');

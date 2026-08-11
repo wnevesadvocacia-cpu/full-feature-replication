@@ -160,7 +160,7 @@ export default function Tarefas() {
       status: willComplete ? 'concluida' : 'pendente',
     });
     toast({
-      title: willComplete ? 'Diligência concluída' : 'Diligência reaberta',
+      title: willComplete ? 'Prazo concluído' : 'Prazo reaberto',
       description: willComplete && viewFilter === 'pendentes'
         ? 'Ela saiu da lista de pendentes. Veja em "Concluídas" ou "Todas".'
         : undefined,
@@ -184,7 +184,7 @@ export default function Tarefas() {
     try {
       await updateTask.mutateAsync({ id: task.id, status, completed: false });
       toast({
-        title: status === 'em_elaboracao' ? 'Diligência em elaboração' : 'Diligência pendente',
+        title: status === 'em_elaboracao' ? 'Prazo em elaboração' : 'Prazo pendente',
         action: (
           <ToastAction altText="Desfazer" onClick={() => {
             updateTask.mutate({ id: task.id, status: prevStatus || 'pendente', completed: false });
@@ -203,8 +203,8 @@ export default function Tarefas() {
     if (!form.title.trim()) return;
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
-    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da diligência a um gestor/administrador.', variant: 'destructive' }); return; }
-    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar a diligência.', variant: 'destructive' }); return; }
+    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia do prazo a um gestor/administrador.', variant: 'destructive' }); return; }
+    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar a prazo.', variant: 'destructive' }); return; }
     // Verificação de duplicidade — consulta o banco no submit para não depender
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
     if (form.process_id) {
@@ -213,10 +213,10 @@ export default function Tarefas() {
       const dups = (pend ?? []) as any[];
       if (dups.length > 0) {
         const ok = await confirmModal(
-          `Já existe(m) ${dups.length} diligência(s) pendente(s) neste processo:\n\n` +
+          `Já existe(m) ${dups.length} prazo(s) pendente(s) neste processo:\n\n` +
           dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${fmtDate(t.due_date)})` : ''}`).join('\n') +
-          `\n\nDeseja mesmo criar outra diligência neste processo?`,
-          { title: 'Prazos/Diligências pendentes neste processo', okLabel: 'Criar mesmo assim' }
+          `\n\nDeseja mesmo criar outra prazo neste processo?`,
+          { title: 'Prazos pendentes neste processo', okLabel: 'Criar mesmo assim' }
         );
         if (!ok) return;
       }
@@ -242,7 +242,7 @@ export default function Tarefas() {
 
       setCreateOpen(false);
       setForm(EMPTY_FORM);
-      toast({ title: 'Diligência criada!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Prazo criado!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -274,7 +274,7 @@ export default function Tarefas() {
       });
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setEditTarget(null);
-      toast({ title: 'Diligência atualizada!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Prazo atualizado!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -290,7 +290,7 @@ export default function Tarefas() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setDeleteTarget(null);
       toast({
-        title: 'Diligência excluída.',
+        title: 'Prazo excluído.',
         action: (
           <ToastAction altText="Desfazer" onClick={async () => {
             const { processes, ...row } = backup;
@@ -315,7 +315,7 @@ export default function Tarefas() {
 
   const openAttach = (task: any) => {
     if (!task.process_id) {
-      toast({ title: 'Vincule um processo à diligência antes de anexar documentos.', variant: 'destructive' });
+      toast({ title: 'Vincule um processo à prazo antes de anexar documentos.', variant: 'destructive' });
       return;
     }
     setAttachTarget(task);
@@ -331,7 +331,7 @@ export default function Tarefas() {
         userId: user.id,
         file,
         processId: task.process_id,
-        description: `Anexo da diligência: ${task.title}`,
+        description: `Anexo do prazo: ${task.title}`,
         category: 'tarefa',
       });
       toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
@@ -403,7 +403,7 @@ export default function Tarefas() {
           <div className="mt-2 rounded-md border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-2.5 text-[12px] text-amber-900 dark:text-amber-100">
             <p className="font-semibold flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Possível duplicidade</p>
             <p className="mt-1">
-              Já existe(m) <strong>{duplicateHint.length}</strong> diligência(s) pendente(s) neste processo:
+              Já existe(m) <strong>{duplicateHint.length}</strong> prazo(s) pendente(s) neste processo:
             </p>
             <ul className="mt-1 list-disc list-inside space-y-0.5">
               {duplicateHint.slice(0, 3).map((t: any) => (
@@ -450,7 +450,7 @@ export default function Tarefas() {
       </div>
       <div>
         <Label>Descrição</Label>
-        <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes da diligência" />
+        <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes do prazo" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -496,7 +496,7 @@ export default function Tarefas() {
           ))}
         </select>
         <p className="text-[11px] text-muted-foreground mt-1">
-          Obrigatório: o gestor selecionado receberá notificação imediata desta diligência.
+          Obrigatório: o gestor selecionado receberá notificação imediata deste prazo.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -526,7 +526,7 @@ export default function Tarefas() {
         <header className="flex items-end justify-between border-b border-stone-200 dark:border-border pb-6">
           <div className="space-y-1">
             <h1 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight text-stone-900 dark:text-foreground">
-              Prazos/Diligências
+              Prazos
             </h1>
             <p className="text-xs sm:text-sm text-stone-500 dark:text-muted-foreground font-medium tracking-wide uppercase">
               <span className="text-stone-900 dark:text-foreground">{pendentes} pendentes</span> · {concluidas} concluídas
@@ -536,7 +536,7 @@ export default function Tarefas() {
             onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}
             className="rounded-sm shadow-xl"
           >
-            <Plus className="h-4 w-4 mr-1.5" /> Nova Diligência
+            <Plus className="h-4 w-4 mr-1.5" /> Novo Prazo
           </Button>
         </header>
 
@@ -564,7 +564,7 @@ export default function Tarefas() {
                   <p className="text-sm text-red-900 dark:text-destructive font-semibold">
                     {urgentTasks.length === 1
                       ? `"${nearest.title}" — atenção ao prazo`
-                      : `${urgentTasks.length} prazos/diligências próximos do vencimento`}
+                      : `${urgentTasks.length} prazos próximos do vencimento`}
                   </p>
                   <p className="text-xs text-red-700 dark:text-destructive/80 mt-1 opacity-90 italic">
                     A mais urgente: "{nearest.title}" {daysLeft < 0 ? `vencida há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'vence hoje' : daysLeft === 1 ? 'vence amanhã' : `vence em ${daysLeft} dias`} — {fmtDate(nearest.due_date)}
@@ -610,7 +610,7 @@ export default function Tarefas() {
         <div className="flex items-start gap-2 rounded-md border border-stone-200 dark:border-border bg-white/50 dark:bg-card/40 px-3 py-2 text-xs text-stone-500 dark:text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
           <p className="leading-relaxed">
-            Esta busca lista apenas processos com <span className="font-medium text-stone-800 dark:text-foreground">prazos/diligências pendentes</span>.
+            Esta busca lista apenas processos com <span className="font-medium text-stone-800 dark:text-foreground">prazos pendentes</span>.
             Para buscar todos os processos,{" "}
             <Link to="/processos" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
               acesse Processos <ArrowRight className="h-3 w-3" />
@@ -621,15 +621,15 @@ export default function Tarefas() {
         {/* Lista */}
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-stone-500 dark:text-muted-foreground">
-            <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhuma diligência encontrada</p>
+            <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhum prazo encontrada</p>
             <p className="text-sm mt-2 italic">
               {search
-                ? 'A busca filtra prazos/diligências já criados. Para vincular a um processo, clique em "Nova Diligência".'
-                : 'Crie sua primeira diligência clicando em "Nova Diligência".'}
+                ? 'A busca filtra prazos já criados. Para vincular a um processo, clique em "Novo Prazo".'
+                : 'Crie sua primeiro prazo clicando em "Novo Prazo".'}
             </p>
             {search && (
               <Button className="mt-4" size="sm" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> Nova Diligência
+                <Plus className="h-4 w-4 mr-1" /> Novo Prazo
               </Button>
             )}
           </div>
@@ -663,7 +663,7 @@ export default function Tarefas() {
                           <button
                             type="button"
                             onClick={() => setOverviewTarget(task)}
-                            title="Ver detalhes da diligência"
+                            title="Ver detalhes do prazo"
                             className="px-2 py-0.5 bg-stone-100 dark:bg-muted text-stone-500 dark:text-muted-foreground text-[10px] font-mono rounded border border-stone-200 dark:border-border hover:bg-stone-200 dark:hover:bg-muted/70"
                           >
                             #{task.processes.number}
@@ -773,7 +773,7 @@ export default function Tarefas() {
                               className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm rounded-r-none border-r-0"
                               onClick={() => toggleTask(task)}
                               disabled={updateTask.isPending}
-                              title="Concluir diligência (mantida no histórico para auditoria)"
+                              title="Concluir prazo (mantida no histórico para auditoria)"
                             >
                               <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
                             </Button>
@@ -826,12 +826,12 @@ export default function Tarefas() {
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className={TASK_DIALOG_CLASS}>
-          <DialogHeader><DialogTitle>Nova Diligência</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Novo Prazo</DialogTitle></DialogHeader>
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || !form.due_date || saving}>
-              {saving ? 'Salvando…' : 'Criar Diligência'}
+              {saving ? 'Salvando…' : 'Criar Prazo'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -842,7 +842,7 @@ export default function Tarefas() {
         <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
           <DialogHeader className="pb-2 border-b">
             <DialogTitle className="flex flex-wrap items-center gap-2">
-              <span>Editar Diligência</span>
+              <span>Editar Prazo</span>
               {editTarget?.processes?.number && (
                 <span className="font-mono text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
                   {editTarget.processes.number}
@@ -868,7 +868,7 @@ export default function Tarefas() {
           <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6 flex-1 overflow-hidden">
             <div className="overflow-y-auto pr-2 py-1">
               <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados da diligência
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados do prazo
               </div>
               {taskFormFields}
             </div>
@@ -902,7 +902,7 @@ export default function Tarefas() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" /> Excluir Diligência
+              <AlertTriangle className="h-5 w-5" /> Excluir Prazo
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600">

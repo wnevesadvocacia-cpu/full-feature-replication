@@ -103,7 +103,7 @@ function mapTask(row: Record<string, string>) {
   ].filter(Boolean);
 
   return {
-    title: pick(row, 'titulo', 'título', 'tarefa', 'title', 'assunto', 'atividade') || 'Diligência importada',
+    title: pick(row, 'titulo', 'título', 'tarefa', 'title', 'assunto', 'atividade') || 'Prazo importado',
     description: descParts.length ? descParts.join('\n\n---\n\n') : null,
     due_date: parseDateBR(pick(row, 'prazo', 'data', 'vencimento', 'due_date', 'data_prazo')),
     status: pick(row, 'status', 'situacao', 'situação').toLowerCase() || 'pendente',
@@ -195,7 +195,7 @@ export default function ImportarAdvbox() {
         <TabsList>
           <TabsTrigger value="clientes">Clientes</TabsTrigger>
           <TabsTrigger value="processos">Processos</TabsTrigger>
-          <TabsTrigger value="tarefas">Diligências / Publicações</TabsTrigger>
+          <TabsTrigger value="tarefas">Prazos / Publicações</TabsTrigger>
         </TabsList>
 
         <TabsContent value={type} className="space-y-4">

@@ -417,7 +417,7 @@ function collectMatches(rx: RegExp, text: string): RegExpExecArray[] {
   return out;
 }
 
-// Contextos em que "prazo de N dias" NÃO é prazo da parte: diligências do juízo
+// Contextos em que "prazo de N dias" NÃO é prazo da parte: prazos do juízo
 // (SISBAJUD reiterada/teimosinha), suspensão do art. 921, arquivamento provisório,
 // prescrição intercorrente, bloqueio/penhora online.
 const NAO_PRAZO_PARTE_CTX_RX = /(sisbajud|reiterad\w*|teimosinh\w*|bloqueio de ativos|penhora online|suspend\w+|suspens\w+|arquivamento provisorio|921|prescric\w+)/;
@@ -764,7 +764,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Comunicação de migração de sistema processual (ex.: e-SAJ → eproc): mera ciência,
   // sem ato a praticar e sem prazo. O "credenciamento" é providência administrativa.
   // Só é mera ciência se, retirados os trechos de migração/credenciamento, não sobrar
-  // nenhuma diligência a cumprir. Havendo diligência (com prazo literal ou não), o motor
+  // nenhum prazo a cumprir. Havendo prazo (com prazo literal ou não), o motor
   // segue o fluxo normal — inclusive o fallback de 5 d.u. (CPC art. 218 §3º).
   const MIGRACAO_TRECHO_RX = /[^.;]*(?:pass(?:ara|ou|a) a tramitar|credenciamento no|credenciada|comunicacoes subsequentes|migra(?:cao|do|r) (?:para|ao)|cadastro imediato|cronograma d\w+ implantacao|dados cadastrais)[^.;]*/g;
   if (MIGRACAO_SISTEMA_RX.test(text) && !temDiligenciaFora(text.replace(MIGRACAO_TRECHO_RX, ' '))) {

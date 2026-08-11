@@ -45,7 +45,7 @@ const TABLE_LABEL: Record<string, string> = {
   fee_agreements: 'Honorários',
   expenses: 'Despesas',
   time_entries: 'Timesheet',
-  tasks: 'Prazos/Diligências',
+  tasks: 'Prazos',
   signature_requests: 'Assinaturas',
   user_roles: 'Permissões',
   document_versions: 'Versões de petição',
@@ -135,7 +135,7 @@ export default function Auditoria() {
           <ShieldCheck className="h-6 w-6 text-primary" /> Auditoria
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Verificação de logs e prazos/diligências criados.
+          Verificação de logs e prazos criados.
         </p>
       </div>
 
@@ -161,7 +161,7 @@ export default function Auditoria() {
               : 'border-transparent text-muted-foreground hover:text-foreground'
           }`}
         >
-          <ListChecks className="h-4 w-4" /> Minhas Diligências de Hoje
+          <ListChecks className="h-4 w-4" /> Minhas Prazos de Hoje
         </button>
       </div>
 
@@ -259,7 +259,7 @@ export default function Auditoria() {
               <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">
-                    {todayTasks.length} diligência{todayTasks.length !== 1 ? 's' : ''} criada{todayTasks.length !== 1 ? 's' : ''} hoje
+                    {todayTasks.length} prazo{todayTasks.length !== 1 ? 's' : ''} criada{todayTasks.length !== 1 ? 's' : ''} hoje
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Período: {format(new Date(todayStart), "dd/MM/yyyy")} 00:00 — {format(new Date(tomorrowStart), "dd/MM/yyyy")} 00:00
@@ -289,10 +289,10 @@ export default function Auditoria() {
                         <td colSpan={8} className="p-8 text-center text-muted-foreground">
                           <div className="space-y-2">
                             <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground/50" />
-                            <p className="font-medium">Nenhuma diligência criada hoje</p>
+                            <p className="font-medium">Nenhum prazo criada hoje</p>
                             <p className="text-xs max-w-md mx-auto">
-                              Não foram encontradas diligências criadas por você nesta data.
-                              Isso pode indicar que a diligência foi criada em outro dia,
+                              Não foram encontradas prazos criadas por você nesta data.
+                              Isso pode indicar que a prazo foi criada em outro dia,
                               ou que há um problema de gravação/RLS.
                             </p>
                           </div>

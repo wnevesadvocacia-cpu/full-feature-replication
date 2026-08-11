@@ -48,7 +48,7 @@ const mainNav = [
   { title: 'Processos', url: '/processos', icon: Briefcase },
   { title: 'Intimações', url: '/intimacoes', icon: Bell },
   { title: 'Agenda', url: '/agenda', icon: Calendar },
-  { title: 'Prazos/Diligências', url: '/tarefas', icon: CheckSquare },
+  { title: 'Prazos', url: '/tarefas', icon: CheckSquare },
   { title: 'Timesheet', url: '/timesheet', icon: Clock },
   { title: 'Financeiro', url: '/financeiro', icon: DollarSign },
   { title: 'Honorários', url: '/honorarios', icon: Receipt },
@@ -71,7 +71,7 @@ const secondaryNav: { title: string; url: string; icon: any; disabled?: boolean 
   { title: 'Personalizar Kanban', url: '/kanban-config', icon: Settings2 },
   { title: 'Importar Informações', url: '/importar', icon: Database },
   { title: 'Auditoria', url: '/auditoria', icon: ShieldCheck },
-  { title: 'Auditoria de Prazos/Diligências', url: '/auditoria-tarefas', icon: ShieldCheck },
+  { title: 'Auditoria de Prazos', url: '/auditoria-tarefas', icon: ShieldCheck },
 
 ];
 
