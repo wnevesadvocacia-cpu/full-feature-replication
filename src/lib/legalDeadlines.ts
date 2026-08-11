@@ -521,6 +521,7 @@ const ATO_COM_DETERMINACAO_RX = /\b(prazo|manifeste[ -]?se|manifestem[ -]?se|apr
 // interposto foi distribuído. A classe "Apelação Cível" e os rótulos
 // "Apelante/Apelado" descrevem o processo; não inauguram prazo de apelação.
 const LISTAGEM_DISTRIBUICAO_RX = /\bprocessos? distribuid[oa]s?(?: em \d{2}\/\d{2}\/\d{4})?\b/;
+const LISTAGEM_COM_COMANDO_RX = /\b(manifeste[ -]?se|manifestem[ -]?se|apresente|apresentem|cumpra[ -]?se a decisao|comprove|impugne|conteste|recolha|pague|providencie|informe|esclareca|requeira|sob pena|intime[ -]?se .{0,40}para|especifiquem|contrarrazoes|contraminuta|emende|regularize)\b/;
 
 // ====== MIGRAÇÃO DE SISTEMA PROCESSUAL (MERA CIÊNCIA, SEM PRAZO) ======
 // Ex.: TJSP comunicando que o processo passa do e-SAJ para o eproc, com pedido de
@@ -658,7 +659,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let baseLegalExtra = '';
   let triggerSource: DetectedDeadline['triggerSource'] = 'fallback';
 
-  if (LISTAGEM_DISTRIBUICAO_RX.test(text) && !ATO_COM_DETERMINACAO_RX.test(text) && !extractLiteralDeadline(text)) {
+  if (LISTAGEM_DISTRIBUICAO_RX.test(text) && !LISTAGEM_COM_COMANDO_RX.test(text) && !extractLiteralDeadline(text)) {
     return {
       days: 0,
       unit: 'dias_corridos',
