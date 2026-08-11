@@ -663,7 +663,7 @@ export default function Tarefas() {
                           <button
                             type="button"
                             onClick={() => setOverviewTarget(task)}
-                            title="Ver detalhes da tarefa"
+                            title="Ver detalhes da diligência"
                             className="px-2 py-0.5 bg-stone-100 dark:bg-muted text-stone-500 dark:text-muted-foreground text-[10px] font-mono rounded border border-stone-200 dark:border-border hover:bg-stone-200 dark:hover:bg-muted/70"
                           >
                             #{task.processes.number}
@@ -773,7 +773,7 @@ export default function Tarefas() {
                               className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm rounded-r-none border-r-0"
                               onClick={() => toggleTask(task)}
                               disabled={updateTask.isPending}
-                              title="Concluir tarefa (mantida no histórico para auditoria)"
+                              title="Concluir diligência (mantida no histórico para auditoria)"
                             >
                               <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
                             </Button>
@@ -826,12 +826,12 @@ export default function Tarefas() {
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className={TASK_DIALOG_CLASS}>
-          <DialogHeader><DialogTitle>Nova Tarefa</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Nova Diligência</DialogTitle></DialogHeader>
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || !form.due_date || saving}>
-              {saving ? 'Salvando…' : 'Criar Tarefa'}
+              {saving ? 'Salvando…' : 'Criar Diligência'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -842,7 +842,7 @@ export default function Tarefas() {
         <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
           <DialogHeader className="pb-2 border-b">
             <DialogTitle className="flex flex-wrap items-center gap-2">
-              <span>Editar Tarefa</span>
+              <span>Editar Diligência</span>
               {editTarget?.processes?.number && (
                 <span className="font-mono text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
                   {editTarget.processes.number}
@@ -868,7 +868,7 @@ export default function Tarefas() {
           <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6 flex-1 overflow-hidden">
             <div className="overflow-y-auto pr-2 py-1">
               <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados da tarefa
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados da diligência
               </div>
               {taskFormFields}
             </div>
@@ -902,7 +902,7 @@ export default function Tarefas() {
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
-              <AlertTriangle className="h-5 w-5" /> Excluir Tarefa
+              <AlertTriangle className="h-5 w-5" /> Excluir Diligência
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600">
