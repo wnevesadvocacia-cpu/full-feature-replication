@@ -204,6 +204,7 @@ export default function Tarefas() {
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da tarefa a um gestor/administrador.', variant: 'destructive' }); return; }
+    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar a tarefa.', variant: 'destructive' }); return; }
     // Verificação de duplicidade — consulta o banco no submit para não depender
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
     if (form.process_id) {
