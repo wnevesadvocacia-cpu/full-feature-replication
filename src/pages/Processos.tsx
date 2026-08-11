@@ -959,8 +959,8 @@ export default function Processos() {
     );
     if (dup) {
       const ok = await confirmModal(
-        'Já existe uma prazo pendente com este mesmo título neste processo. Tem certeza que deseja criar outra?',
-        { title: 'Prazo duplicada', okLabel: 'Criar mesmo assim' }
+        'Já existe um prazo pendente com este mesmo título neste processo. Tem certeza que deseja criar outra?',
+        { title: 'Prazo duplicado', okLabel: 'Criar mesmo assim' }
       );
       if (!ok) return;
     }

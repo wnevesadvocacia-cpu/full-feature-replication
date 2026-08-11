@@ -402,8 +402,8 @@ export default function Configuracoes() {
                   <div className="space-y-4">
                     {[
                       { key: 'vencimento_processo', label: 'Vencimento de prazo processual', desc: 'Alerta quando um processo tem prazo próximo' },
-                      { key: 'nova_tarefa', label: 'Nova prazo atribuída', desc: 'Alerta quando uma nova prazo é criada' },
-                      { key: 'tarefa_concluida', label: 'Prazo concluída', desc: 'Notificação quando prazo é marcada como concluída' },
+                      { key: 'nova_tarefa', label: 'Nova prazo atribuída', desc: 'Alerta quando uma novo prazo é criada' },
+                      { key: 'tarefa_concluida', label: 'Prazo concluído', desc: 'Notificação quando prazo é marcada como concluída' },
                       { key: 'novo_cliente', label: 'Novo cliente cadastrado', desc: 'Alerta quando novo cliente é adicionado' },
                       { key: 'fatura_vencida', label: 'Fatura em atraso', desc: 'Alerta sobre faturas com vencimento ultrapassado' },
                     ].map(({ key, label, desc }) => (

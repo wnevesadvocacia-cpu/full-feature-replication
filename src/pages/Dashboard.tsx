@@ -341,7 +341,7 @@ export default function Dashboard() {
               {loading ? (
                 <p className="text-sm text-muted-foreground p-6">Carregando…</p>
               ) : upcomingTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-6">Nenhuma prazo pendente.</p>
+                <p className="text-sm text-muted-foreground p-6">Nenhum prazo pendente.</p>
               ) : (
                 <ul className="divide-y divide-border/40">
                   {upcomingTasks.map((t) => {

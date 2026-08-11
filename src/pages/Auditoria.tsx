@@ -289,7 +289,7 @@ export default function Auditoria() {
                         <td colSpan={8} className="p-8 text-center text-muted-foreground">
                           <div className="space-y-2">
                             <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground/50" />
-                            <p className="font-medium">Nenhuma prazo criada hoje</p>
+                            <p className="font-medium">Nenhum prazo criada hoje</p>
                             <p className="text-xs max-w-md mx-auto">
                               Não foram encontradas prazos criadas por você nesta data.
                               Isso pode indicar que a prazo foi criada em outro dia,

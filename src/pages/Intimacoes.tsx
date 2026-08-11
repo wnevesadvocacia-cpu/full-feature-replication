@@ -942,7 +942,7 @@ export default function Intimacoes() {
                 onChange={(e) => setTreatReason(e.target.value)}
               >
                 <option value="">Selecione um motivo…</option>
-                <option value="Prazo já cadastrada no processo">Prazo já cadastrada no processo</option>
+                <option value="Prazo já cadastrado no processo">Prazo já cadastrado no processo</option>
                 <option value="Prazo da parte contrária (sem providência nossa)">Prazo da parte contrária (sem providência nossa)</option>
                 <option value="Apenas ciência / sem prazo processual">Apenas ciência / sem prazo processual</option>
                 <option value="Peça já protocolada">Peça já protocolada</option>
@@ -1015,7 +1015,7 @@ export default function Intimacoes() {
                 ))}
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Selecione um título da praxis ou digite um personalizado. A prazo aparecerá na Agenda no dia escolhido.
+                Selecione um título da praxis ou digite um personalizado. O prazo aparecerá na Agenda no dia escolhido.
               </p>
             </div>
             <div>
@@ -1151,7 +1151,7 @@ export default function Intimacoes() {
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground mt-1">
-                Obrigatório: o gestor selecionado receberá notificação imediata desta prazo.
+                Obrigatório: o gestor selecionado receberá notificação imediata deste prazo.
               </p>
             </div>
           </div>

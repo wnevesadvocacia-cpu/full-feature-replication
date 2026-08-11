@@ -764,7 +764,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Comunicação de migração de sistema processual (ex.: e-SAJ → eproc): mera ciência,
   // sem ato a praticar e sem prazo. O "credenciamento" é providência administrativa.
   // Só é mera ciência se, retirados os trechos de migração/credenciamento, não sobrar
-  // nenhuma prazo a cumprir. Havendo prazo (com prazo literal ou não), o motor
+  // nenhum prazo a cumprir. Havendo prazo (com prazo literal ou não), o motor
   // segue o fluxo normal — inclusive o fallback de 5 d.u. (CPC art. 218 §3º).
   const MIGRACAO_TRECHO_RX = /[^.;]*(?:pass(?:ara|ou|a) a tramitar|credenciamento no|credenciada|comunicacoes subsequentes|migra(?:cao|do|r) (?:para|ao)|cadastro imediato|cronograma d\w+ implantacao|dados cadastrais)[^.;]*/g;
   if (MIGRACAO_SISTEMA_RX.test(text) && !temDiligenciaFora(text.replace(MIGRACAO_TRECHO_RX, ' '))) {

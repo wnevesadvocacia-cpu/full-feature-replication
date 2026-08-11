@@ -103,7 +103,7 @@ function mapTask(row: Record<string, string>) {
   ].filter(Boolean);
 
   return {
-    title: pick(row, 'titulo', 'título', 'tarefa', 'title', 'assunto', 'atividade') || 'Prazo importada',
+    title: pick(row, 'titulo', 'título', 'tarefa', 'title', 'assunto', 'atividade') || 'Prazo importado',
     description: descParts.length ? descParts.join('\n\n---\n\n') : null,
     due_date: parseDateBR(pick(row, 'prazo', 'data', 'vencimento', 'due_date', 'data_prazo')),
     status: pick(row, 'status', 'situacao', 'situação').toLowerCase() || 'pendente',

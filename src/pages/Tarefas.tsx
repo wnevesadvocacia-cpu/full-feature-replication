@@ -160,7 +160,7 @@ export default function Tarefas() {
       status: willComplete ? 'concluida' : 'pendente',
     });
     toast({
-      title: willComplete ? 'Prazo concluída' : 'Prazo reaberta',
+      title: willComplete ? 'Prazo concluído' : 'Prazo reaberto',
       description: willComplete && viewFilter === 'pendentes'
         ? 'Ela saiu da lista de pendentes. Veja em "Concluídas" ou "Todas".'
         : undefined,
@@ -242,7 +242,7 @@ export default function Tarefas() {
 
       setCreateOpen(false);
       setForm(EMPTY_FORM);
-      toast({ title: 'Prazo criada!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Prazo criado!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -274,7 +274,7 @@ export default function Tarefas() {
       });
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setEditTarget(null);
-      toast({ title: 'Prazo atualizada!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Prazo atualizado!', description: 'Cópia enviada ao gestor selecionado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -290,7 +290,7 @@ export default function Tarefas() {
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setDeleteTarget(null);
       toast({
-        title: 'Prazo excluída.',
+        title: 'Prazo excluído.',
         action: (
           <ToastAction altText="Desfazer" onClick={async () => {
             const { processes, ...row } = backup;
@@ -496,7 +496,7 @@ export default function Tarefas() {
           ))}
         </select>
         <p className="text-[11px] text-muted-foreground mt-1">
-          Obrigatório: o gestor selecionado receberá notificação imediata desta prazo.
+          Obrigatório: o gestor selecionado receberá notificação imediata deste prazo.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -536,7 +536,7 @@ export default function Tarefas() {
             onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}
             className="rounded-sm shadow-xl"
           >
-            <Plus className="h-4 w-4 mr-1.5" /> Nova Prazo
+            <Plus className="h-4 w-4 mr-1.5" /> Novo Prazo
           </Button>
         </header>
 
@@ -621,15 +621,15 @@ export default function Tarefas() {
         {/* Lista */}
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-stone-500 dark:text-muted-foreground">
-            <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhuma prazo encontrada</p>
+            <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhum prazo encontrada</p>
             <p className="text-sm mt-2 italic">
               {search
-                ? 'A busca filtra prazos já criados. Para vincular a um processo, clique em "Nova Prazo".'
-                : 'Crie sua primeira prazo clicando em "Nova Prazo".'}
+                ? 'A busca filtra prazos já criados. Para vincular a um processo, clique em "Novo Prazo".'
+                : 'Crie sua primeira prazo clicando em "Novo Prazo".'}
             </p>
             {search && (
               <Button className="mt-4" size="sm" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> Nova Prazo
+                <Plus className="h-4 w-4 mr-1" /> Novo Prazo
               </Button>
             )}
           </div>
@@ -826,7 +826,7 @@ export default function Tarefas() {
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) setCreateOpen(false); }}>
         <DialogContent className={TASK_DIALOG_CLASS}>
-          <DialogHeader><DialogTitle>Nova Prazo</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Novo Prazo</DialogTitle></DialogHeader>
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
