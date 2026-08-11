@@ -203,7 +203,7 @@ export default function Tarefas() {
     if (!form.title.trim()) return;
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
-    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da prazo a um gestor/administrador.', variant: 'destructive' }); return; }
+    if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia do prazo a um gestor/administrador.', variant: 'destructive' }); return; }
     if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar a prazo.', variant: 'destructive' }); return; }
     // Verificação de duplicidade — consulta o banco no submit para não depender
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
@@ -331,7 +331,7 @@ export default function Tarefas() {
         userId: user.id,
         file,
         processId: task.process_id,
-        description: `Anexo da prazo: ${task.title}`,
+        description: `Anexo do prazo: ${task.title}`,
         category: 'tarefa',
       });
       toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
@@ -450,7 +450,7 @@ export default function Tarefas() {
       </div>
       <div>
         <Label>Descrição</Label>
-        <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes da prazo" />
+        <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes do prazo" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -625,7 +625,7 @@ export default function Tarefas() {
             <p className="text-sm mt-2 italic">
               {search
                 ? 'A busca filtra prazos já criados. Para vincular a um processo, clique em "Novo Prazo".'
-                : 'Crie sua primeira prazo clicando em "Novo Prazo".'}
+                : 'Crie sua primeiro prazo clicando em "Novo Prazo".'}
             </p>
             {search && (
               <Button className="mt-4" size="sm" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
@@ -663,7 +663,7 @@ export default function Tarefas() {
                           <button
                             type="button"
                             onClick={() => setOverviewTarget(task)}
-                            title="Ver detalhes da prazo"
+                            title="Ver detalhes do prazo"
                             className="px-2 py-0.5 bg-stone-100 dark:bg-muted text-stone-500 dark:text-muted-foreground text-[10px] font-mono rounded border border-stone-200 dark:border-border hover:bg-stone-200 dark:hover:bg-muted/70"
                           >
                             #{task.processes.number}
@@ -868,7 +868,7 @@ export default function Tarefas() {
           <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6 flex-1 overflow-hidden">
             <div className="overflow-y-auto pr-2 py-1">
               <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados da prazo
+                <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados do prazo
               </div>
               {taskFormFields}
             </div>

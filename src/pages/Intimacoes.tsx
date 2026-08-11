@@ -177,7 +177,7 @@ export default function Intimacoes() {
     },
   });
 
-  // Gestores/administradores disponíveis para cópia obrigatória da prazo.
+  // Gestores/administradores disponíveis para cópia obrigatória do prazo.
   const supervisors = teamMembers.filter((m) =>
     (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
   );
@@ -978,7 +978,7 @@ export default function Intimacoes() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="h-5 w-5 text-primary" /> Responsável pela Prazo da Intimação
+              <CheckSquare className="h-5 w-5 text-primary" /> Responsável pelo Prazo da Intimação
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
@@ -987,7 +987,7 @@ export default function Intimacoes() {
               <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
             </div>
             <div>
-              <Label>Título da prazo *</Label>
+              <Label>Título do prazo *</Label>
               <Input
                 value={taskForm.title}
                 onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
