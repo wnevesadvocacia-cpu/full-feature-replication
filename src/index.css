@@ -71,8 +71,8 @@
     --shadow-gold: 0 4px 14px hsl(42 60% 50% / 0.25);
 
     /* Typography */
-    --font-display: 'Syne', system-ui, -apple-system, sans-serif;
-    --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-display: 'Sora', system-ui, -apple-system, sans-serif;
+    --font-body: 'Manrope', system-ui, -apple-system, sans-serif;
 
     /* Motion */
     --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
