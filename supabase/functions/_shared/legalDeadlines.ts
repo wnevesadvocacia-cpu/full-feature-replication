@@ -517,6 +517,11 @@ const ATO_SEM_PRAZO_RX = /\b(arquive[ -]?se|arquivem[ -]?se os autos|baixa defin
 // Se houver qualquer determinação de ato ou prazo, NÃO é ato informativo.
 const ATO_COM_DETERMINACAO_RX = /\b(prazo|manifeste[ -]?se|manifestem[ -]?se|apresente|apresentem|cumpra[ -]?se a decisao|comprove|impugne|conteste|recolha|pague|providencie|informe|esclareca|requeira|sob pena|intime[ -]?se .{0,40}para|especifiquem|contrarrazoes|contraminuta|emende|regularize)\b/;
 
+// Listagens administrativas de distribuição apenas informam que um recurso já
+// interposto foi distribuído. A classe "Apelação Cível" e os rótulos
+// "Apelante/Apelado" descrevem o processo; não inauguram prazo de apelação.
+const LISTAGEM_DISTRIBUICAO_RX = /\bprocessos? distribuid[oa]s?(?: em \d{2}\/\d{2}\/\d{4})?\b/;
+
 // ====== MIGRAÇÃO DE SISTEMA PROCESSUAL (MERA CIÊNCIA, SEM PRAZO) ======
 // Ex.: TJSP comunicando que o processo passa do e-SAJ para o eproc, com pedido de
 // credenciamento/verificação cadastral — providência administrativa, não ato processual.
@@ -652,6 +657,33 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let pecaSugerida: PecaSugerida | null = null;
   let baseLegalExtra = '';
   let triggerSource: DetectedDeadline['triggerSource'] = 'fallback';
+
+  if (LISTAGEM_DISTRIBUICAO_RX.test(text) && !ATO_COM_DETERMINACAO_RX.test(text) && !extractLiteralDeadline(text)) {
+    return {
+      days: 0,
+      unit: 'dias_corridos',
+      label: 'Sem prazo — ciência de distribuição processual',
+      source: 'CPC',
+      article: 'art. 218 §3º (não há ato processual a praticar)',
+      matchedText: (text.match(LISTAGEM_DISTRIBUICAO_RX) || [''])[0],
+      doubled: false,
+      dueDate: null,
+      startDate: null,
+      severity: 'normal',
+      businessDaysLeft: 0,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Ciência (sem peça devida)',
+        fundamento_legal: 'Distribuição processual — ato informativo',
+        prazo_dias: 0,
+        observacoes: 'Publicação apenas informa a distribuição de recurso já interposto. A classe processual e os rótulos das partes não abrem novo prazo recursal.',
+      },
+      baseLegal: 'Listagem administrativa de processos distribuídos — não abre prazo recursal',
+      confianca: 0.96,
+      classificacaoStatus: 'auto_alta',
+      triggerSource: 'fallback',
+    };
+  }
 
   // ====== P0 #2: PAUTA DE SESSÃO VIRTUAL (precedência ABSOLUTA) ======
   // Vencimento = 48h antes da sessão (Res. CNJ 591/24, TJSP 984/2025).
