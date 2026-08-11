@@ -890,7 +890,7 @@ export default function Tarefas() {
               </p>
             )}
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || saving || !canManage}>
+            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || !form.due_date || saving || !canManage}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
