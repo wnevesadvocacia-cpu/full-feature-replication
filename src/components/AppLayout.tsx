@@ -53,7 +53,7 @@ export default function AppLayout() {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 overflow-auto">
+          <main className="flex-1 overflow-auto scroll-fluid">
             <div className="animate-fade-up">
               <Outlet />
             </div>
