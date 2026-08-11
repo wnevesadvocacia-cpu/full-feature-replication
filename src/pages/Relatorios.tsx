@@ -245,7 +245,7 @@ export default function Relatorios() {
         <KpiCard title="Ativos" value={active} icon={TrendingUp} color="bg-green-500" />
         <KpiCard title="Concluídos" value={concluded} icon={CheckCircle2} color="bg-emerald-500" />
         <KpiCard title="Taxa Conclusão" value={`${conclusionRate}%`} icon={TrendingUp} color="bg-indigo-500" />
-        <KpiCard title="Tarefas Pendentes" value={pendingTasks} icon={Clock} color="bg-amber-500" />
+        <KpiCard title="Diligências Pendentes" value={pendingTasks} icon={Clock} color="bg-amber-500" />
         <KpiCard title="Clientes" value={cls.length} icon={Users} color="bg-purple-500" />
       </div>
 
@@ -354,13 +354,13 @@ export default function Relatorios() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-amber-500" />
-              Tarefas Pendentes por Prioridade
+              Diligências Pendentes por Prioridade
             </CardTitle>
           </CardHeader>
           <CardContent>
             {taskPriorityData.length === 0 ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
-                Nenhuma tarefa pendente
+                Nenhuma diligência pendente
               </div>
             ) : (
               <div className="space-y-3 pt-2">

@@ -56,7 +56,7 @@ export function CommandMenu() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Buscar processo, cliente, tarefa..." />
+      <CommandInput placeholder="Buscar processo, cliente, prazo..." />
       <CommandList>
         <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
         <CommandGroup heading="Navegação">
