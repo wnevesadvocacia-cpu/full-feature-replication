@@ -4,7 +4,7 @@ import { AppSidebar } from '@/components/AppSidebar';
 import { CommandMenu } from '@/components/CommandMenu';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { LogOut } from 'lucide-react';
+import { LogOut, Search } from 'lucide-react';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useLegalCalendar } from '@/hooks/useLegalCalendar';
@@ -21,10 +21,19 @@ export default function AppLayout() {
       <div className="min-h-screen flex w-full bg-background">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Header — glass, sticky, hairline border */}
-          <header className="sticky top-0 z-30 h-14 flex items-center justify-between glass border-b border-hairline px-4 shrink-0">
+          <header className="sticky top-0 z-30 h-16 flex items-center justify-between bg-card/95 backdrop-blur-xl border-b px-4 md:px-8 shrink-0 shadow-[0_1px_0_hsl(var(--border))]">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="hover:bg-accent rounded-md transition-colors" />
+              <button
+                type="button"
+                onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
+                className="hidden sm:flex h-9 w-72 lg:w-96 items-center gap-2 rounded-md border bg-muted/70 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted"
+                aria-label="Abrir busca global"
+              >
+                <Search className="h-4 w-4" />
+                <span className="truncate">Pesquisar processos, clientes ou documentos...</span>
+                <kbd className="ml-auto rounded border bg-card px-1.5 py-0.5 text-[10px] font-semibold">⌘K</kbd>
+              </button>
             </div>
 
             <div className="flex items-center gap-1">
@@ -32,7 +41,7 @@ export default function AppLayout() {
               <NotificationBell />
 
               <div className="flex items-center gap-2.5 ml-2 pl-3 border-l border-hairline">
-                <div className="h-8 w-8 rounded-full bg-gradient-gold flex items-center justify-center shadow-gold shrink-0">
+                <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center shadow-gold shrink-0 ring-2 ring-primary/15">
                   <span className="text-primary-foreground text-xs font-semibold">
                     {((user?.user_metadata as any)?.full_name?.[0] || user?.email?.[0] || 'U').toUpperCase()}
                   </span>

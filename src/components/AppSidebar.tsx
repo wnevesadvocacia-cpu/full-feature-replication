@@ -83,29 +83,29 @@ export function AppSidebar() {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border shadow-[4px_0_24px_hsl(var(--sidebar-background)/0.12)]">
+      <SidebarHeader className="p-4 border-b border-sidebar-border min-h-16 justify-center">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-gradient-gold flex items-center justify-center shrink-0 shadow-gold">
+          <div className="h-9 w-9 rounded-md bg-sidebar-primary flex items-center justify-center shrink-0 shadow-gold ring-1 ring-sidebar-primary/40">
             <span className="font-display text-xl font-bold text-primary-foreground leading-none">W</span>
           </div>
           {!collapsed && (
             <div className="flex flex-col leading-tight">
-              <span className="font-display text-xl font-semibold text-sidebar-accent-foreground tracking-tight">
+              <span className="font-display text-lg font-semibold text-sidebar-accent-foreground">
                 WnevesBox
               </span>
-              <span className="text-[10px] uppercase tracking-[0.25em] text-sidebar-muted font-medium mt-0.5">
-                Legal Suite
+               <span className="text-[10px] uppercase text-sidebar-muted font-semibold mt-0.5">
+                 Gestão jurídica
               </span>
             </div>
           )}
         </div>
       </SidebarHeader>
 
-      <SidebarContent className="px-2">
+      <SidebarContent className="px-2 py-2 scroll-fluid">
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-muted text-xs font-medium uppercase tracking-wider px-3">
-            {!collapsed ? 'Principal' : ''}
+          <SidebarGroupLabel className="text-sidebar-muted text-[10px] font-bold uppercase px-3">
+            {!collapsed ? 'Módulos' : ''}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -119,8 +119,8 @@ export function AppSidebar() {
                     <NavLink
                       to={item.url}
                       end
-                      className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-150"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                      className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+                      activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold shadow-[inset_3px_0_0_hsl(var(--sidebar-primary))]"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       {!collapsed && <span className="text-sm">{item.title}</span>}
@@ -133,7 +133,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-muted text-xs font-medium uppercase tracking-wider px-3">
+          <SidebarGroupLabel className="text-sidebar-muted text-[10px] font-bold uppercase px-3">
             {!collapsed ? 'Ferramentas' : ''}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -158,8 +158,8 @@ export function AppSidebar() {
                       <NavLink
                         to={item.url}
                         end
-                        className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-150"
-                        activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                        className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+                        activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold shadow-[inset_3px_0_0_hsl(var(--sidebar-primary))]"
                       >
                         <item.icon className="h-4 w-4 shrink-0" />
                         {!collapsed && <span className="text-sm">{item.title}</span>}
@@ -173,15 +173,15 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-2">
+      <SidebarFooter className="p-2 border-t border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={isActive('/configuracoes')} tooltip="Configurações">
               <NavLink
                 to="/configuracoes"
                 end
-                className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors duration-150"
-                activeClassName="bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                className="flex items-center gap-3 px-3 py-2 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+                activeClassName="bg-sidebar-accent text-sidebar-primary font-semibold shadow-[inset_3px_0_0_hsl(var(--sidebar-primary))]"
               >
                 <Settings className="h-4 w-4 shrink-0" />
                 {!collapsed && <span className="text-sm">Configurações</span>}
