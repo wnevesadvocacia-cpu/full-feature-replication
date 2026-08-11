@@ -141,4 +141,29 @@ describe('legalDeadlines — regressões críticas de contexto', () => {
     expect(det?.doubled).toBe(true);
     expect(det?.days).toBe(30);
   });
+
+  it('trata listagem de processos distribuídos como ciência, apesar de conter Apelação Cível', () => {
+    const det = detectDeadline(
+      'PROCESSOS DISTRIBUÍDOS EM 10/08/2026. Processo Digital; Apelação Cível; 7ª Câmara de Direito Público; Apelante: Jose Mauricio Sanfins; Apelado: Estado de São Paulo.',
+      '2026-08-11',
+      '2026-08-11',
+      { tribunal: 'TJSP' },
+    );
+    expect(det?.days).toBe(0);
+    expect(det?.dueDate).toBeNull();
+    expect(det?.label).toBe('Sem prazo — ciência de distribuição processual');
+    expect(det?.pecaSugerida?.peca).toBe('Ciência (sem peça devida)');
+  });
+
+  it('não transforma listagem de distribuição em apelação por boilerplate com a palavra prazo', () => {
+    const det = detectDeadline(
+      'PROCESSOS DISTRIBUÍDOS EM 10/08/2026. Apelação Cível; 7ª Câmara de Direito Público; Apelante: Jose; Apelado: Estado de São Paulo. Nos termos do art. 231 do CPC, o prazo para eventual manifestação corre da publicação.',
+      '2026-08-11',
+      '2026-08-11',
+      { tribunal: 'TJSP' },
+    );
+    expect(det?.days).toBe(0);
+    expect(det?.dueDate).toBeNull();
+    expect(det?.label).toBe('Sem prazo — ciência de distribuição processual');
+  });
 });
