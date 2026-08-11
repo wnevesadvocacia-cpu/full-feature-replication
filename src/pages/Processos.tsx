@@ -959,8 +959,8 @@ export default function Processos() {
     );
     if (dup) {
       const ok = await confirmModal(
-        'Já existe uma tarefa pendente com este mesmo título neste processo. Tem certeza que deseja criar outra?',
-        { title: 'Tarefa duplicada', okLabel: 'Criar mesmo assim' }
+        'Já existe uma diligência pendente com este mesmo título neste processo. Tem certeza que deseja criar outra?',
+        { title: 'Diligência duplicada', okLabel: 'Criar mesmo assim' }
       );
       if (!ok) return;
     }

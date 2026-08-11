@@ -387,7 +387,7 @@ export default function Relatorios() {
                   <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 dark:bg-red-950 dark:border-red-800">
                     <p className="text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
                       <AlertCircle className="h-4 w-4" />
-                      {overdueTasks} tarefa{overdueTasks !== 1 ? 's' : ''} atrasada{overdueTasks !== 1 ? 's' : ''}
+                      {overdueTasks} diligência{overdueTasks !== 1 ? 's' : ''} atrasada{overdueTasks !== 1 ? 's' : ''}
                     </p>
                   </div>
                 )}
