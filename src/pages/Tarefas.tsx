@@ -216,7 +216,7 @@ export default function Tarefas() {
           `Já existe(m) ${dups.length} tarefa(s) pendente(s) neste processo:\n\n` +
           dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${fmtDate(t.due_date)})` : ''}`).join('\n') +
           `\n\nDeseja mesmo criar outra tarefa neste processo?`,
-          { title: 'Tarefas pendentes neste processo', okLabel: 'Criar mesmo assim' }
+          { title: 'Prazos/Diligências pendentes neste processo', okLabel: 'Criar mesmo assim' }
         );
         if (!ok) return;
       }
@@ -526,7 +526,7 @@ export default function Tarefas() {
         <header className="flex items-end justify-between border-b border-stone-200 dark:border-border pb-6">
           <div className="space-y-1">
             <h1 className="font-serif text-4xl sm:text-5xl font-normal tracking-tight text-stone-900 dark:text-foreground">
-              Tarefas
+              Prazos/Diligências
             </h1>
             <p className="text-xs sm:text-sm text-stone-500 dark:text-muted-foreground font-medium tracking-wide uppercase">
               <span className="text-stone-900 dark:text-foreground">{pendentes} pendentes</span> · {concluidas} concluídas
@@ -564,7 +564,7 @@ export default function Tarefas() {
                   <p className="text-sm text-red-900 dark:text-destructive font-semibold">
                     {urgentTasks.length === 1
                       ? `"${nearest.title}" — atenção ao prazo`
-                      : `${urgentTasks.length} tarefas próximas do vencimento`}
+                      : `${urgentTasks.length} prazos/diligências próximos do vencimento`}
                   </p>
                   <p className="text-xs text-red-700 dark:text-destructive/80 mt-1 opacity-90 italic">
                     A mais urgente: "{nearest.title}" {daysLeft < 0 ? `vencida há ${Math.abs(daysLeft)} dia(s)` : daysLeft === 0 ? 'vence hoje' : daysLeft === 1 ? 'vence amanhã' : `vence em ${daysLeft} dias`} — {fmtDate(nearest.due_date)}
@@ -610,7 +610,7 @@ export default function Tarefas() {
         <div className="flex items-start gap-2 rounded-md border border-stone-200 dark:border-border bg-white/50 dark:bg-card/40 px-3 py-2 text-xs text-stone-500 dark:text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
           <p className="leading-relaxed">
-            Esta busca lista apenas processos com <span className="font-medium text-stone-800 dark:text-foreground">tarefas pendentes</span>.
+            Esta busca lista apenas processos com <span className="font-medium text-stone-800 dark:text-foreground">prazos/diligências pendentes</span>.
             Para buscar todos os processos,{" "}
             <Link to="/processos" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
               acesse Processos <ArrowRight className="h-3 w-3" />
@@ -624,7 +624,7 @@ export default function Tarefas() {
             <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhuma tarefa encontrada</p>
             <p className="text-sm mt-2 italic">
               {search
-                ? 'A busca filtra tarefas já criadas. Para vincular a um processo, clique em "Nova Tarefa".'
+                ? 'A busca filtra prazos/diligências já criados. Para vincular a um processo, clique em "Nova Diligência".'
                 : 'Crie sua primeira tarefa clicando em "Nova Tarefa".'}
             </p>
             {search && (
