@@ -275,7 +275,7 @@ export default function Dashboard() {
             <CardContent className="p-5">
               <div className="flex items-center gap-2 mb-3 text-[hsl(var(--warning))]">
                 <AlertCircle className="h-3.5 w-3.5" />
-                <span className="text-[10px] uppercase tracking-[0.2em] font-semibold">Prazos/Diligências Pendentes</span>
+                <span className="text-[10px] uppercase tracking-[0.2em] font-semibold">Prazos Pendentes</span>
               </div>
               <div className="flex items-end justify-between gap-3">
                 <p className="text-3xl font-display font-bold text-foreground tabular-nums">
@@ -332,7 +332,7 @@ export default function Dashboard() {
               <CardTitle className="text-sm font-semibold flex items-center justify-between text-foreground">
                 <span className="flex items-center gap-2">
                   <span className="h-1 w-6 bg-primary rounded-full" />
-                  <Clock className="h-4 w-4 text-primary" /> Próximas Diligências
+                  <Clock className="h-4 w-4 text-primary" /> Próximas Prazos
                 </span>
                 <Link to="/tarefas" className="text-xs font-medium text-primary hover:underline">Ver todas →</Link>
               </CardTitle>
@@ -341,7 +341,7 @@ export default function Dashboard() {
               {loading ? (
                 <p className="text-sm text-muted-foreground p-6">Carregando…</p>
               ) : upcomingTasks.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-6">Nenhuma diligência pendente.</p>
+                <p className="text-sm text-muted-foreground p-6">Nenhuma prazo pendente.</p>
               ) : (
                 <ul className="divide-y divide-border/40">
                   {upcomingTasks.map((t) => {
