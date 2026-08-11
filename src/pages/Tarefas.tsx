@@ -204,6 +204,7 @@ export default function Tarefas() {
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da tarefa a um gestor/administrador.', variant: 'destructive' }); return; }
+    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar a tarefa.', variant: 'destructive' }); return; }
     // Verificação de duplicidade — consulta o banco no submit para não depender
     // do cache do React Query (evita falso-negativo se o cache estiver defasado).
     if (form.process_id) {
@@ -251,6 +252,7 @@ export default function Tarefas() {
     if (!editTarget || !form.title.trim()) return;
     if (!form.assignee.trim()) { toast({ title: 'Selecione o responsável', variant: 'destructive' }); return; }
     if (!form.cc_user_id) { toast({ title: 'Selecione o gestor em cópia', description: 'É obrigatório enviar cópia da alteração a um gestor/administrador.', variant: 'destructive' }); return; }
+    if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório.', variant: 'destructive' }); return; }
     setSaving(true);
     try {
       const { error } = await supabase.from('tasks').update({
@@ -509,7 +511,7 @@ export default function Tarefas() {
         </div>
         <div>
           <Label className="flex items-center gap-1">
-            <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final
+            <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final *
           </Label>
           <DateInputBR className="mt-1" value={form.due_date} onChange={(v) => set('due_date')({ target: { value: v } } as any)} />
         </div>
@@ -828,7 +830,7 @@ export default function Tarefas() {
           {taskFormFields}
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || saving}>
+            <Button onClick={handleCreate} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || !form.due_date || saving}>
               {saving ? 'Salvando…' : 'Criar Tarefa'}
             </Button>
           </DialogFooter>
@@ -888,7 +890,7 @@ export default function Tarefas() {
               </p>
             )}
             <Button variant="outline" onClick={() => setEditTarget(null)}>Cancelar</Button>
-            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || saving || !canManage}>
+            <Button onClick={handleEdit} disabled={!form.title.trim() || !form.assignee.trim() || !form.cc_user_id || !form.due_date || saving || !canManage}>
               {saving ? 'Salvando…' : 'Salvar Alterações'}
             </Button>
           </DialogFooter>
