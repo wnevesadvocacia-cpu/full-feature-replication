@@ -315,7 +315,7 @@ export default function Tarefas() {
 
   const openAttach = (task: any) => {
     if (!task.process_id) {
-      toast({ title: 'Vincule um processo à tarefa antes de anexar documentos.', variant: 'destructive' });
+      toast({ title: 'Vincule um processo à diligência antes de anexar documentos.', variant: 'destructive' });
       return;
     }
     setAttachTarget(task);
@@ -331,7 +331,7 @@ export default function Tarefas() {
         userId: user.id,
         file,
         processId: task.process_id,
-        description: `Anexo da tarefa: ${task.title}`,
+        description: `Anexo da diligência: ${task.title}`,
         category: 'tarefa',
       });
       toast({ title: 'Documento anexado!', description: 'Vinculado ao processo/cliente.' });
@@ -403,7 +403,7 @@ export default function Tarefas() {
           <div className="mt-2 rounded-md border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/30 p-2.5 text-[12px] text-amber-900 dark:text-amber-100">
             <p className="font-semibold flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Possível duplicidade</p>
             <p className="mt-1">
-              Já existe(m) <strong>{duplicateHint.length}</strong> tarefa(s) pendente(s) neste processo:
+              Já existe(m) <strong>{duplicateHint.length}</strong> diligência(s) pendente(s) neste processo:
             </p>
             <ul className="mt-1 list-disc list-inside space-y-0.5">
               {duplicateHint.slice(0, 3).map((t: any) => (
@@ -450,7 +450,7 @@ export default function Tarefas() {
       </div>
       <div>
         <Label>Descrição</Label>
-        <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes da tarefa" />
+        <Textarea className="mt-1" value={form.description} onChange={set('description')} rows={2} placeholder="Detalhes da diligência" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -496,7 +496,7 @@ export default function Tarefas() {
           ))}
         </select>
         <p className="text-[11px] text-muted-foreground mt-1">
-          Obrigatório: o gestor selecionado receberá notificação imediata desta tarefa.
+          Obrigatório: o gestor selecionado receberá notificação imediata desta diligência.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -536,7 +536,7 @@ export default function Tarefas() {
             onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}
             className="rounded-sm shadow-xl"
           >
-            <Plus className="h-4 w-4 mr-1.5" /> Nova Tarefa
+            <Plus className="h-4 w-4 mr-1.5" /> Nova Diligência
           </Button>
         </header>
 
@@ -621,15 +621,15 @@ export default function Tarefas() {
         {/* Lista */}
         {filtered.length === 0 ? (
           <div className="text-center py-16 text-stone-500 dark:text-muted-foreground">
-            <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhuma tarefa encontrada</p>
+            <p className="font-serif text-2xl text-stone-700 dark:text-foreground">Nenhuma diligência encontrada</p>
             <p className="text-sm mt-2 italic">
               {search
                 ? 'A busca filtra prazos/diligências já criados. Para vincular a um processo, clique em "Nova Diligência".'
-                : 'Crie sua primeira tarefa clicando em "Nova Tarefa".'}
+                : 'Crie sua primeira diligência clicando em "Nova Diligência".'}
             </p>
             {search && (
               <Button className="mt-4" size="sm" onClick={() => { setForm(EMPTY_FORM); setCreateOpen(true); }}>
-                <Plus className="h-4 w-4 mr-1" /> Nova Tarefa
+                <Plus className="h-4 w-4 mr-1" /> Nova Diligência
               </Button>
             )}
           </div>
