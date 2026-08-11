@@ -210,7 +210,31 @@
 }
 
 
+@layer components {
+  /* Superfície de card refinada — hairline + elevação suave */
+  .card-surface {
+    box-shadow: var(--shadow-card);
+    transition: box-shadow var(--duration-base) var(--ease-editorial),
+                transform var(--duration-base) var(--ease-editorial),
+                border-color var(--duration-base) var(--ease-editorial);
+  }
+  .card-surface:hover {
+    box-shadow: var(--shadow-card-hover);
+    border-color: hsl(var(--primary) / 0.28);
+  }
+}
+
 @layer utilities {
+  /* Rolagem fluida e sem "trepidação" de layout */
+  .scroll-fluid {
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    -webkit-overflow-scrolling: touch;
+    will-change: scroll-position;
+  }
+
+
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-card-hover { box-shadow: var(--shadow-card-hover); }
   .shadow-dropdown { box-shadow: var(--shadow-dropdown); }
