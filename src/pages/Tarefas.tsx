@@ -31,6 +31,7 @@ import { HistoricoConversas } from '@/components/HistoricoConversas';
 import { PRAXIS_TASK_TITLES } from '@/lib/praxisTitles';
 import { attachDocumentToProcess } from '@/lib/attachDocument';
 import { DateInputBR } from '@/components/DateInputBR';
+import { CopyNumber } from '@/components/CopyNumber';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
