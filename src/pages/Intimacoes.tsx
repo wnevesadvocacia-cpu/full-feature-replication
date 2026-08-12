@@ -715,6 +715,22 @@ export default function Intimacoes() {
             return (
               <div key={it.id} className="bg-card rounded-lg p-4 border shadow-card hover:shadow-card-hover flex gap-3">
                 <div className="flex-1 min-w-0">
+                  {(() => {
+                    const cnjs = extractCnjs(it.content);
+                    const primary = cnjs[0];
+                    if (!primary) return null;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setOverviewTarget(it)}
+                        title="Ver detalhes da publicação"
+                        className="group/num inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 rounded-md px-3 py-1.5 mb-2 transition-colors"
+                      >
+                        <FileText className="h-4 w-4 text-primary/70" />
+                        {primary}
+                      </button>
+                    );
+                  })()}
                   <div className="flex items-center gap-2 flex-wrap">
                     {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                     {tribInfo?.sistema && (
