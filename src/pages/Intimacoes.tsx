@@ -720,15 +720,13 @@ export default function Intimacoes() {
                     const primary = cnjs[0];
                     if (!primary) return null;
                     return (
-                      <button
-                        type="button"
-                        onClick={() => setOverviewTarget(it)}
-                        title="Ver detalhes da publicação"
-                        className="group/num inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 rounded-md px-3 py-1.5 mb-2 transition-colors"
+                      <span
+                        title="Número do processo"
+                        className="inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 border border-primary/20 rounded-md px-3 py-1.5 mb-2"
                       >
                         <FileText className="h-4 w-4 text-primary/70" />
                         {primary}
-                      </button>
+                      </span>
                     );
                   })()}
                   <div className="flex items-center gap-2 flex-wrap">
