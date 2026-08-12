@@ -146,7 +146,6 @@
 
   html {
     font-feature-settings: "ss01", "cv11", "kern";
-    scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
   }
 
