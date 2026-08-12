@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
 import { detectDeadline } from '@/lib/legalDeadlines';
@@ -715,6 +715,20 @@ export default function Intimacoes() {
             return (
               <div key={it.id} className="bg-card rounded-lg p-4 border shadow-card hover:shadow-card-hover flex gap-3">
                 <div className="flex-1 min-w-0">
+                  {(() => {
+                    const cnjs = extractCnjs(it.content);
+                    const primary = cnjs[0];
+                    if (!primary) return null;
+                    return (
+                      <span
+                        title="Número do processo"
+                        className="inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 border border-primary/20 rounded-md px-3 py-1.5 mb-2"
+                      >
+                        <FileText className="h-4 w-4 text-primary/70" />
+                        {primary}
+                      </span>
+                    );
+                  })()}
                   <div className="flex items-center gap-2 flex-wrap">
                     {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                     {tribInfo?.sistema && (

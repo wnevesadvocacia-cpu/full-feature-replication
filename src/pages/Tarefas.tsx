@@ -655,20 +655,21 @@ export default function Tarefas() {
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                     <div className="flex-1 min-w-0 space-y-3">
+                      {task.processes?.number && (
+                        <button
+                          type="button"
+                          onClick={() => setOverviewTarget(task)}
+                          title="Ver detalhes do prazo"
+                          className="group/num inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 rounded-md px-3 py-1.5 transition-colors"
+                        >
+                          <FileText className="h-4 w-4 text-primary/70" />
+                          {task.processes.number}
+                        </button>
+                      )}
                       <div className="flex items-center gap-3 flex-wrap">
                         <h3 className={`text-base sm:text-lg font-medium text-stone-900 dark:text-foreground group-hover:text-primary transition-colors ${task.completed ? 'line-through' : ''}`}>
                           {task.title}
                         </h3>
-                        {task.processes?.number && (
-                          <button
-                            type="button"
-                            onClick={() => setOverviewTarget(task)}
-                            title="Ver detalhes do prazo"
-                            className="px-2 py-0.5 bg-stone-100 dark:bg-muted text-stone-500 dark:text-muted-foreground text-[10px] font-mono rounded border border-stone-200 dark:border-border hover:bg-stone-200 dark:hover:bg-muted/70"
-                          >
-                            #{task.processes.number}
-                          </button>
-                        )}
                         {(() => {
                           // Fallback: tenta extrair CNJ do título/descrição quando não há processo vinculado
                           const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
@@ -844,7 +845,8 @@ export default function Tarefas() {
             <DialogTitle className="flex flex-wrap items-center gap-2">
               <span>Editar Prazo</span>
               {editTarget?.processes?.number && (
-                <span className="font-mono text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
+                  <FileText className="h-3.5 w-3.5" />
                   {editTarget.processes.number}
                 </span>
               )}
@@ -943,7 +945,10 @@ export default function Tarefas() {
                 {t.processes?.number && (
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Processo:</span>
-                    <span className="font-mono font-medium text-blue-700">{t.processes.number}</span>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-base font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
+                      <FileText className="h-4 w-4" />
+                      {t.processes.number}
+                    </span>
                   </div>
                 )}
                 {t.description && (() => {
