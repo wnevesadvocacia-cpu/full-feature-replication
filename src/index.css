@@ -213,7 +213,6 @@
 
   /* Firefox */
   * {
-    scrollbar-width: auto;
     scrollbar-color: hsl(var(--primary)) hsl(var(--muted));
   }
 
