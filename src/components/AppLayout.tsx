@@ -18,9 +18,10 @@ export default function AppLayout() {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
+      <div className="h-screen max-h-screen overflow-hidden flex w-full bg-background">
         <AppSidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0">
+
           <header className="sticky top-0 z-30 h-16 flex items-center justify-between bg-card/95 backdrop-blur-xl border-b px-4 md:px-8 shrink-0 shadow-[0_1px_0_hsl(var(--border))]">
             <div className="flex items-center gap-3">
               <SidebarTrigger className="hover:bg-accent rounded-md transition-colors" />
@@ -62,7 +63,7 @@ export default function AppLayout() {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 overflow-auto scroll-fluid">
+          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-fluid">
             <div className="animate-fade-up">
               <Outlet />
             </div>
