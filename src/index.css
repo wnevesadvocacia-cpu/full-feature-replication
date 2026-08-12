@@ -238,13 +238,11 @@
 }
 
 @layer utilities {
-  /* Rolagem fluida e sem "trepidação" de layout */
+  /* Rolagem sem "trepidação" de layout */
   .scroll-fluid {
-    scroll-behavior: smooth;
     overscroll-behavior: contain;
     scrollbar-gutter: stable;
     -webkit-overflow-scrolling: touch;
-    will-change: scroll-position;
   }
 
 
