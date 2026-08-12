@@ -845,7 +845,8 @@ export default function Tarefas() {
             <DialogTitle className="flex flex-wrap items-center gap-2">
               <span>Editar Prazo</span>
               {editTarget?.processes?.number && (
-                <span className="font-mono text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                <span className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
+                  <FileText className="h-3.5 w-3.5" />
                   {editTarget.processes.number}
                 </span>
               )}
