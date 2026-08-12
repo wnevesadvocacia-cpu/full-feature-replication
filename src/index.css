@@ -146,7 +146,6 @@
 
   html {
     font-feature-settings: "ss01", "cv11", "kern";
-    scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
   }
 
@@ -186,7 +185,7 @@
     color: hsl(var(--foreground));
   }
 
-  /* Scrollbar — premium, visível e elegante */
+  /* Scrollbar — premium, visível e elegante, aplicado em TODO o sistema */
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track {
     background: hsl(var(--muted) / 0.35);
@@ -205,7 +204,25 @@
     border-color: hsl(var(--primary) / 0.25);
   }
   ::-webkit-scrollbar-corner { background: transparent; }
-  * { scrollbar-width: thin; scrollbar-color: hsl(var(--muted-foreground) / 0.45) hsl(var(--muted) / 0.35); }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.45) hsl(var(--muted) / 0.35);
+  }
+
+  /* Rolagem fluida e sem "trepidação" para qualquer elemento scrollável */
+  html, body, .overflow-auto, .overflow-scroll, .overflow-y-auto, .overflow-y-scroll,
+  .overflow-x-auto, .overflow-x-scroll, [class*="ScrollArea"], [data-radix-scroll-area-viewport],
+  [role="dialog"] [class*="overflow"], [class*="dialog-content"], [class*="select-viewport"],
+  [class*="command-list"], [class*="popover-content"] {
+    scroll-behavior: smooth;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Gutter estável evita pulos de layout quando scrollbar aparece/desaparece */
+  html { scrollbar-gutter: stable; }
 }
 
 
