@@ -31,6 +31,7 @@ import { HistoricoConversas } from '@/components/HistoricoConversas';
 import { PRAXIS_TASK_TITLES } from '@/lib/praxisTitles';
 import { attachDocumentToProcess } from '@/lib/attachDocument';
 import { DateInputBR } from '@/components/DateInputBR';
+import { CopyNumber } from '@/components/CopyNumber';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
@@ -656,15 +657,18 @@ export default function Tarefas() {
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
                     <div className="flex-1 min-w-0 space-y-3">
                       {task.processes?.number && (
-                        <button
-                          type="button"
-                          onClick={() => setOverviewTarget(task)}
-                          title="Ver detalhes do prazo"
-                          className="group/num inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 rounded-md px-3 py-1.5 transition-colors"
-                        >
-                          <FileText className="h-4 w-4 text-primary/70" />
-                          {task.processes.number}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setOverviewTarget(task)}
+                            title="Ver detalhes do prazo"
+                            className="group/num inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 rounded-md px-3 py-1.5 transition-colors"
+                          >
+                            <FileText className="h-4 w-4 text-primary/70" />
+                            {task.processes.number}
+                          </button>
+                          <CopyNumber number={task.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
+                        </div>
                       )}
                       <div className="flex items-center gap-3 flex-wrap">
                         <h3 className={`text-base sm:text-lg font-medium text-stone-900 dark:text-foreground group-hover:text-primary transition-colors ${task.completed ? 'line-through' : ''}`}>
@@ -848,6 +852,7 @@ export default function Tarefas() {
                 <span className="inline-flex items-center gap-1.5 font-mono text-sm font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
                   <FileText className="h-3.5 w-3.5" />
                   {editTarget.processes.number}
+                  <CopyNumber number={editTarget.processes.number} iconClassName="h-3 w-3" className="ml-0.5 p-1 rounded hover:bg-primary/20" />
                 </span>
               )}
               {editTarget?.assignee && (
@@ -949,6 +954,7 @@ export default function Tarefas() {
                       <FileText className="h-4 w-4" />
                       {t.processes.number}
                     </span>
+                    <CopyNumber number={t.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
                   </div>
                 )}
                 {t.description && (() => {

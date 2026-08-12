@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText } from 'lucide-react';
+import { CopyNumber } from '@/components/CopyNumber';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
 import { detectDeadline } from '@/lib/legalDeadlines';
@@ -720,13 +721,16 @@ export default function Intimacoes() {
                     const primary = cnjs[0];
                     if (!primary) return null;
                     return (
-                      <span
-                        title="Número do processo"
-                        className="inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 border border-primary/20 rounded-md px-3 py-1.5 mb-2"
-                      >
-                        <FileText className="h-4 w-4 text-primary/70" />
-                        {primary}
-                      </span>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span
+                          title="Número do processo"
+                          className="inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 border border-primary/20 rounded-md px-3 py-1.5"
+                        >
+                          <FileText className="h-4 w-4 text-primary/70" />
+                          {primary}
+                        </span>
+                        <CopyNumber number={primary} className="p-1.5 rounded-md hover:bg-primary/10" />
+                      </div>
                     );
                   })()}
                   <div className="flex items-center gap-2 flex-wrap">
