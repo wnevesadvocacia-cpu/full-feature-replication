@@ -945,7 +945,10 @@ export default function Tarefas() {
                 {t.processes?.number && (
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Processo:</span>
-                    <span className="font-mono font-medium text-blue-700">{t.processes.number}</span>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-base font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
+                      <FileText className="h-4 w-4" />
+                      {t.processes.number}
+                    </span>
                   </div>
                 )}
                 {t.description && (() => {
