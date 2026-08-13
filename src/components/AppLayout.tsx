@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { Outlet } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/AppSidebar';
@@ -9,9 +10,11 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { useLegalCalendar } from '@/hooks/useLegalCalendar';
 import { useRealtimeIntimacoes } from '@/hooks/useRealtimeIntimacoes';
+import { FatScrollbar } from '@/components/FatScrollbar';
 
 export default function AppLayout() {
   const { user, signOut } = useAuth();
+  const mainRef = useRef<HTMLElement>(null);
   // Hidrata calendário legal global (suspensões + feriados de tribunal) e ativa Realtime
   useLegalCalendar();
   useRealtimeIntimacoes();
@@ -63,11 +66,12 @@ export default function AppLayout() {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-fluid">
+          <main ref={mainRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-fluid no-native-scrollbar">
             <div className="animate-fade-up">
               <Outlet />
             </div>
           </main>
+          <FatScrollbar targetRef={mainRef} />
         </div>
       </div>
       <CommandMenu />
