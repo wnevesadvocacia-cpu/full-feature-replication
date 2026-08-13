@@ -513,6 +513,12 @@ const ENCAMINHA_PAUTA_RX = /\b(insercao do recurso em pauta|inser(?:cao|ir) (?:d
 // repercussão geral ou repetitivo (CPC 1.030 I/III) desafia agravo interno (§2º).
 const NEGA_SEGUIMENTO_RE_VINCULANTE_RX = /\b(?:nego|nega|negado|negaram) seguimento\b[^.]{0,240}\brecurso (?:especial|extraordinario)\b|\brecurso (?:especial|extraordinario)\b[^.]{0,240}\b(?:nego|nega|negado|negaram) seguimento\b/;
 const FUNDAMENTO_VINCULANTE_RX = /\b(?:art\.?\s*1\.?030\s*,?\s*(?:inciso\s*)?(?:i|iii)\b|tema\s*n?[ºo]?\s*\d+|repercussao geral|recurso repetitivo|precedente vinculante)\b/;
+// TRAVA GENÉRICA: qualquer decisão que NEGA/INADMITE/JULGA PREJUDICADO um recurso já
+// interposto nunca reabre o prazo do mesmo recurso. Se o motor tiver sugerido um recurso
+// (por classe processual, cabeçalho ou menção), a sugestão é rebaixada para revisão
+// obrigatória do advogado — indicar recurso errado pode custar o processo.
+const DECISAO_NEGATIVA_RECURSO_RX = /\b(?:(?:nego|nega|negado|negaram|negou) seguimento|(?:nao|n\u00e3o) (?:conheco|conheço|conhecido|conheceram) do recurso|inadmito|inadmitido|nao admito|nao recebo o recurso|julgo prejudicado o recurso|recurso prejudicado|nego provimento ao recurso|denego seguimento)\b/;
+const RECURSO_PECA_RX = /\b(apelacao|recurso inominado|recurso especial|recurso extraordinario|agravo de instrumento|recurso ordinario|recurso de revista)\b/;
 // ====== ATOS MERAMENTE ORDINATÓRIOS / INFORMATIVOS (SEM PRAZO) ======
 // Publicações que não intimam a praticar ato algum não podem receber o fallback de
 // 5 dias úteis (CPC art. 218 §3º), que só incide quando a lei/juiz determina ato
@@ -1098,6 +1104,26 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     else if (businessDaysLeft <= 2) severity = 'critical';
     else if (businessDaysLeft <= 5) severity = 'warning';
     else severity = 'normal';
+  }
+
+  // ====== TRAVA DE SEGURANÇA RECURSAL (perene) ======
+  // Decisão que nega seguimento / inadmite / julga prejudicado recurso NÃO reabre o prazo
+  // do mesmo recurso. Se sobrou sugestão de recurso, exige revisão do advogado.
+  if (DECISAO_NEGATIVA_RECURSO_RX.test(text) && triggerSource !== 'literal_dispositivo') {
+    const pecaAtual = pecaSugerida ?? chosen.rule.peca ?? null;
+    const nomePeca = normalize(pecaAtual?.peca ?? chosen.rule.label);
+    const jaCorreta = /(agravo interno|agravo regimental|embargos de declaracao|agravo em recurso|ciencia|sem prazo)/.test(nomePeca);
+    if (!jaCorreta && RECURSO_PECA_RX.test(nomePeca)) {
+      classificacaoStatus = 'ambigua_urgente';
+      confianca = Math.min(confianca, 0.5);
+      pecaSugerida = {
+        peca: `${pecaAtual?.peca ?? chosen.rule.label} — CONFERIR (decisão negou/inadmitiu recurso)`,
+        fundamento_legal: pecaAtual?.fundamento_legal ?? `${chosen.rule.source} ${chosen.rule.article}`,
+        prazo_dias: pecaAtual?.prazo_dias ?? chosen.rule.days,
+        observacoes: '⚠ A publicação contém decisão que NEGA SEGUIMENTO / INADMITE / JULGA PREJUDICADO recurso já interposto. A classe processual ou o nome do recurso citado NÃO define a peça cabível: conferir se cabe Agravo Interno (CPC art. 1.021/1.030 §2º), Agravo em RE/REsp (art. 1.042) ou Embargos de Declaração. REVISÃO OBRIGATÓRIA antes de protocolar.',
+        peca_alternativa: { peca: 'Agravo Interno', fundamento_legal: 'CPC art. 1.021 / art. 1.030 §2º', prazo_dias: 15 },
+      };
+    }
   }
 
   // Se contexto não definiu, derivar do score
