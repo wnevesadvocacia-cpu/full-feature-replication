@@ -42,14 +42,13 @@ export function useSistemaByCnj() {
   });
 
   /** asOf: data de referência (ISO). Sem data, usa o estado mais recente. */
-  return (numero?: string | null, court?: string | null, asOf?: string | null): string | null => {
+  return (numero?: string | null, _court?: string | null, asOf?: string | null): string | null => {
     if (!data) return null;
     const digits = (numero || '').replace(/\D/g, '');
     const evs = (digits && data.cnj.get(digits)) || [];
-    const byProc = evs.length ? sistemaAsOf(evs, asOf) : null;
-    if (byProc) return byProc;
-    const ck = normCourt(court);
-    const cevs = (ck && data.court.get(ck)) || [];
-    return cevs.length ? sistemaAsOf(cevs, asOf) : null;
+    // Avisos de migração no Brasil são publicados POR PROCESSO ("o presente
+    // processo passará a tramitar..."), não por unidade. Fallback por órgão
+    // julgador causava contaminação entre processos da mesma vara.
+    return evs.length ? sistemaAsOf(evs, asOf) : null;
   };
 }
