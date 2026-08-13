@@ -27,17 +27,16 @@ export function useSistemaByCnj() {
       const rows = (data || []) as { content: string; court: string | null; received_at: string | null }[];
 
       const byCnj = new Map<string, SistemaEvent[]>();
-      const byCourt = new Map<string, SistemaEvent[]>();
       for (const row of rows) {
         const ev: SistemaEvent = { content: row.content, date: row.received_at };
-        for (const cnj of extractCnjs(row.content)) {
-          const key = cnj.replace(/\D/g, '');
-          byCnj.set(key, [...(byCnj.get(key) || []), ev]);
-        }
-        const ck = normCourt(row.court);
-        if (ck) byCourt.set(ck, [...(byCourt.get(ck) || []), ev]);
+        // Só o CNJ principal (primeiro do texto): processos citados (ex.: processo
+        // principal) não herdam a migração publicada para o processo intimado.
+        const [primary] = extractCnjs(row.content);
+        if (!primary) continue;
+        const key = primary.replace(/\D/g, '');
+        byCnj.set(key, [...(byCnj.get(key) || []), ev]);
       }
-      return { cnj: byCnj, court: byCourt };
+      return { cnj: byCnj };
     },
   });
 
