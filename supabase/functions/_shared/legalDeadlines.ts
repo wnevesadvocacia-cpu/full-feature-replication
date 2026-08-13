@@ -708,7 +708,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Ex.: "A 3ª TURMA RECURSAL CÍVEL DECIDIU, POR UNANIMIDADE, NEGAR PROVIMENTO AO AGRAVO
   // INTERNO". Não cabe repetir o mesmo recurso: cabe EDcl (5 d.u. — CPC art. 1.023 /
   // Lei 9.099 art. 48) ou recurso excepcional (15 d.u.). Adota-se o prazo mais curto.
-  if (ACORDAO_COLEGIADO_RX.test(text) && RECURSO_IMPROVIDO_RX.test(text) && !extractLiteralDeadline(text)) {
+  if ((ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) && RECURSO_IMPROVIDO_RX.test(text) && !extractLiteralDeadline(text)) {
     const calCtx = context?.tribunal ? { tribunal: context.tribunal } : undefined;
     const publicacao = nextBusinessDay(receivedAtISO, calCtx);
     const dueDate = addBusinessDays(publicacao, 5, context);
