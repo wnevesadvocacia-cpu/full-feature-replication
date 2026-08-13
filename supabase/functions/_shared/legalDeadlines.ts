@@ -877,6 +877,13 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== P0 #3: PARSER LITERAL DE PRAZO (TRAVA OVERRIDE de RULES e contexto) ======
   const literal = extractLiteralDeadline(text);
+  // Prazo literal que apenas repete o prazo legal do ato (ex.: "contestação no prazo de
+  // 15 dias") continua sujeito ao dobro do ente público (CPC 183/180/186). Prazo fixado
+  // pelo juiz sem correspondência legal (ex.: "manifeste-se em 30 dias") NÃO dobra.
+  let literalRepeteRegraLegal = false;
+  if (literal) {
+    literalRepeteRegraLegal = RULES.some((r) => r.days === literal.days && r.unit === literal.unit && r.pattern.test(text));
+  }
   if (literal) {
     chosen = {
       rule: {
@@ -1113,7 +1120,8 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // PR1: dobra restrita a triggers RULES (literal/contexto/fallback nunca dobram —
   // texto literal já é a vontade do juiz; dobrar "5 dias sob pena de deserção" inverteria a regra).
-  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'explicit' || triggerSource === 'context_rejeita' || triggerSource === 'context_acolhe' || triggerSource === 'context_homolog';
+  const allowsDoubling = triggerSource === 'rules' || triggerSource === 'explicit'
+    || ((triggerSource === 'literal_strong' || triggerSource === 'literal_dispositivo') && literalRepeteRegraLegal) || triggerSource === 'context_rejeita' || triggerSource === 'context_acolhe' || triggerSource === 'context_homolog';
   const doubleReasons: string[] = [];
   let doubleWaivedReason: string | undefined;
   if (allowsDoubling) {
