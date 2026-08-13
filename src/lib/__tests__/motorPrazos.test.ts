@@ -197,3 +197,16 @@ describe('motor — migração de sistema processual', () => {
     expect(d.label).toMatch(/ciência de migração/);
   });
 });
+
+describe('motor — entrada de autos (expediente administrativo)', () => {
+  it('“PROCESSO ENTRADO EM” / entrada de autos não abre prazo de apelação', () => {
+    const d = detectDeadline(
+      'Entrada de Autos de Direito Público, Câm. Espec. e Meio Ambiente. PROCESSO ENTRADO EM 03/08/2026. 1031942-89.2017.8.26.0114; Processo Digital. Petições para juntada devem ser apresentadas exclusivamente por meio eletrônico, nos termos do artigo 7º da Res. 551/2011; Apelação Cível; Apelante: Jose Mauricio Sanfins; Apelado: Estado de São Paulo',
+      '2026-08-12', '2026-08-13',
+    )!;
+    expect(d.days).toBe(0);
+    expect(d.dueDate).toBeNull();
+    expect(d.isFallback).toBe(false);
+    expect(d.pecaSugerida.peca).toMatch(/Ciência/);
+  });
+});
