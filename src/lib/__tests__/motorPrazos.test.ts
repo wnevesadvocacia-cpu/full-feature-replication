@@ -210,3 +210,15 @@ describe('motor — entrada de autos (expediente administrativo)', () => {
     expect(d.pecaSugerida.peca).toMatch(/Ciência/);
   });
 });
+
+describe('motor — ata de sessão com recurso improvido', () => {
+  it('acórdão que nega provimento ao agravo interno não sugere agravo interno de novo', () => {
+    const d = detectDeadline(
+      'EXTRATO DE ATA DA SESSÃO VIRTUAL RESOLUÇÃO CNJ 591/24 DE 03/08/2026 A 10/08/2026. RECURSO CÍVEL Nº 1020093-79.2024.8.26.0016/SP. INCIDENTE: AGRAVO INTERNO. A 3ª TURMA RECURSAL CÍVEL DECIDIU, POR UNANIMIDADE, NEGAR PROVIMENTO AO AGRAVO INTERNO.',
+      '2026-08-13', '2026-08-13',
+    )!;
+    expect(d.days).toBe(5);
+    expect(d.pecaSugerida.peca).toBe('Embargos de Declaração');
+    expect(d.doubled).toBe(false);
+  });
+});
