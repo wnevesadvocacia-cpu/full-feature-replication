@@ -145,9 +145,10 @@ describe('SOTA — atos sem prazo', () => {
     expect(d.dueDate === null || d.days === 0).toBe(true);
   });
 
-  it('homologação de acordo e extinção é informativo', () => {
+  it('homologação de acordo: apelação apenas se houver interesse recursal', () => {
     const d = det('Homologo o acordo celebrado entre as partes e julgo extinto o processo. Arquivem-se os autos.');
-    expect(d.days).toBe(0);
+    expect(d.pecaSugerida.peca).toMatch(/Apelação/);
+    expect(d.days).toBe(15);
   });
 
   it('expedição de alvará de levantamento não abre prazo', () => {
