@@ -18,6 +18,7 @@ import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
 import { DeadlinePanel } from '@/components/DeadlinePanel';
 import { tribunalFromCNJ } from '@/lib/cnjTribunal';
+import { useSistemaByCnj } from '@/hooks/useSistemaByCnj';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 import { confirmModal } from '@/lib/confirmModal';
@@ -75,6 +76,7 @@ export default function Intimacoes() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const sistemaByCnj = useSistemaByCnj();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'todas' | 'pendente' | 'tratada'>('pendente');
   const [form, setForm] = useState({ court: '', content: '', deadline: '' });
@@ -708,7 +710,12 @@ export default function Intimacoes() {
       ) : (
         <div className="space-y-2">
           {filtered.map((it) => {
-            const tribInfo = tribunalFromCNJ(extractCnjs(it.content)[0], it.content);
+            const primaryCnj = extractCnjs(it.content)[0];
+            const base = tribunalFromCNJ(primaryCnj, it.content);
+            const sisAgg = sistemaByCnj(primaryCnj, it.court);
+            const tribInfo = base && sisAgg && sisAgg !== base.sistema
+              ? { ...base, sistema: sisAgg, sistemasAlternativos: [base.sistema, ...(base.sistemasAlternativos || [])].filter((x): x is string => !!x && x !== sisAgg) }
+              : base;
             const tribunal = tribInfo?.sigla ?? null;
             const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO(), { tribunal });
             const isUnsafe = !!it.classificacao_status && UNSAFE_STATUSES.has(it.classificacao_status);
