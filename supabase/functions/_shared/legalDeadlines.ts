@@ -531,7 +531,7 @@ const ATO_COM_DETERMINACAO_RX = /\b(prazo|manifeste[ -]?se|manifestem[ -]?se|apr
 // Listagens administrativas de distribuição apenas informam que um recurso já
 // interposto foi distribuído. A classe "Apelação Cível" e os rótulos
 // "Apelante/Apelado" descrevem o processo; não inauguram prazo de apelação.
-const LISTAGEM_DISTRIBUICAO_RX = /\bprocessos? distribuid[oa]s?(?: em \d{2}\/\d{2}\/\d{4})?\b/;
+const LISTAGEM_DISTRIBUICAO_RX = /\b(?:processos? distribuid[oa]s?(?: em \d{2}\/\d{2}\/\d{4})?|processo entrado em(?: \d{2}\/\d{2}\/\d{4})?|entrada de autos)\b/;
 const LISTAGEM_COM_COMANDO_RX = /\b(manifeste[ -]?se|manifestem[ -]?se|apresente|apresentem|cumpra[ -]?se a decisao|comprove|impugne|conteste|recolha|pague|providencie|informe|esclareca|requeira|sob pena|intime[ -]?se .{0,40}para|especifiquem|contrarrazoes|contraminuta|emende|regularize)\b/;
 
 // ====== MIGRAÇÃO DE SISTEMA PROCESSUAL (MERA CIÊNCIA, SEM PRAZO) ======
@@ -674,7 +674,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     return {
       days: 0,
       unit: 'dias_corridos',
-      label: 'Sem prazo — ciência de distribuição processual',
+      label: 'Sem prazo — ciência de distribuição/entrada de autos',
       source: 'CPC',
       article: 'art. 218 §3º (não há ato processual a praticar)',
       matchedText: (text.match(LISTAGEM_DISTRIBUICAO_RX) || [''])[0],
@@ -686,11 +686,11 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       isFallback: false,
       pecaSugerida: {
         peca: 'Ciência (sem peça devida)',
-        fundamento_legal: 'Distribuição processual — ato informativo',
+        fundamento_legal: 'Distribuição/entrada de autos — ato informativo',
         prazo_dias: 0,
-        observacoes: 'Publicação apenas informa a distribuição de recurso já interposto. A classe processual e os rótulos das partes não abrem novo prazo recursal.',
+        observacoes: 'Publicação apenas informa a distribuição/entrada dos autos de recurso já interposto. A classe processual e os rótulos das partes não abrem novo prazo recursal.',
       },
-      baseLegal: 'Listagem administrativa de processos distribuídos — não abre prazo recursal',
+      baseLegal: 'Expediente administrativo de distribuição/entrada de autos — não abre prazo recursal',
       confianca: 0.96,
       classificacaoStatus: 'auto_alta',
       triggerSource: 'fallback',

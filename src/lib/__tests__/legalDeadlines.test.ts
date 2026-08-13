@@ -151,7 +151,7 @@ describe('legalDeadlines — regressões críticas de contexto', () => {
     );
     expect(det?.days).toBe(0);
     expect(det?.dueDate).toBeNull();
-    expect(det?.label).toBe('Sem prazo — ciência de distribuição processual');
+    expect(det?.label).toMatch(/ciência de distribuição/);
     expect(det?.pecaSugerida?.peca).toBe('Ciência (sem peça devida)');
   });
 
@@ -164,6 +164,6 @@ describe('legalDeadlines — regressões críticas de contexto', () => {
     );
     expect(det?.days).toBe(0);
     expect(det?.dueDate).toBeNull();
-    expect(det?.label).toBe('Sem prazo — ciência de distribuição processual');
+    expect(det?.label).toMatch(/ciência de distribuição/);
   });
 });
