@@ -882,7 +882,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // pelo juiz sem correspondência legal (ex.: "manifeste-se em 30 dias") NÃO dobra.
   let literalRepeteRegraLegal = false;
   if (literal) {
-    literalRepeteRegraLegal = RULES.some((r) => r.days === literal.days && r.unit === literal.unit && r.pattern.test(text));
+    literalRepeteRegraLegal = RULES.some((r) => !/^Manifesta/.test(r.label) && r.days === literal.days && r.unit === literal.unit && r.pattern.test(text));
   }
   if (literal) {
     chosen = {
