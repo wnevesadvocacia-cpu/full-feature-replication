@@ -121,8 +121,9 @@ export function sistemaAsOf(events: SistemaEvent[], asOf?: string | null): strin
     const hint = sistemaFromContent(c);
     if (hint && (!men || d >= men.date)) men = { date: d, sistema: hint };
   }
-  if (mig && (!men || men.date <= mig.date)) return mig.sistema;
-  return men?.sistema ?? mig?.sistema ?? null;
+  // Migração é ato oficial da unidade: prevalece sobre menções soltas posteriores.
+  if (mig) return mig.sistema;
+  return men?.sistema ?? null;
 }
 
 
