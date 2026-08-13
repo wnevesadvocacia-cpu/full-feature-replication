@@ -76,6 +76,7 @@ export default function Intimacoes() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const sistemaByCnj = useSistemaByCnj();
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<'todas' | 'pendente' | 'tratada'>('pendente');
   const [form, setForm] = useState({ court: '', content: '', deadline: '' });

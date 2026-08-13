@@ -105,6 +105,7 @@ export default function Tarefas() {
   const updateTask = useUpdateTask();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const sistemaByCnj = useSistemaByCnj();
   const { user } = useAuth();
   const canManage = useCanDelete();
 
