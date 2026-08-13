@@ -75,6 +75,28 @@ export function sistemaFromContent(content?: string | null): string | null {
   return null;
 }
 
+/** Aviso de migração de sistema (o destino prevalece sobre menções soltas ao sistema antigo). */
+const MIGRACAO_RX =
+  /(passar[áa]\s+a\s+tramitar|passou\s+a\s+tramitar|comunica[çc][õo]es\s+subsequentes|migra[çc][ãa]o\s+(?:de\s+)?(?:todo\s+)?(?:o\s+)?acervo|migrado[s]?\s+para)/i;
+
+/**
+ * Resolve o sistema a partir de VÁRIAS publicações/movimentações do mesmo processo.
+ * Um aviso de migração em qualquer delas prevalece sobre menções isoladas.
+ */
+export function sistemaFromContents(contents: (string | null | undefined)[]): string | null {
+  let fallback: string | null = null;
+  for (const c of contents) {
+    if (!c) continue;
+    const m = MIGRACAO_RX.exec(c);
+    if (m) {
+      const alvo = sistemaFromContent(c.slice(m.index, m.index + 400));
+      if (alvo) return alvo;
+    }
+    if (!fallback) fallback = sistemaFromContent(c);
+  }
+  return fallback;
+}
+
 /** Wrapper público: resolve tribunal e enriquece com o sistema de tramitação eletrônica. */
 export function tribunalFromCNJ(numero?: string | null, content?: string | null): TribunalInfo | null {
   const base = resolveTribunal(numero);
