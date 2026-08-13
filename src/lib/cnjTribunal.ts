@@ -77,7 +77,7 @@ export function sistemaFromContent(content?: string | null): string | null {
 
 /** Aviso de migração de sistema (o destino prevalece sobre menções soltas ao sistema antigo). */
 const MIGRACAO_RX =
-  /(passar[áa]\s+a\s+tramitar|passou\s+a\s+tramitar|comunica[çc][õo]es\s+subsequentes|migra[çc][ãa]o\s+(?:de\s+)?(?:todo\s+)?(?:o\s+)?acervo|migrado[s]?\s+para)/i;
+  /(passar[áa]\s+a\s+tramitar|passou\s+a\s+tramitar|tramitar[áa]\s+(?:exclusivamente\s+)?(?:no|pelo|via)|comunica[çc][õo]es\s+subsequentes|migra[çc][ãa]o\s+(?:de\s+)?(?:todo\s+)?(?:o\s+)?acervo|migrad[oa]s?\s+para|redistribu[íi]d[oa]s?\s+(?:no|para\s+o)\s+sistema|implanta[çc][ãa]o\s+do\s+sistema)/i;
 
 /**
  * Resolve o sistema a partir de VÁRIAS publicações/movimentações do mesmo processo.
@@ -96,6 +96,36 @@ export function sistemaFromContents(contents: (string | null | undefined)[]): st
   }
   return fallback;
 }
+
+export type SistemaEvent = { content?: string | null; date?: string | null };
+
+/**
+ * Resolve o sistema vigente NA DATA de referência (precisão temporal):
+ * vale a última migração publicada em data <= asOf; sem migração, a última
+ * menção explícita ao sistema em data <= asOf. Válido para qualquer tribunal.
+ */
+export function sistemaAsOf(events: SistemaEvent[], asOf?: string | null): string | null {
+  const limit = asOf ? String(asOf).slice(0, 10) : null;
+  let mig: { date: string; sistema: string } | null = null;
+  let men: { date: string; sistema: string } | null = null;
+  for (const ev of events) {
+    const c = ev?.content;
+    if (!c) continue;
+    const d = (ev.date ? String(ev.date).slice(0, 10) : '') || '0000-00-00';
+    if (limit && d > limit) continue;
+    const m = MIGRACAO_RX.exec(c);
+    if (m) {
+      const alvo = sistemaFromContent(c.slice(m.index, m.index + 400));
+      if (alvo && (!mig || d >= mig.date)) mig = { date: d, sistema: alvo };
+    }
+    const hint = sistemaFromContent(c);
+    if (hint && (!men || d >= men.date)) men = { date: d, sistema: hint };
+  }
+  // Migração é ato oficial da unidade: prevalece sobre menções soltas posteriores.
+  if (mig) return mig.sistema;
+  return men?.sistema ?? null;
+}
+
 
 /** Wrapper público: resolve tribunal e enriquece com o sistema de tramitação eletrônica. */
 export function tribunalFromCNJ(numero?: string | null, content?: string | null): TribunalInfo | null {

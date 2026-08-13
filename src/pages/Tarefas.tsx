@@ -682,7 +682,7 @@ export default function Tarefas() {
                           const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
                           const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
                           const baseTrib = tribunalFromCNJ(cnjCandidate, rawText);
-                          const sisAgg = sistemaByCnj(cnjCandidate, (task as any).location);
+                          const sisAgg = sistemaByCnj(cnjCandidate, (task as any).location, (task as any).due_date || (task as any).created_at);
                           const trib = baseTrib && sisAgg && sisAgg !== baseTrib.sistema
                             ? { ...baseTrib, sistema: sisAgg, sistemasAlternativos: [baseTrib.sistema, ...(baseTrib.sistemasAlternativos || [])].filter((x): x is string => !!x && x !== sisAgg) }
                             : baseTrib;
