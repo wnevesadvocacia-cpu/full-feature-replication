@@ -22,6 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { ToastAction } from '@/components/ui/toast';
 import { tribunalFromCNJ } from '@/lib/cnjTribunal';
+import { useSistemaByCnj } from '@/hooks/useSistemaByCnj';
 import { supabase } from '@/integrations/supabase/client';
 import { confirmModal } from '@/lib/confirmModal';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -679,7 +680,11 @@ export default function Tarefas() {
                           const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
                           const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
                           const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
-                          const trib = tribunalFromCNJ(cnjCandidate, rawText);
+                          const baseTrib = tribunalFromCNJ(cnjCandidate, rawText);
+                          const sisAgg = sistemaByCnj(cnjCandidate);
+                          const trib = baseTrib && sisAgg && sisAgg !== baseTrib.sistema
+                            ? { ...baseTrib, sistema: sisAgg, sistemasAlternativos: [baseTrib.sistema, ...(baseTrib.sistemasAlternativos || [])].filter((x): x is string => !!x && x !== sisAgg) }
+                            : baseTrib;
                           if (!trib || !trib.cnjValido) return null;
                           return (
                             <>
