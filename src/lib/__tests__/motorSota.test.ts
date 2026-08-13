@@ -156,3 +156,33 @@ describe('SOTA — atos sem prazo', () => {
     expect(d.days).toBe(0);
   });
 });
+
+describe('SOTA — trava anti-recursão e ordem de peças', () => {
+  it('decisão monocrática que nega provimento ao AI sugere Agravo Interno, não novo AI', () => {
+    const d = det('Decisão monocrática do relator que nega provimento ao agravo de instrumento. Publique-se.');
+    expect(d.pecaSugerida.peca).toBe('Agravo Interno');
+    expect(d.days).toBe(15);
+  });
+
+  it('acórdão colegiado que nega provimento ao agravo interno sugere EDcl (5 d.u.)', () => {
+    const d = det('EXTRATO DE ATA DA SESSÃO VIRTUAL. INCIDENTE: AGRAVO INTERNO. A 3ª TURMA RECURSAL CÍVEL DECIDIU, POR UNANIMIDADE, NEGAR PROVIMENTO AO AGRAVO INTERNO.');
+    expect(d.pecaSugerida.peca).toBe('Embargos de Declaração');
+    expect(d.days).toBe(5);
+  });
+
+  it('apelação já recebida com intimação para contrarrazões sugere Contrarrazões', () => {
+    const d = det('Recebo a apelação. Intime-se o apelado para contrarrazões no prazo legal.');
+    expect(d.pecaSugerida.peca).toMatch(/Contrarraz/);
+  });
+
+  it('sentença que extingue a execução abre prazo de apelação', () => {
+    const d = det('SENTENÇA. Julgo extinta a execução, nos termos do art. 924, II, do CPC. Transitada em julgado, arquivem-se.');
+    expect(d.days).toBe(15);
+    expect(d.pecaSugerida.peca).toMatch(/Apelação/);
+  });
+
+  it('designação de perícia é mera ciência', () => {
+    const d = det('Fica a parte intimada da designação de perícia médica para o dia 12/09/2026, no IMESC.');
+    expect(d.days).toBe(0);
+  });
+});
