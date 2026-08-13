@@ -14,6 +14,18 @@ describe('identificação do sistema processual', () => {
     expect(tribunalFromCNJ('1009775-68.2023.8.26.0114', content)?.sistema).toBe('eproc');
   });
 
+  it('identifica eproc quando o DJEN concatena o nome com ADVOGADO(A)', () => {
+    const content = `
+      Intimação Processo: 1009775-68.2023.8.26.0114
+      EXECUÇÃO DE TÍTULO EXTRAJUDICIAL Nº 1009775-68.2023.8.26.0114/SP
+      EXEQUENTE: WILLIAM ROBSON DAS NEVESADVOGADO(A): WILLIAM ROBSON DAS NEVES (OAB SP290702)
+      DESPACHO/DECISÃO Vistos. Intime-se.
+    `;
+
+    expect(sistemaFromContent(content)).toBe('eproc');
+    expect(tribunalFromCNJ('1009775-68.2023.8.26.0114', content)?.sistema).toBe('eproc');
+  });
+
   it('não confunde a publicação tradicional do e-SAJ com eproc', () => {
     const content = `
       Processo 1009775-68.2023.8.26.0114 - Execução de Título Extrajudicial
