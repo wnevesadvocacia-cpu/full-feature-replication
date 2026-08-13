@@ -3,15 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { extractCnjs } from '@/lib/cnjRegex';
 import { sistemaAsOf, type SistemaEvent } from '@/lib/cnjTribunal';
 
-const normCourt = (c?: string | null) =>
-  (c || '').toLowerCase().replace(/\s+/g, ' ').trim();
-
 /**
- * Detecta o sistema de tramitação a partir de TODAS as publicações, com precisão
- * temporal: vale o sistema vigente na data de referência (última migração
- * publicada até aquela data). Serve para qualquer tribunal brasileiro:
- * 1) por processo (CNJ); 2) por órgão julgador — avisos de migração são
- * publicados por unidade e valem para todos os processos daquela vara/foro.
+ * Detecta o sistema de tramitação a partir de TODAS as publicações do próprio
+ * processo (CNJ principal da publicação), com precisão temporal: vale o sistema
+ * vigente na data de referência (última migração publicada até aquela data).
+ * Serve para qualquer tribunal brasileiro.
  */
 export function useSistemaByCnj() {
   const { data } = useQuery({
