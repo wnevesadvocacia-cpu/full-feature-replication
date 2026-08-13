@@ -72,6 +72,13 @@ export function sistemaFromContent(content?: string | null): string | null {
   if (/\bprojudi\b/.test(t)) return 'Projudi';
   if (/\bthemis\b/.test(t)) return 'Themis';
   if (/\blibra\b/.test(t)) return 'Libra';
+  // Publicações do eproc trazem o número CNJ seguido da UF (/SP, /MG etc.) e
+  // qualificam os representantes como ADVOGADO(A). Essa assinatura de origem
+  // permite identificar o sistema mesmo quando o corpo do ato não cita "eproc".
+  const eprocOrigin = /\b\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}\s*\/\s*[a-z]{2}\b/i.test(content)
+    && /\badvogado\s*\(\s*a\s*\)\s*:/i.test(content)
+    && /\b(?:autor|r[ée]u|requerente|requerido|exequente|executado|recorrente|recorrido|apelante|apelado)\s*:/i.test(content);
+  if (eprocOrigin) return 'eproc';
   return null;
 }
 
