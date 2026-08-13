@@ -186,7 +186,7 @@
   }
 
   /* Scrollbar — premium, alta visibilidade, aplicado em TODO o sistema */
-  ::-webkit-scrollbar { width: 18px; height: 18px; }
+  ::-webkit-scrollbar { width: 22px; height: 22px; }
   ::-webkit-scrollbar-track {
     background: hsl(var(--muted));
     border-left: 1px solid hsl(var(--border));
@@ -194,7 +194,7 @@
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--primary));
     border-radius: 999px;
-    border: 4px solid hsl(var(--muted));
+    border: 3px solid hsl(var(--muted));
     background-clip: padding-box;
     box-shadow: inset 0 0 0 1px hsl(var(--primary-glow));
     transition: background var(--duration-base) var(--ease-editorial),
@@ -213,6 +213,7 @@
 
   /* Firefox */
   * {
+    scrollbar-width: thick;
     scrollbar-color: hsl(var(--primary)) hsl(var(--muted));
   }
 
