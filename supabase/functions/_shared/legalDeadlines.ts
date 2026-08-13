@@ -518,6 +518,10 @@ const FUNDAMENTO_VINCULANTE_RX = /\b(?:art\.?\s*1\.?030\s*,?\s*(?:inciso\s*)?(?:
 // (por classe processual, cabeçalho ou menção), a sugestão é rebaixada para revisão
 // obrigatória do advogado — indicar recurso errado pode custar o processo.
 const DECISAO_NEGATIVA_RECURSO_RX = /\b(?:(?:nego|nega|negado|negaram|negou) seguimento|(?:nao|n\u00e3o) (?:conheco|conheço|conhecido|conheceram) do recurso|inadmito|inadmitido|nao admito|nao recebo o recurso|julgo prejudicado o recurso|recurso prejudicado|nego provimento ao recurso|denego seguimento)\b/;
+// Julgamento colegiado que NEGA PROVIMENTO ao recurso julgado (ex.: "NEGAR PROVIMENTO
+// AO AGRAVO INTERNO" em extrato de ata de sessão) nunca reabre o prazo do mesmo recurso.
+const ACORDAO_COLEGIADO_RX = /\b(extrato de ata|ata d[ae] sessao|acordao|turma recursal|camara|por unanimidade|v\.? ?u\.?)\b/;
+const RECURSO_IMPROVIDO_RX = /\b(?:negar|nego|nega|negou|negaram|negado)\s+provimento\b|\b(?:improvido|improvidos|desprovido|desprovidos|nao provido|nao providos)\b/;
 const RECURSO_PECA_RX = /\b(apelacao|recurso inominado|recurso especial|recurso extraordinario|agravo de instrumento|recurso ordinario|recurso de revista)\b/;
 // ====== ATOS MERAMENTE ORDINATÓRIOS / INFORMATIVOS (SEM PRAZO) ======
 // Publicações que não intimam a praticar ato algum não podem receber o fallback de
@@ -694,6 +698,42 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       confianca: 0.96,
       classificacaoStatus: 'auto_alta',
       triggerSource: 'fallback',
+    };
+  }
+
+  // ====== ATA DE SESSÃO / ACÓRDÃO QUE NEGA PROVIMENTO AO RECURSO JULGADO ======
+  // Ex.: "A 3ª TURMA RECURSAL CÍVEL DECIDIU, POR UNANIMIDADE, NEGAR PROVIMENTO AO AGRAVO
+  // INTERNO". Não cabe repetir o mesmo recurso: cabe EDcl (5 d.u. — CPC art. 1.023 /
+  // Lei 9.099 art. 48) ou recurso excepcional (15 d.u.). Adota-se o prazo mais curto.
+  if (ACORDAO_COLEGIADO_RX.test(text) && RECURSO_IMPROVIDO_RX.test(text) && !extractLiteralDeadline(text)) {
+    const calCtx = context?.tribunal ? { tribunal: context.tribunal } : undefined;
+    const publicacao = nextBusinessDay(receivedAtISO, calCtx);
+    const dueDate = addBusinessDays(publicacao, 5, context);
+    const bd = businessDaysBetween(todayISO, dueDate, context);
+    return {
+      days: 5,
+      unit: 'dias_uteis',
+      label: 'Embargos de Declaração contra acórdão (recurso improvido)',
+      source: 'CPC',
+      article: 'art. 1.023 (Lei 9.099 art. 48 nos Juizados)',
+      matchedText: (text.match(RECURSO_IMPROVIDO_RX) || [''])[0],
+      doubled: false,
+      dueDate,
+      startDate: nextBusinessDay(publicacao, calCtx),
+      severity: bd < 0 ? 'expired' : bd <= 2 ? 'critical' : bd <= 5 ? 'warning' : 'normal',
+      businessDaysLeft: bd,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Embargos de Declaração',
+        fundamento_legal: 'CPC art. 1.023 / Lei 9.099 art. 48',
+        prazo_dias: 5,
+        observacoes: 'O acórdão NEGOU PROVIMENTO ao recurso julgado — não cabe protocolar o mesmo recurso novamente. Adotado o prazo mais curto (EDcl, 5 d.u.) por segurança; conferir cabimento de Recurso Extraordinário (15 d.u.).',
+        peca_alternativa: { peca: 'Recurso Extraordinário', fundamento_legal: 'CF art. 102 III c/c CPC art. 1.003 §5º', prazo_dias: 15 },
+      },
+      baseLegal: 'Acórdão que nega provimento ao recurso — EDcl 5 d.u. (CPC art. 1.023 / Lei 9.099 art. 48) ou recurso excepcional 15 d.u.',
+      confianca: 0.9,
+      classificacaoStatus: 'auto_alta',
+      triggerSource: 'rules',
     };
   }
 
