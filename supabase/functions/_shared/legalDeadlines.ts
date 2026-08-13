@@ -208,10 +208,10 @@ const RULES: Rule[] = [
   { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'Embargos de Declaração', source: 'CPC', article: 'art. 1.023', peca: PECA_EMBARGOS_DECL, confianca: 0.9 },
   { pattern: /\bagravo (interno|regimental)\b/, days: 15, unit: 'dias_uteis', label: 'Agravo Interno', source: 'CPC', article: 'art. 1.021 §2º', peca: { peca: 'Agravo Interno', fundamento_legal: 'CPC art. 1.021', prazo_dias: 15, observacoes: 'Recurso interno em órgão colegiado.' }, confianca: 0.9 },
   { pattern: /\bagravo de instrumento\b/, days: 15, unit: 'dias_uteis', label: 'Agravo de Instrumento', source: 'CPC', article: 'art. 1.003 §5º', peca: PECA_AGRAVO_INSTR, confianca: 0.9 },
+  { pattern: /\bcontrarrazoes\b/, days: 15, unit: 'dias_uteis', label: 'Contrarrazões', source: 'CPC', article: 'art. 1.010 §1º', peca: PECA_CONTRARRAZOES, confianca: 0.9 },
   { pattern: /\bapelacao\b/, days: 15, unit: 'dias_uteis', label: 'Apelação', source: 'CPC', article: 'art. 1.003 §5º', peca: PECA_APELACAO, confianca: 0.9 },
   { pattern: /\brecurso (especial|extraordinario)\b/, days: 15, unit: 'dias_uteis', label: 'RE/REsp', source: 'CPC', article: 'art. 1.003 §5º', peca: { peca: 'Recurso Especial / Extraordinário', fundamento_legal: 'CPC art. 1.029', prazo_dias: 15, observacoes: 'Exige prequestionamento e demonstração de repercussão geral (RE).' }, confianca: 0.9 },
   { pattern: /\brecurso ordinario\b/, days: 15, unit: 'dias_uteis', label: 'Recurso Ordinário', source: 'CPC', article: 'art. 1.003 §5º', peca: { peca: 'Recurso Ordinário', fundamento_legal: 'CPC art. 1.027', prazo_dias: 15, observacoes: 'Recurso ordinário constitucional.' }, confianca: 0.85 },
-  { pattern: /\bcontrarrazoes\b/, days: 15, unit: 'dias_uteis', label: 'Contrarrazões', source: 'CPC', article: 'art. 1.010 §1º', peca: PECA_CONTRARRAZOES, confianca: 0.9 },
 
   // ===== Atos postulatórios (CPC) =====
   { pattern: /\breplica\b/, days: 15, unit: 'dias_uteis', label: 'Réplica', source: 'CPC', article: 'art. 350/351', peca: PECA_REPLICA, confianca: 0.85 },
@@ -293,7 +293,7 @@ const JEC_SUPPL_RULES: Rule[] = [
 ];
 
 /** Sentença cível (mérito ou extinção) sem menção expressa a recurso. */
-const SENTENCA_CIVEL_RX = /\b(julgo (?:procedente|improcedente|parcialmente procedente|extinto)|extingo o (?:processo|feito)|condeno o (?:reu|requerido|demandado))\b/;
+const SENTENCA_CIVEL_RX = /\b(julgo (?:procedente|improcedente|parcialmente procedente|extint[oa])|extingo (?:o (?:processo|feito)|a execucao)|condeno o (?:reu|requerido|demandado))\b/;
 const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
 const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b/;
 const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
@@ -523,6 +523,7 @@ const DECISAO_NEGATIVA_RECURSO_RX = /\b(?:(?:nego|nega|negado|negaram|negou) seg
 // Julgamento colegiado que NEGA PROVIMENTO ao recurso julgado (ex.: "NEGAR PROVIMENTO
 // AO AGRAVO INTERNO" em extrato de ata de sessão) nunca reabre o prazo do mesmo recurso.
 const ACORDAO_COLEGIADO_RX = /\b(extrato de ata|ata d[ae] sessao|acordao|turma recursal|camara|por unanimidade|v\.? ?u\.?)\b/;
+const DECISAO_MONOCRATICA_RX = /\b(decisao monocratica|monocraticamente|relator(?:a)? (?:negou|nego|nega)|nego provimento)\b/;
 const RECURSO_IMPROVIDO_RX = /\b(?:negar|nego|nega|negou|negaram|negado)\s+provimento\b|\b(?:improvido|improvidos|desprovido|desprovidos|nao provido|nao providos)\b/;
 const RECURSO_PECA_RX = /\b(apelacao|recurso inominado|recurso especial|recurso extraordinario|agravo de instrumento|recurso ordinario|recurso de revista)\b/;
 // ====== ATOS MERAMENTE ORDINATÓRIOS / INFORMATIVOS (SEM PRAZO) ======
@@ -530,7 +531,7 @@ const RECURSO_PECA_RX = /\b(apelacao|recurso inominado|recurso especial|recurso 
 // 5 dias úteis (CPC art. 218 §3º), que só incide quando a lei/juiz determina ato
 // sem fixar prazo. Ex.: arquivamento, baixa, trânsito em julgado certificado,
 // mera ciência, juntada certificada, expedição de ofício/mandado, remessa/conclusão.
-const ATO_SEM_PRAZO_RX = /\b(designo audiencia|fica designada (?:a )?audiencia|audiencia (?:de conciliacao|una|de instrucao(?: e julgamento)?|de mediacao) (?:designada|para o dia)|arquive[ -]?se|arquivem[ -]?se os autos|baixa definitiva|arquivamento definitivo|transit(?:ou|ado) em julgado|certifico o transito em julgado|de[ -]?se ciencia|dou ciencia|ciencia as partes|para ciencia|certifico (?:a )?juntada|juntada (?:de|da) peticao|expeca[ -]?se|expedido (?:o )?(?:oficio|mandado|alvara)|remetam[ -]?se os autos|redistribuido|conclusos ao|nada mais a decidir)\b/;
+const ATO_SEM_PRAZO_RX = /\b(designacao de pericia|pericia (?:medica |judicial )?designada|desarquivamento dos autos|designo audiencia|fica designada (?:a )?audiencia|audiencia (?:de conciliacao|una|de instrucao(?: e julgamento)?|de mediacao) (?:designada|para o dia)|arquive[ -]?se|arquivem[ -]?se os autos|baixa definitiva|arquivamento definitivo|transit(?:ou|ado) em julgado|certifico o transito em julgado|de[ -]?se ciencia|dou ciencia|ciencia as partes|para ciencia|certifico (?:a )?juntada|juntada (?:de|da) peticao|expeca[ -]?se|expedido (?:o )?(?:oficio|mandado|alvara)|remetam[ -]?se os autos|redistribuido|conclusos ao|nada mais a decidir)\b/;
 // Se houver qualquer determinação de ato ou prazo, NÃO é ato informativo.
 const ATO_COM_DETERMINACAO_RX = /\b(prazo|manifeste[ -]?se|manifestem[ -]?se|apresente|apresentem|cumpra[ -]?se a decisao|comprove|impugne|conteste|recolha|pague|providencie|informe|esclareca|requeira|sob pena|intime[ -]?se .{0,40}para|especifiquem|contrarrazoes|contraminuta|emende|regularize)\b/;
 
@@ -712,6 +713,36 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     const publicacao = nextBusinessDay(receivedAtISO, calCtx);
     const dueDate = addBusinessDays(publicacao, 5, context);
     const bd = businessDaysBetween(todayISO, dueDate, context);
+    const monocratica = DECISAO_MONOCRATICA_RX.test(text) && !/\b(por unanimidade|acordam|v\.? ?u\.?|turma recursal civel decidiu)\b/.test(text);
+    if (monocratica) {
+      const dueAI = addBusinessDays(publicacao, 15, context);
+      const bdAI = businessDaysBetween(todayISO, dueAI, context);
+      return {
+        days: 15,
+        unit: 'dias_uteis',
+        label: 'Agravo Interno contra decisão monocrática (recurso improvido)',
+        source: 'CPC',
+        article: 'art. 1.021 §2º',
+        matchedText: (text.match(RECURSO_IMPROVIDO_RX) || [''])[0],
+        doubled: false,
+        dueDate: dueAI,
+        startDate: nextBusinessDay(publicacao, calCtx),
+        severity: bdAI < 0 ? 'expired' : bdAI <= 2 ? 'critical' : bdAI <= 5 ? 'warning' : 'normal',
+        businessDaysLeft: bdAI,
+        isFallback: false,
+        pecaSugerida: {
+          peca: 'Agravo Interno',
+          fundamento_legal: 'CPC art. 1.021',
+          prazo_dias: 15,
+          observacoes: 'Decisão monocrática negou provimento ao recurso — não cabe repetir o mesmo recurso; desafia agravo interno ao colegiado (CPC art. 1.021). Conferir também embargos de declaração (5 d.u.).',
+          peca_alternativa: { peca: 'Embargos de Declaração', fundamento_legal: 'CPC art. 1.022/1.023', prazo_dias: 5 },
+        },
+        baseLegal: 'Decisão monocrática que nega provimento — agravo interno em 15 d.u. (CPC art. 1.021 §2º)',
+        confianca: 0.9,
+        classificacaoStatus: 'auto_alta',
+        triggerSource: 'rules',
+      };
+    }
     return {
       days: 5,
       unit: 'dias_uteis',
@@ -1037,8 +1068,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Sem esta camada, uma sentença que não menciona a palavra "apelação" caía no
   // fallback de 5 d.u. (CPC 218 §3º) — erro grave: perderia o prazo recursal.
   if (!chosen && SENTENCA_CIVEL_RX.test(text)
-      && !JEC_CONTEXT_RX.test(text) && !LABOR_CONTEXT_RX.test(text) && !CRIMINAL_CONTEXT_RX.test(text)
-      && !(ATO_SEM_PRAZO_RX.test(text) && !ATO_COM_DETERMINACAO_RX.test(text))) {
+      && !JEC_CONTEXT_RX.test(text) && !LABOR_CONTEXT_RX.test(text) && !CRIMINAL_CONTEXT_RX.test(text)) {
     chosen = {
       rule: { pattern: SENTENCA_CIVEL_RX, days: 15, unit: 'dias_uteis', label: 'Apelação (sentença)', source: 'CPC', article: 'art. 1.009 c/c 1.003 §5º', peca: PECA_APELACAO },
       matched: (text.match(SENTENCA_CIVEL_RX) || [''])[0],
