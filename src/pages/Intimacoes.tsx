@@ -712,7 +712,7 @@ export default function Intimacoes() {
           {filtered.map((it) => {
             const primaryCnj = extractCnjs(it.content)[0];
             const base = tribunalFromCNJ(primaryCnj, it.content);
-            const sisAgg = sistemaByCnj(primaryCnj, it.court);
+            const sisAgg = sistemaByCnj(primaryCnj, it.court, it.received_at);
             const tribInfo = base && sisAgg && sisAgg !== base.sistema
               ? { ...base, sistema: sisAgg, sistemasAlternativos: [base.sistema, ...(base.sistemasAlternativos || [])].filter((x): x is string => !!x && x !== sisAgg) }
               : base;
