@@ -224,6 +224,9 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  .no-native-scrollbar { scrollbar-width: none; }
+  .no-native-scrollbar::-webkit-scrollbar { width: 0; height: 0; }
+
   /* Gutter estável evita pulos de layout quando scrollbar aparece/desaparece */
   html { scrollbar-gutter: stable; }
 }
