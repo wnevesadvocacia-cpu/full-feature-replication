@@ -508,6 +508,11 @@ export const LITERAL_DEADLINE_RX = LITERAL_STRONG_RX;
 // A janela de destaque/oposição (48h antes) só nasce com a publicação da pauta.
 const RECURSO_JA_INTERPOSTO_RX = /\b(habil a processamento|recebo o recurso|recebida a apelacao|recebo a apelacao|conheco do recurso|juizo de admissibilidade|processamento em ambos os efeitos)\b/;
 const ENCAMINHA_PAUTA_RX = /\b(insercao do recurso em pauta|inser(?:cao|ir) (?:do recurso )?em pauta|inclusao em pauta|pauta de julgamento (?:virtual|eletronic\w+)|julgamento eletronico \(virtual\)|com publicacao previa da pauta)\b/;
+// Juízo de retratação/admissibilidade de RE/REsp: a classe do processo ou o nome do
+// recurso originário não define a nova peça. Negativa fundada em precedente vinculante,
+// repercussão geral ou repetitivo (CPC 1.030 I/III) desafia agravo interno (§2º).
+const NEGA_SEGUIMENTO_RE_VINCULANTE_RX = /\b(?:nego|nega|negado|negaram) seguimento\b[^.]{0,240}\brecurso (?:especial|extraordinario)\b|\brecurso (?:especial|extraordinario)\b[^.]{0,240}\b(?:nego|nega|negado|negaram) seguimento\b/;
+const FUNDAMENTO_VINCULANTE_RX = /\b(?:art\.?\s*1\.?030\s*,?\s*(?:inciso\s*)?(?:i|iii)\b|tema\s*n?[ºo]?\s*\d+|repercussao geral|recurso repetitivo|precedente vinculante)\b/;
 // ====== ATOS MERAMENTE ORDINATÓRIOS / INFORMATIVOS (SEM PRAZO) ======
 // Publicações que não intimam a praticar ato algum não podem receber o fallback de
 // 5 dias úteis (CPC art. 218 §3º), que só incide quando a lei/juiz determina ato
@@ -683,6 +688,33 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       confianca: 0.96,
       classificacaoStatus: 'auto_alta',
       triggerSource: 'fallback',
+    };
+  }
+
+  if (NEGA_SEGUIMENTO_RE_VINCULANTE_RX.test(text) && FUNDAMENTO_VINCULANTE_RX.test(text)) {
+    return {
+      days: 15,
+      unit: 'dias_uteis',
+      label: 'Agravo Interno contra negativa de seguimento de RE/REsp',
+      source: 'CPC',
+      article: 'art. 1.030 §2º c/c art. 1.021 e art. 1.003 §5º',
+      matchedText: (text.match(NEGA_SEGUIMENTO_RE_VINCULANTE_RX) || [''])[0],
+      doubled: false,
+      dueDate: addBusinessDays(nextBusinessDay(receivedAtISO, context?.tribunal ? { tribunal: context.tribunal } : undefined), 15, context),
+      startDate: nextBusinessDay(nextBusinessDay(receivedAtISO, context?.tribunal ? { tribunal: context.tribunal } : undefined), context?.tribunal ? { tribunal: context.tribunal } : undefined),
+      severity: businessDaysBetween(todayISO, addBusinessDays(nextBusinessDay(receivedAtISO, context?.tribunal ? { tribunal: context.tribunal } : undefined), 15, context), context) < 0 ? 'expired' : businessDaysBetween(todayISO, addBusinessDays(nextBusinessDay(receivedAtISO, context?.tribunal ? { tribunal: context.tribunal } : undefined), 15, context), context) <= 2 ? 'critical' : businessDaysBetween(todayISO, addBusinessDays(nextBusinessDay(receivedAtISO, context?.tribunal ? { tribunal: context.tribunal } : undefined), 15, context), context) <= 5 ? 'warning' : 'normal',
+      businessDaysLeft: businessDaysBetween(todayISO, addBusinessDays(nextBusinessDay(receivedAtISO, context?.tribunal ? { tribunal: context.tribunal } : undefined), 15, context), context),
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Agravo Interno',
+        fundamento_legal: 'CPC art. 1.030 §2º c/c art. 1.021',
+        prazo_dias: 15,
+        observacoes: 'Negativa de seguimento de recurso excepcional fundada em repercussão geral, repetitivo ou precedente vinculante. Não se trata de novo Recurso Inominado.',
+      },
+      baseLegal: 'CPC art. 1.030 §2º c/c art. 1.021 e art. 1.003 §5º',
+      confianca: 0.96,
+      classificacaoStatus: 'auto_alta',
+      triggerSource: 'rules',
     };
   }
 

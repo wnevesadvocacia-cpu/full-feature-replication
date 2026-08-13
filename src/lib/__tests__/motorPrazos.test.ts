@@ -41,6 +41,14 @@ describe('motor de prazos — dobro (CPC 183/180/186)', () => {
 });
 
 describe('motor de prazos — recursos e instância', () => {
+  it('negativa de seguimento de RE por tema de repercussão geral → agravo interno, não recurso inominado', () => {
+    const d = det('Recurso Inominado Cível. Em cumprimento ao despacho do Supremo Tribunal Federal, observado o tema 956, NEGO SEGUIMENTO ao presente recurso extraordinário, nos termos do art. 1.030, I, a do CPC. Recorrido: Estado de São Paulo. Int.');
+    expect(d.days).toBe(15);
+    expect(d.doubled).toBe(false);
+    expect(d.pecaSugerida.peca).toBe('Agravo Interno');
+    expect(d.baseLegal).toMatch(/1\.030 §2º/);
+  });
+
   it('acórdão com EDcl rejeitados → RE/REsp 15 d.u.', () => {
     const d = det('ACÓRDÃO. Rejeitaram os embargos de declaração. V. U. 10ª Câmara de Direito Público.');
     expect(d.days).toBe(15);
