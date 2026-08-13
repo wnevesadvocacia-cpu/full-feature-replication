@@ -1205,7 +1205,12 @@ export default function Processos() {
                   {/* ── Tab: Detalhes ── */}
                   {detailTab === 'details' && <div className="space-y-5">
                   {(() => {
-                    const t = tribunalFromCNJ(selected.number);
+                    // Contexto textual (publicações/movimentações) permite detectar migração de sistema (ex.: e-SAJ → eproc)
+                    const movsText = (procMovs as any[])
+                      .slice(0, 30)
+                      .map((m: any) => m.description || '')
+                      .join(' \n ');
+                    const t = tribunalFromCNJ(selected.number, movsText);
                     if (!t) return null;
                     const ok = t.cnjValido;
                     return (
