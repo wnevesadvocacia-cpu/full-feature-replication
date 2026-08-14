@@ -38,6 +38,7 @@ const getEffectiveCnj = (content: string | null | undefined): { masked: string; 
 import { FilePlus2 } from 'lucide-react';
 import { DjenHealthBadge } from '@/components/DjenHealthBadge';
 import { DateInputBR } from '@/components/DateInputBR';
+import { HistoricoConversas } from '@/components/HistoricoConversas';
 
 interface Intim {
   id: string;
@@ -84,7 +85,7 @@ export default function Intimacoes() {
   const [taskIntim, setTaskIntim] = useState<Intim | null>(null);
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', assignee: '', priority: 'alta',
-    due_date: '', start_time: '', location: '', process_id: '', cc_user_id: '',
+    due_date: '', start_date: '', start_time: '', location: '', process_id: '', cc_user_id: '',
   });
   const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
   const [duplicateConfirmedProcessId, setDuplicateConfirmedProcessId] = useState<string | null>(null);
@@ -429,6 +430,7 @@ export default function Intimacoes() {
       const { intim, form: tf } = payload;
       if (!tf.assignee.trim()) throw new Error('Responsável obrigatório.');
       if (!tf.cc_user_id) throw new Error('Cópia para gestor/administrador é obrigatória.');
+      if (!tf.due_date) throw new Error('O prazo final (vencimento) é obrigatório.');
       const processId = tf.process_id || intim.process_id;
       const { data, error } = await supabase.from('tasks').insert({
         user_id: user!.id,
@@ -436,6 +438,7 @@ export default function Intimacoes() {
         description: tf.description || null,
         assignee: tf.assignee.trim(),
         due_date: tf.due_date || null,
+        start_date: tf.start_date || null,
         start_time: tf.start_time || null,
         location: tf.location || null,
         priority: tf.priority,
@@ -550,6 +553,7 @@ export default function Intimacoes() {
       assignee: '',
       priority: 'alta',
       due_date: (it.deadline || detectedDeadline?.dueDate || '').slice(0, 10),
+      start_date: '',
       start_time: '',
       location: it.court || '',
       process_id: processId,
@@ -1135,7 +1139,18 @@ export default function Intimacoes() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Prazo</Label>
+                <Label className="flex items-center gap-1">Data inicial</Label>
+                <DateInputBR
+                  value={taskForm.start_date}
+                  onChange={(v) => setTaskForm({ ...taskForm, start_date: v })}
+                  className="mt-1"
+                />
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Aparece na agenda a partir desta data e permanece até ser concluída.
+                </p>
+              </div>
+              <div>
+                <Label className="flex items-center gap-1">Prazo final *</Label>
                 <DateInputBR
                   value={taskForm.due_date}
                   onChange={(v) => setTaskForm({ ...taskForm, due_date: v })}
@@ -1179,6 +1194,14 @@ export default function Intimacoes() {
                 Obrigatório: o gestor selecionado receberá notificação imediata deste prazo.
               </p>
             </div>
+            {(taskForm.process_id || taskIntim?.process_id) && (
+              <div className="border-t pt-3">
+                <Label className="flex items-center gap-1 mb-2">Histórico de conversas</Label>
+                <div className="h-[320px]">
+                  <HistoricoConversas processId={(taskForm.process_id || taskIntim?.process_id) as string} />
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTaskIntim(null)}>Cancelar</Button>
@@ -1193,7 +1216,7 @@ export default function Intimacoes() {
                 if (!(await confirmModal('O prazo assinalado foi conferido? Deseja realmente continuar?', { title: 'Conferência de prazo' }))) return;
                 toTask.mutate({ intim: taskIntim, form: taskForm });
               }}
-              disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || !taskForm.cc_user_id || toTask.isPending}
+              disabled={!taskForm.title.trim() || !taskForm.assignee.trim() || !taskForm.cc_user_id || !taskForm.due_date || toTask.isPending}
             >
               {toTask.isPending ? 'Criando…' : 'Criar Prazo'}
             </Button>
