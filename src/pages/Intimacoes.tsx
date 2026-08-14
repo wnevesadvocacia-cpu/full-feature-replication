@@ -84,7 +84,7 @@ export default function Intimacoes() {
   const [taskIntim, setTaskIntim] = useState<Intim | null>(null);
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', assignee: '', priority: 'alta',
-    due_date: '', start_time: '', location: '', process_id: '', cc_user_id: '',
+    due_date: '', start_date: '', start_time: '', location: '', process_id: '', cc_user_id: '',
   });
   const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
   const [duplicateConfirmedProcessId, setDuplicateConfirmedProcessId] = useState<string | null>(null);
