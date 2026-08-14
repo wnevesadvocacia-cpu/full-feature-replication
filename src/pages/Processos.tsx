@@ -952,6 +952,10 @@ export default function Processos() {
       toast({ title: 'Responsável obrigatório', variant: 'destructive' });
       return;
     }
+    if (!newTask.due_date) {
+      toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório para registrar o prazo.', variant: 'destructive' });
+      return;
+    }
     // Trava anti-duplicidade: tarefa pendente com mesmo título no mesmo processo
     const norm = (s: string) => s.trim().toLowerCase();
     const dup = (tasks || []).some(
@@ -1464,7 +1468,7 @@ export default function Processos() {
                           rows={2}
                         />
                         <div className="flex gap-2">
-                          <Button size="sm" onClick={submitTask} disabled={!newTask.title.trim() || !newTask.assignee.trim() || addTask.isPending}>
+                          <Button size="sm" onClick={submitTask} disabled={!newTask.title.trim() || !newTask.assignee.trim() || !newTask.due_date || addTask.isPending}>
                             {addTask.isPending ? 'Salvando…' : 'Salvar'}
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => setShowTaskForm(false)}>
