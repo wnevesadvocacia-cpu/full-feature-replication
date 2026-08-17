@@ -1051,11 +1051,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         let processId = directProcess?.id ?? null;
         const parentNumero = extractParentProcess(cleanText, it.numero_processo || null);
         const isExecution = detectsExecutionPhase(cleanText) || (!!parentNumero && parentNumero !== it.numero_processo);
-        let linkedToParent = false;
-        if (!processId && parentNumero) {
-          const parentProcess = processIndex.get(parentNumero) || null;
-          if (parentProcess) { processId = parentProcess.id; linkedToParent = true; }
-        }
+        // NUNCA vincular a publicação ao processo principal: o número em destaque
+        // seria o do principal, não o do cumprimento/incidente intimado. Sem cadastro
+        // do próprio CNJ, a intimação fica órfã (com botão "Cadastrar processo").
+        const linkedToParent = false;
+
         const classificationMeta: Record<string, any> | null = (isExecution || linkedToParent || parentNumero) ? {
           fase: isExecution ? 'execucao' : null,
           numero_execucao: linkedToParent ? (it.numero_processo || null) : null,
