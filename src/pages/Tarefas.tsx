@@ -21,7 +21,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { ToastAction } from '@/components/ui/toast';
-import { tribunalFromCNJ } from '@/lib/cnjTribunal';
+import { tribunalFromCNJ, instanciaFromContext } from '@/lib/cnjTribunal';
 import { useSistemaByCnj } from '@/hooks/useSistemaByCnj';
 import { supabase } from '@/integrations/supabase/client';
 import { confirmModal } from '@/lib/confirmModal';
@@ -703,6 +703,18 @@ export default function Tarefas() {
                                   {trib.sistema}
                                 </span>
                               )}
+                              {(() => {
+                                const inst = instanciaFromContext(cnjCandidate, `${(task as any).location || ''} ${rawText}`);
+                                if (!inst) return null;
+                                return (
+                                  <span
+                                    title="Instância atual conforme a publicação"
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border border-emerald-400 bg-emerald-50 text-emerald-800"
+                                  >
+                                    {inst}
+                                  </span>
+                                );
+                              })()}
                             </>
                           );
                         })()}
