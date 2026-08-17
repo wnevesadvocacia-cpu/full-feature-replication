@@ -208,9 +208,16 @@ export function instanciaFromContext(numero?: string | null, content?: string | 
   const base = resolveTribunal(numero);
   if (base && ['STF', 'STJ', 'TST', 'TSE', 'STM'].includes(base.sigla)) return 'Instância Superior';
   const t = (content || '').toLowerCase();
-  if (!t) return null;
-  if (/turma\s+recursal|col[eé]gio\s+recursal/.test(t)) return 'Turma Recursal';
-  if (/\bc[âa]mara\b|\bturma\b|\bse[çc][ãa]o\b|desembargador|des\.?\s+fed|\brelator\b|\bgab\.?\s|ac[óo]rd[ãa]o|\bapela[çc][ãa]o\s+c[íi]vel\b/.test(t)) return '2º Grau';
-  if (/\bvara\b|\bforo\b|juizado|\bof[íi]cio\b|comarca|\bsubse[çc][ãa]o\s+judici[áa]ria\b/.test(t)) return '1º Grau';
+  if (t) {
+    if (/turma\s+recursal|col[eé]gio\s+recursal/.test(t)) return 'Turma Recursal';
+    if (/\bc[âa]mara\b|\bturma\b|\bse[çc][ãa]o\b|desembargador|des\.?\s+fed|\brelator\b|\bgab\.?\s|ac[óo]rd[ãa]o|\bapela[çc][ãa]o\s+c[íi]vel\b/.test(t)) return '2º Grau';
+    if (/\bvara\b|\bforo\b|juizado|\bof[íi]cio\b|comarca|\bsubse[çc][ãa]o\s+judici[áa]ria\b/.test(t)) return '1º Grau';
+  }
+  // Fallback universal pelo próprio CNJ: OOOO = unidade de origem.
+  // 0000 identifica o próprio tribunal (competência originária/recursal).
+  const digits = (numero || '').replace(/\D/g, '');
+  if (digits.length === 20 && base?.cnjValido) {
+    return digits.slice(16) === '0000' ? '2º Grau' : '1º Grau';
+  }
   return null;
 }
