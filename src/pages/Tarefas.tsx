@@ -21,7 +21,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { ToastAction } from '@/components/ui/toast';
-import { tribunalFromCNJ } from '@/lib/cnjTribunal';
+import { tribunalFromCNJ, instanciaFromContext } from '@/lib/cnjTribunal';
 import { useSistemaByCnj } from '@/hooks/useSistemaByCnj';
 import { supabase } from '@/integrations/supabase/client';
 import { confirmModal } from '@/lib/confirmModal';
