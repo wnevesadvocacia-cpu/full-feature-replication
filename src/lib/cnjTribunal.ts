@@ -199,3 +199,18 @@ function resolveTribunal(numero?: string | null): TribunalInfo | null {
       return { sigla: '—', nome: 'Segmento desconhecido', segmento: '—', cnjValido: false };
   }
 }
+
+/**
+ * Identifica a instância atual do processo conforme a publicação (órgão julgador
+ * e/ou teor). Vale para qualquer tribunal brasileiro.
+ */
+export function instanciaFromContext(numero?: string | null, content?: string | null): string | null {
+  const base = resolveTribunal(numero);
+  if (base && ['STF', 'STJ', 'TST', 'TSE', 'STM'].includes(base.sigla)) return 'Instância Superior';
+  const t = (content || '').toLowerCase();
+  if (!t) return null;
+  if (/turma\s+recursal|col[eé]gio\s+recursal/.test(t)) return 'Turma Recursal';
+  if (/\bc[âa]mara\b|\bturma\b|\bse[çc][ãa]o\b|desembargador|des\.?\s+fed|\brelator\b|\bgab\.?\s|ac[óo]rd[ãa]o|\bapela[çc][ãa]o\s+c[íi]vel\b/.test(t)) return '2º Grau';
+  if (/\bvara\b|\bforo\b|juizado|\bof[íi]cio\b|comarca|\bsubse[çc][ãa]o\s+judici[áa]ria\b/.test(t)) return '1º Grau';
+  return null;
+}
