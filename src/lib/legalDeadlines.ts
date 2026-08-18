@@ -525,6 +525,9 @@ const DECISAO_NEGATIVA_RECURSO_RX = /\b(?:(?:nego|nega|negado|negaram|negou) seg
 const ACORDAO_COLEGIADO_RX = /\b(extrato de ata|ata d[ae] sessao|acordao|turma recursal|camara|por unanimidade|v\.? ?u\.?)\b/;
 const DECISAO_MONOCRATICA_RX = /\b(decisao monocratica|monocraticamente|relator(?:a)? (?:negou|nego|nega)|nego provimento)\b/;
 const RECURSO_IMPROVIDO_RX = /\b(?:negar|nego|nega|negou|negaram|negado)\s+provimento\b|\b(?:improvido|improvidos|desprovido|desprovidos|nao provido|nao providos)\b/;
+// Julgamento do recurso com provimento (total/parcial) também esgota a via ordinária:
+// jamais cabe repetir o mesmo recurso (ex.: sugerir Apelação após acórdão de apelação).
+const RECURSO_JULGADO_RX = /\b(?:deram|deu|dou|damos|dando)\s+(?:parcial\s+)?provimento\b|\bparcial(?:mente)?\s+provido\b|\brecurso\s+(?:do\s+\w+\s+)?(?:parcialmente\s+)?provido\b|\bacordao\s+(?:que\s+)?julgou\b|\bintimacao de acordao\b/;
 const RECURSO_PECA_RX = /\b(apelacao|recurso inominado|recurso especial|recurso extraordinario|agravo de instrumento|recurso ordinario|recurso de revista)\b/;
 // ====== ATOS MERAMENTE ORDINATÓRIOS / INFORMATIVOS (SEM PRAZO) ======
 // Publicações que não intimam a praticar ato algum não podem receber o fallback de
@@ -708,7 +711,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Ex.: "A 3ª TURMA RECURSAL CÍVEL DECIDIU, POR UNANIMIDADE, NEGAR PROVIMENTO AO AGRAVO
   // INTERNO". Não cabe repetir o mesmo recurso: cabe EDcl (5 d.u. — CPC art. 1.023 /
   // Lei 9.099 art. 48) ou recurso excepcional (15 d.u.). Adota-se o prazo mais curto.
-  if ((ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) && RECURSO_IMPROVIDO_RX.test(text) && !extractLiteralDeadline(text)) {
+  if ((ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) && (RECURSO_IMPROVIDO_RX.test(text) || RECURSO_JULGADO_RX.test(text)) && !extractLiteralDeadline(text)) {
     const calCtx = context?.tribunal ? { tribunal: context.tribunal } : undefined;
     const publicacao = nextBusinessDay(receivedAtISO, calCtx);
     const dueDate = addBusinessDays(publicacao, 5, context);
@@ -720,10 +723,10 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       return {
         days: 15,
         unit: 'dias_uteis',
-        label: 'Agravo Interno contra decisão monocrática (recurso improvido)',
+        label: 'Agravo Interno contra decisão monocrática (recurso já julgado)',
         source: 'CPC',
         article: 'art. 1.021 §2º',
-        matchedText: (text.match(RECURSO_IMPROVIDO_RX) || [''])[0],
+        matchedText: (text.match(RECURSO_IMPROVIDO_RX) || text.match(RECURSO_JULGADO_RX) || [''])[0],
         doubled: false,
         dueDate: dueAI,
         startDate: nextBusinessDay(publicacao, calCtx),
@@ -746,10 +749,10 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     return {
       days: 5,
       unit: 'dias_uteis',
-      label: 'Embargos de Declaração contra acórdão (recurso improvido)',
+      label: 'Embargos de Declaração contra acórdão (recurso já julgado)',
       source: 'CPC',
       article: 'art. 1.023 (Lei 9.099 art. 48 nos Juizados)',
-      matchedText: (text.match(RECURSO_IMPROVIDO_RX) || [''])[0],
+      matchedText: (text.match(RECURSO_IMPROVIDO_RX) || text.match(RECURSO_JULGADO_RX) || [''])[0],
       doubled: false,
       dueDate,
       startDate: nextBusinessDay(publicacao, calCtx),
@@ -760,7 +763,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
         peca: 'Embargos de Declaração',
         fundamento_legal: 'CPC art. 1.023 / Lei 9.099 art. 48',
         prazo_dias: 5,
-        observacoes: 'O acórdão NEGOU PROVIMENTO ao recurso julgado — não cabe protocolar o mesmo recurso novamente. Adotado o prazo mais curto (EDcl, 5 d.u.) por segurança; conferir cabimento de Recurso Extraordinário (15 d.u.).',
+        observacoes: 'O acórdão JÁ JULGOU o recurso (provimento total, parcial ou negado) — não cabe protocolar o mesmo recurso novamente. Adotado o prazo mais curto (EDcl, 5 d.u.) por segurança; conferir cabimento de Recurso Extraordinário (15 d.u.).',
         peca_alternativa: { peca: 'Recurso Extraordinário', fundamento_legal: 'CF art. 102 III c/c CPC art. 1.003 §5º', prazo_dias: 15 },
       },
       baseLegal: 'Acórdão que nega provimento ao recurso — EDcl 5 d.u. (CPC art. 1.023 / Lei 9.099 art. 48) ou recurso excepcional 15 d.u.',
