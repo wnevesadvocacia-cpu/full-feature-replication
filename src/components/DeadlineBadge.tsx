@@ -37,6 +37,16 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
   const isAmbig = deadline.classificacaoStatus === 'ambigua_urgente';
   const isLowConf = deadline.classificacaoStatus === 'auto_baixa';
 
+  // Data de vencimento da peça alternativa (mesma contagem do motor: startDate = 1º dia útil contado)
+  const altDias = deadline.pecaSugerida?.peca_alternativa?.prazo_dias ?? 0;
+  const altDueDate =
+    deadline.startDate && altDias > 0
+      ? altDias === 1
+        ? deadline.startDate
+        : addBusinessDays(deadline.startDate, altDias - 1)
+      : null;
+
+
   const remainingText = deadline.severity === 'expired'
     ? `Vencido há ${Math.abs(deadline.businessDaysLeft)} dia(s) útil(eis)`
     : deadline.businessDaysLeft === 0
