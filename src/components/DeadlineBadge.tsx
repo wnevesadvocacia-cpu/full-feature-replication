@@ -165,8 +165,10 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
       {deadline.pecaSugerida.peca_alternativa && (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium bg-warning/10 text-warning border-warning/30 select-none">
           ou {deadline.pecaSugerida.peca_alternativa.peca} · {deadline.pecaSugerida.peca_alternativa.prazo_dias} d.u.
+          {altDueDate && <> · vence {formatBR(altDueDate)}</>}
         </span>
       )}
+
 
       {/* Badge de ambiguidade / baixa confiança */}
       {(isAmbig || isLowConf) && (
