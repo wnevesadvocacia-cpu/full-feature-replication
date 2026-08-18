@@ -820,7 +820,20 @@ export default function Tarefas() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                           {!task.completed && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className={`h-10 px-3 rounded-lg text-[11px] font-bold uppercase tracking-widest transition-colors ${task.status === 'em_elaboracao' ? 'text-amber-700 bg-amber-50 hover:bg-amber-100 dark:text-warning dark:bg-warning/10' : 'text-stone-400 hover:text-amber-700 hover:bg-amber-50 dark:hover:text-warning dark:hover:bg-warning/10'}`}
+                                onClick={() => setTaskStatus(task, task.status === 'em_elaboracao' ? 'pendente' : 'em_elaboracao')}
+                                disabled={updateTask.isPending}
+                                title={task.status === 'em_elaboracao' ? 'Marcar como pendente' : 'Marcar como em elaboração'}
+                              >
+                                <Hourglass className="h-4 w-4 mr-1.5" />
+                                {task.status === 'em_elaboracao' ? 'Pendente' : 'Em elaboração'}
+                              </Button>
                             <div className="flex items-stretch ml-1">
+
                               <Button
                                 size="sm"
                                 className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest bg-stone-900 hover:bg-stone-800 text-white dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 rounded-lg rounded-r-none transition-all"
