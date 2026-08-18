@@ -877,7 +877,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Só é mera ciência se, retirados os trechos de migração/credenciamento, não sobrar
   // nenhum prazo a cumprir. Havendo prazo (com prazo literal ou não), o motor
   // segue o fluxo normal — inclusive o fallback de 5 d.u. (CPC art. 218 §3º).
-  const MIGRACAO_TRECHO_RX = /[^.;]*(?:pass(?:ara|ou|a) a tramitar|credenciamento no|credenciada|comunicacoes subsequentes|migra(?:cao|do|r) (?:para|ao)|cadastro imediato|cronograma d\w+ implantacao|dados cadastrais)[^.;]*/g;
+  const MIGRACAO_TRECHO_RX = /[^.;]*(?:pass(?:ara|ou|a) a tramitar|credenciamento|credenciada|comunicacoes subsequentes|migra(?:cao|do|r) (?:para|ao)|cadastro imediato|cronograma d\w+ implantacao|dados cadastrais)[^.;]*/g;
   if (MIGRACAO_SISTEMA_RX.test(text) && !temDiligenciaFora(text.replace(MIGRACAO_TRECHO_RX, ' '))) {
     return {
       days: 0,
