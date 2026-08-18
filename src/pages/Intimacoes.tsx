@@ -552,7 +552,7 @@ export default function Intimacoes() {
       description: plain,
       assignee: '',
       priority: 'alta',
-      due_date: (it.deadline || detectedDeadline?.dueDate || '').slice(0, 10),
+      due_date: (detectedDeadline?.dueDate || it.deadline || '').slice(0, 10),
       start_date: '',
       start_time: '',
       location: it.court || '',
