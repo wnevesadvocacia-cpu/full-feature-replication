@@ -1,7 +1,7 @@
 import { AlertTriangle, AlarmClock, CalendarClock, ShieldAlert, CheckCircle2, FileSignature, HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatBR } from '@/lib/cnjCalendar';
-import type { DetectedDeadline } from '@/lib/legalDeadlines';
+import { addBusinessDays, type DetectedDeadline } from '@/lib/legalDeadlines';
 
 interface Props {
   deadline: DetectedDeadline;
@@ -36,6 +36,16 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
   const unitLabel = deadline.unit === 'dias_uteis' ? 'dias úteis' : 'dias corridos';
   const isAmbig = deadline.classificacaoStatus === 'ambigua_urgente';
   const isLowConf = deadline.classificacaoStatus === 'auto_baixa';
+
+  // Data de vencimento da peça alternativa (mesma contagem do motor: startDate = 1º dia útil contado)
+  const altDias = deadline.pecaSugerida?.peca_alternativa?.prazo_dias ?? 0;
+  const altDueDate =
+    deadline.startDate && altDias > 0
+      ? altDias === 1
+        ? deadline.startDate
+        : addBusinessDays(deadline.startDate, altDias - 1)
+      : null;
+
 
   const remainingText = deadline.severity === 'expired'
     ? `Vencido há ${Math.abs(deadline.businessDaysLeft)} dia(s) útil(eis)`
@@ -165,8 +175,10 @@ export function DeadlineBadge({ deadline, receivedAtISO }: Props) {
       {deadline.pecaSugerida.peca_alternativa && (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-medium bg-warning/10 text-warning border-warning/30 select-none">
           ou {deadline.pecaSugerida.peca_alternativa.peca} · {deadline.pecaSugerida.peca_alternativa.prazo_dias} d.u.
+          {altDueDate && <> · vence {formatBR(altDueDate)}</>}
         </span>
       )}
+
 
       {/* Badge de ambiguidade / baixa confiança */}
       {(isAmbig || isLowConf) && (
