@@ -1049,36 +1049,49 @@ export default function Intimacoes() {
               <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
             </div>
             {deadlineChoices.length > 1 && (
-              <div role="alert" className="rounded-md border border-warning/40 bg-warning/10 p-3">
-                <Label className="text-warning flex items-center gap-1.5">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Selecione a medida e o respectivo prazo *
-                </Label>
-                <div className="mt-3 grid gap-2">
+              <div role="alert" className="rounded-lg border border-warning/30 bg-warning/8 p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="h-4 w-4 text-warning shrink-0" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-warning">
+                    Selecione a medida e o prazo *
+                  </span>
+                </div>
+                <div className="grid gap-2">
                   {deadlineChoices.map((choice) => {
                     const selected = taskForm.title === choice.label && taskForm.due_date === choice.dueDate;
                     return (
-                      <Button
+                      <button
                         key={`${choice.label}-${choice.dueDate}`}
                         type="button"
-                        variant={selected ? 'default' : 'outline'}
-                        className={`h-12 justify-between px-3 text-left transition-all ${selected ? 'shadow-gold ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
                         onClick={() => setTaskForm((current) => ({
                           ...current,
                           title: choice.label,
                           due_date: choice.dueDate,
                         }))}
+                        className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left transition-all ${
+                          selected
+                            ? 'border-primary bg-primary text-primary-foreground shadow-gold'
+                            : 'border-border bg-card hover:border-primary/40 hover:bg-accent/50'
+                        }`}
                       >
-                        <span className="flex items-center gap-2 truncate">
-                          {selected ? <CheckSquare className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />}
-                          <span className="truncate font-medium">{choice.label}</span>
-                          <span className="hidden sm:inline text-[10px] font-semibold opacity-70">· {choice.days} d.u.</span>
+                        <span className="flex items-center gap-2.5 min-w-0">
+                          {selected ? (
+                            <CheckSquare className="h-4 w-4 shrink-0" />
+                          ) : (
+                            <FileText className="h-4 w-4 shrink-0 opacity-60" />
+                          )}
+                          <span className="truncate text-sm font-medium">{choice.label}</span>
                         </span>
-                        <span className="flex items-center gap-1.5 text-xs font-semibold shrink-0">
-                          <CalendarDays className="h-3.5 w-3.5 opacity-70" />
-                          {formatBR(choice.dueDate)}
+                        <span className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${selected ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                            {choice.days} d.u.
+                          </span>
+                          <span className="flex items-center gap-1 text-xs font-semibold tabular-nums">
+                            <CalendarDays className="h-3 w-3 opacity-70" />
+                            {formatBR(choice.dueDate)}
+                          </span>
                         </span>
-                      </Button>
+                      </button>
                     );
                   })}
                 </div>
