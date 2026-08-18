@@ -210,8 +210,9 @@ export function instanciaFromContext(numero?: string | null, content?: string | 
   const t = (content || '').toLowerCase();
   if (t) {
     if (/turma\s+recursal|col[eé]gio\s+recursal/.test(t)) return 'Turma Recursal';
-    if (/\bc[âa]mara\b|\bturma\b|\bse[çc][ãa]o\b|desembargador|des\.?\s+fed|\brelator\b|\bgab\.?\s|ac[óo]rd[ãa]o|\bapela[çc][ãa]o\s+c[íi]vel\b/.test(t)) return '2º Grau';
+    if (/\bc[âa]mara\b|\bturma\b|\bse[çc][ãa]o\b|desembargador|des\.?\s+fed|\brelator\b|\bgab\.?\s|ac[óo]rd[ãa]o|\bapela[çc][ãa]o\s+c[íi]vel\b|vice[- ]presid[êe]ncia|ju[íi]zo\s+de\s+admissibilidade|pauta\s+de\s+julgamento|sess[ãa]o\s+virtual/.test(t)) return '2º Grau';
     if (/\bvara\b|\bforo\b|juizado|\bof[íi]cio\b|comarca|\bsubse[çc][ãa]o\s+judici[áa]ria\b/.test(t)) return '1º Grau';
+
   }
   // Fallback universal pelo próprio CNJ: OOOO = unidade de origem.
   // 0000 identifica o próprio tribunal (competência originária/recursal).
