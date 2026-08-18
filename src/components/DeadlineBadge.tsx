@@ -1,7 +1,7 @@
 import { AlertTriangle, AlarmClock, CalendarClock, ShieldAlert, CheckCircle2, FileSignature, HelpCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatBR } from '@/lib/cnjCalendar';
-import type { DetectedDeadline } from '@/lib/legalDeadlines';
+import { addBusinessDays, type DetectedDeadline } from '@/lib/legalDeadlines';
 
 interface Props {
   deadline: DetectedDeadline;
