@@ -747,8 +747,8 @@ export default function Tarefas() {
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           {task.status === 'em_elaboracao' && !task.completed && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border bg-amber-50 text-amber-700 border-amber-100 dark:bg-warning/10 dark:text-warning dark:border-warning/30">
-                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-tighter rounded-full border shadow-gold bg-warning text-warning-foreground border-warning dark:bg-warning dark:text-warning-foreground dark:border-warning">
+                              <span className="h-2 w-2 rounded-full bg-warning-foreground animate-pulse" />
                               Em elaboração
                             </span>
                           )}
