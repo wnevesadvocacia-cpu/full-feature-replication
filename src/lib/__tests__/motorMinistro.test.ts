@@ -179,3 +179,12 @@ describe('ministro — integridade do retorno', () => {
     expect(r.dueDate).toBeNull();
   });
 });
+
+describe('ministro — acórdão que já julgou a apelação', () => {
+  it('acórdão que dá parcial provimento à apelação não sugere nova apelação', () => {
+    const r = d('INTIMAÇÃO DE ACÓRDÃO Nº 1035120-70.2022.8.26.0114 - Apelação Cível - Campinas - Apelante: Elson - Apelado: Claudia - Deram parcial provimento ao recurso, com determinação. V. U. - ART. 1007 CPC - EVENTUAL RECURSO - SE AO STJ: CUSTAS R$ 270,12.', { tribunal: 'TJSP' });
+    expect(r.pecaSugerida.peca).not.toMatch(/Apela/);
+    expect(r.days).toBe(5);
+    expect(r.pecaSugerida.peca).toBe('Embargos de Declaração');
+  });
+});
