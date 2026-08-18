@@ -775,7 +775,12 @@ export default function Intimacoes() {
                     {!isUnsafe && detectedDeadline && !detectedDeadline.isFallback && (
                       <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
                     )}
-                    {!isUnsafe && it.deadline && (!detectedDeadline?.dueDate || detectedDeadline.dueDate !== it.deadline.slice(0, 10)) && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
+                    {!isUnsafe && it.deadline && !detectedDeadline?.dueDate && <span className="text-xs text-warning">Prazo manual: {formatBR(it.deadline.slice(0, 10))}</span>}
+                    {!isUnsafe && it.deadline && detectedDeadline?.dueDate && detectedDeadline.dueDate !== it.deadline.slice(0, 10) && (
+                      <span className="text-xs text-destructive" title="Prazo gravado divergente do cálculo atual do motor. Vale o vencimento calculado.">
+                        Prazo desatualizado: {formatBR(it.deadline.slice(0, 10))} (obsoleto)
+                      </span>
+                    )}
                   </div>
 
                   {!isUnsafe && detectedDeadline && !detectedDeadline.isFallback && detectedDeadline.dueDate && (detectedDeadline.severity === 'critical' || detectedDeadline.severity === 'expired' || (detectedDeadline.severity === 'warning' && detectedDeadline.businessDaysLeft <= 2)) && (
