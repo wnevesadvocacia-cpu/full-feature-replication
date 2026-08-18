@@ -651,186 +651,217 @@ export default function Tarefas() {
               const showDeadlineAlert = !task.completed && dueDay && daysLeft !== null && daysLeft <= 2;
               const member = task.assignee ? teamMembers.find(m => m.email === task.assignee) : null;
               const short = member?.full_name ? abbreviateName(member.full_name) : '';
+              const initials = (member?.full_name || task.assignee || '?')
+                .replace(/@.*/, '')
+                .split(/[\s.]+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((p: string) => p[0]?.toUpperCase())
+                .join('');
+              const stripeClass = task.completed
+                ? 'bg-stone-300 dark:bg-muted'
+                : daysLeft !== null && daysLeft < 0
+                  ? 'bg-red-500'
+                  : daysLeft !== null && daysLeft <= 2
+                    ? 'bg-amber-400'
+                    : 'bg-primary';
               return (
                 <div
                   key={task.id}
-                  className={`group bg-white dark:bg-card border border-stone-200 dark:border-border hover:border-primary/40 hover:shadow-xl hover:shadow-stone-200/50 dark:hover:shadow-black/20 transition-all duration-300 rounded-lg p-5 sm:p-6 ${task.completed ? 'opacity-60' : ''}`}
+                  className={`group bg-white dark:bg-card border border-stone-200 dark:border-border hover:border-primary/40 shadow-sm hover:shadow-xl hover:shadow-stone-200/50 dark:hover:shadow-black/20 transition-all duration-300 rounded-xl overflow-hidden ${task.completed ? 'opacity-60' : ''}`}
                 >
-                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-5">
-                    <div className="flex-1 min-w-0 space-y-3">
-                      {task.processes?.number && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setOverviewTarget(task)}
-                            title="Ver detalhes do prazo"
-                            className="group/num inline-flex items-center gap-2 w-fit text-sm sm:text-base font-mono font-semibold text-primary bg-primary/5 hover:bg-primary/10 border border-primary/20 hover:border-primary/40 rounded-md px-3 py-1.5 transition-colors"
-                          >
-                            <FileText className="h-4 w-4 text-primary/70" />
-                            {task.processes.number}
-                          </button>
-                          <CopyNumber number={task.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
-                        </div>
-                      )}
-                      <div className="flex items-center gap-3 flex-wrap">
-                        <h3 className={`text-base sm:text-lg font-medium text-stone-900 dark:text-foreground group-hover:text-primary transition-colors ${task.completed ? 'line-through' : ''}`}>
-                          {task.title}
-                        </h3>
-                        {(() => {
-                          // Fallback: tenta extrair CNJ do título/descrição quando não há processo vinculado
-                          const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
-                          const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
-                          const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
-                          const baseTrib = tribunalFromCNJ(cnjCandidate, rawText);
-                          const sisAgg = sistemaByCnj(cnjCandidate, (task as any).location);
-                          const trib = baseTrib && sisAgg && sisAgg !== baseTrib.sistema
-                            ? { ...baseTrib, sistema: sisAgg, sistemasAlternativos: [baseTrib.sistema, ...(baseTrib.sistemasAlternativos || [])].filter((x): x is string => !!x && x !== sisAgg) }
-                            : baseTrib;
-                          if (!trib || !trib.cnjValido) return null;
-                          return (
-                            <>
-                              <span
-                                title={trib.nome}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold tracking-wide rounded-full border-2 border-amber-400 bg-gradient-to-r from-amber-50 to-yellow-50 text-amber-900 shadow-sm"
+                  <div className="flex">
+                    <div className={`w-1.5 shrink-0 ${stripeClass}`} aria-hidden />
+                    <div className="flex-1 min-w-0 p-5 sm:p-6">
+                      {/* Linha superior: identificação + situação */}
+                      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+                        <div className="flex items-center gap-3 flex-wrap min-w-0">
+                          {task.processes?.number && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => setOverviewTarget(task)}
+                                title="Ver detalhes do prazo"
+                                className="inline-flex items-center gap-2 w-fit text-[13px] sm:text-sm font-mono font-semibold tracking-tight text-stone-700 dark:text-foreground bg-stone-50 dark:bg-muted/40 hover:bg-primary/10 border border-stone-200 dark:border-border hover:border-primary/40 rounded-md px-3 py-1.5 transition-colors"
                               >
-                                ⚖ {trib.sigla}{trib.uf && trib.sigla.indexOf(trib.uf) === -1 ? ` · ${trib.uf}` : ''}
-                              </span>
-                              {trib.sistema && (
+                                <FileText className="h-4 w-4 text-primary/70" />
+                                {task.processes.number}
+                              </button>
+                              <CopyNumber number={task.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
+                            </div>
+                          )}
+                          {(() => {
+                            // Fallback: tenta extrair CNJ do título/descrição quando não há processo vinculado
+                            const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
+                            const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
+                            const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
+                            const baseTrib = tribunalFromCNJ(cnjCandidate, rawText);
+                            const sisAgg = sistemaByCnj(cnjCandidate, (task as any).location);
+                            const trib = baseTrib && sisAgg && sisAgg !== baseTrib.sistema
+                              ? { ...baseTrib, sistema: sisAgg, sistemasAlternativos: [baseTrib.sistema, ...(baseTrib.sistemasAlternativos || [])].filter((x): x is string => !!x && x !== sisAgg) }
+                              : baseTrib;
+                            if (!trib || !trib.cnjValido) return null;
+                            const inst = instanciaFromContext(cnjCandidate, `${(task as any).location || ''} ${rawText}`);
+                            return (
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <span
-                                  title={trib.sistemasAlternativos?.length ? `Também em uso: ${trib.sistemasAlternativos.join(', ')}` : 'Sistema de tramitação eletrônica'}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border border-sky-400 bg-sky-50 text-sky-800"
+                                  title={trib.nome}
+                                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-primary/30 bg-primary/5 text-primary"
                                 >
-                                  {trib.sistema}
+                                  {trib.sigla}{trib.uf && trib.sigla.indexOf(trib.uf) === -1 ? ` · ${trib.uf}` : ''}
                                 </span>
-                              )}
-                              {(() => {
-                                const inst = instanciaFromContext(cnjCandidate, `${(task as any).location || ''} ${rawText}`);
-                                if (!inst) return null;
-                                return (
+                                {trib.sistema && (
+                                  <span
+                                    title={trib.sistemasAlternativos?.length ? `Também em uso: ${trib.sistemasAlternativos.join(', ')}` : 'Sistema de tramitação eletrônica'}
+                                    className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-sky-200 bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300 dark:border-sky-500/30"
+                                  >
+                                    {trib.sistema}
+                                  </span>
+                                )}
+                                {inst && (
                                   <span
                                     title="Instância atual conforme a publicação"
-                                    className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full border border-emerald-400 bg-emerald-50 text-emerald-800"
+                                    className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30"
                                   >
                                     {inst}
                                   </span>
-                                );
-                              })()}
-                            </>
-                          );
-                        })()}
-                      </div>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        {task.status === 'em_elaboracao' && !task.completed && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30">
-                            <Hourglass className="h-3 w-3" />
-                            Em elaboração
-                          </span>
-                        )}
-                        {showDeadlineAlert && (
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border ${daysLeft! < 0 ? 'bg-red-50 text-red-600 border-red-100 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30' : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-warning/10 dark:text-warning dark:border-warning/30'}`}>
-                            <AlertTriangle className="h-3 w-3" />
-                            {daysLeft! < 0 ? `Vencida há ${Math.abs(daysLeft!)} dia(s)` : daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft} dia(s)`}
-                          </span>
-                        )}
-                        <span className={`px-2.5 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border italic ${priorityConfig[task.priority as TaskPriority]?.className || 'bg-stone-50 text-stone-400 border-stone-100'}`}>
-                          Prioridade {priorityConfig[task.priority as TaskPriority]?.label || task.priority}
-                        </span>
-                      </div>
-                      {task.description && (() => {
-                        const r = renderSafeContent(task.description);
-                        return r.html
-                          ? <div className="text-xs text-stone-500 dark:text-muted-foreground leading-relaxed max-w-2xl line-clamp-1" dangerouslySetInnerHTML={{ __html: r.html }} />
-                          : <p className="text-xs text-stone-500 dark:text-muted-foreground leading-relaxed max-w-2xl line-clamp-1">{decodeHtml(r.text || '')}</p>;
-                      })()}
-                      <p className="text-[11px] text-stone-400 dark:text-muted-foreground/80">
-                        Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(task.created_at)}
-                        {task.completed && completerLabel && (
-                          <> · Concluída por <span className="font-medium">{completerLabel}</span> em {fmtDateTime(task.completed_at)}</>
-                        )}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-6 lg:gap-8 flex-wrap">
-                      {task.due_date && (
-                        <div className="flex flex-col items-end">
-                          <span className="text-[10px] uppercase tracking-widest text-stone-400 dark:text-muted-foreground font-bold mb-1">Vencimento</span>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-primary" />
-                            <span className={`text-sm font-semibold ${showDeadlineAlert ? (daysLeft! < 0 ? 'text-red-600 dark:text-destructive' : 'text-amber-700 dark:text-warning') : 'text-stone-800 dark:text-foreground'}`}>
-                              {fmtDate(task.due_date)}
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {task.status === 'em_elaboracao' && !task.completed && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border bg-amber-50 text-amber-700 border-amber-100 dark:bg-warning/10 dark:text-warning dark:border-warning/30">
+                              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Em elaboração
                             </span>
-                          </div>
+                          )}
+                          {showDeadlineAlert && (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border ${daysLeft! < 0 ? 'bg-red-50 text-red-600 border-red-100 dark:bg-destructive/10 dark:text-destructive dark:border-destructive/30' : 'bg-amber-50 text-amber-700 border-amber-100 dark:bg-warning/10 dark:text-warning dark:border-warning/30'}`}>
+                              <AlertTriangle className="h-3 w-3" />
+                              {daysLeft! < 0 ? `Vencida há ${Math.abs(daysLeft!)} dia(s)` : daysLeft === 0 ? 'Vence hoje' : `Vence em ${daysLeft} dia(s)`}
+                            </span>
+                          )}
+                          <span className={`px-3 py-1 text-[10px] font-bold uppercase tracking-tighter rounded-full border ${priorityConfig[task.priority as TaskPriority]?.className || 'bg-stone-50 text-stone-400 border-stone-100'}`}>
+                            Prioridade {priorityConfig[task.priority as TaskPriority]?.label || task.priority}
+                          </span>
                         </div>
-                      )}
-                      {task.assignee && (
-                        <div className="flex flex-col items-end">
-                          <span className="text-[10px] uppercase tracking-widest text-stone-400 dark:text-muted-foreground font-bold mb-1">Responsável</span>
-                          {short && <span className="text-sm font-semibold text-stone-800 dark:text-foreground leading-tight">{short}</span>}
-                          <span className="text-[11px] text-stone-500 dark:text-muted-foreground leading-tight">{task.assignee}</span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-stone-400 hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-40"
-                          onClick={() => openAttach(task)}
-                          disabled={uploading || !task.process_id}
-                          title={task.process_id ? 'Anexar documento ao processo/cliente' : 'Vincule um processo para anexar'}
-                        >
-                          <Paperclip className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-stone-400 hover:text-stone-900 dark:hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => openEdit(task)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {!task.completed && (
-                          <div className="flex items-stretch">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm rounded-r-none border-r-0"
-                              onClick={() => toggleTask(task)}
-                              disabled={updateTask.isPending}
-                              title="Concluir prazo (mantida no histórico para auditoria)"
-                            >
-                              <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
-                            </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="px-2 py-2.5 h-auto border-stone-200 dark:border-border text-stone-900 dark:text-foreground hover:bg-stone-900 hover:text-white hover:border-stone-900 dark:hover:bg-foreground dark:hover:text-background transition-all rounded-sm rounded-l-none"
-                                  disabled={updateTask.isPending}
-                                  title="Mais opções de status"
-                                >
-                                  <ChevronDown className="h-3.5 w-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => toggleTask(task)}>
-                                  <Check className="h-3.5 w-3.5 mr-2" /> Concluir
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => setTaskStatus(task, task.status === 'em_elaboracao' ? 'pendente' : 'em_elaboracao')}
-                                >
-                                  <Hourglass className="h-3.5 w-3.5 mr-2" />
-                                  {task.status === 'em_elaboracao' ? 'Marcar como pendente' : 'Em elaboração'}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                      </div>
+
+                      {/* Conteúdo principal */}
+                      <div className="mb-5">
+                        <h3 className={`text-lg sm:text-xl font-extrabold text-stone-900 dark:text-foreground group-hover:text-primary transition-colors ${task.completed ? 'line-through' : ''}`}>
+                          {task.title}
+                        </h3>
+                        {task.description && (() => {
+                          const r = renderSafeContent(task.description);
+                          return r.html
+                            ? <div className="mt-2 text-sm text-stone-500 dark:text-muted-foreground leading-relaxed max-w-2xl line-clamp-2" dangerouslySetInnerHTML={{ __html: r.html }} />
+                            : <p className="mt-2 text-sm text-stone-500 dark:text-muted-foreground leading-relaxed max-w-2xl line-clamp-2">{decodeHtml(r.text || '')}</p>;
+                        })()}
+                        <p className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-widest text-stone-400 dark:text-muted-foreground/80">
+                          <span>Criada por {creatorLabel}</span>
+                          <span className="h-1 w-1 rounded-full bg-stone-300 dark:bg-muted" />
+                          <span>{fmtDate(task.created_at)}</span>
+                          {task.completed && completerLabel && (
+                            <>
+                              <span className="h-1 w-1 rounded-full bg-stone-300 dark:bg-muted" />
+                              <span>Concluída por {completerLabel} em {fmtDateTime(task.completed_at)}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Rodapé: dados-chave + ações */}
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-5 border-t border-stone-100 dark:border-border">
+                        {task.due_date && (
+                          <div className="lg:col-span-3 flex items-center gap-3">
+                            <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${daysLeft !== null && daysLeft < 0 ? 'bg-red-50 text-red-600 dark:bg-destructive/10 dark:text-destructive' : daysLeft !== null && daysLeft <= 2 ? 'bg-amber-50 text-amber-700 dark:bg-warning/10 dark:text-warning' : 'bg-primary/10 text-primary'}`}>
+                              <Calendar className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-muted-foreground">Vencimento</p>
+                              <p className={`text-sm font-bold ${showDeadlineAlert ? (daysLeft! < 0 ? 'text-red-600 dark:text-destructive' : 'text-amber-700 dark:text-warning') : 'text-stone-900 dark:text-foreground'}`}>
+                                {fmtDate(task.due_date)}
+                              </p>
+                            </div>
                           </div>
                         )}
+                        {task.assignee && (
+                          <div className="lg:col-span-5 flex items-center gap-3 min-w-0">
+                            <div className="h-10 w-10 shrink-0 rounded-full bg-stone-900 dark:bg-foreground text-white dark:text-background flex items-center justify-center text-xs font-bold ring-2 ring-offset-2 ring-stone-100 dark:ring-border dark:ring-offset-card">
+                              {initials}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 dark:text-muted-foreground">Responsável</p>
+                              {short && <p className="text-sm font-bold text-stone-900 dark:text-foreground leading-tight">{short}</p>}
+                              <p className="text-[11px] text-stone-500 dark:text-muted-foreground leading-tight truncate">{task.assignee}</p>
+                            </div>
+                          </div>
+                        )}
+                        <div className="lg:col-span-4 lg:ml-auto flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 text-stone-400 hover:text-primary hover:bg-stone-50 dark:hover:bg-muted/40 rounded-lg transition-colors disabled:opacity-40"
+                            onClick={() => openAttach(task)}
+                            disabled={uploading || !task.process_id}
+                            title={task.process_id ? 'Anexar documento ao processo/cliente' : 'Vincule um processo para anexar'}
+                          >
+                            <Paperclip className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 text-stone-400 hover:text-stone-900 dark:hover:text-foreground hover:bg-stone-50 dark:hover:bg-muted/40 rounded-lg transition-colors"
+                            onClick={() => openEdit(task)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          {!task.completed && (
+                            <div className="flex items-stretch ml-1">
+                              <Button
+                                size="sm"
+                                className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest bg-stone-900 hover:bg-stone-800 text-white dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 rounded-lg rounded-r-none transition-all"
+                                onClick={() => toggleTask(task)}
+                                disabled={updateTask.isPending}
+                                title="Concluir prazo (mantida no histórico para auditoria)"
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    className="px-3 py-2.5 h-auto bg-stone-900 hover:bg-stone-800 text-white dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 border-l border-white/15 dark:border-background/20 rounded-lg rounded-l-none transition-all"
+                                    disabled={updateTask.isPending}
+                                    title="Mais opções de status"
+                                  >
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => toggleTask(task)}>
+                                    <Check className="h-3.5 w-3.5 mr-2" /> Concluir
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setTaskStatus(task, task.status === 'em_elaboracao' ? 'pendente' : 'em_elaboracao')}
+                                  >
+                                    <Hourglass className="h-3.5 w-3.5 mr-2" />
+                                    {task.status === 'em_elaboracao' ? 'Marcar como pendente' : 'Em elaboração'}
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               );
+
             })}
           </div>
         )}
