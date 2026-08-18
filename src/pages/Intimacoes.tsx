@@ -1050,24 +1050,37 @@ export default function Intimacoes() {
             </div>
             {deadlineChoices.length > 1 && (
               <div role="alert" className="rounded-md border border-warning/40 bg-warning/10 p-3">
-                <Label className="text-warning">Selecione a medida e o respectivo prazo *</Label>
-                <div className="mt-2 grid gap-2">
-                  {deadlineChoices.map((choice) => (
-                    <Button
-                      key={`${choice.label}-${choice.dueDate}`}
-                      type="button"
-                      variant={taskForm.title === choice.label && taskForm.due_date === choice.dueDate ? 'default' : 'outline'}
-                      className="h-auto justify-between py-2 text-left"
-                      onClick={() => setTaskForm((current) => ({
-                        ...current,
-                        title: choice.label,
-                        due_date: choice.dueDate,
-                      }))}
-                    >
-                      <span>{choice.label} · {choice.days} d.u.</span>
-                      <strong>{formatBR(choice.dueDate)}</strong>
-                    </Button>
-                  ))}
+                <Label className="text-warning flex items-center gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  Selecione a medida e o respectivo prazo *
+                </Label>
+                <div className="mt-3 grid gap-2">
+                  {deadlineChoices.map((choice) => {
+                    const selected = taskForm.title === choice.label && taskForm.due_date === choice.dueDate;
+                    return (
+                      <Button
+                        key={`${choice.label}-${choice.dueDate}`}
+                        type="button"
+                        variant={selected ? 'default' : 'outline'}
+                        className={`h-12 justify-between px-3 text-left transition-all ${selected ? 'shadow-gold ring-1 ring-primary/30' : 'hover:border-primary/40'}`}
+                        onClick={() => setTaskForm((current) => ({
+                          ...current,
+                          title: choice.label,
+                          due_date: choice.dueDate,
+                        }))}
+                      >
+                        <span className="flex items-center gap-2 truncate">
+                          {selected ? <CheckSquare className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />}
+                          <span className="truncate font-medium">{choice.label}</span>
+                          <span className="hidden sm:inline text-[10px] font-semibold opacity-70">· {choice.days} d.u.</span>
+                        </span>
+                        <span className="flex items-center gap-1.5 text-xs font-semibold shrink-0">
+                          <CalendarDays className="h-3.5 w-3.5 opacity-70" />
+                          {formatBR(choice.dueDate)}
+                        </span>
+                      </Button>
+                    );
+                  })}
                 </div>
               </div>
             )}
