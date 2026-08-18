@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass, MessageSquare,
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass, MessageSquare, RotateCcw,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -869,6 +869,19 @@ export default function Tarefas() {
                             </div>
                             </>
                           )}
+                          {task.completed && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-10 px-4 ml-1 rounded-lg text-[11px] font-bold uppercase tracking-widest border-stone-300 text-stone-700 hover:bg-stone-50 dark:border-border dark:text-foreground dark:hover:bg-muted/40"
+                              onClick={() => toggleTask(task)}
+                              disabled={updateTask.isPending}
+                              title="Reabrir prazo (desfazer conclusão)"
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1.5" /> Reabrir
+                            </Button>
+                          )}
+
 
                         </div>
                       </div>
