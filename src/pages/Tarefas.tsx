@@ -867,7 +867,9 @@ export default function Tarefas() {
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
+                            </>
                           )}
+
                         </div>
                       </div>
                     </div>
