@@ -763,8 +763,10 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
         peca: 'Embargos de Declaração',
         fundamento_legal: 'CPC art. 1.023 / Lei 9.099 art. 48',
         prazo_dias: 5,
-        observacoes: 'O acórdão JÁ JULGOU o recurso (provimento total, parcial ou negado) — não cabe protocolar o mesmo recurso novamente. Adotado o prazo mais curto (EDcl, 5 d.u.) por segurança; conferir cabimento de Recurso Extraordinário (15 d.u.).',
-        peca_alternativa: { peca: 'Recurso Extraordinário', fundamento_legal: 'CF art. 102 III c/c CPC art. 1.003 §5º', prazo_dias: 15 },
+        observacoes: 'O acórdão JÁ JULGOU o recurso (provimento total, parcial ou negado) — não cabe protocolar o mesmo recurso novamente. Adotado o prazo mais curto (EDcl, 5 d.u.) por segurança; conferir cabimento de recurso excepcional (15 d.u.).',
+        peca_alternativa: JEC_CONTEXT_RX.test(text)
+          ? { peca: 'Recurso Extraordinário', fundamento_legal: 'CF art. 102 III c/c CPC art. 1.003 §5º', prazo_dias: 15 }
+          : { peca: 'Recurso Especial e/ou Recurso Extraordinário', fundamento_legal: 'CF art. 105 III / art. 102 III c/c CPC art. 1.029', prazo_dias: 15 },
       },
       baseLegal: 'Acórdão que nega provimento ao recurso — EDcl 5 d.u. (CPC art. 1.023 / Lei 9.099 art. 48) ou recurso excepcional 15 d.u.',
       confianca: 0.9,
