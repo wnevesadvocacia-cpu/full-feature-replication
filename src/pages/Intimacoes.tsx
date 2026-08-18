@@ -12,7 +12,7 @@ import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, Chevr
 import { CopyNumber } from '@/components/CopyNumber';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
-import { detectDeadline } from '@/lib/legalDeadlines';
+import { addBusinessDays, detectDeadline } from '@/lib/legalDeadlines';
 import { renderSafeContent } from '@/lib/sanitizeHtml';
 import { useDeadlineReconciliation } from '@/hooks/useDeadlineReconciliation';
 import { DeadlineBadge } from '@/components/DeadlineBadge';
@@ -59,6 +59,12 @@ interface Intim {
   } | null;
 }
 
+interface DeadlineChoice {
+  label: string;
+  days: number;
+  dueDate: string;
+}
+
 const UNSAFE_STATUSES = new Set(['ambigua_urgente', 'auto_baixa']);
 
 const saoPauloDate = (value?: string | null) => {
@@ -87,6 +93,7 @@ export default function Intimacoes() {
     title: '', description: '', assignee: '', priority: 'alta',
     due_date: '', start_date: '', start_time: '', location: '', process_id: '', cc_user_id: '',
   });
+  const [deadlineChoices, setDeadlineChoices] = useState<DeadlineChoice[]>([]);
   const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
   const [duplicateConfirmedProcessId, setDuplicateConfirmedProcessId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
@@ -547,12 +554,33 @@ export default function Intimacoes() {
     const plain = decodeEntities(stripped).replace(/\s+/g, ' ').trim();
     const tribunal = tribunalFromCNJ(extractCnjs(it.content)[0])?.sigla ?? null;
     const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO(), { tribunal });
+    const alternative = detectedDeadline?.pecaSugerida.peca_alternativa;
+    const alternativeDueDate = detectedDeadline?.startDate && alternative
+      ? alternative.prazo_dias === 1
+        ? detectedDeadline.startDate
+        : addBusinessDays(detectedDeadline.startDate, alternative.prazo_dias - 1)
+      : null;
+    const choices: DeadlineChoice[] = detectedDeadline?.dueDate
+      ? [
+          {
+            label: detectedDeadline.pecaSugerida.peca,
+            days: detectedDeadline.pecaSugerida.prazo_dias,
+            dueDate: detectedDeadline.dueDate,
+          },
+          ...(alternative && alternativeDueDate
+            ? [{ label: alternative.peca, days: alternative.prazo_dias, dueDate: alternativeDueDate }]
+            : []),
+        ]
+      : [];
+    setDeadlineChoices(choices);
     setTaskForm({
       title: '', // usuário escolhe / digita
       description: plain,
       assignee: '',
       priority: 'alta',
-      due_date: (detectedDeadline?.dueDate || it.deadline || '').slice(0, 10),
+      // Havendo recursos alternativos, exige escolha expressa para não vincular
+      // silenciosamente a data da apelação ao prazo de embargos.
+      due_date: (choices.length > 1 ? '' : detectedDeadline?.dueDate || it.deadline || '').slice(0, 10),
       start_date: '',
       start_time: '',
       location: it.court || '',
@@ -1020,6 +1048,29 @@ export default function Intimacoes() {
               <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
               <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
             </div>
+            {deadlineChoices.length > 1 && (
+              <div role="alert" className="rounded-md border border-warning/40 bg-warning/10 p-3">
+                <Label className="text-warning">Selecione a medida e o respectivo prazo *</Label>
+                <div className="mt-2 grid gap-2">
+                  {deadlineChoices.map((choice) => (
+                    <Button
+                      key={`${choice.label}-${choice.dueDate}`}
+                      type="button"
+                      variant={taskForm.title === choice.label && taskForm.due_date === choice.dueDate ? 'default' : 'outline'}
+                      className="h-auto justify-between py-2 text-left"
+                      onClick={() => setTaskForm((current) => ({
+                        ...current,
+                        title: choice.label,
+                        due_date: choice.dueDate,
+                      }))}
+                    >
+                      <span>{choice.label} · {choice.days} d.u.</span>
+                      <strong>{formatBR(choice.dueDate)}</strong>
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               <Label>Título do prazo *</Label>
               <Input
