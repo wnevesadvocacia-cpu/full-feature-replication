@@ -147,6 +147,21 @@ export default function Tarefas() {
     if (viewFilter === 'concluidas') return t.completed;
     return true;
   }).sort((a: any, b: any) => {
+    if (viewFilter === 'concluidas') {
+      // Concluídas: ordenadas por data de conclusão, mais recente primeiro
+      const ca = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+      const cb = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+      return cb - ca;
+    }
+    if (viewFilter === 'todas') {
+      // Todas: pendentes primeiro (por vencimento), depois concluídas (por conclusão decrescente)
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      if (a.completed) {
+        const ca = a.completed_at ? new Date(a.completed_at).getTime() : 0;
+        const cb = b.completed_at ? new Date(b.completed_at).getTime() : 0;
+        return cb - ca;
+      }
+    }
     const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
     const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
     return da - db;
