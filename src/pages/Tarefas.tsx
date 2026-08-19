@@ -130,23 +130,41 @@ export default function Tarefas() {
       setForm(f => ({ ...f, [k]: e.target.value }));
 
   const onlyDigits = (s: string) => (s || '').replace(/\D+/g, '');
+  const norm = (s: string) =>
+    (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  // tolera 1 erro de digitação por palavra (ex.: "nevves" -> "neves")
+  const near = (a: string, b: string) => {
+    if (a === b) return true;
+    if (Math.abs(a.length - b.length) > 1 || a.length < 4) return false;
+    let i = 0, j = 0, diff = 0;
+    while (i < a.length && j < b.length) {
+      if (a[i] === b[j]) { i++; j++; continue; }
+      if (++diff > 1) return false;
+      if (a.length === b.length) { i++; j++; }
+      else if (a.length > b.length) i++;
+      else j++;
+    }
+    return diff + (a.length - i) + (b.length - j) <= 1;
+  };
   const filtered = (tasks as any[]).filter((t) => {
-    const q = search.toLowerCase().trim();
+    const q = norm(search);
     const qDigits = onlyDigits(q);
     const procNumDigits = onlyDigits(t.processes?.number || '');
     const descDigits = onlyDigits(t.description || '');
     const titleDigits = onlyDigits(t.title || '');
-    const assigneeName = (t.assignee
+    const assigneeName = t.assignee
       ? teamMembers.find((m) => m.email === t.assignee)?.full_name || ''
-      : '').toLowerCase();
+      : '';
+    const haystack = norm(
+      [t.title, t.description, t.assignee, assigneeName, t.processes?.number].filter(Boolean).join(' ')
+    );
+    const hayWords = haystack.split(/[^a-z0-9]+/).filter(Boolean);
+    const tokens = q.split(/\s+/).filter(Boolean);
     const matchSearch = !q ||
-      t.title.toLowerCase().includes(q) ||
-      (t.assignee || '').toLowerCase().includes(q) ||
-      assigneeName.includes(q) ||
-      (t.description || '').toLowerCase().includes(q) ||
-      (t.processes?.number || '').toLowerCase().includes(q) ||
+      tokens.every((tk) => haystack.includes(tk) || hayWords.some((w) => near(tk, w))) ||
       (qDigits && (procNumDigits.includes(qDigits) || descDigits.includes(qDigits) || titleDigits.includes(qDigits)));
     if (!matchSearch) return false;
+
     if (viewFilter === 'pendentes') return !t.completed;
     if (viewFilter === 'concluidas') return t.completed;
     return true;
