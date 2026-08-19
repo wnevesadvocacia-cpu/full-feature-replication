@@ -623,6 +623,7 @@ export default function Tarefas() {
             onSubmit={(event) => {
               event.preventDefault();
               setSearch(searchDraft.trim());
+              setViewFilter('todas');
             }}
           >
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 group-focus-within:text-primary transition-colors" />
