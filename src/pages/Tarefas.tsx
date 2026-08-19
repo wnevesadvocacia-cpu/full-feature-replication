@@ -654,23 +654,27 @@ export default function Tarefas() {
               <Search className="h-4 w-4" />
             </Button>
           </form>
-          <div className="flex p-1 bg-stone-200/50 dark:bg-muted rounded-full self-start md:self-auto">
+          <div className="flex p-1 bg-stone-200/50 dark:bg-muted rounded-full self-start md:self-auto" role="group" aria-label="Filtrar prazos por situação">
             {([
-              { v: 'pendentes', l: 'Pendentes' },
-              { v: 'todas', l: 'Todas' },
-              { v: 'concluidas', l: 'Concluídas' },
-            ] as { v: ViewFilter; l: string }[]).map(({ v, l }) => (
-              <button
+              { v: 'pendentes', l: 'Pendentes', count: pendentes },
+              { v: 'todas', l: 'Todas', count: pendentes + concluidas },
+              { v: 'concluidas', l: 'Concluídas', count: concluidas },
+            ] as { v: ViewFilter; l: string; count: number }[]).map(({ v, l, count }) => (
+              <Button
                 key={v}
+                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => setViewFilter(v)}
-                className={`px-5 py-2 text-[11px] font-bold uppercase tracking-widest rounded-full transition-all ${
+                aria-pressed={viewFilter === v}
+                className={`h-9 px-4 text-[11px] font-bold uppercase tracking-widest rounded-full transition-all ${
                   viewFilter === v
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground'
                     : 'text-stone-500 dark:text-muted-foreground hover:text-stone-800 dark:hover:text-foreground'
                 }`}
               >
-                {l}
-              </button>
+                {l} <span className={`ml-2 tabular-nums ${viewFilter === v ? 'text-primary-foreground' : 'text-stone-400 dark:text-muted-foreground'}`}>{count}</span>
+              </Button>
             ))}
           </div>
         </div>
@@ -733,7 +737,8 @@ export default function Tarefas() {
               return (
                 <div
                   key={task.id}
-                  className={`group bg-white dark:bg-card border border-stone-200 dark:border-border hover:border-primary/40 shadow-sm hover:shadow-xl hover:shadow-stone-200/50 dark:hover:shadow-black/20 transition-all duration-300 rounded-xl overflow-hidden ${task.completed ? 'opacity-60' : ''}`}
+                  data-task-state={task.completed ? 'concluida' : 'pendente'}
+                  className={`group bg-white dark:bg-card border shadow-sm hover:shadow-xl hover:shadow-stone-200/50 dark:hover:shadow-black/20 transition-all duration-300 rounded-xl overflow-hidden ${task.completed ? 'border-success/30 bg-success/5' : 'border-stone-200 dark:border-border hover:border-primary/40'}`}
                 >
                   <div className="flex">
                     <div className={`w-1.5 shrink-0 ${stripeClass}`} aria-hidden />
@@ -796,6 +801,10 @@ export default function Tarefas() {
                           })()}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-full border ${task.completed ? 'bg-success/10 text-success border-success/30' : 'bg-info/10 text-info border-info/30'}`}>
+                            {task.completed ? <Check className="h-3 w-3" /> : <Hourglass className="h-3 w-3" />}
+                            {task.completed ? 'Concluído' : 'Pendente'}
+                          </span>
                           {task.status === 'em_elaboracao' && !task.completed && (
                             <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-tighter rounded-full border shadow-gold bg-warning text-warning-foreground border-warning dark:bg-warning dark:text-warning-foreground dark:border-warning">
                               <span className="h-2 w-2 rounded-full bg-warning-foreground animate-pulse" />
