@@ -91,6 +91,7 @@ function abbreviateName(fullName?: string | null): string {
 
 export default function Tarefas() {
   const [search, setSearch] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
   const [viewFilter, setViewFilter] = useState<ViewFilter>('pendentes');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
@@ -617,15 +618,30 @@ export default function Tarefas() {
 
         {/* Controls */}
         <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
-          <div className="relative w-full max-w-md group">
+          <form
+            className="relative w-full max-w-md group"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSearch(searchDraft.trim());
+            }}
+          >
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 group-focus-within:text-primary transition-colors" />
             <Input
               placeholder="Buscar título, responsável ou nº do processo…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-white dark:bg-card border border-stone-200 dark:border-border pl-11 pr-4 py-3 h-auto rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary placeholder:text-stone-400"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              className="w-full bg-white dark:bg-card border border-stone-200 dark:border-border pl-11 pr-12 py-3 h-auto rounded-full text-sm focus-visible:ring-1 focus-visible:ring-primary focus-visible:border-primary placeholder:text-stone-400"
             />
-          </div>
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Buscar prazos"
+              title="Buscar"
+              className="absolute right-1.5 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full"
+            >
+              <Search className="h-4 w-4" />
+            </Button>
+          </form>
           <div className="flex p-1 bg-stone-200/50 dark:bg-muted rounded-full self-start md:self-auto">
             {([
               { v: 'pendentes', l: 'Pendentes' },
