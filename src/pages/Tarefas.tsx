@@ -136,9 +136,13 @@ export default function Tarefas() {
     const procNumDigits = onlyDigits(t.processes?.number || '');
     const descDigits = onlyDigits(t.description || '');
     const titleDigits = onlyDigits(t.title || '');
+    const assigneeName = (t.assignee
+      ? teamMembers.find((m) => m.email === t.assignee)?.full_name || ''
+      : '').toLowerCase();
     const matchSearch = !q ||
       t.title.toLowerCase().includes(q) ||
       (t.assignee || '').toLowerCase().includes(q) ||
+      assigneeName.includes(q) ||
       (t.description || '').toLowerCase().includes(q) ||
       (t.processes?.number || '').toLowerCase().includes(q) ||
       (qDigits && (procNumDigits.includes(qDigits) || descDigits.includes(qDigits) || titleDigits.includes(qDigits)));
