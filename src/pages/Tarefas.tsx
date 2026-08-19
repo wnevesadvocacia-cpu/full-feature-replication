@@ -682,7 +682,7 @@ export default function Tarefas() {
         <div className="flex items-start gap-2 rounded-md border border-stone-200 dark:border-border bg-white/50 dark:bg-card/40 px-3 py-2 text-xs text-stone-500 dark:text-muted-foreground">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0 text-primary" />
           <p className="leading-relaxed">
-            Esta busca lista apenas processos com <span className="font-medium text-stone-800 dark:text-foreground">prazos pendentes</span>.
+            Esta busca lista os prazos da situação selecionada: <span className="font-medium text-stone-800 dark:text-foreground">{viewFilter === 'pendentes' ? 'pendentes' : viewFilter === 'concluidas' ? 'concluídos' : 'todos'}</span>.
             Para buscar todos os processos,{" "}
             <Link to="/processos" className="inline-flex items-center gap-0.5 font-medium text-primary hover:underline">
               acesse Processos <ArrowRight className="h-3 w-3" />
