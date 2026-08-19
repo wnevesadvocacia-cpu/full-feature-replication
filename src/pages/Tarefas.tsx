@@ -149,6 +149,16 @@ export default function Tarefas() {
   };
   const filtered = (tasks as any[]).filter((t) => {
     const q = norm(search);
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const matchedAssigneeEmails = teamMembers
+      .filter((member) => {
+        const memberText = norm([member.full_name, member.email].filter(Boolean).join(' '));
+        const memberWords = memberText.split(/[^a-z0-9]+/).filter(Boolean);
+        return tokens.length > 0 && tokens.every((token) =>
+          memberText.includes(token) || memberWords.some((word) => near(token, word))
+        );
+      })
+      .map((member) => norm(member.email));
     const qDigits = onlyDigits(q);
     const procNumDigits = onlyDigits(t.processes?.number || '');
     const descDigits = onlyDigits(t.description || '');
@@ -160,9 +170,10 @@ export default function Tarefas() {
       [t.title, t.description, t.assignee, assigneeName, t.processes?.number].filter(Boolean).join(' ')
     );
     const hayWords = haystack.split(/[^a-z0-9]+/).filter(Boolean);
-    const tokens = q.split(/\s+/).filter(Boolean);
     const matchSearch = !q ||
-      tokens.every((tk) => haystack.includes(tk) || hayWords.some((w) => near(tk, w))) ||
+      (matchedAssigneeEmails.length > 0
+        ? matchedAssigneeEmails.includes(norm(t.assignee || ''))
+        : tokens.every((tk) => haystack.includes(tk) || hayWords.some((w) => near(tk, w)))) ||
       (qDigits && (procNumDigits.includes(qDigits) || descDigits.includes(qDigits) || titleDigits.includes(qDigits)));
     if (!matchSearch) return false;
 
