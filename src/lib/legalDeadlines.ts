@@ -311,8 +311,8 @@ const SENTENCA_CIVEL_RX = /\b(julgo (?:procedente|improcedente|parcialmente proc
 const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
 const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b/;
 const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
-const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|processo trabalhista|reclamante|reclamada)\b/;
-const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|acusado|denunciado)\b/;
+const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|vara do trabalho|reclamatoria|processo trabalhista|sentenca trabalhista|reclamante|reclamada)\b/;
+const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|juizo criminal|foro criminal|execucao penal|sentenca penal|denuncia|querelado|acusado|denunciado|reu preso)\b/;
 // Ente público como PARTE ATUANTE: exige adjacência estreita (≤40 chars) entre o ente e um
 // verbo de ato processual. Mera etiqueta de polo ("Embargdo: Estado de São Paulo") NÃO basta —
 // a prerrogativa do dobro (CPC 183/180/186) é da Fazenda/MP/Defensoria, não do particular
