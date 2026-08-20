@@ -204,7 +204,12 @@ const RULES: Rule[] = [
   { pattern: /\brecurso inominado\b/, days: 10, unit: 'dias_uteis', label: 'Recurso Inominado', source: 'JEC', article: 'Lei 9.099/95 art. 42', peca: { peca: 'Recurso Inominado', fundamento_legal: 'Lei 9.099/95 art. 42', prazo_dias: 10, observacoes: 'JEC. Preparo em 48h após interposição (art. 42 §1º).' }, confianca: 0.9 },
   { pattern: /\bjuizado especial federal\b.*recurso/, days: 10, unit: 'dias_uteis', label: 'Recurso JEF', source: 'JEF', article: 'art. 5º Lei 10.259/01', peca: { peca: 'Recurso JEF', fundamento_legal: 'Lei 10.259/01 art. 5º', prazo_dias: 10, observacoes: 'JEF.' }, confianca: 0.9 },
 
+  // ===== Decisões de admissibilidade / monocráticas (precedem as regras genéricas) =====
+  { pattern: /\b(?:nao (?:conheco|conheceu|admito|admitiu)|inadmit(?:o|iu|ido)|nego seguimento|negou seguimento|nego provimento|negou provimento|indefiro|indeferiu)\b[^.]{0,160}\brecurso (?:especial|extraordinario)\b|\brecurso (?:especial|extraordinario)\b[^.]{0,160}\b(?:inadmit(?:o|iu|ido)|nao (?:conhecido|admitido)|nego seguimento|negou seguimento|obstado)\b/, days: 15, unit: 'dias_uteis', label: 'Agravo em RE/REsp (art. 1.042)', source: 'CPC', article: 'art. 1.042 c/c 1.003 §5º', peca: { peca: 'Agravo em Recurso Especial/Extraordinário', fundamento_legal: 'CPC art. 1.042', prazo_dias: 15, observacoes: 'Decisão de inadmissibilidade de RE/REsp: cabe agravo do art. 1.042 (15 d.u.). Se a inadmissão se fundou em precedente qualificado/repetitivo (art. 1.030, I), o cabível é AGRAVO INTERNO (art. 1.030 §2º). Conferir o fundamento exato antes de protocolar.', peca_alternativa: { peca: 'Agravo Interno', fundamento_legal: 'CPC art. 1.030 §2º', prazo_dias: 15 } }, confianca: 0.85 },
+  { pattern: /\bdecis(?:ao|oes) monocratica\b|\bmonocraticamente\b|\bdecisao (?:do|da) (?:relator|relatora|desembargador|desembargadora) relator/, days: 15, unit: 'dias_uteis', label: 'Agravo Interno (decisão monocrática)', source: 'CPC', article: 'art. 1.021 §2º', peca: { peca: 'Agravo Interno', fundamento_legal: 'CPC art. 1.021', prazo_dias: 15, observacoes: 'Decisão monocrática de relator em tribunal: agravo interno em 15 d.u. para o órgão colegiado. Alternativamente, embargos de declaração em 5 d.u. (art. 1.022).', peca_alternativa: { peca: 'Embargos de Declaração', fundamento_legal: 'CPC art. 1.022/1.023', prazo_dias: 5 } }, confianca: 0.82 },
+
   // ===== Recursos cíveis (CPC) =====
+
   { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'Embargos de Declaração', source: 'CPC', article: 'art. 1.023', peca: PECA_EMBARGOS_DECL, confianca: 0.9 },
   { pattern: /\bagravo (interno|regimental)\b/, days: 15, unit: 'dias_uteis', label: 'Agravo Interno', source: 'CPC', article: 'art. 1.021 §2º', peca: { peca: 'Agravo Interno', fundamento_legal: 'CPC art. 1.021', prazo_dias: 15, observacoes: 'Recurso interno em órgão colegiado.' }, confianca: 0.9 },
   { pattern: /\bagravo de instrumento\b/, days: 15, unit: 'dias_uteis', label: 'Agravo de Instrumento', source: 'CPC', article: 'art. 1.003 §5º', peca: PECA_AGRAVO_INSTR, confianca: 0.9 },
@@ -219,14 +224,15 @@ const RULES: Rule[] = [
   { pattern: /\bcontestacao\b/, days: 15, unit: 'dias_uteis', label: 'Contestação', source: 'CPC', article: 'art. 335', peca: PECA_CONTESTACAO, confianca: 0.85 },
   { pattern: /\bimpugnacao ao cumprimento de sentenca\b/, days: 15, unit: 'dias_uteis', label: 'Impugnação ao Cumprimento', source: 'CPC', article: 'art. 525', peca: { peca: 'Impugnação ao Cumprimento de Sentença', fundamento_legal: 'CPC art. 525', prazo_dias: 15, observacoes: 'Após o decurso do prazo de pagamento voluntário (15 d.u.).' }, confianca: 0.9 },
   { pattern: /\bembargos? a execucao\b/, days: 15, unit: 'dias_uteis', label: 'Embargos à Execução', source: 'CPC', article: 'art. 915', peca: { peca: 'Embargos à Execução', fundamento_legal: 'CPC art. 915', prazo_dias: 15, observacoes: 'Defesa típica em execução por título extrajudicial.' }, confianca: 0.9 },
-  { pattern: /\bcumprimento de sentenca\b.*\bpague\b|\bpague (?:em|no prazo de) 15\b/, days: 15, unit: 'dias_uteis', label: 'Pagamento Voluntário', source: 'CPC', article: 'art. 523', peca: { peca: 'Petição de cumprimento (pagamento voluntário)', fundamento_legal: 'CPC art. 523', prazo_dias: 15, observacoes: 'Após este prazo incide multa de 10% e honorários de 10%.' }, confianca: 0.85 },
-  { pattern: /\bespecificar provas\b/, days: 15, unit: 'dias_uteis', label: 'Especificação de Provas', source: 'CPC', article: 'art. 348', peca: PECA_GENERICA('Especificação de Provas', 15), confianca: 0.85 },
-  { pattern: /\bmemoriais? (escritos|finais)\b/, days: 15, unit: 'dias_uteis', label: 'Memoriais', source: 'CPC', article: 'art. 364 §2º', peca: PECA_GENERICA('Memoriais Escritos', 15), confianca: 0.85 },
+  { pattern: /\bcumprimento de sentenca\b.*\bpague\b|\bpague (?:em|no prazo de) 15\b|\bpagamento (?:voluntario|espontaneo)\b|\bart(?:igo)?\.? 523\b/, days: 15, unit: 'dias_uteis', label: 'Pagamento Voluntário (art. 523)', source: 'CPC', article: 'art. 523', peca: { peca: 'Pagamento voluntário ou Impugnação ao Cumprimento de Sentença', fundamento_legal: 'CPC art. 523 c/c art. 525', prazo_dias: 15, observacoes: 'Prazo de 15 d.u. para pagamento voluntário; após, multa de 10% + honorários de 10% (art. 523 §1º) e abre-se o prazo de 15 d.u. para impugnação (art. 525).', peca_alternativa: { peca: 'Impugnação ao Cumprimento de Sentença', fundamento_legal: 'CPC art. 525', prazo_dias: 15 } }, confianca: 0.85 },
+  { pattern: /\bespecific(?:ar|ar-se|quem|em)\b[^.]{0,60}\bprovas\b|\bprovas que pretendem produzir\b/, days: 15, unit: 'dias_uteis', label: 'Especificação de Provas', source: 'CPC', article: 'art. 348/357', peca: PECA_GENERICA('Especificação de Provas', 15), confianca: 0.85 },
+  { pattern: /\bmemoriais?\b|\balegacoes finais\b/, days: 15, unit: 'dias_uteis', label: 'Memoriais / Alegações Finais', source: 'CPC', article: 'art. 364 §2º', peca: PECA_GENERICA('Memoriais / Alegações Finais', 15), confianca: 0.85 },
   { pattern: /\bmanifeste(?:-se)? sobre (?:os )?(?:documentos|laudo|peticao)\b/, days: 15, unit: 'dias_uteis', label: 'Manifestação', source: 'CPC', article: 'art. 437 §1º', peca: PECA_GENERICA('Manifestação', 15), confianca: 0.8 },
-  { pattern: /\bmanifestacao sobre (?:o )?laudo (?:pericial)?\b/, days: 15, unit: 'dias_uteis', label: 'Manifestação Laudo', source: 'CPC', article: 'art. 477 §1º', peca: PECA_GENERICA('Manifestação sobre Laudo Pericial', 15), confianca: 0.85 },
+  { pattern: /\blaudo pericial\b|\bmanifestacao sobre (?:o )?laudo (?:pericial)?\b/, days: 15, unit: 'dias_uteis', label: 'Manifestação Laudo', source: 'CPC', article: 'art. 477 §1º', peca: PECA_GENERICA('Manifestação sobre Laudo Pericial', 15), confianca: 0.85 },
   { pattern: /\bquesitos?\b.*\bperic/, days: 15, unit: 'dias_uteis', label: 'Quesitos Perícia', source: 'CPC', article: 'art. 465 §1º', peca: PECA_GENERICA('Quesitos para Perícia', 15), confianca: 0.85 },
-  { pattern: /\bemende(?:-se)? a inicial\b|\bemenda a inicial\b/, days: 15, unit: 'dias_uteis', label: 'Emenda à Inicial', source: 'CPC', article: 'art. 321', peca: PECA_GENERICA('Emenda à Inicial', 15), confianca: 0.9 },
-  { pattern: /\b(custas|preparo) (recursais?|processuais?)\b/, days: 5, unit: 'dias_uteis', label: 'Recolhimento Custas', source: 'CPC', article: 'art. 290', peca: PECA_GENERICA('Recolhimento de Custas', 5), confianca: 0.85 },
+  { pattern: /\bemende(?:-se)?\b[^.]{0,80}\b(?:a )?(?:peticao )?inicial\b|\bemenda (?:a|da) (?:peticao )?inicial\b|\bart(?:igo)?\.? 321\b/, days: 15, unit: 'dias_uteis', label: 'Emenda à Inicial', source: 'CPC', article: 'art. 321', peca: PECA_GENERICA('Emenda à Inicial', 15), confianca: 0.9 },
+  { pattern: /\b(custas|preparo) (recursais?|processuais?)\b|\bdeserc(?:ao|encia)\b|\brecolh[a-z]*\b[^.]{0,40}\bpreparo\b/, days: 5, unit: 'dias_uteis', label: 'Recolhimento Custas/Preparo', source: 'CPC', article: 'art. 290 c/c 1.007 §4º', peca: PECA_GENERICA('Recolhimento de Custas/Preparo (sob pena de deserção)', 5), confianca: 0.85 },
+
   { pattern: /\b(?:no )?prazo de (?:(?:5(?:\s*\(cinco\))?)|cinco) dias\b/, days: 5, unit: 'dias_uteis', label: 'Manifestação (5 dias)', source: 'CPC', article: 'art. 218', peca: PECA_GENERICA('Manifestação (5 dias)', 5), confianca: 0.7 },
   { pattern: /\b(?:no )?prazo de (?:(?:10(?:\s*\(dez\))?)|dez) dias\b/, days: 10, unit: 'dias_uteis', label: 'Manifestação (10 dias)', source: 'CPC', article: 'art. 218', peca: PECA_GENERICA('Manifestação (10 dias)', 10), confianca: 0.7 },
   { pattern: /\b(?:no )?prazo de (?:(?:15(?:\s*\(quinze\))?)|quinze) dias\b/, days: 15, unit: 'dias_uteis', label: 'Manifestação (15 dias)', source: 'CPC', article: 'art. 218', peca: PECA_GENERICA('Manifestação (15 dias)', 15), confianca: 0.7 },
@@ -276,12 +282,20 @@ const LABOR_SUPPL_RULES: Rule[] = [
   { pattern: /\brecurso ordinario\b/, days: 8, unit: 'dias_uteis', label: 'RO Trabalhista', source: 'CLT', article: 'art. 895 CLT', peca: { peca: 'Recurso Ordinário Trabalhista', fundamento_legal: 'CLT art. 895', prazo_dias: 8, observacoes: 'Dias úteis (CLT art. 775 pós Lei 13.467/17). Custas e depósito recursal no mesmo prazo.' }, confianca: 0.88 },
   { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'EDcl Trabalhistas', source: 'CLT', article: 'art. 897-A CLT', peca: { peca: 'Embargos de Declaração Trabalhistas', fundamento_legal: 'CLT art. 897-A', prazo_dias: 5, observacoes: 'Omissão/contradição/manifesto equívoco no exame de pressupostos extrínsecos.' }, confianca: 0.85 },
   { pattern: /\bcontrarrazoes\b/, days: 8, unit: 'dias_uteis', label: 'Contrarrazões (CLT)', source: 'CLT', article: 'art. 900 CLT', peca: { peca: 'Contrarrazões Trabalhistas', fundamento_legal: 'CLT art. 900', prazo_dias: 8, observacoes: 'Mesmo prazo do recurso (8 d.u.).' }, confianca: 0.85 },
+  // Sentença trabalhista sem menção expressa ao recurso: RO em 8 d.u. (CLT art. 895, I).
+  { pattern: /\b(?:sentenca|julgo (?:procedente|improcedente|parcialmente procedente|extint[oa])|extingo o (?:processo|feito)|condeno a reclamada)\b/, days: 8, unit: 'dias_uteis', label: 'RO Trabalhista (sentença)', source: 'CLT', article: 'art. 895, I CLT', peca: { peca: 'Recurso Ordinário Trabalhista', fundamento_legal: 'CLT art. 895, I', prazo_dias: 8, observacoes: 'Sentença de Vara do Trabalho: RO em 8 d.u., com custas e depósito recursal no mesmo prazo. Alternativamente, embargos de declaração em 5 d.u. (CLT art. 897-A).', peca_alternativa: { peca: 'Embargos de Declaração Trabalhistas', fundamento_legal: 'CLT art. 897-A', prazo_dias: 5 } }, confianca: 0.85 },
+  { pattern: /\bembargos? a execucao\b/, days: 5, unit: 'dias_uteis', label: 'Embargos à Execução (CLT)', source: 'CLT', article: 'art. 884 CLT', peca: { peca: 'Embargos à Execução Trabalhista', fundamento_legal: 'CLT art. 884', prazo_dias: 5, observacoes: 'Prazo de 5 dias após garantida a execução ou penhorados os bens.' }, confianca: 0.85 },
   { pattern: /\bmanifest|\bimpugn|\bcumpra-se|\bintime-se/, days: 5, unit: 'dias_uteis', label: 'Manifestação (CLT)', source: 'CLT', article: 'CLT art. 775 c/c CPC 218 §3º', peca: PECA_GENERICA('Manifestação (rito trabalhista)', 5), confianca: 0.6 },
 ];
 const CRIMINAL_SUPPL_RULES: Rule[] = [
   { pattern: /\bapelacao\b/, days: 5, unit: 'dias_corridos', label: 'Apelação Criminal', source: 'CPP', article: 'art. 593 CPP', peca: { peca: 'Apelação Criminal', fundamento_legal: 'CPP art. 593', prazo_dias: 5, observacoes: 'Interposição em 5 dias corridos; razões em 8 dias (art. 600).' }, confianca: 0.88 },
   { pattern: /\bembargos? de declaracao\b/, days: 2, unit: 'dias_corridos', label: 'EDcl Criminais', source: 'CPP', article: 'art. 619 CPP', peca: { peca: 'Embargos de Declaração (Penal)', fundamento_legal: 'CPP art. 619', prazo_dias: 2, observacoes: 'Prazo de 2 dias, contado da publicação do acórdão.' }, confianca: 0.85 },
+  // Hipóteses do art. 581 (rejeição de denúncia, prescrição, incompetência etc.) → RESE em 5 dias corridos.
+  { pattern: /\b(?:rejeit(?:o|ou|ada) (?:a )?denuncia|nao recebo (?:a )?denuncia|declaro (?:extinta )?a punibilidade|julgo extinta a punibilidade|pronuncia\b)/, days: 5, unit: 'dias_corridos', label: 'RESE', source: 'CPP', article: 'art. 581 c/c 586 CPP', peca: { peca: 'Recurso em Sentido Estrito', fundamento_legal: 'CPP art. 581/586', prazo_dias: 5, observacoes: 'Hipóteses taxativas do art. 581 (ex.: rejeição de denúncia, extinção da punibilidade, pronúncia). Razões em 2 dias (art. 588).' }, confianca: 0.85 },
+  // Sentença penal (condenatória/absolutória) → apelação em 5 dias corridos (CPP art. 593/593 §4º).
+  { pattern: /\b(?:sentenca (?:penal )?(?:condenatoria|absolutoria)|condeno o (?:reu|acusado|denunciado)|absolvo o (?:reu|acusado|denunciado)|julgo procedente a denuncia|sentenca)\b/, days: 5, unit: 'dias_corridos', label: 'Apelação Criminal (sentença)', source: 'CPP', article: 'art. 593, I CPP', peca: { peca: 'Apelação Criminal', fundamento_legal: 'CPP art. 593, I', prazo_dias: 5, observacoes: 'Sentença penal: apelação em 5 dias corridos (CPP art. 593 c/c 798), com razões em 8 dias (art. 600). Alternativamente, embargos de declaração em 2 dias (art. 619).', peca_alternativa: { peca: 'Embargos de Declaração (Penal)', fundamento_legal: 'CPP art. 619', prazo_dias: 2 } }, confianca: 0.85 },
   { pattern: /\bmanifest|\bcumpra-se|\bintime-se|\bvista\b/, days: 5, unit: 'dias_corridos', label: 'Manifestação (Penal)', source: 'CPP', article: 'CPP art. 798 (dias corridos)', peca: PECA_GENERICA('Manifestação (rito penal)', 5), confianca: 0.6 },
+
 ];
 const JEC_SUPPL_RULES: Rule[] = [
   { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'EDcl (JEC)', source: 'JEC', article: 'Lei 9.099/95 art. 48', peca: { peca: 'Embargos de Declaração (JEC)', fundamento_legal: 'Lei 9.099/95 art. 48', prazo_dias: 5, observacoes: 'Turma Recursal/JEC — omissão, contradição, obscuridade ou dúvida.' }, confianca: 0.88 },
@@ -297,8 +311,8 @@ const SENTENCA_CIVEL_RX = /\b(julgo (?:procedente|improcedente|parcialmente proc
 const LITISCONSORTES_RX = /\blitiscons(?:o|ó)rte/;
 const PROC_DISTINTOS_RX = /\bprocuradores?\s+(?:distintos|diversos|diferentes)\b/;
 const ELETRONICO_RX = /\b(autos?\s+eletr[oô]nicos?|processo\s+eletr[oô]nico|pje|projudi|e[-\s]?saj|eproc|esaj)\b/;
-const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|processo trabalhista|reclamante|reclamada)\b/;
-const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|acusado|denunciado)\b/;
+const LABOR_CONTEXT_RX = /\b(clt|trt\s*\d*|tribunal regional do trabalho|justica do trabalho|vara do trabalho|reclamatoria|processo trabalhista|sentenca trabalhista|reclamante|reclamada)\b/;
+const CRIMINAL_CONTEXT_RX = /\b(cpp|codigo de processo penal|acao penal|processo criminal|vara criminal|juizo criminal|foro criminal|execucao penal|sentenca penal|denuncia|querelado|acusado|denunciado|reu preso)\b/;
 // Ente público como PARTE ATUANTE: exige adjacência estreita (≤40 chars) entre o ente e um
 // verbo de ato processual. Mera etiqueta de polo ("Embargdo: Estado de São Paulo") NÃO basta —
 // a prerrogativa do dobro (CPC 183/180/186) é da Fazenda/MP/Defensoria, não do particular
@@ -1236,7 +1250,19 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
     }
   }
+  // Processo penal: prazos do CPP não se dobram para Fazenda/MP (CPC art. 180/183 não se aplica
+  // ao rito penal). Somente a Defensoria Pública mantém o dobro (Lei 1.060/50 art. 5º §5º).
+  if (CRIMINAL_CONTEXT_RX.test(text) && chosen.rule.source === 'CPP') {
+    const defensoriaIdx = doubleReasons.findIndex(r => r.startsWith('Defensoria'));
+    if (defensoriaIdx === -1 && doubleReasons.length > 0) {
+      doubleWaivedReason = 'Rito penal: prazo em dobro do CPC art. 180/183 não se aplica ao CPP — dobro NÃO aplicado (apenas Defensoria Pública tem dobro no penal).';
+      doubleReasons.length = 0;
+    } else if (defensoriaIdx >= 0) {
+      doubleReasons.splice(0, doubleReasons.length, doubleReasons[defensoriaIdx]);
+    }
+  }
   const doubled = doubleReasons.length > 0;
+
   const effectiveDays = doubled ? chosen.rule.days * 2 : chosen.rule.days;
 
   // CPC art. 224 §3º
