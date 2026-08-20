@@ -1250,7 +1250,19 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       doubleReasons.push('Fazenda Pública na lide — CPC art. 183');
     }
   }
+  // Processo penal: prazos do CPP não se dobram para Fazenda/MP (CPC art. 180/183 não se aplica
+  // ao rito penal). Somente a Defensoria Pública mantém o dobro (Lei 1.060/50 art. 5º §5º).
+  if (CRIMINAL_CONTEXT_RX.test(text) && chosen.rule.source === 'CPP') {
+    const defensoriaIdx = doubleReasons.findIndex(r => r.startsWith('Defensoria'));
+    if (defensoriaIdx === -1 && doubleReasons.length > 0) {
+      doubleWaivedReason = 'Rito penal: prazo em dobro do CPC art. 180/183 não se aplica ao CPP — dobro NÃO aplicado (apenas Defensoria Pública tem dobro no penal).';
+      doubleReasons.length = 0;
+    } else if (defensoriaIdx >= 0) {
+      doubleReasons.splice(0, doubleReasons.length, doubleReasons[defensoriaIdx]);
+    }
+  }
   const doubled = doubleReasons.length > 0;
+
   const effectiveDays = doubled ? chosen.rule.days * 2 : chosen.rule.days;
 
   // CPC art. 224 §3º
