@@ -707,11 +707,23 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     };
   }
 
+  // ====== DECISÃO INTERLOCUTÓRIA DE 1º GRAU QUE APENAS CITA JURISPRUDÊNCIA ======
+  // Despachos/decisões de 1º grau frequentemente transcrevem ementas de acórdãos
+  // ("NEGARAM PROVIMENTO", "Câmara de Direito Privado", "Acórdão mantido"). Isso NÃO
+  // transforma o ato em acórdão: o ato é decisão interlocutória do juízo de origem e
+  // desafia Agravo de Instrumento (15 d.u. — CPC art. 1.015/1.003 §5º) ou Embargos de
+  // Declaração (5 d.u. — CPC art. 1.022/1.023). Jamais RE/REsp.
+  const PRIMEIRO_GRAU_ATO_RX = /\b(vistos|decido|defiro|indefiro|homologo|determino|intime[ -]?se|cumpra[ -]?se)\b/;
+  const PRIMEIRO_GRAU_ORGAO_RX = /\b(foro de|vara |vara civel|vara criminal|juizado especial|juizo de direito|serventia)\b/;
+  const COLEGIADO_PROPRIO_RX = /\b(acordam|acordaram|vistos,? relatados e discutidos|extrato de ata|ata d[ae] sessao|turma recursal civel decidiu|relator[ao]? (?:negou|nego|nega))\b/;
+  const interlocutoria1Grau =
+    PRIMEIRO_GRAU_ATO_RX.test(text) && PRIMEIRO_GRAU_ORGAO_RX.test(text) && !COLEGIADO_PROPRIO_RX.test(text);
+
   // ====== ATA DE SESSÃO / ACÓRDÃO QUE NEGA PROVIMENTO AO RECURSO JULGADO ======
   // Ex.: "A 3ª TURMA RECURSAL CÍVEL DECIDIU, POR UNANIMIDADE, NEGAR PROVIMENTO AO AGRAVO
   // INTERNO". Não cabe repetir o mesmo recurso: cabe EDcl (5 d.u. — CPC art. 1.023 /
   // Lei 9.099 art. 48) ou recurso excepcional (15 d.u.). Adota-se o prazo mais curto.
-  if ((ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) && (RECURSO_IMPROVIDO_RX.test(text) || RECURSO_JULGADO_RX.test(text)) && !extractLiteralDeadline(text)) {
+  if ((ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) && (RECURSO_IMPROVIDO_RX.test(text) || RECURSO_JULGADO_RX.test(text)) && !extractLiteralDeadline(text) && !interlocutoria1Grau) {
     const calCtx = context?.tribunal ? { tribunal: context.tribunal } : undefined;
     const publicacao = nextBusinessDay(receivedAtISO, calCtx);
     const dueDate = addBusinessDays(publicacao, 5, context);
