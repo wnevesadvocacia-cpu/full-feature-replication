@@ -787,6 +787,47 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     };
   }
 
+  // Decisão interlocutória de 1º grau (defere/indefere pedidos) que cita jurisprudência
+  // colegiada: cabem Embargos de Declaração (5 d.u.) ou Agravo de Instrumento (15 d.u.).
+  if (
+    interlocutoria1Grau &&
+    (ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) &&
+    (RECURSO_IMPROVIDO_RX.test(text) || RECURSO_JULGADO_RX.test(text)) &&
+    /\b(defiro|indefiro|decido)\b/.test(text)
+  ) {
+    const calCtx = context?.tribunal ? { tribunal: context.tribunal } : undefined;
+    const publicacao = nextBusinessDay(receivedAtISO, calCtx);
+    const dueDate = addBusinessDays(publicacao, 5, context);
+    const bd = businessDaysBetween(todayISO, dueDate, context);
+    return {
+      days: 5,
+      unit: 'dias_uteis',
+      label: 'Embargos de Declaração contra decisão interlocutória (1º grau)',
+      source: 'CPC',
+      article: 'art. 1.023 (ou Agravo de Instrumento, art. 1.015)',
+      matchedText: (text.match(/\b(indefiro|defiro)\b/) || [''])[0],
+      doubled: false,
+      dueDate,
+      startDate: nextBusinessDay(publicacao, calCtx),
+      severity: bd < 0 ? 'expired' : bd <= 2 ? 'critical' : bd <= 5 ? 'warning' : 'normal',
+      businessDaysLeft: bd,
+      isFallback: false,
+      pecaSugerida: {
+        peca: 'Embargos de Declaração',
+        fundamento_legal: 'CPC art. 1.022/1.023',
+        prazo_dias: 5,
+        observacoes: 'Ato do juízo de 1º grau (decisão interlocutória) — os acórdãos citados são apenas jurisprudência transcrita. Não cabe RE/REsp. Adotado o prazo mais curto (EDcl, 5 d.u.); conferir cabimento de Agravo de Instrumento (15 d.u., CPC art. 1.015).',
+        peca_alternativa: { peca: 'Agravo de Instrumento', fundamento_legal: 'CPC art. 1.015 c/c art. 1.003 §5º', prazo_dias: 15 },
+      },
+      baseLegal: 'Decisão interlocutória de 1º grau — EDcl 5 d.u. (CPC art. 1.023) ou Agravo de Instrumento 15 d.u. (CPC art. 1.015)',
+      confianca: 0.82,
+      classificacaoStatus: 'auto_media',
+      triggerSource: 'rules',
+    };
+  }
+
+
+
   if (NEGA_SEGUIMENTO_RE_VINCULANTE_RX.test(text) && FUNDAMENTO_VINCULANTE_RX.test(text)) {
     return {
       days: 15,
