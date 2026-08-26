@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,7 @@ import { PRAXIS_TASK_TITLES } from '@/lib/praxisTitles';
 import { attachDocumentToProcess } from '@/lib/attachDocument';
 import { DateInputBR } from '@/components/DateInputBR';
 import { CopyNumber } from '@/components/CopyNumber';
+import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
@@ -609,6 +610,16 @@ export default function Tarefas() {
             <Calendar className="h-3.5 w-3.5 text-destructive" /> Prazo final *
           </Label>
           <DateInputBR className="mt-1" value={form.due_date} onChange={(v) => set('due_date')({ target: { value: v } } as any)} />
+          {form.assignee && form.due_date && (() => {
+            const n = loadMap.get(`${form.assignee}|${form.due_date.slice(0, 10)}`) ?? 0;
+            return (
+              <p className={`text-[11px] mt-1 ${n >= 3 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                {n === 0
+                  ? 'Nenhum prazo pendente do responsável nesta data.'
+                  : `${n} prazo(s) pendente(s) do responsável nesta data${n >= 3 ? ' — considere outra data para evitar acúmulo.' : '.'}`}
+              </p>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -732,6 +743,51 @@ export default function Tarefas() {
             </Link>.
           </p>
         </div>
+
+        {/* Espelho da agenda: carga de prazos pendentes por colaborador/dia */}
+        {loadRows.length > 0 && (
+          <div className="rounded-lg border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-stone-200 dark:border-border">
+              <Calendar className="h-4 w-4 text-primary" />
+              <h2 className="text-[11px] font-bold uppercase tracking-widest text-stone-600 dark:text-muted-foreground">
+                Carga de prazos por colaborador (próximos dias úteis)
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-stone-50 dark:bg-muted/40">
+                    <th className="text-left font-semibold px-4 py-2 text-stone-600 dark:text-muted-foreground">Responsável</th>
+                    {loadDays.map((iso) => (
+                      <th key={iso} className="px-2 py-2 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
+                        {formatBR(iso).slice(0, 5)}
+                      </th>
+                    ))}
+                    <th className="px-3 py-2 text-center font-semibold text-stone-600 dark:text-muted-foreground">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadRows.map((row) => (
+                    <tr key={row.email} className="border-t border-stone-100 dark:border-border/60">
+                      <td className="px-4 py-2 max-w-[220px] truncate text-stone-800 dark:text-foreground" title={row.email}>{row.name}</td>
+                      {row.cells.map((n, i) => (
+                        <td key={loadDays[i]} className="px-1 py-1 text-center">
+                          <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded px-1 tabular-nums ${loadCellClass(n)}`}>
+                            {n || '·'}
+                          </span>
+                        </td>
+                      ))}
+                      <td className="px-3 py-2 text-center font-bold tabular-nums text-stone-900 dark:text-foreground">{row.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="px-4 py-2 text-[11px] text-stone-500 dark:text-muted-foreground border-t border-stone-100 dark:border-border/60">
+              Verde: até 2 prazos · Âmbar: 3-4 · Vermelho: 5 ou mais no mesmo dia.
+            </p>
+          </div>
+        )}
 
         {/* Lista */}
         {filtered.length === 0 ? (
