@@ -1205,15 +1205,16 @@ export default function Tarefas() {
             const completerLabel = t.completed_by ? (memberById.get(t.completed_by) || '—') : null;
             return (
               <div className="space-y-3 text-sm">
-                {t.processes?.number && (
+                {publicationNumber(t) && (
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Processo:</span>
                     <span className="inline-flex items-center gap-1.5 font-mono text-base font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
                       <FileText className="h-4 w-4" />
-                      {t.processes.number}
+                      {publicationNumber(t)}
                     </span>
-                    <CopyNumber number={t.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
+                    <CopyNumber number={publicationNumber(t)!} className="p-1.5 rounded-md hover:bg-primary/10" />
                   </div>
+
                 )}
                 {t.description && (() => {
                   const r = renderSafeContent(t.description);
