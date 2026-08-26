@@ -857,7 +857,7 @@ export default function Tarefas() {
                       {/* Linha superior: identificação + situação */}
                       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <div className="flex items-center gap-3 flex-wrap min-w-0">
-                          {task.processes?.number && (
+                          {publicationNumber(task) && (
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
@@ -866,10 +866,11 @@ export default function Tarefas() {
                                 className="inline-flex items-center gap-2 w-fit text-[13px] sm:text-sm font-mono font-semibold tracking-tight text-stone-700 dark:text-foreground bg-stone-50 dark:bg-muted/40 hover:bg-primary/10 border border-stone-200 dark:border-border hover:border-primary/40 rounded-md px-3 py-1.5 transition-colors"
                               >
                                 <FileText className="h-4 w-4 text-primary/70" />
-                                {task.processes.number}
+                                {publicationNumber(task)}
                               </button>
-                              <CopyNumber number={task.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
+                              <CopyNumber number={publicationNumber(task)!} className="p-1.5 rounded-md hover:bg-primary/10" />
                             </div>
+
                           )}
                           {(() => {
                             // Fallback: tenta extrair CNJ do título/descrição quando não há processo vinculado
