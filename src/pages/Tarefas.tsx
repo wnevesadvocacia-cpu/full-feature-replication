@@ -38,6 +38,18 @@ import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
 
+// Número em destaque = o CNJ diretamente relacionado à publicação (execução/
+// cumprimento de sentença quando for o caso), não o processo principal vinculado.
+const CNJ_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
+function publicationNumber(task: any): string | null {
+  const desc = String(task?.description || '');
+  const m = desc.match(/Processo:\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i) || desc.match(CNJ_RE);
+  const num = m ? (m[1] || m[0]) : null;
+  return num || task?.processes?.number || null;
+}
+
+
+
 const priorityConfig: Record<TaskPriority, { label: string; className: string }> = {
   alta: { label: 'Alta', className: 'bg-destructive/10 text-destructive border-destructive/20' },
   media: { label: 'Média', className: 'bg-warning/10 text-warning border-warning/20' },
@@ -845,7 +857,7 @@ export default function Tarefas() {
                       {/* Linha superior: identificação + situação */}
                       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <div className="flex items-center gap-3 flex-wrap min-w-0">
-                          {task.processes?.number && (
+                          {publicationNumber(task) && (
                             <div className="flex items-center gap-1">
                               <button
                                 type="button"
@@ -854,16 +866,17 @@ export default function Tarefas() {
                                 className="inline-flex items-center gap-2 w-fit text-[13px] sm:text-sm font-mono font-semibold tracking-tight text-stone-700 dark:text-foreground bg-stone-50 dark:bg-muted/40 hover:bg-primary/10 border border-stone-200 dark:border-border hover:border-primary/40 rounded-md px-3 py-1.5 transition-colors"
                               >
                                 <FileText className="h-4 w-4 text-primary/70" />
-                                {task.processes.number}
+                                {publicationNumber(task)}
                               </button>
-                              <CopyNumber number={task.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
+                              <CopyNumber number={publicationNumber(task)!} className="p-1.5 rounded-md hover:bg-primary/10" />
                             </div>
+
                           )}
                           {(() => {
                             // Fallback: tenta extrair CNJ do título/descrição quando não há processo vinculado
                             const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
                             const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
-                            const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
+                            const cnjCandidate = publicationNumber(task) || (digitsMatch ? digitsMatch[0] : null);
                             const baseTrib = tribunalFromCNJ(cnjCandidate, rawText);
                             const sisAgg = sistemaByCnj(cnjCandidate, (task as any).location);
                             const trib = baseTrib && sisAgg && sisAgg !== baseTrib.sistema
@@ -1192,15 +1205,16 @@ export default function Tarefas() {
             const completerLabel = t.completed_by ? (memberById.get(t.completed_by) || '—') : null;
             return (
               <div className="space-y-3 text-sm">
-                {t.processes?.number && (
+                {publicationNumber(t) && (
                   <div className="flex items-center gap-2">
                     <span className="text-muted-foreground">Processo:</span>
                     <span className="inline-flex items-center gap-1.5 font-mono text-base font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
                       <FileText className="h-4 w-4" />
-                      {t.processes.number}
+                      {publicationNumber(t)}
                     </span>
-                    <CopyNumber number={t.processes.number} className="p-1.5 rounded-md hover:bg-primary/10" />
+                    <CopyNumber number={publicationNumber(t)!} className="p-1.5 rounded-md hover:bg-primary/10" />
                   </div>
+
                 )}
                 {t.description && (() => {
                   const r = renderSafeContent(t.description);
