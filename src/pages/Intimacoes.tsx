@@ -189,6 +189,51 @@ export default function Intimacoes() {
     },
   });
 
+  // Tarefas pendentes para espelho de carga no modal de criação de prazo
+  const { data: tasks = [] } = useTasks();
+
+  // ===== Espelho da agenda: carga de prazos pendentes por colaborador/dia =====
+  const loadMap = useMemo(() => {
+    const m = new Map<string, number>();
+    (tasks as any[]).forEach((t) => {
+      if (t.completed || !t.due_date) return;
+      const key = `${t.assignee || '—'}|${String(t.due_date).slice(0, 10)}`;
+      m.set(key, (m.get(key) ?? 0) + 1);
+    });
+    return m;
+  }, [tasks]);
+
+  const loadDays = useMemo(() => {
+    const base = new Date(todayISO() + 'T12:00:00');
+    const out: string[] = [];
+    for (let i = 0; i < 21 && out.length < 10; i++) {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      const iso = d.toISOString().slice(0, 10);
+      if (isBusinessDay(iso)) out.push(iso);
+    }
+    return out;
+  }, []);
+
+  const loadRows = useMemo(() => {
+    const emails = new Set<string>();
+    loadMap.forEach((_v, k) => {
+      const [email, iso] = k.split('|');
+      if (loadDays.includes(iso)) emails.add(email);
+    });
+    return Array.from(emails).map((email) => {
+      const member = teamMembers.find((m) => m.email === email);
+      const cells = loadDays.map((iso) => loadMap.get(`${email}|${iso}`) ?? 0);
+      return { email, name: member?.full_name || email, cells, total: cells.reduce((a, b) => a + b, 0) };
+    }).sort((a, b) => b.total - a.total);
+  }, [loadMap, loadDays, teamMembers]);
+
+  const loadCellClass = (n: number) =>
+    n === 0 ? 'text-stone-300 dark:text-muted-foreground/40'
+      : n <= 2 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+        : n <= 4 ? 'bg-amber-50 text-amber-700 dark:bg-warning/15 dark:text-warning'
+          : 'bg-red-50 text-red-700 font-bold dark:bg-destructive/15 dark:text-destructive';
+
   // Gestores/administradores disponíveis para cópia obrigatória do prazo.
   const supervisors = teamMembers.filter((m) =>
     (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
