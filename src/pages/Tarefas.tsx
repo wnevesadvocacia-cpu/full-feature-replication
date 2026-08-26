@@ -876,7 +876,7 @@ export default function Tarefas() {
                             // Fallback: tenta extrair CNJ do título/descrição quando não há processo vinculado
                             const rawText = `${task.processes?.number || ''} ${task.title || ''} ${task.description || ''}`;
                             const digitsMatch = rawText.replace(/[^\d-.\s]/g, ' ').match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}|\d{20}/);
-                            const cnjCandidate = task.processes?.number || (digitsMatch ? digitsMatch[0] : null);
+                            const cnjCandidate = publicationNumber(task) || (digitsMatch ? digitsMatch[0] : null);
                             const baseTrib = tribunalFromCNJ(cnjCandidate, rawText);
                             const sisAgg = sistemaByCnj(cnjCandidate, (task as any).location);
                             const trib = baseTrib && sisAgg && sisAgg !== baseTrib.sistema
