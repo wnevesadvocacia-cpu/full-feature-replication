@@ -38,6 +38,18 @@ import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
 
+// Número em destaque = o CNJ diretamente relacionado à publicação (execução/
+// cumprimento de sentença quando for o caso), não o processo principal vinculado.
+const CNJ_RE = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/;
+function publicationNumber(task: any): string | null {
+  const desc = String(task?.description || '');
+  const m = desc.match(/Processo:\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i) || desc.match(CNJ_RE);
+  const num = m ? (m[1] || m[0]) : null;
+  return num || task?.processes?.number || null;
+}
+
+
+
 const priorityConfig: Record<TaskPriority, { label: string; className: string }> = {
   alta: { label: 'Alta', className: 'bg-destructive/10 text-destructive border-destructive/20' },
   media: { label: 'Média', className: 'bg-warning/10 text-warning border-warning/20' },
