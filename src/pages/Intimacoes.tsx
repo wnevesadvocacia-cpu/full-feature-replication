@@ -1083,15 +1083,16 @@ export default function Intimacoes() {
 
       {/* Dialog de delegação de prazo */}
       <Dialog open={!!taskIntim} onOpenChange={(o) => { if (!o) setTaskIntim(null); }}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-2">
             <DialogTitle className="flex items-center gap-2">
               <CheckSquare className="h-5 w-5 text-primary" /> Responsável pelo Prazo da Intimação
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
-            {/* Espelho da agenda: carga de prazos pendentes por colaborador/dia */}
-            {loadRows.length > 0 && (
+
+          {/* Espelho da agenda: carga de prazos pendentes por colaborador/dia (sempre visível) */}
+          {loadRows.length > 0 && (
+            <div className="shrink-0 px-6 pb-3">
               <div className="rounded-lg border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden">
                 <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 dark:border-border">
                   <Calendar className="h-4 w-4 text-primary" />
@@ -1133,7 +1134,10 @@ export default function Intimacoes() {
                   Verde: até 2 prazos · Âmbar: 3-4 · Vermelho: 5 ou mais no mesmo dia.
                 </p>
               </div>
-            )}
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-3 min-h-0">
             <div role="alert" className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900">
               <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
               <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
