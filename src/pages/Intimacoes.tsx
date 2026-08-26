@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText, Calendar, Info } from 'lucide-react';
 import { CopyNumber } from '@/components/CopyNumber';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
@@ -22,6 +22,7 @@ import { useSistemaByCnj } from '@/hooks/useSistemaByCnj';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 import { confirmModal } from '@/lib/confirmModal';
+import { useTasks } from '@/hooks/useTasks';
 
 // Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
 // Retorna o número efetivo (com sufixo, se houver) e os dígitos correspondentes.
@@ -187,6 +188,51 @@ export default function Intimacoes() {
       return (data || []) as { user_id: string; email: string; full_name: string; roles: string[] }[];
     },
   });
+
+  // Tarefas pendentes para espelho de carga no modal de criação de prazo
+  const { data: tasks = [] } = useTasks();
+
+  // ===== Espelho da agenda: carga de prazos pendentes por colaborador/dia =====
+  const loadMap = useMemo(() => {
+    const m = new Map<string, number>();
+    (tasks as any[]).forEach((t) => {
+      if (t.completed || !t.due_date) return;
+      const key = `${t.assignee || '—'}|${String(t.due_date).slice(0, 10)}`;
+      m.set(key, (m.get(key) ?? 0) + 1);
+    });
+    return m;
+  }, [tasks]);
+
+  const loadDays = useMemo(() => {
+    const base = new Date(todayISO() + 'T12:00:00');
+    const out: string[] = [];
+    for (let i = 0; i < 21 && out.length < 10; i++) {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      const iso = d.toISOString().slice(0, 10);
+      if (isBusinessDay(iso)) out.push(iso);
+    }
+    return out;
+  }, []);
+
+  const loadRows = useMemo(() => {
+    const emails = new Set<string>();
+    loadMap.forEach((_v, k) => {
+      const [email, iso] = k.split('|');
+      if (loadDays.includes(iso)) emails.add(email);
+    });
+    return Array.from(emails).map((email) => {
+      const member = teamMembers.find((m) => m.email === email);
+      const cells = loadDays.map((iso) => loadMap.get(`${email}|${iso}`) ?? 0);
+      return { email, name: member?.full_name || email, cells, total: cells.reduce((a, b) => a + b, 0) };
+    }).sort((a, b) => b.total - a.total);
+  }, [loadMap, loadDays, teamMembers]);
+
+  const loadCellClass = (n: number) =>
+    n === 0 ? 'text-stone-300 dark:text-muted-foreground/40'
+      : n <= 2 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+        : n <= 4 ? 'bg-amber-50 text-amber-700 dark:bg-warning/15 dark:text-warning'
+          : 'bg-red-50 text-red-700 font-bold dark:bg-destructive/15 dark:text-destructive';
 
   // Gestores/administradores disponíveis para cópia obrigatória do prazo.
   const supervisors = teamMembers.filter((m) =>
@@ -1044,6 +1090,50 @@ export default function Intimacoes() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            {/* Espelho da agenda: carga de prazos pendentes por colaborador/dia */}
+            {loadRows.length > 0 && (
+              <div className="rounded-lg border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden">
+                <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 dark:border-border">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <h2 className="text-[11px] font-bold uppercase tracking-widest text-stone-600 dark:text-muted-foreground">
+                    Carga de prazos por colaborador (próximos dias úteis)
+                  </h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="bg-stone-50 dark:bg-muted/40">
+                        <th className="text-left font-semibold px-3 py-1.5 text-stone-600 dark:text-muted-foreground">Responsável</th>
+                        {loadDays.map((iso) => (
+                          <th key={iso} className="px-1.5 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
+                            {formatBR(iso).slice(0, 5)}
+                          </th>
+                        ))}
+                        <th className="px-2 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loadRows.map((row) => (
+                        <tr key={row.email} className="border-t border-stone-100 dark:border-border/60">
+                          <td className="px-3 py-1.5 max-w-[180px] truncate text-stone-800 dark:text-foreground" title={row.email}>{row.name}</td>
+                          {row.cells.map((n, i) => (
+                            <td key={loadDays[i]} className="px-0.5 py-0.5 text-center">
+                              <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded px-1 tabular-nums ${loadCellClass(n)}`}>
+                                {n || '·'}
+                              </span>
+                            </td>
+                          ))}
+                          <td className="px-2 py-1.5 text-center font-bold tabular-nums text-stone-900 dark:text-foreground">{row.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="px-3 py-1.5 text-[11px] text-stone-500 dark:text-muted-foreground border-t border-stone-100 dark:border-border/60">
+                  Verde: até 2 prazos · Âmbar: 3-4 · Vermelho: 5 ou mais no mesmo dia.
+                </p>
+              </div>
+            )}
             <div role="alert" className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900">
               <p className="font-semibold mb-1">⚠ Atenção ao prazo fatal</p>
               <p>Registre o prazo, preferencialmente, com <strong>no mínimo 2 dias úteis de antecedência</strong> ao prazo fatal. Faça dupla verificação da data, feriados e suspensões. <strong>Perda de prazo = perda do processo</strong>.</p>
@@ -1236,6 +1326,16 @@ export default function Intimacoes() {
                   onChange={(v) => setTaskForm({ ...taskForm, due_date: v })}
                   className="mt-1"
                 />
+                {taskForm.assignee && taskForm.due_date && (() => {
+                  const n = loadMap.get(`${taskForm.assignee}|${taskForm.due_date.slice(0, 10)}`) ?? 0;
+                  return (
+                    <p className={`text-[11px] mt-1 ${n >= 3 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                      {n === 0
+                        ? 'Nenhum prazo pendente do responsável nesta data.'
+                        : `${n} prazo(s) pendente(s) do responsável nesta data${n >= 3 ? ' — considere outra data para evitar acúmulo.' : '.'}`}
+                    </p>
+                  );
+                })()}
               </div>
               <div>
                 <Label>Horário</Label>
