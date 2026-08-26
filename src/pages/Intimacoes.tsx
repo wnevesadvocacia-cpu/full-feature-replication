@@ -1326,6 +1326,16 @@ export default function Intimacoes() {
                   onChange={(v) => setTaskForm({ ...taskForm, due_date: v })}
                   className="mt-1"
                 />
+                {taskForm.assignee && taskForm.due_date && (() => {
+                  const n = loadMap.get(`${taskForm.assignee}|${taskForm.due_date.slice(0, 10)}`) ?? 0;
+                  return (
+                    <p className={`text-[11px] mt-1 ${n >= 3 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
+                      {n === 0
+                        ? 'Nenhum prazo pendente do responsável nesta data.'
+                        : `${n} prazo(s) pendente(s) do responsável nesta data${n >= 3 ? ' — considere outra data para evitar acúmulo.' : '.'}`}
+                    </p>
+                  );
+                })()}
               </div>
               <div>
                 <Label>Horário</Label>
