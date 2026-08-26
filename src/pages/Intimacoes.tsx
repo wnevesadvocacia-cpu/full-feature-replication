@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText, Calendar, Info } from 'lucide-react';
 import { CopyNumber } from '@/components/CopyNumber';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
@@ -22,6 +22,7 @@ import { useSistemaByCnj } from '@/hooks/useSistemaByCnj';
 import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 import { confirmModal } from '@/lib/confirmModal';
+import { useTasks } from '@/hooks/useTasks';
 
 // Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
 // Retorna o número efetivo (com sufixo, se houver) e os dígitos correspondentes.
