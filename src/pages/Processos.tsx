@@ -329,7 +329,7 @@ function useProcessDocumentos(processId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('documents')
-        .select('id, name, description, created_at')
+        .select('id, name, description, created_at, storage_path, mime_type, size_bytes')
         .eq('process_id', processId!)
         .order('created_at', { ascending: false })
         .limit(2000);
@@ -338,6 +338,9 @@ function useProcessDocumentos(processId: string | null) {
         id: d.id,
         title: d.name,
         description: d.description,
+        storage_path: d.storage_path,
+        mime_type: d.mime_type,
+        size_bytes: d.size_bytes,
         due_date: d.created_at?.split('T')[0] ?? null,
         created_at: d.created_at,
       }));
