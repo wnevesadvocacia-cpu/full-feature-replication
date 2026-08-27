@@ -329,7 +329,7 @@ function useProcessDocumentos(processId: string | null) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('documents')
-        .select('id, name, description, created_at')
+        .select('id, name, description, created_at, storage_path, mime_type, size_bytes')
         .eq('process_id', processId!)
         .order('created_at', { ascending: false })
         .limit(2000);
@@ -338,6 +338,9 @@ function useProcessDocumentos(processId: string | null) {
         id: d.id,
         title: d.name,
         description: d.description,
+        storage_path: d.storage_path,
+        mime_type: d.mime_type,
+        size_bytes: d.size_bytes,
         due_date: d.created_at?.split('T')[0] ?? null,
         created_at: d.created_at,
       }));
@@ -1514,27 +1517,47 @@ export default function Processos() {
                         <p className="text-sm text-gray-400 text-center py-8">Sem documentos registrados para este processo.</p>
                       ) : procDocs.map((d: any) => {
                         const sep = (d.description ?? '').indexOf('|||');
-                        const url  = sep !== -1 ? d.description.substring(0, sep) : '';
+                        const legacyUrl = sep !== -1 ? d.description.substring(0, sep) : '';
                         const notes = sep !== -1 ? d.description.substring(sep + 3) : (d.description ?? '');
+                        const path: string = d.storage_path ?? '';
+                        const isExternal = /^https?:\/\//i.test(path) || /^https?:\/\//i.test(legacyUrl);
+                        const canOpen = !!path || !!legacyUrl;
+                        const sizeKb = d.size_bytes ? `${Math.max(1, Math.round(d.size_bytes / 1024))} KB` : '';
+                        const openDoc = async () => {
+                          try {
+                            if (/^https?:\/\//i.test(path)) { window.open(path, '_blank'); return; }
+                            if (path) {
+                              const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, 60);
+                              if (error) throw error;
+                              window.open(data.signedUrl, '_blank');
+                              return;
+                            }
+                            if (legacyUrl) window.open(legacyUrl, '_blank');
+                          } catch (e: any) {
+                            toast({ title: 'Erro ao abrir documento', description: e.message, variant: 'destructive' });
+                          }
+                        };
                         return (
                           <div key={d.id} className="border rounded-md p-3 bg-white text-sm flex items-start gap-3">
                             <FileText className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="font-medium truncate">{d.title}</p>
                               {notes && <p className="text-xs text-gray-500 truncate">{notes}</p>}
-                              {d.due_date && (
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                  {new Date(d.due_date + 'T12:00:00').toLocaleDateString('pt-BR')}
-                                </p>
-                              )}
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {d.due_date ? new Date(d.due_date + 'T12:00:00').toLocaleDateString('pt-BR') : ''}
+                                {sizeKb ? ` · ${sizeKb}` : ''}
+                                {isExternal ? ' · link externo' : ''}
+                              </p>
                             </div>
-                            {url && (
+                            {canOpen ? (
                               <button
-                                onClick={() => window.open(url, '_blank')}
+                                onClick={openDoc}
                                 className="text-xs text-blue-600 hover:underline shrink-0"
                               >
-                                Abrir
+                                {isExternal ? 'Abrir link' : 'Abrir arquivo'}
                               </button>
+                            ) : (
+                              <span className="text-xs text-gray-400 shrink-0">Arquivo indisponível</span>
                             )}
                           </div>
                         );
