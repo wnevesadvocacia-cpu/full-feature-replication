@@ -1524,19 +1524,24 @@ export default function Processos() {
                         const canOpen = !!path || !!legacyUrl;
                         const sizeKb = d.size_bytes ? `${Math.max(1, Math.round(d.size_bytes / 1024))} KB` : '';
                         const openDoc = async () => {
+                          const win = window.open('', '_blank');
                           try {
-                            if (/^https?:\/\//i.test(path)) { window.open(path, '_blank'); return; }
-                            if (path) {
-                              const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, 60);
+                            let url = '';
+                            if (/^https?:\/\//i.test(path)) url = path;
+                            else if (path) {
+                              const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, 300);
                               if (error) throw error;
-                              window.open(data.signedUrl, '_blank');
-                              return;
-                            }
-                            if (legacyUrl) window.open(legacyUrl, '_blank');
+                              url = data.signedUrl;
+                            } else if (legacyUrl) url = legacyUrl;
+                            if (!url) throw new Error('Arquivo sem caminho válido.');
+                            if (win) win.location.href = url;
+                            else window.location.href = url;
                           } catch (e: any) {
+                            win?.close();
                             toast({ title: 'Erro ao abrir documento', description: e.message, variant: 'destructive' });
                           }
                         };
+
                         return (
                           <div key={d.id} className="border rounded-md p-3 bg-white text-sm flex items-start gap-3">
                             <FileText className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
