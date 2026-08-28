@@ -61,6 +61,57 @@ export function FatScrollbar({ targetRef }: { targetRef: React.RefObject<HTMLEle
     };
   }, [targetRef, metrics.trackHeight, metrics.height]);
 
+  // Autoscroll com o botão do meio (roda) do mouse — o nativo do navegador só
+  // funciona no scroller do documento, não em containers internos.
+  useEffect(() => {
+    const el = targetRef.current;
+    if (!el) return;
+    let raf = 0;
+    let anchorY = 0;
+    let currentY = 0;
+    let active = false;
+
+    const stop = () => {
+      if (!active) return;
+      active = false;
+      cancelAnimationFrame(raf);
+      document.body.style.cursor = "";
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mousedown", onStop, true);
+      window.removeEventListener("keydown", onStop, true);
+    };
+    const onMove = (e: MouseEvent) => { currentY = e.clientY; };
+    const onStop = () => stop();
+    const tick = () => {
+      if (!active) return;
+      const d = currentY - anchorY;
+      if (Math.abs(d) > 8) el.scrollTop += d * 0.18;
+      raf = requestAnimationFrame(tick);
+    };
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 1) return;
+      e.preventDefault();
+      if (active) { stop(); return; }
+      active = true;
+      anchorY = currentY = e.clientY;
+      document.body.style.cursor = "ns-resize";
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mousedown", onStop, true);
+      window.addEventListener("keydown", onStop, true);
+      raf = requestAnimationFrame(tick);
+    };
+    const onAux = (e: MouseEvent) => { if (e.button === 1) e.preventDefault(); };
+
+    el.addEventListener("mousedown", onMouseDown);
+    el.addEventListener("auxclick", onAux);
+    return () => {
+      el.removeEventListener("mousedown", onMouseDown);
+      el.removeEventListener("auxclick", onAux);
+      stop();
+    };
+  }, [targetRef]);
+
+
   if (!metrics.visible) return null;
 
   return (
