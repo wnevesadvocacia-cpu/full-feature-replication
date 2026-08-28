@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, Scale, RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Cloud, ExternalLink } from 'lucide-react';
+import { User, Lock, Bell, Building2, Save, Loader2, Shield, Mail, Phone, MapPin, Globe, RefreshCw, Plus, Trash2, CheckCircle2, XCircle, Cloud, ExternalLink } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -338,7 +338,7 @@ export default function Configuracoes() {
     { id: 'perfil', label: 'Meu Perfil', icon: User },
     { id: 'escritorio', label: 'Escritório', icon: Building2 },
     { id: 'notificacoes', label: 'Notificações', icon: Bell },
-    { id: 'intimacoes', label: 'Intimações (DJEN)', icon: Scale },
+    { id: 'intimacoes', label: 'Intimações (DJEN)', icon: Bell },
     { id: 'seguranca', label: 'Segurança', icon: Shield },
   ];
 
@@ -468,7 +468,7 @@ export default function Configuracoes() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="relative">
-                            <Scale className="w-4 h-4 text-blue-600" />
+                            <Bell className="w-4 h-4 text-blue-600" />
                             <span className={`absolute -top-1 -right-1 w-2 h-2 rounded-full ${statusColor}`} />
                           </div>
                           <div>

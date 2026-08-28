@@ -9,8 +9,9 @@ import { useToast } from '@/hooks/use-toast';
 import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { TurnstileWidget } from '@/components/TurnstileWidget';
+import { BrandMark } from '@/components/BrandMark';
 import {
-  Scale, Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert, KeyRound,
+  Mail, Loader2, ArrowRight, RotateCcw, Lock, CheckCircle2, ShieldCheck, ShieldAlert, KeyRound,
 } from 'lucide-react';
 
 function translateLoginError(message: string): string {
@@ -353,7 +354,9 @@ export default function Auth() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <div className="bg-blue-600 p-3 rounded-full"><Scale className="h-8 w-8 text-white" /></div>
+            <div className="bg-primary p-3 rounded-2xl shadow-gold ring-1 ring-primary/30">
+              <BrandMark className="h-8 w-8 text-primary-foreground" />
+            </div>
           </div>
           <h1 className="text-3xl font-bold text-white mb-1">WnevesBox</h1>
           <p className="text-blue-200 text-sm">Gestão Jurídica Inteligente</p>
