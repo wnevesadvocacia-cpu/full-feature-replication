@@ -7,15 +7,14 @@ export function BrandMark({ className }: { className?: string }) {
       className={className}
       aria-label="WnevesBox"
     >
-      <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="1.5" opacity="0.28" />
+      <circle cx="20" cy="20" r="16" stroke="currentColor" strokeWidth="2.5" />
       <path
-        d="M11 14C11 14 14.2 27 14.65 27C15.1 27 17.4 18 20 18C22.6 18 24.9 27 25.35 27C25.8 27 29 14 29 14"
+        d="M11 14L15 28L20 18L25 28L29 14"
         stroke="currentColor"
-        strokeWidth="2.4"
+        strokeWidth="3.2"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M12.5 14H16.5M23.5 14H27.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
