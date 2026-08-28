@@ -85,7 +85,12 @@ export function FatScrollbar({ targetRef }: { targetRef: React.RefObject<HTMLEle
     const tick = () => {
       if (!active) return;
       const d = currentY - anchorY;
-      if (Math.abs(d) > 8) el.scrollTop += d * 0.18;
+      const dead = 12;
+      if (Math.abs(d) > dead) {
+        // Velocidade progressiva e limitada, no padrão do autoscroll nativo do Chrome.
+        const speed = Math.min((Math.abs(d) - dead) * 0.08, 22);
+        el.scrollTop += Math.sign(d) * speed;
+      }
       raf = requestAnimationFrame(tick);
     };
     const onMouseDown = (e: MouseEvent) => {
