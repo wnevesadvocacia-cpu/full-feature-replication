@@ -61,58 +61,26 @@ export function FatScrollbar({ targetRef }: { targetRef: React.RefObject<HTMLEle
     };
   }, [targetRef, metrics.trackHeight, metrics.height]);
 
-  // Autoscroll com o botão do meio (roda) do mouse — o nativo do navegador só
-  // funciona no scroller do documento, não em containers internos.
+  // Normaliza rodas de mouse que enviam deltas excessivos ao container interno.
+  // Trackpads mantêm seus deltas pequenos e contínuos.
   useEffect(() => {
     const el = targetRef.current;
     if (!el) return;
-    let raf = 0;
-    let anchorY = 0;
-    let currentY = 0;
-    let active = false;
-
-    const stop = () => {
-      if (!active) return;
-      active = false;
-      cancelAnimationFrame(raf);
-      document.body.style.cursor = "";
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mousedown", onStop, true);
-      window.removeEventListener("keydown", onStop, true);
-    };
-    const onMove = (e: MouseEvent) => { currentY = e.clientY; };
-    const onStop = () => stop();
-    const tick = () => {
-      if (!active) return;
-      const d = currentY - anchorY;
-      const dead = 12;
-      if (Math.abs(d) > dead) {
-        // Velocidade progressiva e limitada, no padrão do autoscroll nativo do Chrome.
-        const speed = Math.min((Math.abs(d) - dead) * 0.08, 22);
-        el.scrollTop += Math.sign(d) * speed;
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    const onMouseDown = (e: MouseEvent) => {
-      if (e.button !== 1) return;
+    const onWheel = (e: WheelEvent) => {
+      const rawDelta = e.deltaMode === WheelEvent.DOM_DELTA_LINE
+        ? e.deltaY * 16
+        : e.deltaMode === WheelEvent.DOM_DELTA_PAGE
+          ? e.deltaY * el.clientHeight
+          : e.deltaY;
+      const delta = Math.sign(rawDelta) * Math.min(Math.abs(rawDelta), 80);
+      if (!delta) return;
       e.preventDefault();
-      if (active) { stop(); return; }
-      active = true;
-      anchorY = currentY = e.clientY;
-      document.body.style.cursor = "ns-resize";
-      window.addEventListener("mousemove", onMove);
-      window.addEventListener("mousedown", onStop, true);
-      window.addEventListener("keydown", onStop, true);
-      raf = requestAnimationFrame(tick);
+      el.scrollTop += delta;
     };
-    const onAux = (e: MouseEvent) => { if (e.button === 1) e.preventDefault(); };
 
-    el.addEventListener("mousedown", onMouseDown);
-    el.addEventListener("auxclick", onAux);
+    el.addEventListener("wheel", onWheel, { passive: false });
     return () => {
-      el.removeEventListener("mousedown", onMouseDown);
-      el.removeEventListener("auxclick", onAux);
-      stop();
+      el.removeEventListener("wheel", onWheel);
     };
   }, [targetRef]);
 
