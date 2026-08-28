@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Mail, Phone, MoreHorizontal, Loader2, Scale,
+  Plus, Search, Mail, Phone, MoreHorizontal, Loader2, Briefcase,
   Pencil, Trash2, AlertTriangle, User, FileText, X, DollarSign,
 } from 'lucide-react';
 import { useClients, useCreateClient } from '@/hooks/useClients';
@@ -512,7 +512,7 @@ export default function Clientes() {
                   return procs.length > 0 ? (
                     <div>
                       <p className="text-xs text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1">
-                        <Scale className="h-3 w-3" /> Processos ({procs.length})
+                        <Briefcase className="h-3 w-3" /> Processos ({procs.length})
                       </p>
                       <div className="space-y-2 max-h-48 overflow-y-auto">
                         {procs.map((p: any) => (

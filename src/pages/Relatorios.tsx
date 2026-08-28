@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
   FileBarChart, Users, CheckCircle2, Clock, TrendingUp,
-  AlertCircle, Scale, Calendar, Printer,
+  AlertCircle, Briefcase, Calendar, Printer,
 } from 'lucide-react';
 
 // ── helpers ────────────────────────────────────────────────────────────────────
@@ -241,7 +241,7 @@ export default function Relatorios() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KpiCard title="Total Processos" value={total} icon={Scale} color="bg-blue-500" />
+        <KpiCard title="Total Processos" value={total} icon={Briefcase} color="bg-blue-500" />
         <KpiCard title="Ativos" value={active} icon={TrendingUp} color="bg-green-500" />
         <KpiCard title="Concluídos" value={concluded} icon={CheckCircle2} color="bg-emerald-500" />
         <KpiCard title="Taxa Conclusão" value={`${conclusionRate}%`} icon={TrendingUp} color="bg-indigo-500" />
