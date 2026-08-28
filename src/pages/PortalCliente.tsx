@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { SignaturePad } from '@/components/SignaturePad';
-import { Briefcase, Receipt, AlertCircle, Loader2, Scale, FileSignature, CheckCircle2 } from 'lucide-react';
+import { Briefcase, Receipt, AlertCircle, Loader2, FileSignature, CheckCircle2 } from 'lucide-react';
+import { BrandMark } from '@/components/BrandMark';
 import { toast } from 'sonner';
 
 export default function PortalCliente() {
@@ -91,8 +92,8 @@ export default function PortalCliente() {
     <div className="min-h-screen bg-muted/30">
       <header className="bg-card border-b">
         <div className="max-w-4xl mx-auto px-6 py-5 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <Scale className="h-5 w-5 text-primary-foreground" />
+          <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center shadow-gold ring-1 ring-primary/30">
+            <BrandMark className="h-5 w-5 text-primary-foreground" />
           </div>
           <div>
             <h1 className="font-display font-bold text-lg">Portal do Cliente</h1>
