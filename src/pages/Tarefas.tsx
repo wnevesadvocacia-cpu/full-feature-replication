@@ -1033,12 +1033,11 @@ export default function Tarefas() {
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => setTaskStatus(task, task.status === 'em_elaboracao' ? 'pendente' : 'em_elaboracao')}
-                                    disabled={task.status === 'em_elaboracao'}
                                     className={task.status === 'em_elaboracao' ? 'bg-amber-50 text-amber-700 dark:bg-warning/10 dark:text-warning' : ''}
                                   >
                                     {task.status === 'em_elaboracao' ? (
                                       <>
-                                        <Check className="h-3.5 w-3.5 mr-2" /> Em elaboração
+                                        <RotateCcw className="h-3.5 w-3.5 mr-2" /> Remover "em elaboração"
                                       </>
                                     ) : (
                                       <>
@@ -1046,6 +1045,7 @@ export default function Tarefas() {
                                       </>
                                     )}
                                   </DropdownMenuItem>
+
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
