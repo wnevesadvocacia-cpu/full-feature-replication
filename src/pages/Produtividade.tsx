@@ -327,6 +327,7 @@ export default function Produtividade() {
           { l: 'Tarefas executadas', v: String(kpi.executadas), h: 'Concluídas no período' },
           { l: '% cumprimento de prazo', v: kpi.sla === null ? '—' : `${kpi.sla}%`, h: 'Concluídas até o vencimento ÷ concluídas com prazo' },
           { l: 'Tempo médio de resposta', v: kpi.tmr === null ? '—' : `${kpi.tmr.toFixed(1)} d`, h: 'Dias entre criação e conclusão' },
+          { l: 'Delegadas a outros', v: String(kpi.delegadasOutros), h: 'Tarefas criadas por uma pessoa e atribuídas a outra' },
           { l: 'Prazos vencidos em aberto', v: String(kpi.pendentesAtrasadas), h: 'Pendentes com vencimento passado' },
         ].map((s) => (
           <div key={s.l} className="bg-card border rounded-lg p-3" title={s.h}>
