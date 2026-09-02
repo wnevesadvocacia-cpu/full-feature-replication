@@ -278,22 +278,29 @@ export default function Produtividade() {
       : 'bg-primary/10 text-primary font-semibold';
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-display font-bold flex items-center gap-2">
-            <Gauge className="h-6 w-6" /> Produtividade &amp; Compliance de Prazos
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Indicadores de desempenho por colaborador: cumprimento de prazo, tempo médio de resposta, carga pendente e rastreamento de atividades.
-          </p>
+    <div className="p-6 space-y-5 animate-fade-in">
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary/80">Auditoria de desempenho</p>
+            <h1 className="mt-1 text-2xl font-display font-bold flex items-center gap-2 tracking-tight">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                <Gauge className="h-5 w-5" />
+              </span>
+              Produtividade &amp; Compliance de Prazos
+            </h1>
+            <p className="text-muted-foreground text-sm mt-2 max-w-2xl">
+              Indicadores de desempenho por colaborador: cumprimento de prazo, tempo médio de resposta, carga pendente e rastreamento de atividades.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={perf.length === 0} className="bg-card/70 backdrop-blur shadow-sm">
+            <Download className="h-4 w-4 mr-1" /> Exportar CSV
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={perf.length === 0}>
-          <Download className="h-4 w-4 mr-1" /> Exportar CSV
-        </Button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card/60 p-3 shadow-sm">
         <div>
           <label className="text-xs text-muted-foreground">De</label>
           <DateInputBR value={from} onChange={(v) => setFrom(v)} className="h-9 w-[150px]" />
@@ -302,18 +309,18 @@ export default function Produtividade() {
           <label className="text-xs text-muted-foreground">Até</label>
           <DateInputBR value={to} onChange={(v) => setTo(v)} className="h-9 w-[150px]" />
         </div>
-        <div className="flex gap-1">
-          <Button size="sm" variant={view === 'desempenho' ? 'default' : 'outline'} onClick={() => setView('desempenho')}>
+        <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
+          <Button size="sm" variant={view === 'desempenho' ? 'default' : 'ghost'} className="shadow-none" onClick={() => setView('desempenho')}>
             Desempenho
           </Button>
-          <Button size="sm" variant={view === 'volume' ? 'default' : 'outline'} onClick={() => setView('volume')}>
+          <Button size="sm" variant={view === 'volume' ? 'default' : 'ghost'} className="shadow-none" onClick={() => setView('volume')}>
             Volume por período
           </Button>
         </div>
         {view === 'volume' && (
-          <div className="flex gap-1">
+          <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
             {(['dia', 'mes'] as Granularity[]).map((g) => (
-              <Button key={g} size="sm" variant={gran === g ? 'default' : 'outline'} onClick={() => setGran(g)}>
+              <Button key={g} size="sm" variant={gran === g ? 'default' : 'ghost'} className="shadow-none" onClick={() => setGran(g)}>
                 {g === 'dia' ? 'Por dia' : 'Por mês'}
               </Button>
             ))}
@@ -330,12 +337,18 @@ export default function Produtividade() {
           { l: 'Delegadas a outros', v: String(kpi.delegadasOutros), h: 'Tarefas criadas por uma pessoa e atribuídas a outra' },
           { l: 'Prazos vencidos em aberto', v: String(kpi.pendentesAtrasadas), h: 'Pendentes com vencimento passado' },
         ].map((s) => (
-          <div key={s.l} className="bg-card border rounded-lg p-3" title={s.h}>
-            <p className="text-xs text-muted-foreground">{s.l}</p>
-            <p className="text-xl font-semibold">{s.v}</p>
+          <div
+            key={s.l}
+            className="group relative overflow-hidden rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+            title={s.h}
+          >
+            <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 to-transparent opacity-70" />
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.l}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{s.v}</p>
           </div>
         ))}
       </div>
+
 
       {kpi.pendentesAtrasadas > 0 && (
         <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 text-destructive rounded-lg p-3 text-sm">
