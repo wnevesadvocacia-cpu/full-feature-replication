@@ -145,7 +145,14 @@ export default function Produtividade() {
         if (r.process_number) p.procSet.add(r.process_number);
       }
 
-      get(autor).delegadas += 1;
+      const a = get(autor);
+      a.delegadas += 1;
+      if (samePerson(r.created_by_email, r.assignee)) {
+        a.delegadasProprias += 1;
+      } else {
+        a.delegadasOutros += 1;
+        if (r.completed) a.delegadasOutrosConcluidas += 1;
+      }
     }
 
     return Array.from(map.values())
