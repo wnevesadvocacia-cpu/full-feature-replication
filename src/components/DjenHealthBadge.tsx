@@ -57,7 +57,7 @@ export function DjenHealthBadge() {
       : 'bg-warning/10 text-warning border-warning/30';
 
   return (
-    <div className="mt-2 inline-flex">
+    <div className="inline-flex">
       <Badge variant="outline" className={`text-xs font-medium ${cls}`} title={data.last_error ?? ''}>
         <Icon className="h-3 w-3 mr-1" />
         {label}
