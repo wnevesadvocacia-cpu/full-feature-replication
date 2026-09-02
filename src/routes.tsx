@@ -37,6 +37,7 @@ const Versoes = lazy(() => import("./pages/Versoes"));
 const KanbanConfig = lazy(() => import("./pages/KanbanConfig"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
 const AuditoriaTarefas = lazy(() => import("./pages/AuditoriaTarefas"));
+const Produtividade = lazy(() => import("./pages/Produtividade"));
 
 const NotFound = lazy(() => import("./pages/NotFound"));
 
