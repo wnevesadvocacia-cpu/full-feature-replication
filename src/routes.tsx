@@ -149,6 +149,7 @@ export default function AppRoutes() {
         <Route path="/kanban-config" element={wrap(KanbanConfig)} />
         <Route path="/auditoria"     element={wrap(Auditoria)} />
         <Route path="/auditoria-tarefas" element={wrap(AuditoriaTarefas)} />
+        <Route path="/produtividade" element={wrap(Produtividade)} />
 
       </Route>
       <Route path="*" element={wrap(NotFound)} />
