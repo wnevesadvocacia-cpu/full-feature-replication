@@ -104,7 +104,7 @@ export default function Produtividade() {
   }), [rows]);
 
   function exportCsv() {
-    const head = ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total concluídas', 'Total criadas'];
+    const head = ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total executadas', 'Total delegadas/criadas'];
     const body = rows.map((r) => [
       r.who,
       ...r.cells.map((c) => `${c.done}/${c.created}`),
@@ -165,8 +165,8 @@ export default function Produtividade() {
       <div className="grid grid-cols-3 gap-3">
         {[
           { l: 'Colaboradores', v: totals.colaboradores },
-          { l: 'Concluídas', v: totals.done },
-          { l: 'Criadas/Delegadas', v: totals.created },
+          { l: 'Tarefas executadas (concluídas)', v: totals.done },
+          { l: 'Tarefas cadastradas/delegadas', v: totals.created },
         ].map((s) => (
           <div key={s.l} className="bg-card border rounded-lg p-3">
             <p className="text-xs text-muted-foreground">{s.l}</p>
@@ -187,11 +187,12 @@ export default function Produtividade() {
             <p className="font-semibold text-foreground">Como ler esta tabela</p>
             <p>Cada linha é um colaborador. Cada coluna é um {gran === 'mes' ? 'mês' : 'dia'} do período escolhido.</p>
             <p>
-              Dentro de cada célula aparecem dois números:
-              {' '}<span className="font-semibold text-foreground">✔ Concluídas</span> = tarefas que a pessoa terminou;
-              {' '}<span className="font-semibold text-foreground">+ Criadas</span> = tarefas que a pessoa criou/delegou.
+              Dentro de cada célula aparecem dois números independentes:
+              {' '}<span className="font-semibold text-foreground">✔ Executou</span> = tarefas que a própria pessoa concluiu;
+              {' '}<span className="font-semibold text-foreground">+ Delegou/criou</span> = tarefas que a pessoa cadastrou, podendo ter sido atribuídas a ela mesma ou a outro colaborador.
             </p>
-            <p>Exemplo: <span className="font-semibold text-foreground">✔ 34 · + 3</span> significa 34 tarefas concluídas e 3 tarefas criadas.</p>
+            <p>Exemplo: <span className="font-semibold text-foreground">✔ 34 · + 3</span> = concluiu 34 tarefas e cadastrou 3 tarefas (que podem ter sido delegadas a outra pessoa).</p>
+            <p className="text-foreground/80">Os dois números não se somam e não se cancelam: quem delega muito pode ter "+" alto e "✔" baixo, e quem executa muito pode ter "✔" alto e "+" baixo.</p>
             <p>Quanto mais forte a cor da célula, maior o número de tarefas concluídas naquele período.</p>
           </div>
 
@@ -203,11 +204,11 @@ export default function Produtividade() {
                   {buckets.map((b) => (
                     <th key={b} className="p-2 whitespace-nowrap text-center">
                       {fmtBucket(b, gran)}
-                      <div className="text-[10px] font-normal opacity-70">✔ concl. · + criad.</div>
+                      <div className="text-[10px] font-normal opacity-70">✔ executou · + delegou</div>
                     </th>
                   ))}
-                  <th className="p-2 text-center whitespace-nowrap">Total concluídas</th>
-                  <th className="p-2 text-center whitespace-nowrap">Total criadas</th>
+                  <th className="p-2 text-center whitespace-nowrap">Total executadas</th>
+                  <th className="p-2 text-center whitespace-nowrap">Total delegadas/criadas</th>
                 </tr>
               </thead>
               <tbody>
@@ -217,7 +218,7 @@ export default function Produtividade() {
                     {r.cells.map((c, i) => (
                       <td
                         key={buckets[i]}
-                        title={`${r.who} — ${fmtBucket(buckets[i], gran)}: ${c.done} concluída(s), ${c.created} criada(s)`}
+                        title={`${r.who} — ${fmtBucket(buckets[i], gran)}: executou ${c.done}, delegou/criou ${c.created}`}
                         className={`p-2 text-center whitespace-nowrap ${cellCls(c.done)}`}
                       >
                         ✔ {c.done}<span className="text-[11px] opacity-70"> · + {c.created}</span>
