@@ -351,7 +351,7 @@ export default function Produtividade() {
 
 
       {kpi.pendentesAtrasadas > 0 && (
-        <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 text-destructive rounded-lg p-3 text-sm">
+        <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 text-destructive rounded-xl p-3.5 text-sm shadow-sm">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>
             {kpi.pendentesAtrasadas} prazo(s) com vencimento já passado ainda em aberto. Verifique os responsáveis na coluna “Vencidas em aberto”.
@@ -367,7 +367,7 @@ export default function Produtividade() {
         <div className="text-center py-12 text-muted-foreground text-sm">Nenhuma atividade no período.</div>
       ) : view === 'desempenho' ? (
         <>
-          <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
+          <div className="rounded-xl border bg-muted/30 p-4 text-xs leading-relaxed space-y-1 shadow-sm">
             <p className="font-semibold text-foreground">Como ler</p>
             <p><span className="font-semibold text-foreground">Executadas</span>: tarefas concluídas pela pessoa. <span className="font-semibold text-foreground">No prazo</span> / <span className="font-semibold text-foreground">Com atraso</span>: comparação da data de conclusão com o vencimento.</p>
             <p><span className="font-semibold text-foreground">% no prazo</span>: indicador de compliance (verde ≥ 95%, âmbar ≥ 80%, vermelho abaixo). <span className="font-semibold text-foreground">Tempo médio</span>: dias entre a criação e a conclusão da tarefa.</p>
@@ -375,11 +375,11 @@ export default function Produtividade() {
             <p><span className="font-semibold text-foreground">Delegadas a outros</span>: tarefas que a pessoa criou para outro colaborador. <span className="font-semibold text-foreground">% entrega da carteira delegada</span>: quanto dessa carteira já foi concluída — é o KPI do controller. <span className="font-semibold text-foreground">Criadas para si</span>: tarefas que ela cadastrou e assumiu.</p>
           </div>
 
-          <div className="border rounded-lg overflow-x-auto bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+          <div className="rounded-xl border overflow-x-auto bg-card shadow-sm">
+            <table className="w-full text-sm [&_td]:py-2.5">
+              <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
+                  <th className="text-left p-3 sticky left-0 bg-muted/60">Colaborador</th>
                   <th className="p-2 text-center">Papel</th>
                   <th className="p-2 text-center">Executadas</th>
                   <th className="p-2 text-center">No prazo</th>
@@ -402,11 +402,11 @@ export default function Produtividade() {
                   const papel = papelOf(p);
                   return (
                     <tr key={p.who} className="border-t">
-                      <td className="p-2 whitespace-nowrap sticky left-0 bg-card font-medium">{p.who}</td>
+                      <td className="p-3 whitespace-nowrap sticky left-0 bg-card font-medium">{p.who}</td>
                       <td className="p-2 text-center">
                         <Badge variant="outline" className={`${papelBadge(papel)} text-[10px] whitespace-nowrap`}>{papel}</Badge>
                       </td>
-                      <td className="p-2 text-center font-semibold">{p.executadas}</td>
+                      <td className="p-2 text-center font-semibold tabular-nums">{p.executadas}</td>
                       <td className="p-2 text-center text-emerald-700">{p.noPrazo}</td>
                       <td className={`p-2 text-center ${p.comAtraso > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>{p.comAtraso}</td>
                       <td className="p-2 text-center">
@@ -434,7 +434,7 @@ export default function Produtividade() {
         </>
       ) : (
         <>
-          <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
+          <div className="rounded-xl border bg-muted/30 p-4 text-xs leading-relaxed space-y-1 shadow-sm">
             <p className="font-semibold text-foreground">Como ler esta tabela</p>
             <p>Cada linha é um colaborador e cada coluna um {gran === 'mes' ? 'mês' : 'dia'} do período.</p>
             <p>
@@ -443,11 +443,11 @@ export default function Produtividade() {
             </p>
           </div>
 
-          <div className="border rounded-lg overflow-x-auto bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+          <div className="rounded-xl border overflow-x-auto bg-card shadow-sm">
+            <table className="w-full text-sm [&_td]:py-2.5">
+              <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
+                  <th className="text-left p-3 sticky left-0 bg-muted/60">Colaborador</th>
                   {buckets.map((b) => (
                     <th key={b} className="p-2 whitespace-nowrap text-center">
                       {fmtBucket(b, gran)}
