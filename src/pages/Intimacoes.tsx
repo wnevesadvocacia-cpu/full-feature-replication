@@ -783,8 +783,9 @@ export default function Intimacoes() {
         ))}
       </div>
 
-      {loadTableEl}
-
+      <div className="sticky top-0 z-30 bg-background/95 py-3 backdrop-blur supports-[backdrop-filter]:backdrop-blur-xl shadow-[0_1px_0_0_hsl(var(--border)/0.5)]">
+        {loadTableEl}
+      </div>
 
       {oabAlerts.length > 0 && (
         <div role="alert" className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 text-destructive shadow-card animate-pulse">
