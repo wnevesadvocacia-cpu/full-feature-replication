@@ -27,6 +27,7 @@ import {
   Settings2,
   ShieldCheck,
   Send,
+  Gauge,
 } from 'lucide-react';
 import {
   Sidebar,
