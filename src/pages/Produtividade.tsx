@@ -187,11 +187,12 @@ export default function Produtividade() {
             <p className="font-semibold text-foreground">Como ler esta tabela</p>
             <p>Cada linha é um colaborador. Cada coluna é um {gran === 'mes' ? 'mês' : 'dia'} do período escolhido.</p>
             <p>
-              Dentro de cada célula aparecem dois números:
-              {' '}<span className="font-semibold text-foreground">✔ Concluídas</span> = tarefas que a pessoa terminou;
-              {' '}<span className="font-semibold text-foreground">+ Criadas</span> = tarefas que a pessoa criou/delegou.
+              Dentro de cada célula aparecem dois números independentes:
+              {' '}<span className="font-semibold text-foreground">✔ Executou</span> = tarefas que a própria pessoa concluiu;
+              {' '}<span className="font-semibold text-foreground">+ Delegou/criou</span> = tarefas que a pessoa cadastrou, podendo ter sido atribuídas a ela mesma ou a outro colaborador.
             </p>
-            <p>Exemplo: <span className="font-semibold text-foreground">✔ 34 · + 3</span> significa 34 tarefas concluídas e 3 tarefas criadas.</p>
+            <p>Exemplo: <span className="font-semibold text-foreground">✔ 34 · + 3</span> = concluiu 34 tarefas e cadastrou 3 tarefas (que podem ter sido delegadas a outra pessoa).</p>
+            <p className="text-foreground/80">Os dois números não se somam e não se cancelam: quem delega muito pode ter "+" alto e "✔" baixo, e quem executa muito pode ter "✔" alto e "+" baixo.</p>
             <p>Quanto mais forte a cor da célula, maior o número de tarefas concluídas naquele período.</p>
           </div>
 
