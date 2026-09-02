@@ -190,7 +190,7 @@ export default function Produtividade() {
                 {buckets.map((b) => (
                   <th key={b} className="p-2 whitespace-nowrap text-center">{fmtBucket(b, gran)}</th>
                 ))}
-                <th className="p-2 text-center">Total</th>
+                <th className="p-2 text-center whitespace-nowrap" title="Concluídas / Criadas">Total (concl./criadas)</th>
               </tr>
             </thead>
             <tbody>
