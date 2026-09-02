@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Loader2, Gauge, Download } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Gauge, Download, AlertTriangle } from 'lucide-react';
 import { DateInputBR } from '@/components/DateInputBR';
 
 interface AuditRow {
@@ -20,6 +21,7 @@ interface AuditRow {
 }
 
 type Granularity = 'dia' | 'mes';
+type View = 'desempenho' | 'volume';
 
 function bucketOf(iso: string, g: Granularity) {
   return g === 'mes' ? iso.slice(0, 7) : iso.slice(0, 10);
@@ -30,8 +32,27 @@ function fmtBucket(b: string, g: Granularity) {
     const [y, m] = b.split('-');
     return `${m}/${y}`;
   }
-  const [y, m, d] = b.split('-');
+  const [, m, d] = b.split('-');
   return `${d}/${m}`;
+}
+
+function dayDiff(a: string, b: string) {
+  const d1 = new Date(a.slice(0, 10) + 'T00:00:00').getTime();
+  const d2 = new Date(b.slice(0, 10) + 'T00:00:00').getTime();
+  return Math.round((d2 - d1) / 86400000);
+}
+
+interface Perf {
+  who: string;
+  executadas: number;
+  noPrazo: number;
+  comAtraso: number;
+  semPrazo: number;
+  delegadas: number;
+  pendentes: number;
+  pendentesAtrasadas: number;
+  processos: number;
+  leadDays: number[];
 }
 
 export default function Produtividade() {
@@ -41,6 +62,7 @@ export default function Produtividade() {
   const [from, setFrom] = useState(past);
   const [to, setTo] = useState(today);
   const [gran, setGran] = useState<Granularity>('dia');
+  const [view, setView] = useState<View>('desempenho');
 
   const { data = [], isLoading, error } = useQuery<AuditRow[]>({
     queryKey: ['produtividade', from, to],
@@ -56,7 +78,80 @@ export default function Produtividade() {
     },
   });
 
-  // Matriz: colaborador x período (concluídas por quem concluiu; criadas por autor)
+  // Indicadores de desempenho por colaborador
+  const perf = useMemo(() => {
+    const map = new Map<string, Perf & { procSet: Set<string> }>();
+    const get = (who: string) => {
+      if (!map.has(who)) {
+        map.set(who, {
+          who, executadas: 0, noPrazo: 0, comAtraso: 0, semPrazo: 0, delegadas: 0,
+          pendentes: 0, pendentesAtrasadas: 0, processos: 0, leadDays: [], procSet: new Set(),
+        });
+      }
+      return map.get(who)!;
+    };
+
+    for (const r of data) {
+      const executor = r.completed_by_email || r.assignee || '—';
+      const responsavel = r.assignee || r.completed_by_email || '—';
+      const autor = r.created_by_email || r.assignee || '—';
+
+      if (r.completed && r.completed_at) {
+        const e = get(executor);
+        e.executadas += 1;
+        if (r.process_number) e.procSet.add(r.process_number);
+        const done = r.completed_at.slice(0, 10);
+        if (!r.due_date) e.semPrazo += 1;
+        else if (done <= r.due_date) e.noPrazo += 1;
+        else e.comAtraso += 1;
+        e.leadDays.push(Math.max(0, dayDiff(r.created_at, r.completed_at)));
+      } else if (!r.completed) {
+        const p = get(responsavel);
+        p.pendentes += 1;
+        if (r.due_date && r.due_date < today) p.pendentesAtrasadas += 1;
+        if (r.process_number) p.procSet.add(r.process_number);
+      }
+
+      get(autor).delegadas += 1;
+    }
+
+    return Array.from(map.values())
+      .map((p) => ({ ...p, processos: p.procSet.size }))
+      .sort((a, b) => b.executadas - a.executadas || a.who.localeCompare(b.who));
+  }, [data, today]);
+
+  const kpi = useMemo(() => {
+    const executadas = perf.reduce((s, p) => s + p.executadas, 0);
+    const noPrazo = perf.reduce((s, p) => s + p.noPrazo, 0);
+    const comAtraso = perf.reduce((s, p) => s + p.comAtraso, 0);
+    const pendentesAtrasadas = perf.reduce((s, p) => s + p.pendentesAtrasadas, 0);
+    const lead = perf.flatMap((p) => p.leadDays);
+    const comPrazo = noPrazo + comAtraso;
+    return {
+      executadas,
+      sla: comPrazo ? Math.round((noPrazo / comPrazo) * 100) : null,
+      comAtraso,
+      pendentesAtrasadas,
+      tmr: lead.length ? (lead.reduce((s, v) => s + v, 0) / lead.length) : null,
+      colaboradores: perf.length,
+    };
+  }, [perf]);
+
+  const slaOf = (p: Perf) => {
+    const base = p.noPrazo + p.comAtraso;
+    return base ? Math.round((p.noPrazo / base) * 100) : null;
+  };
+  const tmrOf = (p: Perf) =>
+    p.leadDays.length ? p.leadDays.reduce((s, v) => s + v, 0) / p.leadDays.length : null;
+
+  const slaBadge = (v: number | null) => {
+    if (v === null) return 'bg-muted text-muted-foreground border-border';
+    if (v >= 95) return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    if (v >= 80) return 'bg-amber-100 text-amber-700 border-amber-200';
+    return 'bg-destructive/10 text-destructive border-destructive/30';
+  };
+
+  // Matriz de volume (heatmap): colaborador x período
   const { buckets, rows } = useMemo(() => {
     const bucketSet = new Set<string>();
     const map = new Map<string, Map<string, { done: number; created: number }>>();
@@ -97,27 +192,28 @@ export default function Produtividade() {
     return { buckets, rows };
   }, [data, gran]);
 
-  const totals = useMemo(() => ({
-    done: rows.reduce((s, r) => s + r.totalDone, 0),
-    created: rows.reduce((s, r) => s + r.totalCreated, 0),
-    colaboradores: rows.length,
-  }), [rows]);
-
   function exportCsv() {
-    const head = ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total executadas', 'Total delegadas/criadas'];
-    const body = rows.map((r) => [
-      r.who,
-      ...r.cells.map((c) => `${c.done}/${c.created}`),
-      String(r.totalDone),
-      String(r.totalCreated),
-    ]);
+    const head = view === 'desempenho'
+      ? ['Colaborador', 'Executadas', 'No prazo', 'Com atraso', 'Sem prazo', '% no prazo', 'Tempo médio (dias)', 'Pendentes', 'Pendentes atrasadas', 'Processos', 'Delegadas/criadas']
+      : ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total executadas', 'Total delegadas/criadas'];
+    const body = view === 'desempenho'
+      ? perf.map((p) => {
+          const sla = slaOf(p);
+          const tmr = tmrOf(p);
+          return [
+            p.who, String(p.executadas), String(p.noPrazo), String(p.comAtraso), String(p.semPrazo),
+            sla === null ? '—' : `${sla}%`, tmr === null ? '—' : tmr.toFixed(1),
+            String(p.pendentes), String(p.pendentesAtrasadas), String(p.processos), String(p.delegadas),
+          ];
+        })
+      : rows.map((r) => [r.who, ...r.cells.map((c) => `${c.done}/${c.created}`), String(r.totalDone), String(r.totalCreated)]);
     const csv = [head, ...body]
       .map((line) => line.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';'))
       .join('\n');
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `produtividade-${gran}-${from}_a_${to}.csv`;
+    a.download = `produtividade-${view}-${from}_a_${to}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -133,13 +229,13 @@ export default function Produtividade() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-display font-bold flex items-center gap-2">
-            <Gauge className="h-6 w-6" /> Produtividade
+            <Gauge className="h-6 w-6" /> Produtividade &amp; Compliance de Prazos
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Atividades por colaborador e período — concluídas / criadas, para auditoria e rastreamento.
+            Indicadores de desempenho por colaborador: cumprimento de prazo, tempo médio de resposta, carga pendente e rastreamento de atividades.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={rows.length === 0}>
+        <Button variant="outline" size="sm" onClick={exportCsv} disabled={perf.length === 0}>
           <Download className="h-4 w-4 mr-1" /> Exportar CSV
         </Button>
       </div>
@@ -154,46 +250,115 @@ export default function Produtividade() {
           <DateInputBR value={to} onChange={(v) => setTo(v)} className="h-9 w-[150px]" />
         </div>
         <div className="flex gap-1">
-          {(['dia', 'mes'] as Granularity[]).map((g) => (
-            <Button key={g} size="sm" variant={gran === g ? 'default' : 'outline'} onClick={() => setGran(g)}>
-              {g === 'dia' ? 'Por dia' : 'Por mês'}
-            </Button>
-          ))}
+          <Button size="sm" variant={view === 'desempenho' ? 'default' : 'outline'} onClick={() => setView('desempenho')}>
+            Desempenho
+          </Button>
+          <Button size="sm" variant={view === 'volume' ? 'default' : 'outline'} onClick={() => setView('volume')}>
+            Volume por período
+          </Button>
         </div>
+        {view === 'volume' && (
+          <div className="flex gap-1">
+            {(['dia', 'mes'] as Granularity[]).map((g) => (
+              <Button key={g} size="sm" variant={gran === g ? 'default' : 'outline'} onClick={() => setGran(g)}>
+                {g === 'dia' ? 'Por dia' : 'Por mês'}
+              </Button>
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { l: 'Colaboradores', v: totals.colaboradores },
-          { l: 'Tarefas executadas (concluídas)', v: totals.done },
-          { l: 'Tarefas cadastradas/delegadas', v: totals.created },
+          { l: 'Colaboradores', v: String(kpi.colaboradores), h: 'Pessoas com atividade no período' },
+          { l: 'Tarefas executadas', v: String(kpi.executadas), h: 'Concluídas no período' },
+          { l: '% cumprimento de prazo', v: kpi.sla === null ? '—' : `${kpi.sla}%`, h: 'Concluídas até o vencimento ÷ concluídas com prazo' },
+          { l: 'Tempo médio de resposta', v: kpi.tmr === null ? '—' : `${kpi.tmr.toFixed(1)} d`, h: 'Dias entre criação e conclusão' },
+          { l: 'Prazos vencidos em aberto', v: String(kpi.pendentesAtrasadas), h: 'Pendentes com vencimento passado' },
         ].map((s) => (
-          <div key={s.l} className="bg-card border rounded-lg p-3">
+          <div key={s.l} className="bg-card border rounded-lg p-3" title={s.h}>
             <p className="text-xs text-muted-foreground">{s.l}</p>
             <p className="text-xl font-semibold">{s.v}</p>
           </div>
         ))}
       </div>
 
+      {kpi.pendentesAtrasadas > 0 && (
+        <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 text-destructive rounded-lg p-3 text-sm">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>
+            {kpi.pendentesAtrasadas} prazo(s) com vencimento já passado ainda em aberto. Verifique os responsáveis na coluna “Vencidas em aberto”.
+          </span>
+        </div>
+      )}
+
       {error && <p className="text-sm text-destructive">{(error as any).message}</p>}
 
       {isLoading ? (
         <div className="p-6 flex justify-center"><Loader2 className="animate-spin text-muted-foreground" /></div>
-      ) : rows.length === 0 ? (
+      ) : perf.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm">Nenhuma atividade no período.</div>
+      ) : view === 'desempenho' ? (
+        <>
+          <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
+            <p className="font-semibold text-foreground">Como ler</p>
+            <p><span className="font-semibold text-foreground">Executadas</span>: tarefas concluídas pela pessoa. <span className="font-semibold text-foreground">No prazo</span> / <span className="font-semibold text-foreground">Com atraso</span>: comparação da data de conclusão com o vencimento.</p>
+            <p><span className="font-semibold text-foreground">% no prazo</span>: indicador de compliance (verde ≥ 95%, âmbar ≥ 80%, vermelho abaixo). <span className="font-semibold text-foreground">Tempo médio</span>: dias entre a criação e a conclusão da tarefa.</p>
+            <p><span className="font-semibold text-foreground">Delegadas/criadas</span>: tarefas cadastradas pela pessoa (podem ter sido atribuídas a outros) — mede coordenação, não execução.</p>
+          </div>
+
+          <div className="border rounded-lg overflow-x-auto bg-card">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <tr>
+                  <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
+                  <th className="p-2 text-center">Executadas</th>
+                  <th className="p-2 text-center">No prazo</th>
+                  <th className="p-2 text-center">Com atraso</th>
+                  <th className="p-2 text-center">% no prazo</th>
+                  <th className="p-2 text-center whitespace-nowrap">Tempo médio</th>
+                  <th className="p-2 text-center">Pendentes</th>
+                  <th className="p-2 text-center whitespace-nowrap">Vencidas em aberto</th>
+                  <th className="p-2 text-center">Processos</th>
+                  <th className="p-2 text-center whitespace-nowrap">Delegadas/criadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {perf.map((p) => {
+                  const sla = slaOf(p);
+                  const tmr = tmrOf(p);
+                  return (
+                    <tr key={p.who} className="border-t">
+                      <td className="p-2 whitespace-nowrap sticky left-0 bg-card font-medium">{p.who}</td>
+                      <td className="p-2 text-center font-semibold">{p.executadas}</td>
+                      <td className="p-2 text-center text-emerald-700">{p.noPrazo}</td>
+                      <td className={`p-2 text-center ${p.comAtraso > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>{p.comAtraso}</td>
+                      <td className="p-2 text-center">
+                        <Badge variant="outline" className={`${slaBadge(sla)} text-[10px]`}>
+                          {sla === null ? 'sem prazo' : `${sla}%`}
+                        </Badge>
+                      </td>
+                      <td className="p-2 text-center whitespace-nowrap">{tmr === null ? '—' : `${tmr.toFixed(1)} d`}</td>
+                      <td className="p-2 text-center">{p.pendentes}</td>
+                      <td className={`p-2 text-center ${p.pendentesAtrasadas > 0 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{p.pendentesAtrasadas}</td>
+                      <td className="p-2 text-center">{p.processos}</td>
+                      <td className="p-2 text-center text-muted-foreground">{p.delegadas}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       ) : (
         <>
           <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
             <p className="font-semibold text-foreground">Como ler esta tabela</p>
-            <p>Cada linha é um colaborador. Cada coluna é um {gran === 'mes' ? 'mês' : 'dia'} do período escolhido.</p>
+            <p>Cada linha é um colaborador e cada coluna um {gran === 'mes' ? 'mês' : 'dia'} do período.</p>
             <p>
-              Dentro de cada célula aparecem dois números independentes:
-              {' '}<span className="font-semibold text-foreground">✔ Executou</span> = tarefas que a própria pessoa concluiu;
-              {' '}<span className="font-semibold text-foreground">+ Delegou/criou</span> = tarefas que a pessoa cadastrou, podendo ter sido atribuídas a ela mesma ou a outro colaborador.
+              <span className="font-semibold text-foreground">✔ executou</span> = tarefas concluídas pela pessoa;
+              {' '}<span className="font-semibold text-foreground">+ delegou/criou</span> = tarefas cadastradas por ela (para si ou para outros). Os números são independentes.
             </p>
-            <p>Exemplo: <span className="font-semibold text-foreground">✔ 34 · + 3</span> = concluiu 34 tarefas e cadastrou 3 tarefas (que podem ter sido delegadas a outra pessoa).</p>
-            <p className="text-foreground/80">Os dois números não se somam e não se cancelam: quem delega muito pode ter "+" alto e "✔" baixo, e quem executa muito pode ter "✔" alto e "+" baixo.</p>
-            <p>Quanto mais forte a cor da célula, maior o número de tarefas concluídas naquele período.</p>
           </div>
 
           <div className="border rounded-lg overflow-x-auto bg-card">
