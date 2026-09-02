@@ -37,6 +37,7 @@ const Versoes = lazy(() => import("./pages/Versoes"));
 const KanbanConfig = lazy(() => import("./pages/KanbanConfig"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
 const AuditoriaTarefas = lazy(() => import("./pages/AuditoriaTarefas"));
+const Produtividade = lazy(() => import("./pages/Produtividade"));
 
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -148,6 +149,7 @@ export default function AppRoutes() {
         <Route path="/kanban-config" element={wrap(KanbanConfig)} />
         <Route path="/auditoria"     element={wrap(Auditoria)} />
         <Route path="/auditoria-tarefas" element={wrap(AuditoriaTarefas)} />
+        <Route path="/produtividade" element={wrap(Produtividade)} />
 
       </Route>
       <Route path="*" element={wrap(NotFound)} />

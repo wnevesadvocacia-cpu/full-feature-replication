@@ -27,6 +27,7 @@ import {
   Settings2,
   ShieldCheck,
   Send,
+  Gauge,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -72,6 +73,8 @@ const secondaryNav: { title: string; url: string; icon: any; disabled?: boolean 
   { title: 'Importar Informações', url: '/importar', icon: Database },
   { title: 'Auditoria', url: '/auditoria', icon: ShieldCheck },
   { title: 'Auditoria de Prazos', url: '/auditoria-tarefas', icon: ShieldCheck },
+  { title: 'Produtividade', url: '/produtividade', icon: Gauge },
+
 
 ];
 
