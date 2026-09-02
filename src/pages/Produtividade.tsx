@@ -321,7 +321,7 @@ export default function Produtividade() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
           { l: 'Colaboradores', v: String(kpi.colaboradores), h: 'Pessoas com atividade no período' },
           { l: 'Tarefas executadas', v: String(kpi.executadas), h: 'Concluídas no período' },
