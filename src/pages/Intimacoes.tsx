@@ -234,6 +234,53 @@ export default function Intimacoes() {
         : n <= 4 ? 'bg-amber-50 text-amber-700 dark:bg-warning/15 dark:text-warning'
           : 'bg-red-50 text-red-700 font-bold dark:bg-destructive/15 dark:text-destructive';
 
+  // Espelho da agenda reutilizado na página e no modal de criação de prazo
+  const loadTableEl = loadRows.length > 0 ? (
+    <div className="rounded-lg border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 dark:border-border">
+        <Calendar className="h-4 w-4 text-primary" />
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-stone-600 dark:text-muted-foreground">
+          Carga de prazos por colaborador (próximos dias úteis)
+        </h2>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="bg-stone-50 dark:bg-muted/40">
+              <th className="text-left font-semibold px-3 py-1.5 text-stone-600 dark:text-muted-foreground">Responsável</th>
+              {loadDays.map((iso) => (
+                <th key={iso} className="px-1.5 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
+                  {formatBR(iso).slice(0, 5)}
+                </th>
+              ))}
+              <th className="px-2 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loadRows.map((row) => (
+              <tr key={row.email} className="border-t border-stone-100 dark:border-border/60">
+                <td className="px-3 py-1.5 max-w-[180px] truncate text-stone-800 dark:text-foreground" title={row.email}>{row.name}</td>
+                {row.cells.map((n, i) => (
+                  <td key={loadDays[i]} className="px-0.5 py-0.5 text-center">
+                    <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded px-1 tabular-nums ${loadCellClass(n)}`}>
+                      {n || '·'}
+                    </span>
+                  </td>
+                ))}
+                <td className="px-2 py-1.5 text-center font-bold tabular-nums text-stone-900 dark:text-foreground">{row.total}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="px-3 py-1.5 text-[11px] text-stone-500 dark:text-muted-foreground border-t border-stone-100 dark:border-border/60">
+        Verde: até 2 prazos · Âmbar: 3-4 · Vermelho: 5 ou mais no mesmo dia.
+      </p>
+    </div>
+  ) : null;
+
+
+
   // Gestores/administradores disponíveis para cópia obrigatória do prazo.
   const supervisors = teamMembers.filter((m) =>
     (m.roles || []).some((r) => r === 'admin' || r === 'gerente')
