@@ -165,8 +165,8 @@ export default function Produtividade() {
       <div className="grid grid-cols-3 gap-3">
         {[
           { l: 'Colaboradores', v: totals.colaboradores },
-          { l: 'Concluídas', v: totals.done },
-          { l: 'Criadas/Delegadas', v: totals.created },
+          { l: 'Tarefas executadas (concluídas)', v: totals.done },
+          { l: 'Tarefas cadastradas/delegadas', v: totals.created },
         ].map((s) => (
           <div key={s.l} className="bg-card border rounded-lg p-3">
             <p className="text-xs text-muted-foreground">{s.l}</p>
