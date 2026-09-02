@@ -182,36 +182,56 @@ export default function Produtividade() {
       ) : rows.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm">Nenhuma atividade no período.</div>
       ) : (
-        <div className="border rounded-lg overflow-x-auto bg-card">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
-              <tr>
-                <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
-                {buckets.map((b) => (
-                  <th key={b} className="p-2 whitespace-nowrap text-center">{fmtBucket(b, gran)}</th>
-                ))}
-                <th className="p-2 text-center whitespace-nowrap" title="Concluídas / Criadas">Total (concl./criadas)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.who} className="border-t">
-                  <td className="p-2 whitespace-nowrap sticky left-0 bg-card">{r.who}</td>
-                  {r.cells.map((c, i) => (
-                    <td key={buckets[i]} className={`p-2 text-center whitespace-nowrap ${cellCls(c.done)}`}>
-                      {c.done}<span className="text-[10px] opacity-60">/{c.created}</span>
-                    </td>
+        <>
+          <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
+            <p className="font-semibold text-foreground">Como ler esta tabela</p>
+            <p>Cada linha é um colaborador. Cada coluna é um {gran === 'mes' ? 'mês' : 'dia'} do período escolhido.</p>
+            <p>
+              Dentro de cada célula aparecem dois números:
+              {' '}<span className="font-semibold text-foreground">✔ Concluídas</span> = tarefas que a pessoa terminou;
+              {' '}<span className="font-semibold text-foreground">+ Criadas</span> = tarefas que a pessoa criou/delegou.
+            </p>
+            <p>Exemplo: <span className="font-semibold text-foreground">✔ 34 · + 3</span> significa 34 tarefas concluídas e 3 tarefas criadas.</p>
+            <p>Quanto mais forte a cor da célula, maior o número de tarefas concluídas naquele período.</p>
+          </div>
+
+          <div className="border rounded-lg overflow-x-auto bg-card">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <tr>
+                  <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
+                  {buckets.map((b) => (
+                    <th key={b} className="p-2 whitespace-nowrap text-center">
+                      {fmtBucket(b, gran)}
+                      <div className="text-[10px] font-normal opacity-70">✔ concl. · + criad.</div>
+                    </th>
                   ))}
-                  <td className="p-2 text-center font-semibold whitespace-nowrap">
-                    {r.totalDone}<span className="text-[10px] opacity-60">/{r.totalCreated}</span>
-                  </td>
+                  <th className="p-2 text-center whitespace-nowrap">Total concluídas</th>
+                  <th className="p-2 text-center whitespace-nowrap">Total criadas</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.who} className="border-t">
+                    <td className="p-2 whitespace-nowrap sticky left-0 bg-card">{r.who}</td>
+                    {r.cells.map((c, i) => (
+                      <td
+                        key={buckets[i]}
+                        title={`${r.who} — ${fmtBucket(buckets[i], gran)}: ${c.done} concluída(s), ${c.created} criada(s)`}
+                        className={`p-2 text-center whitespace-nowrap ${cellCls(c.done)}`}
+                      >
+                        ✔ {c.done}<span className="text-[11px] opacity-70"> · + {c.created}</span>
+                      </td>
+                    ))}
+                    <td className="p-2 text-center font-semibold whitespace-nowrap">{r.totalDone}</td>
+                    <td className="p-2 text-center font-semibold whitespace-nowrap">{r.totalCreated}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
-      <p className="text-xs text-muted-foreground">Formato das células: concluídas / criadas no período.</p>
     </div>
   );
 }
