@@ -42,6 +42,24 @@ function dayDiff(a: string, b: string) {
   return Math.round((d2 - d1) / 86400000);
 }
 
+function norm(v: string) {
+  return v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Heurística: mesmo colaborador (e-mail do autor x nome do responsável). */
+function samePerson(authorEmail: string | null, assignee: string | null) {
+  if (!authorEmail || !assignee) return false;
+  const local = norm(authorEmail.split('@')[0]);
+  const name = norm(assignee);
+  if (!local || !name) return false;
+  if (local === name) return true;
+  const nameTokens = name.split(' ').filter((t) => t.length > 2);
+  const localTokens = local.split(' ').filter((t) => t.length > 2);
+  const hits = nameTokens.filter((t) => local.includes(t)).length
+    + localTokens.filter((t) => name.includes(t)).length;
+  return hits >= 2;
+}
+
 interface Perf {
   who: string;
   executadas: number;
@@ -49,10 +67,24 @@ interface Perf {
   comAtraso: number;
   semPrazo: number;
   delegadas: number;
+  delegadasOutros: number;
+  delegadasProprias: number;
+  delegadasOutrosConcluidas: number;
   pendentes: number;
   pendentesAtrasadas: number;
   processos: number;
   leadDays: number[];
+}
+
+type Papel = 'Controller (delega)' | 'Executor' | 'Híbrido' | '—';
+
+function papelOf(p: Perf): Papel {
+  const total = p.executadas + p.delegadasOutros;
+  if (total === 0) return '—';
+  const shareDeleg = p.delegadasOutros / total;
+  if (shareDeleg >= 0.7) return 'Controller (delega)';
+  if (shareDeleg <= 0.3) return 'Executor';
+  return 'Híbrido';
 }
 
 export default function Produtividade() {
