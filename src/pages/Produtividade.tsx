@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Gauge, Download, AlertTriangle } from 'lucide-react';
+import { Loader2, Gauge, Download, AlertTriangle, BookOpen } from 'lucide-react';
 import { DateInputBR } from '@/components/DateInputBR';
 
 interface AuditRow {
