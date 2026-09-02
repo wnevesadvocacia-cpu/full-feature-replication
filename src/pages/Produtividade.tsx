@@ -278,22 +278,29 @@ export default function Produtividade() {
       : 'bg-primary/10 text-primary font-semibold';
 
   return (
-    <div className="p-6 space-y-4 animate-fade-in">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-display font-bold flex items-center gap-2">
-            <Gauge className="h-6 w-6" /> Produtividade &amp; Compliance de Prazos
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Indicadores de desempenho por colaborador: cumprimento de prazo, tempo médio de resposta, carga pendente e rastreamento de atividades.
-          </p>
+    <div className="p-6 space-y-5 animate-fade-in">
+      <div className="relative overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-6 shadow-sm">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-primary/80">Auditoria de desempenho</p>
+            <h1 className="mt-1 text-2xl font-display font-bold flex items-center gap-2 tracking-tight">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/20">
+                <Gauge className="h-5 w-5" />
+              </span>
+              Produtividade &amp; Compliance de Prazos
+            </h1>
+            <p className="text-muted-foreground text-sm mt-2 max-w-2xl">
+              Indicadores de desempenho por colaborador: cumprimento de prazo, tempo médio de resposta, carga pendente e rastreamento de atividades.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={exportCsv} disabled={perf.length === 0} className="bg-card/70 backdrop-blur shadow-sm">
+            <Download className="h-4 w-4 mr-1" /> Exportar CSV
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={exportCsv} disabled={perf.length === 0}>
-          <Download className="h-4 w-4 mr-1" /> Exportar CSV
-        </Button>
       </div>
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-card/60 p-3 shadow-sm">
         <div>
           <label className="text-xs text-muted-foreground">De</label>
           <DateInputBR value={from} onChange={(v) => setFrom(v)} className="h-9 w-[150px]" />
@@ -302,18 +309,18 @@ export default function Produtividade() {
           <label className="text-xs text-muted-foreground">Até</label>
           <DateInputBR value={to} onChange={(v) => setTo(v)} className="h-9 w-[150px]" />
         </div>
-        <div className="flex gap-1">
-          <Button size="sm" variant={view === 'desempenho' ? 'default' : 'outline'} onClick={() => setView('desempenho')}>
+        <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
+          <Button size="sm" variant={view === 'desempenho' ? 'default' : 'ghost'} className="shadow-none" onClick={() => setView('desempenho')}>
             Desempenho
           </Button>
-          <Button size="sm" variant={view === 'volume' ? 'default' : 'outline'} onClick={() => setView('volume')}>
+          <Button size="sm" variant={view === 'volume' ? 'default' : 'ghost'} className="shadow-none" onClick={() => setView('volume')}>
             Volume por período
           </Button>
         </div>
         {view === 'volume' && (
-          <div className="flex gap-1">
+          <div className="flex gap-1 rounded-lg bg-muted/60 p-1">
             {(['dia', 'mes'] as Granularity[]).map((g) => (
-              <Button key={g} size="sm" variant={gran === g ? 'default' : 'outline'} onClick={() => setGran(g)}>
+              <Button key={g} size="sm" variant={gran === g ? 'default' : 'ghost'} className="shadow-none" onClick={() => setGran(g)}>
                 {g === 'dia' ? 'Por dia' : 'Por mês'}
               </Button>
             ))}
@@ -330,15 +337,21 @@ export default function Produtividade() {
           { l: 'Delegadas a outros', v: String(kpi.delegadasOutros), h: 'Tarefas criadas por uma pessoa e atribuídas a outra' },
           { l: 'Prazos vencidos em aberto', v: String(kpi.pendentesAtrasadas), h: 'Pendentes com vencimento passado' },
         ].map((s) => (
-          <div key={s.l} className="bg-card border rounded-lg p-3" title={s.h}>
-            <p className="text-xs text-muted-foreground">{s.l}</p>
-            <p className="text-xl font-semibold">{s.v}</p>
+          <div
+            key={s.l}
+            className="group relative overflow-hidden rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+            title={s.h}
+          >
+            <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 to-transparent opacity-70" />
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.l}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{s.v}</p>
           </div>
         ))}
       </div>
 
+
       {kpi.pendentesAtrasadas > 0 && (
-        <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 text-destructive rounded-lg p-3 text-sm">
+        <div className="flex items-start gap-2 border border-destructive/30 bg-destructive/5 text-destructive rounded-xl p-3.5 text-sm shadow-sm">
           <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
           <span>
             {kpi.pendentesAtrasadas} prazo(s) com vencimento já passado ainda em aberto. Verifique os responsáveis na coluna “Vencidas em aberto”.
@@ -354,7 +367,7 @@ export default function Produtividade() {
         <div className="text-center py-12 text-muted-foreground text-sm">Nenhuma atividade no período.</div>
       ) : view === 'desempenho' ? (
         <>
-          <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
+          <div className="rounded-xl border bg-muted/30 p-4 text-xs leading-relaxed space-y-1 shadow-sm">
             <p className="font-semibold text-foreground">Como ler</p>
             <p><span className="font-semibold text-foreground">Executadas</span>: tarefas concluídas pela pessoa. <span className="font-semibold text-foreground">No prazo</span> / <span className="font-semibold text-foreground">Com atraso</span>: comparação da data de conclusão com o vencimento.</p>
             <p><span className="font-semibold text-foreground">% no prazo</span>: indicador de compliance (verde ≥ 95%, âmbar ≥ 80%, vermelho abaixo). <span className="font-semibold text-foreground">Tempo médio</span>: dias entre a criação e a conclusão da tarefa.</p>
@@ -362,11 +375,11 @@ export default function Produtividade() {
             <p><span className="font-semibold text-foreground">Delegadas a outros</span>: tarefas que a pessoa criou para outro colaborador. <span className="font-semibold text-foreground">% entrega da carteira delegada</span>: quanto dessa carteira já foi concluída — é o KPI do controller. <span className="font-semibold text-foreground">Criadas para si</span>: tarefas que ela cadastrou e assumiu.</p>
           </div>
 
-          <div className="border rounded-lg overflow-x-auto bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+          <div className="rounded-xl border overflow-x-auto bg-card shadow-sm">
+            <table className="w-full text-sm [&_td]:py-2.5">
+              <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
+                  <th className="text-left p-3 sticky left-0 bg-muted/60">Colaborador</th>
                   <th className="p-2 text-center">Papel</th>
                   <th className="p-2 text-center">Executadas</th>
                   <th className="p-2 text-center">No prazo</th>
@@ -389,11 +402,11 @@ export default function Produtividade() {
                   const papel = papelOf(p);
                   return (
                     <tr key={p.who} className="border-t">
-                      <td className="p-2 whitespace-nowrap sticky left-0 bg-card font-medium">{p.who}</td>
+                      <td className="p-3 whitespace-nowrap sticky left-0 bg-card font-medium">{p.who}</td>
                       <td className="p-2 text-center">
                         <Badge variant="outline" className={`${papelBadge(papel)} text-[10px] whitespace-nowrap`}>{papel}</Badge>
                       </td>
-                      <td className="p-2 text-center font-semibold">{p.executadas}</td>
+                      <td className="p-2 text-center font-semibold tabular-nums">{p.executadas}</td>
                       <td className="p-2 text-center text-emerald-700">{p.noPrazo}</td>
                       <td className={`p-2 text-center ${p.comAtraso > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>{p.comAtraso}</td>
                       <td className="p-2 text-center">
@@ -421,7 +434,7 @@ export default function Produtividade() {
         </>
       ) : (
         <>
-          <div className="bg-muted/40 border rounded-lg p-3 text-xs space-y-1">
+          <div className="rounded-xl border bg-muted/30 p-4 text-xs leading-relaxed space-y-1 shadow-sm">
             <p className="font-semibold text-foreground">Como ler esta tabela</p>
             <p>Cada linha é um colaborador e cada coluna um {gran === 'mes' ? 'mês' : 'dia'} do período.</p>
             <p>
@@ -430,11 +443,11 @@ export default function Produtividade() {
             </p>
           </div>
 
-          <div className="border rounded-lg overflow-x-auto bg-card">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
+          <div className="rounded-xl border overflow-x-auto bg-card shadow-sm">
+            <table className="w-full text-sm [&_td]:py-2.5">
+              <thead className="bg-muted/60 text-[11px] uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
+                  <th className="text-left p-3 sticky left-0 bg-muted/60">Colaborador</th>
                   {buckets.map((b) => (
                     <th key={b} className="p-2 whitespace-nowrap text-center">
                       {fmtBucket(b, gran)}
