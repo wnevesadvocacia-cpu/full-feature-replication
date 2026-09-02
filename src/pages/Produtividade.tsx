@@ -104,7 +104,7 @@ export default function Produtividade() {
   }), [rows]);
 
   function exportCsv() {
-    const head = ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total concluídas', 'Total criadas'];
+    const head = ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total executadas', 'Total delegadas/criadas'];
     const body = rows.map((r) => [
       r.who,
       ...r.cells.map((c) => `${c.done}/${c.created}`),
@@ -204,11 +204,11 @@ export default function Produtividade() {
                   {buckets.map((b) => (
                     <th key={b} className="p-2 whitespace-nowrap text-center">
                       {fmtBucket(b, gran)}
-                      <div className="text-[10px] font-normal opacity-70">✔ concl. · + criad.</div>
+                      <div className="text-[10px] font-normal opacity-70">✔ executou · + delegou</div>
                     </th>
                   ))}
-                  <th className="p-2 text-center whitespace-nowrap">Total concluídas</th>
-                  <th className="p-2 text-center whitespace-nowrap">Total criadas</th>
+                  <th className="p-2 text-center whitespace-nowrap">Total executadas</th>
+                  <th className="p-2 text-center whitespace-nowrap">Total delegadas/criadas</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,7 +218,7 @@ export default function Produtividade() {
                     {r.cells.map((c, i) => (
                       <td
                         key={buckets[i]}
-                        title={`${r.who} — ${fmtBucket(buckets[i], gran)}: ${c.done} concluída(s), ${c.created} criada(s)`}
+                        title={`${r.who} — ${fmtBucket(buckets[i], gran)}: executou ${c.done}, delegou/criou ${c.created}`}
                         className={`p-2 text-center whitespace-nowrap ${cellCls(c.done)}`}
                       >
                         ✔ {c.done}<span className="text-[11px] opacity-70"> · + {c.created}</span>
