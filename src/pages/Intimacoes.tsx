@@ -732,13 +732,20 @@ export default function Intimacoes() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-display font-bold">Intimações</h1>
-          <p className="text-muted-foreground text-sm mt-1">Calendário oficial CNJ · Sincronização DJEN automática a cada 6h</p>
-          <DjenHealthBadge />
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="hidden sm:flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-primary/5 border border-primary/10 shadow-sm">
+            <Bell className="h-6 w-6 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-xl md:text-2xl font-display font-semibold tracking-tight text-foreground">Intimações</h1>
+            <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">Calendário oficial CNJ · Sincronização DJEN automática a cada 6h</p>
+            <div className="mt-2.5">
+              <DjenHealthBadge />
+            </div>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <Button variant="outline" onClick={syncDjen} disabled={syncing}>
             {syncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
             Sincronizar
