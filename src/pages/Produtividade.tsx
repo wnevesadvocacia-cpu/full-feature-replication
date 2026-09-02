@@ -174,8 +174,18 @@ export default function Produtividade() {
       pendentesAtrasadas,
       tmr: lead.length ? (lead.reduce((s, v) => s + v, 0) / lead.length) : null,
       colaboradores: perf.length,
+      delegadasOutros: perf.reduce((s, p) => s + p.delegadasOutros, 0),
     };
   }, [perf]);
+
+  const papelBadge = (v: Papel) =>
+    v === 'Controller (delega)' ? 'bg-primary/10 text-primary border-primary/30'
+      : v === 'Executor' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+      : v === 'Híbrido' ? 'bg-amber-100 text-amber-700 border-amber-200'
+      : 'bg-muted text-muted-foreground border-border';
+
+  const entregaOf = (p: Perf) =>
+    p.delegadasOutros ? Math.round((p.delegadasOutrosConcluidas / p.delegadasOutros) * 100) : null;
 
   const slaOf = (p: Perf) => {
     const base = p.noPrazo + p.comAtraso;
