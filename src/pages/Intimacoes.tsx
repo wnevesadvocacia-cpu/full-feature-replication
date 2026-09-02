@@ -783,6 +783,9 @@ export default function Intimacoes() {
         ))}
       </div>
 
+      {loadTableEl}
+
+
       {oabAlerts.length > 0 && (
         <div role="alert" className="rounded-lg border-2 border-destructive bg-destructive/10 p-4 text-destructive shadow-card animate-pulse">
           <div className="flex items-start gap-3">
