@@ -117,6 +117,7 @@ export default function Produtividade() {
       if (!map.has(who)) {
         map.set(who, {
           who, executadas: 0, noPrazo: 0, comAtraso: 0, semPrazo: 0, delegadas: 0,
+          delegadasOutros: 0, delegadasProprias: 0, delegadasOutrosConcluidas: 0,
           pendentes: 0, pendentesAtrasadas: 0, processos: 0, leadDays: [], procSet: new Set(),
         });
       }
