@@ -328,7 +328,7 @@ export default function Produtividade() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         {[
           { l: 'Colaboradores', v: String(kpi.colaboradores), h: 'Pessoas com atividade no período' },
           { l: 'Tarefas executadas', v: String(kpi.executadas), h: 'Concluídas no período' },
@@ -339,12 +339,12 @@ export default function Produtividade() {
         ].map((s) => (
           <div
             key={s.l}
-            className="group relative overflow-hidden rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="group relative overflow-hidden rounded-xl border bg-card p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md min-w-0"
             title={s.h}
           >
             <span className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-primary/60 to-transparent opacity-70" />
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{s.l}</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{s.v}</p>
+            <p className="text-[10px] leading-tight uppercase tracking-wide text-muted-foreground break-words">{s.l}</p>
+            <p className="mt-1.5 text-2xl font-semibold tabular-nums tracking-tight">{s.v}</p>
           </div>
         ))}
       </div>
