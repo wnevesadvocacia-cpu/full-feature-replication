@@ -244,16 +244,19 @@ export default function Produtividade() {
 
   function exportCsv() {
     const head = view === 'desempenho'
-      ? ['Colaborador', 'Executadas', 'No prazo', 'Com atraso', 'Sem prazo', '% no prazo', 'Tempo médio (dias)', 'Pendentes', 'Pendentes atrasadas', 'Processos', 'Delegadas/criadas']
+      ? ['Colaborador', 'Papel', 'Executadas', 'No prazo', 'Com atraso', 'Sem prazo', '% no prazo', 'Tempo médio (dias)', 'Pendentes', 'Pendentes atrasadas', 'Processos', 'Delegadas a outros', 'Delegadas a outros concluídas', '% entrega da carteira delegada', 'Criadas para si']
       : ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total executadas', 'Total delegadas/criadas'];
     const body = view === 'desempenho'
       ? perf.map((p) => {
           const sla = slaOf(p);
           const tmr = tmrOf(p);
+          const ent = entregaOf(p);
           return [
-            p.who, String(p.executadas), String(p.noPrazo), String(p.comAtraso), String(p.semPrazo),
+            p.who, papelOf(p), String(p.executadas), String(p.noPrazo), String(p.comAtraso), String(p.semPrazo),
             sla === null ? '—' : `${sla}%`, tmr === null ? '—' : tmr.toFixed(1),
-            String(p.pendentes), String(p.pendentesAtrasadas), String(p.processos), String(p.delegadas),
+            String(p.pendentes), String(p.pendentesAtrasadas), String(p.processos),
+            String(p.delegadasOutros), String(p.delegadasOutrosConcluidas),
+            ent === null ? '—' : `${ent}%`, String(p.delegadasProprias),
           ];
         })
       : rows.map((r) => [r.who, ...r.cells.map((c) => `${c.done}/${c.created}`), String(r.totalDone), String(r.totalCreated)]);
