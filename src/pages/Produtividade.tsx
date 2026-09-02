@@ -42,6 +42,24 @@ function dayDiff(a: string, b: string) {
   return Math.round((d2 - d1) / 86400000);
 }
 
+function norm(v: string) {
+  return v.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Heurística: mesmo colaborador (e-mail do autor x nome do responsável). */
+function samePerson(authorEmail: string | null, assignee: string | null) {
+  if (!authorEmail || !assignee) return false;
+  const local = norm(authorEmail.split('@')[0]);
+  const name = norm(assignee);
+  if (!local || !name) return false;
+  if (local === name) return true;
+  const nameTokens = name.split(' ').filter((t) => t.length > 2);
+  const localTokens = local.split(' ').filter((t) => t.length > 2);
+  const hits = nameTokens.filter((t) => local.includes(t)).length
+    + localTokens.filter((t) => name.includes(t)).length;
+  return hits >= 2;
+}
+
 interface Perf {
   who: string;
   executadas: number;
@@ -49,10 +67,24 @@ interface Perf {
   comAtraso: number;
   semPrazo: number;
   delegadas: number;
+  delegadasOutros: number;
+  delegadasProprias: number;
+  delegadasOutrosConcluidas: number;
   pendentes: number;
   pendentesAtrasadas: number;
   processos: number;
   leadDays: number[];
+}
+
+type Papel = 'Controller (delega)' | 'Executor' | 'Híbrido' | '—';
+
+function papelOf(p: Perf): Papel {
+  const total = p.executadas + p.delegadasOutros;
+  if (total === 0) return '—';
+  const shareDeleg = p.delegadasOutros / total;
+  if (shareDeleg >= 0.7) return 'Controller (delega)';
+  if (shareDeleg <= 0.3) return 'Executor';
+  return 'Híbrido';
 }
 
 export default function Produtividade() {
@@ -85,6 +117,7 @@ export default function Produtividade() {
       if (!map.has(who)) {
         map.set(who, {
           who, executadas: 0, noPrazo: 0, comAtraso: 0, semPrazo: 0, delegadas: 0,
+          delegadasOutros: 0, delegadasProprias: 0, delegadasOutrosConcluidas: 0,
           pendentes: 0, pendentesAtrasadas: 0, processos: 0, leadDays: [], procSet: new Set(),
         });
       }
@@ -112,7 +145,14 @@ export default function Produtividade() {
         if (r.process_number) p.procSet.add(r.process_number);
       }
 
-      get(autor).delegadas += 1;
+      const a = get(autor);
+      a.delegadas += 1;
+      if (samePerson(r.created_by_email, r.assignee)) {
+        a.delegadasProprias += 1;
+      } else {
+        a.delegadasOutros += 1;
+        if (r.completed) a.delegadasOutrosConcluidas += 1;
+      }
     }
 
     return Array.from(map.values())
@@ -134,8 +174,18 @@ export default function Produtividade() {
       pendentesAtrasadas,
       tmr: lead.length ? (lead.reduce((s, v) => s + v, 0) / lead.length) : null,
       colaboradores: perf.length,
+      delegadasOutros: perf.reduce((s, p) => s + p.delegadasOutros, 0),
     };
   }, [perf]);
+
+  const papelBadge = (v: Papel) =>
+    v === 'Controller (delega)' ? 'bg-primary/10 text-primary border-primary/30'
+      : v === 'Executor' ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+      : v === 'Híbrido' ? 'bg-amber-100 text-amber-700 border-amber-200'
+      : 'bg-muted text-muted-foreground border-border';
+
+  const entregaOf = (p: Perf) =>
+    p.delegadasOutros ? Math.round((p.delegadasOutrosConcluidas / p.delegadasOutros) * 100) : null;
 
   const slaOf = (p: Perf) => {
     const base = p.noPrazo + p.comAtraso;
@@ -194,16 +244,19 @@ export default function Produtividade() {
 
   function exportCsv() {
     const head = view === 'desempenho'
-      ? ['Colaborador', 'Executadas', 'No prazo', 'Com atraso', 'Sem prazo', '% no prazo', 'Tempo médio (dias)', 'Pendentes', 'Pendentes atrasadas', 'Processos', 'Delegadas/criadas']
+      ? ['Colaborador', 'Papel', 'Executadas', 'No prazo', 'Com atraso', 'Sem prazo', '% no prazo', 'Tempo médio (dias)', 'Pendentes', 'Pendentes atrasadas', 'Processos', 'Delegadas a outros', 'Delegadas a outros concluídas', '% entrega da carteira delegada', 'Criadas para si']
       : ['Colaborador', ...buckets.map((b) => fmtBucket(b, gran)), 'Total executadas', 'Total delegadas/criadas'];
     const body = view === 'desempenho'
       ? perf.map((p) => {
           const sla = slaOf(p);
           const tmr = tmrOf(p);
+          const ent = entregaOf(p);
           return [
-            p.who, String(p.executadas), String(p.noPrazo), String(p.comAtraso), String(p.semPrazo),
+            p.who, papelOf(p), String(p.executadas), String(p.noPrazo), String(p.comAtraso), String(p.semPrazo),
             sla === null ? '—' : `${sla}%`, tmr === null ? '—' : tmr.toFixed(1),
-            String(p.pendentes), String(p.pendentesAtrasadas), String(p.processos), String(p.delegadas),
+            String(p.pendentes), String(p.pendentesAtrasadas), String(p.processos),
+            String(p.delegadasOutros), String(p.delegadasOutrosConcluidas),
+            ent === null ? '—' : `${ent}%`, String(p.delegadasProprias),
           ];
         })
       : rows.map((r) => [r.who, ...r.cells.map((c) => `${c.done}/${c.created}`), String(r.totalDone), String(r.totalCreated)]);
@@ -268,12 +321,13 @@ export default function Produtividade() {
         )}
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         {[
           { l: 'Colaboradores', v: String(kpi.colaboradores), h: 'Pessoas com atividade no período' },
           { l: 'Tarefas executadas', v: String(kpi.executadas), h: 'Concluídas no período' },
           { l: '% cumprimento de prazo', v: kpi.sla === null ? '—' : `${kpi.sla}%`, h: 'Concluídas até o vencimento ÷ concluídas com prazo' },
           { l: 'Tempo médio de resposta', v: kpi.tmr === null ? '—' : `${kpi.tmr.toFixed(1)} d`, h: 'Dias entre criação e conclusão' },
+          { l: 'Delegadas a outros', v: String(kpi.delegadasOutros), h: 'Tarefas criadas por uma pessoa e atribuídas a outra' },
           { l: 'Prazos vencidos em aberto', v: String(kpi.pendentesAtrasadas), h: 'Pendentes com vencimento passado' },
         ].map((s) => (
           <div key={s.l} className="bg-card border rounded-lg p-3" title={s.h}>
@@ -304,7 +358,8 @@ export default function Produtividade() {
             <p className="font-semibold text-foreground">Como ler</p>
             <p><span className="font-semibold text-foreground">Executadas</span>: tarefas concluídas pela pessoa. <span className="font-semibold text-foreground">No prazo</span> / <span className="font-semibold text-foreground">Com atraso</span>: comparação da data de conclusão com o vencimento.</p>
             <p><span className="font-semibold text-foreground">% no prazo</span>: indicador de compliance (verde ≥ 95%, âmbar ≥ 80%, vermelho abaixo). <span className="font-semibold text-foreground">Tempo médio</span>: dias entre a criação e a conclusão da tarefa.</p>
-            <p><span className="font-semibold text-foreground">Delegadas/criadas</span>: tarefas cadastradas pela pessoa (podem ter sido atribuídas a outros) — mede coordenação, não execução.</p>
+            <p><span className="font-semibold text-foreground">Papel</span>: calculado pela proporção entre o que a pessoa delega a terceiros e o que ela mesma executa — “Controller (delega)” ≥ 70% delegação, “Executor” ≤ 30%, “Híbrido” no meio (caso de quem controla e também cumpre prazos).</p>
+            <p><span className="font-semibold text-foreground">Delegadas a outros</span>: tarefas que a pessoa criou para outro colaborador. <span className="font-semibold text-foreground">% entrega da carteira delegada</span>: quanto dessa carteira já foi concluída — é o KPI do controller. <span className="font-semibold text-foreground">Criadas para si</span>: tarefas que ela cadastrou e assumiu.</p>
           </div>
 
           <div className="border rounded-lg overflow-x-auto bg-card">
@@ -312,6 +367,7 @@ export default function Produtividade() {
               <thead className="bg-muted/50 text-xs text-muted-foreground">
                 <tr>
                   <th className="text-left p-2 sticky left-0 bg-muted/50">Colaborador</th>
+                  <th className="p-2 text-center">Papel</th>
                   <th className="p-2 text-center">Executadas</th>
                   <th className="p-2 text-center">No prazo</th>
                   <th className="p-2 text-center">Com atraso</th>
@@ -320,16 +376,23 @@ export default function Produtividade() {
                   <th className="p-2 text-center">Pendentes</th>
                   <th className="p-2 text-center whitespace-nowrap">Vencidas em aberto</th>
                   <th className="p-2 text-center">Processos</th>
-                  <th className="p-2 text-center whitespace-nowrap">Delegadas/criadas</th>
+                  <th className="p-2 text-center whitespace-nowrap">Delegadas a outros</th>
+                  <th className="p-2 text-center whitespace-nowrap">% entrega delegada</th>
+                  <th className="p-2 text-center whitespace-nowrap">Criadas para si</th>
                 </tr>
               </thead>
               <tbody>
                 {perf.map((p) => {
                   const sla = slaOf(p);
                   const tmr = tmrOf(p);
+                  const ent = entregaOf(p);
+                  const papel = papelOf(p);
                   return (
                     <tr key={p.who} className="border-t">
                       <td className="p-2 whitespace-nowrap sticky left-0 bg-card font-medium">{p.who}</td>
+                      <td className="p-2 text-center">
+                        <Badge variant="outline" className={`${papelBadge(papel)} text-[10px] whitespace-nowrap`}>{papel}</Badge>
+                      </td>
                       <td className="p-2 text-center font-semibold">{p.executadas}</td>
                       <td className="p-2 text-center text-emerald-700">{p.noPrazo}</td>
                       <td className={`p-2 text-center ${p.comAtraso > 0 ? 'text-destructive font-medium' : 'text-muted-foreground'}`}>{p.comAtraso}</td>
@@ -342,7 +405,13 @@ export default function Produtividade() {
                       <td className="p-2 text-center">{p.pendentes}</td>
                       <td className={`p-2 text-center ${p.pendentesAtrasadas > 0 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>{p.pendentesAtrasadas}</td>
                       <td className="p-2 text-center">{p.processos}</td>
-                      <td className="p-2 text-center text-muted-foreground">{p.delegadas}</td>
+                      <td className="p-2 text-center">{p.delegadasOutros}</td>
+                      <td className="p-2 text-center whitespace-nowrap">
+                        {ent === null ? <span className="text-muted-foreground">—</span> : (
+                          <Badge variant="outline" className={`${slaBadge(ent)} text-[10px]`}>{ent}%</Badge>
+                        )}
+                      </td>
+                      <td className="p-2 text-center text-muted-foreground">{p.delegadasProprias}</td>
                     </tr>
                   );
                 })}
