@@ -367,12 +367,24 @@ export default function Produtividade() {
         <div className="text-center py-12 text-muted-foreground text-sm">Nenhuma atividade no período.</div>
       ) : view === 'desempenho' ? (
         <>
-          <div className="rounded-xl border bg-muted/30 p-4 text-xs leading-relaxed space-y-1 shadow-sm">
-            <p className="font-semibold text-foreground">Como ler</p>
-            <p><span className="font-semibold text-foreground">Executadas</span>: tarefas concluídas pela pessoa. <span className="font-semibold text-foreground">No prazo</span> / <span className="font-semibold text-foreground">Com atraso</span>: comparação da data de conclusão com o vencimento.</p>
-            <p><span className="font-semibold text-foreground">% no prazo</span>: indicador de compliance (verde ≥ 95%, âmbar ≥ 80%, vermelho abaixo). <span className="font-semibold text-foreground">Tempo médio</span>: dias entre a criação e a conclusão da tarefa.</p>
-            <p><span className="font-semibold text-foreground">Papel</span>: calculado pela proporção entre o que a pessoa delega a terceiros e o que ela mesma executa — “Controller (delega)” ≥ 70% delegação, “Executor” ≤ 30%, “Híbrido” no meio (caso de quem controla e também cumpre prazos).</p>
-            <p><span className="font-semibold text-foreground">Delegadas a outros</span>: tarefas que a pessoa criou para outro colaborador. <span className="font-semibold text-foreground">% entrega da carteira delegada</span>: quanto dessa carteira já foi concluída — é o KPI do controller. <span className="font-semibold text-foreground">Criadas para si</span>: tarefas que ela cadastrou e assumiu.</p>
+          <div className="rounded-xl border border-amber-200/60 bg-gradient-to-br from-amber-50/70 via-card to-card p-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100/70 text-amber-600 ring-1 ring-amber-200/70">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <div className="text-xs leading-relaxed text-amber-950/80 space-y-1">
+                <p className="font-semibold text-amber-900 flex items-center gap-2">
+                  Como ler
+                  <span className="rounded-full bg-amber-100/70 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-700 ring-1 ring-amber-200/60">
+                    Guia rápido
+                  </span>
+                </p>
+                <p><span className="font-semibold text-amber-900">Executadas</span>: tarefas concluídas pela pessoa. <span className="font-semibold text-amber-900">No prazo</span> / <span className="font-semibold text-amber-900">Com atraso</span>: comparação da data de conclusão com o vencimento.</p>
+                <p><span className="font-semibold text-amber-900">% no prazo</span>: indicador de compliance (verde ≥ 95%, âmbar ≥ 80%, vermelho abaixo). <span className="font-semibold text-amber-900">Tempo médio</span>: dias entre a criação e a conclusão da tarefa.</p>
+                <p><span className="font-semibold text-amber-900">Papel</span>: calculado pela proporção entre o que a pessoa delega a terceiros e o que ela mesma executa — “Controller (delega)” ≥ 70% delegação, “Executor” ≤ 30%, “Híbrido” no meio (caso de quem controla e também cumpre prazos).</p>
+                <p><span className="font-semibold text-amber-900">Delegadas a outros</span>: tarefas que a pessoa criou para outro colaborador. <span className="font-semibold text-amber-900">% entrega da carteira delegada</span>: quanto dessa carteira já foi concluída — é o KPI do controller. <span className="font-semibold text-amber-900">Criadas para si</span>: tarefas que ela cadastrou e assumiu.</p>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-xl border overflow-x-auto bg-card shadow-sm">
