@@ -36,7 +36,7 @@ import { CopyNumber } from '@/components/CopyNumber';
 import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
-type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
+type ViewFilter = 'pendentes' | 'todas' | 'concluidas' | 'canceladas';
 
 // Número em destaque = o CNJ diretamente relacionado à publicação (execução/
 // cumprimento de sentença quando for o caso), não o processo principal vinculado.
