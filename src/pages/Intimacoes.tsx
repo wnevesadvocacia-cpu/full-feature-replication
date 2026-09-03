@@ -97,6 +97,8 @@ export default function Intimacoes() {
   const [deadlineChoices, setDeadlineChoices] = useState<DeadlineChoice[]>([]);
   const [openingTaskId, setOpeningTaskId] = useState<string | null>(null);
   const [duplicateConfirmedProcessId, setDuplicateConfirmedProcessId] = useState<string | null>(null);
+  const [manageTasks, setManageTasks] = useState<any[] | null>(null);
+  const [manageBusyId, setManageBusyId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const t = todayISO();
     return isBusinessDay(t) ? t : previousBusinessDay(t);
