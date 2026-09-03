@@ -589,7 +589,12 @@ export default function Intimacoes() {
       `Já existe(m) ${dups.length} prazo(s) pendente(s) neste processo:\n\n` +
       dups.slice(0, 5).map((t: any) => `• ${t.title}${t.due_date ? ` (prazo ${formatBR(t.due_date)})` : ''}`).join('\n') +
       `\n\nDeseja mesmo criar outra prazo neste processo?`,
-      { title: 'Prazos pendentes neste processo', okLabel: 'Criar mesmo assim' }
+      {
+        title: 'Prazos pendentes neste processo',
+        okLabel: 'Criar mesmo assim',
+        extraLabel: 'Editar/excluir prazo existente',
+        onExtra: () => { window.location.hash = `/tarefas?q=${encodeURIComponent(dups[0]?.title || '')}`; },
+      }
     );
     if (ok) setDuplicateConfirmedProcessId(processId);
     return { ok, processId };
