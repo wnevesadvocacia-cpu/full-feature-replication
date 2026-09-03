@@ -37,6 +37,7 @@ interface Task {
   created_at?: string;
   priority?: string;
   completed: boolean;
+  status?: string | null;
   process_id?: string;
   start_time?: string | null;
   end_time?: string | null;
@@ -149,9 +150,10 @@ export default function Agenda() {
   const { user } = useAuth();
 
   // Filtra por processo selecionado (filtro de tela). RLS já filtra por user_id no servidor.
-  const filteredTasks = processFilter === 'all'
+  const filteredTasks = (processFilter === 'all'
     ? tasks
-    : tasks.filter(t => t.process_id === processFilter);
+    : tasks.filter(t => t.process_id === processFilter))
+    .filter(t => t.status !== 'cancelada');
 
   // Calendar helpers
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();

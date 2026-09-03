@@ -962,7 +962,7 @@ export default function Processos() {
     // Trava anti-duplicidade: tarefa pendente com mesmo título no mesmo processo
     const norm = (s: string) => s.trim().toLowerCase();
     const dup = (tasks || []).some(
-      (t: any) => !t.completed && norm(t.title || '') === norm(newTask.title),
+      (t: any) => !t.completed && t.status !== 'cancelada' && norm(t.title || '') === norm(newTask.title),
     );
     if (dup) {
       const ok = await confirmModal(

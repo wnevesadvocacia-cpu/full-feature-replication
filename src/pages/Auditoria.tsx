@@ -303,12 +303,14 @@ export default function Auditoria() {
                       <tr key={t.id} className="border-t hover:bg-muted/30">
                         <td className="p-3">
                           <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
-                            t.completed
-                              ? 'bg-success/10 text-success'
-                              : 'bg-warning/10 text-warning'
+                            t.status === 'cancelada'
+                              ? 'bg-destructive/10 text-destructive'
+                              : t.completed
+                                ? 'bg-success/10 text-success'
+                                : 'bg-warning/10 text-warning'
                           }`}>
-                            {t.completed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                            {t.status || (t.completed ? 'concluída' : 'pendente')}
+                            {t.status === 'cancelada' ? <XCircle className="h-3 w-3" /> : t.completed ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                            {t.status === 'cancelada' ? 'Cancelada' : t.status || (t.completed ? 'concluída' : 'pendente')}
                           </span>
                         </td>
                         <td className="p-3 font-medium max-w-xs truncate" title={t.title}>

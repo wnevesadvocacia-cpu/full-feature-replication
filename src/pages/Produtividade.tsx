@@ -10,6 +10,7 @@ import { DateInputBR } from '@/components/DateInputBR';
 interface AuditRow {
   id: string;
   title: string;
+  status: string | null;
   completed: boolean;
   due_date: string | null;
   assignee: string | null;
@@ -125,6 +126,7 @@ export default function Produtividade() {
     };
 
     for (const r of data) {
+      if (r.status === 'cancelada') continue; // prazos cancelados não entram em produtividade
       const executor = r.completed_by_email || r.assignee || '—';
       const responsavel = r.assignee || r.completed_by_email || '—';
       const autor = r.created_by_email || r.assignee || '—';
@@ -214,6 +216,7 @@ export default function Produtividade() {
     };
 
     for (const r of data) {
+      if (r.status === 'cancelada') continue;
       if (r.completed && r.completed_at) {
         const who = r.completed_by_email || r.assignee || '—';
         const b = bucketOf(r.completed_at, gran);

@@ -153,9 +153,9 @@ export default function Relatorios() {
     ['concluido', 'closed'].includes(p.status)
   ).length;
   const conclusionRate = total > 0 ? ((concluded / total) * 100).toFixed(1) : '0';
-  const pendingTasks = tks.filter(t => !t.completed).length;
+  const pendingTasks = tks.filter(t => !t.completed && t.status !== 'cancelada').length;
   const overdueTasks = tks.filter(t => {
-    if (t.completed || !t.due_date) return false;
+    if (t.completed || t.status === 'cancelada' || !t.due_date) return false;
     const due = new Date(t.due_date + 'T00:00:00'); const today = new Date(); today.setHours(0,0,0,0); return due < today;
   }).length;
 
@@ -197,7 +197,7 @@ export default function Relatorios() {
 
   // ── Task priority chart ──
   const taskPriorityData = groupCount(
-    tks.filter(t => !t.completed).map(t => t.priority)
+    tks.filter(t => !t.completed && t.status !== 'cancelada').map(t => t.priority)
   ).map(d => ({
     name: d.name === 'alta' ? 'Alta' : d.name === 'media' ? 'Média' :
           d.name === 'baixa' ? 'Baixa' : d.name ?? 'Sem prioridade',

@@ -32,6 +32,7 @@ function fmtDate(v?: string | null) {
 }
 
 function statusLabel(r: AuditRow) {
+  if (r.status === 'cancelada') return { label: 'Cancelada', cls: 'bg-red-100 text-red-700 border-red-200' };
   if (r.completed) return { label: 'Concluída', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
   if (r.status === 'em_elaboracao') return { label: 'Em elaboração', cls: 'bg-blue-100 text-blue-700 border-blue-200' };
   return { label: 'Pendente', cls: 'bg-amber-100 text-amber-700 border-amber-200' };
@@ -70,9 +71,9 @@ export default function AuditoriaTarefas() {
 
   const stats = useMemo(() => ({
     total: rows.length,
-    concluidas: rows.filter((r) => r.completed).length,
-    pendentes: rows.filter((r) => !r.completed).length,
-    atrasadas: rows.filter((r) => !r.completed && r.due_date && r.due_date < today).length,
+    concluidas: rows.filter((r) => r.completed && r.status !== 'cancelada').length,
+    pendentes: rows.filter((r) => !r.completed && r.status !== 'cancelada').length,
+    atrasadas: rows.filter((r) => !r.completed && r.status !== 'cancelada' && r.due_date && r.due_date < today).length,
   }), [rows, today]);
 
   function exportCsv() {
@@ -162,7 +163,7 @@ export default function AuditoriaTarefas() {
             <tbody>
               {rows.map((r) => {
                 const st = statusLabel(r);
-                const late = !r.completed && r.due_date && r.due_date < today;
+                const late = !r.completed && r.status !== 'cancelada' && r.due_date && r.due_date < today;
                 return (
                   <tr key={r.id} className="border-t align-top">
                     <td className="p-2 max-w-[280px]">{r.title}</td>

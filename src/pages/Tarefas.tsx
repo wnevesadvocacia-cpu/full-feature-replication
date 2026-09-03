@@ -36,7 +36,7 @@ import { CopyNumber } from '@/components/CopyNumber';
 import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
-type ViewFilter = 'pendentes' | 'todas' | 'concluidas';
+type ViewFilter = 'pendentes' | 'todas' | 'concluidas' | 'canceladas';
 
 // Número em destaque = o CNJ diretamente relacionado à publicação (execução/
 // cumprimento de sentença quando for o caso), não o processo principal vinculado.
@@ -192,6 +192,7 @@ export default function Tarefas() {
 
     if (viewFilter === 'pendentes') return !t.completed && t.status !== 'cancelada';
     if (viewFilter === 'concluidas') return t.completed && t.status !== 'cancelada';
+    if (viewFilter === 'canceladas') return t.status === 'cancelada';
 
     return true;
   }).sort((a: any, b: any) => {
@@ -202,8 +203,10 @@ export default function Tarefas() {
       return cb - ca;
     }
     if (viewFilter === 'todas') {
-      // Todas: pendentes primeiro (por vencimento), depois concluídas (por conclusão decrescente)
-      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      // Todas: pendentes → concluídas → canceladas
+      const rank = (t: any) => t.status === 'cancelada' ? 2 : t.completed ? 1 : 0;
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
       if (a.completed) {
         const ca = a.completed_at ? new Date(a.completed_at).getTime() : 0;
         const cb = b.completed_at ? new Date(b.completed_at).getTime() : 0;
@@ -217,13 +220,14 @@ export default function Tarefas() {
 
   const pendentes = (tasks as any[]).filter(t => !t.completed && t.status !== 'cancelada').length;
   const concluidas = (tasks as any[]).filter(t => t.completed && t.status !== 'cancelada').length;
+  const canceladas = (tasks as any[]).filter(t => t.status === 'cancelada').length;
 
 
   // ===== Espelho da agenda: carga de prazos pendentes por colaborador/dia =====
   const loadMap = useMemo(() => {
     const m = new Map<string, number>();
     (tasks as any[]).forEach((t) => {
-      if (t.completed || !t.due_date) return;
+      if (t.completed || t.status === 'cancelada' || !t.due_date) return;
       const key = `${t.assignee || '—'}|${String(t.due_date).slice(0, 10)}`;
       m.set(key, (m.get(key) ?? 0) + 1);
     });
@@ -263,14 +267,15 @@ export default function Tarefas() {
 
 
   const toggleTask = async (task: any) => {
-    const willComplete = !task.completed;
+    const isCancelled = task.status === 'cancelada';
+    const willComplete = !task.completed && !isCancelled;
     await updateTask.mutateAsync({
       id: task.id,
       completed: willComplete,
-      status: willComplete ? 'concluida' : 'pendente',
+      status: isCancelled ? 'pendente' : (willComplete ? 'concluida' : 'pendente'),
     });
     toast({
-      title: willComplete ? 'Prazo concluído' : 'Prazo reaberto',
+      title: isCancelled ? 'Prazo reativado' : (willComplete ? 'Prazo concluído' : 'Prazo reaberto'),
       description: willComplete && viewFilter === 'pendentes'
         ? 'Ela saiu da lista de pendentes. Veja em "Concluídas" ou "Todas".'
         : undefined,
@@ -322,7 +327,7 @@ export default function Tarefas() {
     );
     if (!ok) return;
     try {
-      await updateTask.mutateAsync({ id: task.id, status: 'cancelada', completed: true });
+      await updateTask.mutateAsync({ id: task.id, status: 'cancelada', completed: false });
       await (supabase as any).rpc('log_auth_event', {
         _event: 'PRAZO_CANCELADO',
         _metadata: {
@@ -696,7 +701,7 @@ export default function Tarefas() {
           const today = new Date();
           today.setHours(0,0,0,0);
           const urgentTasks = (tasks as any[]).filter((t: any) => {
-            if (!t.due_date || t.completed) return false;
+            if (!t.due_date || t.completed || t.status === 'cancelada') return false;
             const due = new Date(t.due_date.slice(0,10) + 'T12:00:00');
             due.setHours(0,0,0,0);
             const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
@@ -756,8 +761,9 @@ export default function Tarefas() {
           <div className="flex p-1 bg-stone-200/50 dark:bg-muted rounded-full self-start md:self-auto" role="group" aria-label="Filtrar prazos por situação">
             {([
               { v: 'pendentes', l: 'Pendentes', count: pendentes },
-              { v: 'todas', l: 'Todas', count: pendentes + concluidas },
+              { v: 'todas', l: 'Todas', count: pendentes + concluidas + canceladas },
               { v: 'concluidas', l: 'Concluídas', count: concluidas },
+              { v: 'canceladas', l: 'Canceladas', count: canceladas },
             ] as { v: ViewFilter; l: string; count: number }[]).map(({ v, l, count }) => (
               <Button
                 key={v}
@@ -871,13 +877,15 @@ export default function Tarefas() {
                 .slice(0, 2)
                 .map((p: string) => p[0]?.toUpperCase())
                 .join('');
-              const stripeClass = task.completed
-                ? 'bg-stone-300 dark:bg-muted'
-                : daysLeft !== null && daysLeft < 0
-                  ? 'bg-red-500'
-                  : daysLeft !== null && daysLeft <= 2
-                    ? 'bg-amber-400'
-                    : 'bg-primary';
+              const stripeClass = task.status === 'cancelada'
+                ? 'bg-destructive'
+                : task.completed
+                  ? 'bg-stone-300 dark:bg-muted'
+                  : daysLeft !== null && daysLeft < 0
+                    ? 'bg-red-500'
+                    : daysLeft !== null && daysLeft <= 2
+                      ? 'bg-amber-400'
+                      : 'bg-primary';
               return (
                 <div
                   key={task.id}
@@ -950,6 +958,11 @@ export default function Tarefas() {
                             {task.status === 'cancelada' ? <XCircle className="h-3 w-3" /> : task.completed ? <Check className="h-3 w-3" /> : <Hourglass className="h-3 w-3" />}
                             {task.status === 'cancelada' ? 'Cancelado' : task.completed ? 'Concluído' : 'Pendente'}
                           </span>
+                          {task.status === 'cancelada' && (
+                            <span className="text-[10px] text-destructive font-semibold">
+                              Erro de atribuição
+                            </span>
+                          )}
 
                           {task.status === 'em_elaboracao' && !task.completed && (
                             <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-tighter rounded-full border shadow-gold bg-warning text-warning-foreground border-warning dark:bg-warning dark:text-warning-foreground dark:border-warning">
@@ -1039,7 +1052,7 @@ export default function Tarefas() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {!task.completed && (
+                          {!task.completed && task.status !== 'cancelada' && (
                             <div className="flex items-stretch ml-1">
                               <Button
                                 size="sm"
@@ -1090,16 +1103,16 @@ export default function Tarefas() {
                               </DropdownMenu>
                             </div>
                           )}
-                          {task.completed && (
+                          {(task.completed || task.status === 'cancelada') && (
                             <Button
                               size="sm"
                               variant="outline"
                               className="h-10 px-4 ml-1 rounded-lg text-[11px] font-bold uppercase tracking-widest border-stone-300 text-stone-700 hover:bg-stone-50 dark:border-border dark:text-foreground dark:hover:bg-muted/40"
                               onClick={() => toggleTask(task)}
                               disabled={updateTask.isPending}
-                              title="Reabrir prazo (desfazer conclusão)"
+                              title={task.status === 'cancelada' ? 'Reativar prazo cancelado' : 'Reabrir prazo (desfazer conclusão)'}
                             >
-                              <RotateCcw className="h-4 w-4 mr-1.5" /> Reabrir
+                              <RotateCcw className="h-4 w-4 mr-1.5" /> {task.status === 'cancelada' ? 'Reativar' : 'Reabrir'}
                             </Button>
                           )}
 
