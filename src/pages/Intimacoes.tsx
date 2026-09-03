@@ -1055,6 +1055,80 @@ export default function Intimacoes() {
         </DialogContent>
       </Dialog>
 
+      {/* Editar/excluir prazos já existentes no processo */}
+      <Dialog open={!!manageTasks} onOpenChange={(o) => { if (!o) setManageTasks(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Editar ou excluir prazo existente</DialogTitle></DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+            {(manageTasks ?? []).map((t: any) => (
+              <div key={t.id} className="rounded-lg border p-3 space-y-2">
+                <div>
+                  <Label>Título</Label>
+                  <Input
+                    value={t.title ?? ''}
+                    onChange={(e) => setManageTasks((prev) => (prev ?? []).map((x) => x.id === t.id ? { ...x, title: e.target.value } : x))}
+                  />
+                </div>
+                <div>
+                  <Label>Prazo final</Label>
+                  <DateInputBR
+                    value={t.due_date ?? ''}
+                    onChange={(v) => setManageTasks((prev) => (prev ?? []).map((x) => x.id === t.id ? { ...x, due_date: v } : x))}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <DeleteGuard>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={manageBusyId === t.id}
+                      onClick={async () => {
+                        const ok = await confirmModal(`Excluir definitivamente o prazo "${t.title}"?`, { title: 'Excluir prazo', okLabel: 'Excluir' });
+                        if (!ok) return;
+                        setManageBusyId(t.id);
+                        const { error } = await (supabase as any).from('tasks').delete().eq('id', t.id);
+                        setManageBusyId(null);
+                        if (error) { toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' }); return; }
+                        qc.invalidateQueries({ queryKey: ['tasks'] });
+                        setManageTasks((prev) => {
+                          const next = (prev ?? []).filter((x) => x.id !== t.id);
+                          return next.length ? next : null;
+                        });
+                        toast({ title: 'Prazo excluído' });
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" /> Excluir
+                    </Button>
+                  </DeleteGuard>
+                  <Button
+                    size="sm"
+                    disabled={manageBusyId === t.id || !t.title}
+                    onClick={async () => {
+                      setManageBusyId(t.id);
+                      const { error } = await (supabase as any)
+                        .from('tasks')
+                        .update({ title: t.title, due_date: t.due_date || null })
+                        .eq('id', t.id);
+                      setManageBusyId(null);
+                      if (error) { toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' }); return; }
+                      qc.invalidateQueries({ queryKey: ['tasks'] });
+                      toast({ title: 'Prazo atualizado' });
+                    }}
+                  >
+                    {manageBusyId === t.id ? 'Salvando…' : 'Salvar'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setManageTasks(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+
       {/* Confirmação de exclusão com motivo obrigatório */}
       <Dialog open={!!deleteTarget} onOpenChange={(o) => { if (!o) { setDeleteTarget(null); setDeleteReason(''); } }}>
         <DialogContent>
