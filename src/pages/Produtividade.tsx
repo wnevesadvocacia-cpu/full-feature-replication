@@ -216,6 +216,7 @@ export default function Produtividade() {
     };
 
     for (const r of data) {
+      if (r.status === 'cancelada') continue;
       if (r.completed && r.completed_at) {
         const who = r.completed_by_email || r.assignee || '—';
         const b = bucketOf(r.completed_at, gran);
