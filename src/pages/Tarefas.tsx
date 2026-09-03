@@ -1076,6 +1076,12 @@ export default function Tarefas() {
                                       </>
                                     )}
                                   </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => cancelTask(task)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5 mr-2" /> Cancelar prazo (erro de atribuição)
+                                  </DropdownMenuItem>
 
                                 </DropdownMenuContent>
                               </DropdownMenu>
