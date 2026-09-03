@@ -1350,7 +1350,7 @@ export default function Intimacoes() {
                   if (taskForm.assignee) {
                     const n = loadMap.get(`${taskForm.assignee}|${iso}`) ?? 0;
                     return (
-                      <p className={`text-[11px] mt-1 ${n >= 2 ? 'text-destructive font-semibold' : n === 1 ? 'text-amber-600 dark:text-warning font-medium' : 'text-muted-foreground'}`}>
+                      <p className={`text-[11px] mt-1 ${n >= 2 ? 'text-info font-semibold' : n === 1 ? 'text-amber-600 dark:text-warning font-medium' : 'text-muted-foreground'}`}>
                         {n === 0
                           ? 'Nenhum prazo pendente do responsável nesta data.'
                           : `${n} prazo(s) pendente(s) do responsável nesta data${n >= 2 ? ' — considere outra data para evitar acúmulo.' : '.'}`}
@@ -1367,7 +1367,7 @@ export default function Intimacoes() {
                   perAssignee.sort((a, b) => b.n - a.n);
                   const total = perAssignee.reduce((a, b) => a + b.n, 0);
                   return (
-                    <p className={`text-[11px] mt-1 ${total >= 2 ? 'text-destructive font-semibold' : total === 1 ? 'text-amber-600 dark:text-warning font-medium' : 'text-muted-foreground'}`}>
+                    <p className={`text-[11px] mt-1 ${total >= 2 ? 'text-info font-semibold' : total === 1 ? 'text-amber-600 dark:text-warning font-medium' : 'text-muted-foreground'}`}>
                       {total === 0
                         ? 'Nenhum prazo pendente nesta data.'
                         : `${total} prazo(s) já nesta data: ${perAssignee.map((p) => `${p.name} (${p.n})`).join(' · ')}`}
