@@ -1137,8 +1137,6 @@ export default function Intimacoes() {
                     {manageBusyId === t.id ? 'Salvando…' : 'Salvar'}
                   </Button>
                 </div>
-
-                </div>
               </div>
             ))}
           </div>
