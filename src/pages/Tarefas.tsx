@@ -326,7 +326,7 @@ export default function Tarefas() {
     );
     if (!ok) return;
     try {
-      await updateTask.mutateAsync({ id: task.id, status: 'cancelada', completed: true });
+      await updateTask.mutateAsync({ id: task.id, status: 'cancelada', completed: false });
       await (supabase as any).rpc('log_auth_event', {
         _event: 'PRAZO_CANCELADO',
         _metadata: {
