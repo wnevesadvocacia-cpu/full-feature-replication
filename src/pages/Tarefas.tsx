@@ -876,13 +876,15 @@ export default function Tarefas() {
                 .slice(0, 2)
                 .map((p: string) => p[0]?.toUpperCase())
                 .join('');
-              const stripeClass = task.completed
-                ? 'bg-stone-300 dark:bg-muted'
-                : daysLeft !== null && daysLeft < 0
-                  ? 'bg-red-500'
-                  : daysLeft !== null && daysLeft <= 2
-                    ? 'bg-amber-400'
-                    : 'bg-primary';
+              const stripeClass = task.status === 'cancelada'
+                ? 'bg-destructive'
+                : task.completed
+                  ? 'bg-stone-300 dark:bg-muted'
+                  : daysLeft !== null && daysLeft < 0
+                    ? 'bg-red-500'
+                    : daysLeft !== null && daysLeft <= 2
+                      ? 'bg-amber-400'
+                      : 'bg-primary';
               return (
                 <div
                   key={task.id}
