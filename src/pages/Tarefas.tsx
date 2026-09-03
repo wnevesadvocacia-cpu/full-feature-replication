@@ -307,6 +307,37 @@ export default function Tarefas() {
     }
   };
 
+  const cancelTask = async (task: any) => {
+    const ok = await confirmModal(
+      `ALERTA DE AUDITORIA\n\n` +
+      `O cancelamento deste prazo será registrado permanentemente na auditoria do sistema, ` +
+      `com identificação do usuário, data e hora.\n\n` +
+      `Prazo: ${task.title}\n` +
+      `Responsável: ${task.assignee || '—'}\n` +
+      `Vencimento: ${task.due_date ? fmtDate(task.due_date) : '—'}\n\n` +
+      `Use esta opção apenas em caso de prazo atribuído erroneamente. Confirmar cancelamento?`,
+      { title: 'Cancelar prazo atribuído erroneamente', okLabel: 'Cancelar prazo' }
+    );
+    if (!ok) return;
+    try {
+      await updateTask.mutateAsync({ id: task.id, status: 'cancelada', completed: true });
+      await (supabase as any).rpc('log_auth_event', {
+        _event: 'PRAZO_CANCELADO',
+        _metadata: {
+          task_id: task.id,
+          title: task.title,
+          assignee: task.assignee,
+          due_date: task.due_date,
+          process_id: task.process_id,
+          cancelled_at: new Date().toISOString(),
+        },
+      });
+      toast({ title: 'Prazo cancelado', description: 'Registro mantido na auditoria do sistema.' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao cancelar prazo', description: e.message, variant: 'destructive' });
+    }
+  };
+
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
