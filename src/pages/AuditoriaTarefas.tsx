@@ -163,7 +163,7 @@ export default function AuditoriaTarefas() {
             <tbody>
               {rows.map((r) => {
                 const st = statusLabel(r);
-                const late = !r.completed && r.due_date && r.due_date < today;
+                const late = !r.completed && r.status !== 'cancelada' && r.due_date && r.due_date < today;
                 return (
                   <tr key={r.id} className="border-t align-top">
                     <td className="p-2 max-w-[280px]">{r.title}</td>
