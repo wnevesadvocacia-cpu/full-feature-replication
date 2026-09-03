@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
-  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass, MessageSquare, RotateCcw,
+  Plus, Search, Calendar, Loader2, Pencil, Trash2, AlertTriangle, Info, ArrowRight, FileText, User, Check, Paperclip, ChevronDown, Hourglass, MessageSquare, RotateCcw, XCircle,
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
@@ -304,6 +304,37 @@ export default function Tarefas() {
         old?.map((t) => (t.id === task.id ? { ...t, status: prevStatus || 'pendente', completed: false } : t)) ?? old
       );
       toast({ title: 'Erro ao alterar status', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const cancelTask = async (task: any) => {
+    const ok = await confirmModal(
+      `ALERTA DE AUDITORIA\n\n` +
+      `O cancelamento deste prazo será registrado permanentemente na auditoria do sistema, ` +
+      `com identificação do usuário, data e hora.\n\n` +
+      `Prazo: ${task.title}\n` +
+      `Responsável: ${task.assignee || '—'}\n` +
+      `Vencimento: ${task.due_date ? fmtDate(task.due_date) : '—'}\n\n` +
+      `Use esta opção apenas em caso de prazo atribuído erroneamente. Confirmar cancelamento?`,
+      { title: 'Cancelar prazo atribuído erroneamente', okLabel: 'Cancelar prazo' }
+    );
+    if (!ok) return;
+    try {
+      await updateTask.mutateAsync({ id: task.id, status: 'cancelada', completed: true });
+      await (supabase as any).rpc('log_auth_event', {
+        _event: 'PRAZO_CANCELADO',
+        _metadata: {
+          task_id: task.id,
+          title: task.title,
+          assignee: task.assignee,
+          due_date: task.due_date,
+          process_id: task.process_id,
+          cancelled_at: new Date().toISOString(),
+        },
+      });
+      toast({ title: 'Prazo cancelado', description: 'Registro mantido na auditoria do sistema.' });
+    } catch (e: any) {
+      toast({ title: 'Erro ao cancelar prazo', description: e.message, variant: 'destructive' });
     }
   };
 
@@ -1044,6 +1075,12 @@ export default function Tarefas() {
                                         <Hourglass className="h-3.5 w-3.5 mr-2" /> Em elaboração
                                       </>
                                     )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => cancelTask(task)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5 mr-2" /> Cancelar prazo (erro de atribuição)
                                   </DropdownMenuItem>
 
                                 </DropdownMenuContent>
