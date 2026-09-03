@@ -886,11 +886,21 @@ export default function Tarefas() {
                     : daysLeft !== null && daysLeft <= 2
                       ? 'bg-amber-400'
                       : 'bg-primary';
+              const cardState = task.status === 'cancelada'
+                ? 'cancelada'
+                : task.completed
+                  ? 'concluida'
+                  : 'pendente';
+              const cardClass = task.status === 'cancelada'
+                ? 'border-destructive/30 bg-destructive/5 hover:border-destructive/50'
+                : task.completed
+                  ? 'border-success/30 bg-success/5'
+                  : 'border-stone-200 dark:border-border hover:border-primary/40';
               return (
                 <div
                   key={task.id}
-                  data-task-state={task.completed ? 'concluida' : 'pendente'}
-                  className={`group bg-white dark:bg-card border shadow-sm hover:shadow-xl hover:shadow-stone-200/50 dark:hover:shadow-black/20 transition-all duration-300 rounded-xl overflow-hidden ${task.completed ? 'border-success/30 bg-success/5' : 'border-stone-200 dark:border-border hover:border-primary/40'}`}
+                  data-task-state={cardState}
+                  className={`group bg-white dark:bg-card border shadow-sm hover:shadow-xl hover:shadow-stone-200/50 dark:hover:shadow-black/20 transition-all duration-300 rounded-xl overflow-hidden ${cardClass}`}
                 >
                   <div className="flex">
                     <div className={`w-1.5 shrink-0 ${stripeClass}`} aria-hidden />
