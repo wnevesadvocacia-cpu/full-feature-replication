@@ -1059,9 +1059,21 @@ export default function Tarefas() {
                             size="icon"
                             className="h-10 w-10 text-stone-400 hover:text-stone-900 dark:hover:text-foreground hover:bg-stone-50 dark:hover:bg-muted/40 rounded-lg transition-colors"
                             onClick={() => openEdit(task)}
+                            title="Editar prazo"
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
+                          <DeleteGuard>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-10 w-10 text-stone-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                              onClick={() => setDeleteTarget(task)}
+                              title="Excluir prazo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </DeleteGuard>
                           {!task.completed && task.status !== 'cancelada' && (
                             <div className="flex items-stretch ml-1">
                               <Button
