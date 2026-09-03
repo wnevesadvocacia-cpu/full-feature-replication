@@ -1083,21 +1083,33 @@ export default function Intimacoes() {
                       variant="destructive"
                       disabled={manageBusyId === t.id}
                       onClick={async () => {
-                        const ok = await confirmModal(`Excluir definitivamente o prazo "${t.title}"?`, { title: 'Excluir prazo', okLabel: 'Excluir' });
+                        const ok = await confirmModal(
+                          `Cancelar o prazo "${t.title}"? O registro é mantido para auditoria (status "cancelada") e deixa de contar em cargas, alertas e produtividade.`,
+                          { title: 'Cancelar prazo (auditável)', okLabel: 'Cancelar prazo' },
+                        );
                         if (!ok) return;
                         setManageBusyId(t.id);
-                        const { error } = await (supabase as any).from('tasks').delete().eq('id', t.id);
+                        const { error } = await (supabase as any)
+                          .from('tasks')
+                          .update({ status: 'cancelada', completed: false })
+                          .eq('id', t.id);
+                        if (!error) {
+                          await (supabase as any).rpc('log_auth_event', {
+                            _event: 'PRAZO_CANCELADO',
+                            _metadata: { task_id: t.id, title: t.title, due_date: t.due_date ?? null, origin: 'intimacoes_duplicidade' },
+                          }).then(() => {}, () => {});
+                        }
                         setManageBusyId(null);
-                        if (error) { toast({ title: 'Erro ao excluir', description: error.message, variant: 'destructive' }); return; }
+                        if (error) { toast({ title: 'Erro ao cancelar', description: error.message, variant: 'destructive' }); return; }
                         qc.invalidateQueries({ queryKey: ['tasks'] });
                         setManageTasks((prev) => {
                           const next = (prev ?? []).filter((x) => x.id !== t.id);
                           return next.length ? next : null;
                         });
-                        toast({ title: 'Prazo excluído' });
+                        toast({ title: 'Prazo cancelado', description: 'Registrado na auditoria.' });
                       }}
                     >
-                      <Trash2 className="h-3 w-3 mr-1" /> Excluir
+                      <Trash2 className="h-3 w-3 mr-1" /> Cancelar prazo
                     </Button>
                   </DeleteGuard>
                   <Button
@@ -1105,14 +1117,21 @@ export default function Intimacoes() {
                     disabled={manageBusyId === t.id || !t.title}
                     onClick={async () => {
                       setManageBusyId(t.id);
+                      const original = (manageTasks ?? []).find((x) => x.id === t.id);
                       const { error } = await (supabase as any)
                         .from('tasks')
                         .update({ title: t.title, due_date: t.due_date || null })
                         .eq('id', t.id);
+                      if (!error) {
+                        await (supabase as any).rpc('log_auth_event', {
+                          _event: 'PRAZO_EDITADO',
+                          _metadata: { task_id: t.id, title: t.title, due_date: t.due_date ?? null, origin: 'intimacoes_duplicidade' },
+                        }).then(() => {}, () => {});
+                      }
                       setManageBusyId(null);
                       if (error) { toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' }); return; }
                       qc.invalidateQueries({ queryKey: ['tasks'] });
-                      toast({ title: 'Prazo atualizado' });
+                      toast({ title: 'Prazo atualizado', description: 'Alteração registrada na auditoria.' });
                     }}
                   >
                     {manageBusyId === t.id ? 'Salvando…' : 'Salvar'}
