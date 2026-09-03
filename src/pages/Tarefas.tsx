@@ -103,9 +103,14 @@ function abbreviateName(fullName?: string | null): string {
 
 
 export default function Tarefas() {
-  const [search, setSearch] = useState('');
-  const [searchDraft, setSearchDraft] = useState('');
-  const [viewFilter, setViewFilter] = useState<ViewFilter>('pendentes');
+  const initialQuery = (() => {
+    const h = typeof window !== 'undefined' ? window.location.hash : '';
+    const qs = h.includes('?') ? h.slice(h.indexOf('?') + 1) : '';
+    return new URLSearchParams(qs).get('q') || '';
+  })();
+  const [search, setSearch] = useState(initialQuery);
+  const [searchDraft, setSearchDraft] = useState(initialQuery);
+  const [viewFilter, setViewFilter] = useState<ViewFilter>(initialQuery ? 'todas' : 'pendentes');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);
   const [overviewTarget, setOverviewTarget] = useState<any | null>(null);
