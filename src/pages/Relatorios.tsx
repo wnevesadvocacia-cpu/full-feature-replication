@@ -197,7 +197,7 @@ export default function Relatorios() {
 
   // ── Task priority chart ──
   const taskPriorityData = groupCount(
-    tks.filter(t => !t.completed).map(t => t.priority)
+    tks.filter(t => !t.completed && t.status !== 'cancelada').map(t => t.priority)
   ).map(d => ({
     name: d.name === 'alta' ? 'Alta' : d.name === 'media' ? 'Média' :
           d.name === 'baixa' ? 'Baixa' : d.name ?? 'Sem prioridade',
