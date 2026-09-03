@@ -946,10 +946,11 @@ export default function Tarefas() {
                           })()}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-full border ${task.completed ? 'bg-success/10 text-success border-success/30' : 'bg-info/10 text-info border-info/30'}`}>
-                            {task.completed ? <Check className="h-3 w-3" /> : <Hourglass className="h-3 w-3" />}
-                            {task.completed ? 'Concluído' : 'Pendente'}
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider rounded-full border ${task.status === 'cancelada' ? 'bg-destructive/10 text-destructive border-destructive/30' : task.completed ? 'bg-success/10 text-success border-success/30' : 'bg-info/10 text-info border-info/30'}`}>
+                            {task.status === 'cancelada' ? <X className="h-3 w-3" /> : task.completed ? <Check className="h-3 w-3" /> : <Hourglass className="h-3 w-3" />}
+                            {task.status === 'cancelada' ? 'Cancelado' : task.completed ? 'Concluído' : 'Pendente'}
                           </span>
+
                           {task.status === 'em_elaboracao' && !task.completed && (
                             <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-tighter rounded-full border shadow-gold bg-warning text-warning-foreground border-warning dark:bg-warning dark:text-warning-foreground dark:border-warning">
                               <span className="h-2 w-2 rounded-full bg-warning-foreground animate-pulse" />
