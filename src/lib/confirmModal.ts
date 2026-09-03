@@ -1,7 +1,7 @@
 // Custom confirm modal (sem checkbox "não mostrar novamente" do navegador).
 // Retorna Promise<boolean>. Usa DOM puro para funcionar em qualquer contexto.
 
-export function confirmModal(message: string, opts?: { title?: string; okLabel?: string; cancelLabel?: string }): Promise<boolean> {
+export function confirmModal(message: string, opts?: { title?: string; okLabel?: string; cancelLabel?: string; extraLabel?: string; onExtra?: () => void }): Promise<boolean> {
   return new Promise((resolve) => {
     const title = opts?.title ?? 'Confirmação necessária';
     const okLabel = opts?.okLabel ?? 'Continuar';
