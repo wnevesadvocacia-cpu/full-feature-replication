@@ -203,8 +203,10 @@ export default function Tarefas() {
       return cb - ca;
     }
     if (viewFilter === 'todas') {
-      // Todas: pendentes primeiro (por vencimento), depois concluídas (por conclusão decrescente)
-      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      // Todas: pendentes → concluídas → canceladas
+      const rank = (t: any) => t.status === 'cancelada' ? 2 : t.completed ? 1 : 0;
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
       if (a.completed) {
         const ca = a.completed_at ? new Date(a.completed_at).getTime() : 0;
         const cb = b.completed_at ? new Date(b.completed_at).getTime() : 0;
