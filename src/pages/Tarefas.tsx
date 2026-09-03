@@ -220,6 +220,7 @@ export default function Tarefas() {
 
   const pendentes = (tasks as any[]).filter(t => !t.completed && t.status !== 'cancelada').length;
   const concluidas = (tasks as any[]).filter(t => t.completed && t.status !== 'cancelada').length;
+  const canceladas = (tasks as any[]).filter(t => t.status === 'cancelada').length;
 
 
   // ===== Espelho da agenda: carga de prazos pendentes por colaborador/dia =====
