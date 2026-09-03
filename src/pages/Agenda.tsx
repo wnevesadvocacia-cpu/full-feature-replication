@@ -37,6 +37,7 @@ interface Task {
   created_at?: string;
   priority?: string;
   completed: boolean;
+  status?: string | null;
   process_id?: string;
   start_time?: string | null;
   end_time?: string | null;
