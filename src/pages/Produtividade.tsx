@@ -10,6 +10,7 @@ import { DateInputBR } from '@/components/DateInputBR';
 interface AuditRow {
   id: string;
   title: string;
+  status: string | null;
   completed: boolean;
   due_date: string | null;
   assignee: string | null;
