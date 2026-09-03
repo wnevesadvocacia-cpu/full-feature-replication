@@ -192,6 +192,7 @@ export default function Tarefas() {
 
     if (viewFilter === 'pendentes') return !t.completed && t.status !== 'cancelada';
     if (viewFilter === 'concluidas') return t.completed && t.status !== 'cancelada';
+    if (viewFilter === 'canceladas') return t.status === 'cancelada';
 
     return true;
   }).sort((a: any, b: any) => {
