@@ -1366,11 +1366,21 @@ export default function Intimacoes() {
                   });
                   perAssignee.sort((a, b) => b.n - a.n);
                   const total = perAssignee.reduce((a, b) => a + b.n, 0);
+                  if (total === 0) {
+                    return <p className="mt-1 text-[11px] text-muted-foreground">Nenhum prazo pendente nesta data.</p>;
+                  }
+                  const assigneeColors = ['text-warning', 'text-success', 'text-primary', 'text-destructive'];
                   return (
-                    <p className={`text-[11px] mt-1 ${total >= 2 ? 'text-info font-semibold' : total === 1 ? 'text-amber-600 dark:text-warning font-medium' : 'text-muted-foreground'}`}>
-                      {total === 0
-                        ? 'Nenhum prazo pendente nesta data.'
-                        : `${total} prazo(s) já nesta data: ${perAssignee.map((p) => `${p.name} (${p.n})`).join(' · ')}`}
+                    <p className="mt-1 text-[11px] font-semibold">
+                      <span className="text-info">{total} prazo(s) já nesta data:</span>{' '}
+                      {perAssignee.map((person, index) => (
+                        <span key={person.name}>
+                          {index > 0 && <span className="text-muted-foreground"> · </span>}
+                          <span className={assigneeColors[index % assigneeColors.length]}>
+                            {person.name} ({person.n})
+                          </span>
+                        </span>
+                      ))}
                     </p>
                   );
                 })()}
