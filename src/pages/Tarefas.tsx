@@ -227,7 +227,7 @@ export default function Tarefas() {
   const loadMap = useMemo(() => {
     const m = new Map<string, number>();
     (tasks as any[]).forEach((t) => {
-      if (t.completed || !t.due_date) return;
+      if (t.completed || t.status === 'cancelada' || !t.due_date) return;
       const key = `${t.assignee || '—'}|${String(t.due_date).slice(0, 10)}`;
       m.set(key, (m.get(key) ?? 0) + 1);
     });
