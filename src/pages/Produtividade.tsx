@@ -126,6 +126,7 @@ export default function Produtividade() {
     };
 
     for (const r of data) {
+      if (r.status === 'cancelada') continue; // prazos cancelados não entram em produtividade
       const executor = r.completed_by_email || r.assignee || '—';
       const responsavel = r.assignee || r.completed_by_email || '—';
       const autor = r.created_by_email || r.assignee || '—';
