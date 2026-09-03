@@ -760,8 +760,9 @@ export default function Tarefas() {
           <div className="flex p-1 bg-stone-200/50 dark:bg-muted rounded-full self-start md:self-auto" role="group" aria-label="Filtrar prazos por situação">
             {([
               { v: 'pendentes', l: 'Pendentes', count: pendentes },
-              { v: 'todas', l: 'Todas', count: pendentes + concluidas },
+              { v: 'todas', l: 'Todas', count: pendentes + concluidas + canceladas },
               { v: 'concluidas', l: 'Concluídas', count: concluidas },
+              { v: 'canceladas', l: 'Canceladas', count: canceladas },
             ] as { v: ViewFilter; l: string; count: number }[]).map(({ v, l, count }) => (
               <Button
                 key={v}
