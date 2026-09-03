@@ -1345,16 +1345,36 @@ export default function Intimacoes() {
                   onChange={(v) => setTaskForm({ ...taskForm, due_date: v })}
                   className="mt-1"
                 />
-                {taskForm.assignee && taskForm.due_date && (() => {
-                  const n = loadMap.get(`${taskForm.assignee}|${taskForm.due_date.slice(0, 10)}`) ?? 0;
+                {taskForm.due_date && (() => {
+                  const iso = taskForm.due_date.slice(0, 10);
+                  if (taskForm.assignee) {
+                    const n = loadMap.get(`${taskForm.assignee}|${iso}`) ?? 0;
+                    return (
+                      <p className={`text-[11px] mt-1 ${n >= 2 ? 'text-destructive font-semibold' : n === 1 ? 'text-amber-600 dark:text-warning font-medium' : 'text-muted-foreground'}`}>
+                        {n === 0
+                          ? 'Nenhum prazo pendente do responsável nesta data.'
+                          : `${n} prazo(s) pendente(s) do responsável nesta data${n >= 2 ? ' — considere outra data para evitar acúmulo.' : '.'}`}
+                      </p>
+                    );
+                  }
+                  const perAssignee: { name: string; n: number }[] = [];
+                  loadMap.forEach((n, k) => {
+                    const [email, d] = k.split('|');
+                    if (d !== iso || n <= 0) return;
+                    const member = teamMembers.find((m) => m.email === email);
+                    perAssignee.push({ name: member?.full_name || email, n });
+                  });
+                  perAssignee.sort((a, b) => b.n - a.n);
+                  const total = perAssignee.reduce((a, b) => a + b.n, 0);
                   return (
-                    <p className={`text-[11px] mt-1 ${n >= 3 ? 'text-destructive font-semibold' : 'text-muted-foreground'}`}>
-                      {n === 0
-                        ? 'Nenhum prazo pendente do responsável nesta data.'
-                        : `${n} prazo(s) pendente(s) do responsável nesta data${n >= 3 ? ' — considere outra data para evitar acúmulo.' : '.'}`}
+                    <p className={`text-[11px] mt-1 ${total >= 2 ? 'text-destructive font-semibold' : total === 1 ? 'text-amber-600 dark:text-warning font-medium' : 'text-muted-foreground'}`}>
+                      {total === 0
+                        ? 'Nenhum prazo pendente nesta data.'
+                        : `${total} prazo(s) já nesta data: ${perAssignee.map((p) => `${p.name} (${p.n})`).join(' · ')}`}
                     </p>
                   );
                 })()}
+
               </div>
               <div>
                 <Label>Horário</Label>
