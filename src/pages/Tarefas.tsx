@@ -190,8 +190,9 @@ export default function Tarefas() {
       (qDigits && (procNumDigits.includes(qDigits) || descDigits.includes(qDigits) || titleDigits.includes(qDigits)));
     if (!matchSearch) return false;
 
-    if (viewFilter === 'pendentes') return !t.completed;
-    if (viewFilter === 'concluidas') return t.completed;
+    if (viewFilter === 'pendentes') return !t.completed && t.status !== 'cancelada';
+    if (viewFilter === 'concluidas') return t.completed && t.status !== 'cancelada';
+
     return true;
   }).sort((a: any, b: any) => {
     if (viewFilter === 'concluidas') {
