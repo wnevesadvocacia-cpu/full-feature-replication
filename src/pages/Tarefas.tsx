@@ -267,14 +267,15 @@ export default function Tarefas() {
 
 
   const toggleTask = async (task: any) => {
-    const willComplete = !task.completed;
+    const isCancelled = task.status === 'cancelada';
+    const willComplete = !task.completed && !isCancelled;
     await updateTask.mutateAsync({
       id: task.id,
       completed: willComplete,
-      status: willComplete ? 'concluida' : 'pendente',
+      status: isCancelled ? 'pendente' : (willComplete ? 'concluida' : 'pendente'),
     });
     toast({
-      title: willComplete ? 'Prazo concluído' : 'Prazo reaberto',
+      title: isCancelled ? 'Prazo reativado' : (willComplete ? 'Prazo concluído' : 'Prazo reaberto'),
       description: willComplete && viewFilter === 'pendentes'
         ? 'Ela saiu da lista de pendentes. Veja em "Concluídas" ou "Todas".'
         : undefined,
