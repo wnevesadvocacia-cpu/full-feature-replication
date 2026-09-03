@@ -52,6 +52,14 @@ export function confirmModal(message: string, opts?: { title?: string; okLabel?:
     document.addEventListener('keydown', onKey);
 
     actions.appendChild(cancelBtn);
+    if (opts?.extraLabel && opts?.onExtra) {
+      const extraBtn = document.createElement('button');
+      extraBtn.type = 'button';
+      extraBtn.textContent = opts.extraLabel;
+      extraBtn.style.cssText = 'padding:8px 14px;border-radius:8px;border:1px solid hsl(var(--border,214 32% 91%));background:transparent;color:inherit;cursor:pointer;font-size:14px;font-weight:500;pointer-events:auto !important;';
+      extraBtn.onclick = () => { close(false); opts.onExtra!(); };
+      actions.appendChild(extraBtn);
+    }
     actions.appendChild(okBtn);
     box.appendChild(h);
     box.appendChild(body);
