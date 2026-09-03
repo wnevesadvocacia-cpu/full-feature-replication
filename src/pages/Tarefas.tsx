@@ -700,7 +700,7 @@ export default function Tarefas() {
           const today = new Date();
           today.setHours(0,0,0,0);
           const urgentTasks = (tasks as any[]).filter((t: any) => {
-            if (!t.due_date || t.completed) return false;
+            if (!t.due_date || t.completed || t.status === 'cancelada') return false;
             const due = new Date(t.due_date.slice(0,10) + 'T12:00:00');
             due.setHours(0,0,0,0);
             const daysLeft = Math.ceil((due.getTime() - today.getTime()) / (1000*60*60*24));
