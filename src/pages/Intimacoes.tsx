@@ -595,7 +595,7 @@ export default function Intimacoes() {
         title: 'Prazos pendentes neste processo',
         okLabel: 'Criar mesmo assim',
         extraLabel: 'Editar/excluir prazo existente',
-        onExtra: () => { window.location.hash = `/tarefas?q=${encodeURIComponent(dups[0]?.title || '')}`; },
+        onExtra: () => setManageTasks(dups),
       }
     );
     if (ok) setDuplicateConfirmedProcessId(processId);
