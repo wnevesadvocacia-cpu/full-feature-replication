@@ -1049,7 +1049,7 @@ export default function Tarefas() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {!task.completed && (
+                          {!task.completed && task.status !== 'cancelada' && (
                             <div className="flex items-stretch ml-1">
                               <Button
                                 size="sm"
@@ -1100,16 +1100,16 @@ export default function Tarefas() {
                               </DropdownMenu>
                             </div>
                           )}
-                          {task.completed && (
+                          {(task.completed || task.status === 'cancelada') && (
                             <Button
                               size="sm"
                               variant="outline"
                               className="h-10 px-4 ml-1 rounded-lg text-[11px] font-bold uppercase tracking-widest border-stone-300 text-stone-700 hover:bg-stone-50 dark:border-border dark:text-foreground dark:hover:bg-muted/40"
                               onClick={() => toggleTask(task)}
                               disabled={updateTask.isPending}
-                              title="Reabrir prazo (desfazer conclusão)"
+                              title={task.status === 'cancelada' ? 'Reativar prazo cancelado' : 'Reabrir prazo (desfazer conclusão)'}
                             >
-                              <RotateCcw className="h-4 w-4 mr-1.5" /> Reabrir
+                              <RotateCcw className="h-4 w-4 mr-1.5" /> {task.status === 'cancelada' ? 'Reativar' : 'Reabrir'}
                             </Button>
                           )}
 
