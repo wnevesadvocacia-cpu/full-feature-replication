@@ -179,8 +179,8 @@ export default function Tarefas() {
       .map((member) => norm(member.email));
     const qDigits = onlyDigits(q);
     const procNumDigits = onlyDigits(t.processes?.number || '');
-    const descDigits = onlyDigits(t.description || '');
-    const titleDigits = onlyDigits(t.title || '');
+    const publicationDigits = onlyDigits(publicationNumber(t) || '');
+    const isProcessNumberSearch = qDigits.length >= 7 && /^[\d.\-\s]+$/.test(q);
     const assigneeName = t.assignee
       ? teamMembers.find((m) => m.email === t.assignee)?.full_name || ''
       : '';
@@ -188,11 +188,11 @@ export default function Tarefas() {
       [t.title, t.description, t.assignee, assigneeName, t.processes?.number].filter(Boolean).join(' ')
     );
     const hayWords = haystack.split(/[^a-z0-9]+/).filter(Boolean);
-    const matchSearch = !q ||
-      (matchedAssigneeEmails.length > 0
-        ? matchedAssigneeEmails.includes(norm(t.assignee || ''))
-        : tokens.every((tk) => haystack.includes(tk) || hayWords.some((w) => near(tk, w)))) ||
-      (qDigits && (procNumDigits.includes(qDigits) || descDigits.includes(qDigits) || titleDigits.includes(qDigits)));
+    const matchSearch = !q || (isProcessNumberSearch
+      ? publicationDigits.includes(qDigits) || procNumDigits.includes(qDigits)
+      : (matchedAssigneeEmails.length > 0
+          ? matchedAssigneeEmails.includes(norm(t.assignee || ''))
+          : tokens.every((tk) => haystack.includes(tk) || hayWords.some((w) => near(tk, w))));
     if (!matchSearch) return false;
 
     if (viewFilter === 'pendentes') return !t.completed && t.status !== 'cancelada';
