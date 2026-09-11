@@ -188,11 +188,12 @@ export default function Tarefas() {
       [t.title, t.description, t.assignee, assigneeName, t.processes?.number].filter(Boolean).join(' ')
     );
     const hayWords = haystack.split(/[^a-z0-9]+/).filter(Boolean);
+    const matchesText = matchedAssigneeEmails.length > 0
+      ? matchedAssigneeEmails.includes(norm(t.assignee || ''))
+      : tokens.every((tk) => haystack.includes(tk) || hayWords.some((w) => near(tk, w)));
     const matchSearch = !q || (isProcessNumberSearch
       ? publicationDigits.includes(qDigits) || procNumDigits.includes(qDigits)
-      : (matchedAssigneeEmails.length > 0
-          ? matchedAssigneeEmails.includes(norm(t.assignee || ''))
-          : tokens.every((tk) => haystack.includes(tk) || hayWords.some((w) => near(tk, w))));
+      : matchesText);
     if (!matchSearch) return false;
 
     if (viewFilter === 'pendentes') return !t.completed && t.status !== 'cancelada';
