@@ -27,17 +27,21 @@ import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } f
 // payload bruto em sync_logs.error_message e dispara alerta admin.
 // CRÍTICO: NUNCA preenchemos receivedAt com today silenciosamente — se
 // data_disponibilizacao estiver ausente/inválida, o item é REJEITADO.
+// NOTA: a API DJEN devolve `null` (não ausente) em vários campos opcionais —
+// inclusive `texto` em intimações cujo corpo só existe no documento vinculado
+// (PJe TJBA, p.ex.). `.optional()` puro rejeitava esses itens e a publicação
+// era PERDIDA silenciosamente. Todos os opcionais aceitam null (`nullish`).
 const DjenItemSchema = z.object({
-  id: z.union([z.number(), z.string()]).optional(),
-  hash: z.string().optional(),
-  numero_processo: z.string().optional(),
-  texto: z.string().optional(),
+  id: z.union([z.number(), z.string()]).nullish(),
+  hash: z.string().nullish(),
+  numero_processo: z.string().nullish(),
+  texto: z.string().nullish(),
   // data_disponibilizacao DEVE ser ISO YYYY-MM-DD se presente
-  data_disponibilizacao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data_disponibilizacao inválida').optional(),
-  siglaTribunal: z.string().optional(),
-  nomeOrgao: z.string().optional(),
-  tipoComunicacao: z.string().optional(),
-  prazo: z.string().optional(),
+  data_disponibilizacao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data_disponibilizacao inválida').nullish(),
+  siglaTribunal: z.string().nullish(),
+  nomeOrgao: z.string().nullish(),
+  tipoComunicacao: z.string().nullish(),
+  prazo: z.string().nullish(),
 }).passthrough(); // permite campos extras (CNJ adiciona campos sem aviso)
 
 type DjenItem = z.infer<typeof DjenItemSchema>;
