@@ -804,9 +804,30 @@ function classifyIntimation(text: string, receivedAt: string, tribunal?: string 
 }
 
 // ============= Batch lookup (elimina N+1) =============
+function cnjDigits(v: string | null | undefined): string {
+  return (v || '').replace(/\D/g, '');
+}
+
+function cnjFormatted(v: string | null | undefined): string | null {
+  const d = cnjDigits(v);
+  if (d.length !== 20) return null;
+  return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
+}
+
 async function buildProcessIndex(supabase: any, userIds: string[], numeros: string[]): Promise<Map<string, { id: string; user_id: string }>> {
   const map = new Map<string, { id: string; user_id: string }>();
-  const unique = [...new Set(numeros.filter(Boolean))];
+  // Índice sempre chaveado por DÍGITOS: a API DJEN devolve o CNJ sem máscara
+  // ("00021210320218260604") e o cadastro guarda com máscara — sem normalizar,
+  // nenhuma publicação era vinculada ao processo.
+  const variants = new Set<string>();
+  for (const n of numeros) {
+    const d = cnjDigits(n);
+    if (!d) continue;
+    variants.add(d);
+    const f = cnjFormatted(d);
+    if (f) variants.add(f);
+  }
+  const unique = [...variants];
   const users = [...new Set(userIds.filter(Boolean))];
   if (!unique.length || !users.length) return map;
   // Postgres aceita IN com lotes grandes; quebrando em 500 por segurança
@@ -814,7 +835,7 @@ async function buildProcessIndex(supabase: any, userIds: string[], numeros: stri
   for (let i = 0; i < unique.length; i += BATCH) {
     const chunk = unique.slice(i, i + BATCH);
     const { data } = await supabase.from('processes').select('id, number, user_id').in('user_id', users).in('number', chunk);
-    (data || []).forEach((p: any) => map.set(p.number, { id: p.id, user_id: p.user_id }));
+    (data || []).forEach((p: any) => map.set(cnjDigits(p.number), { id: p.id, user_id: p.user_id }));
   }
   return map;
 }
@@ -1047,7 +1068,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         // caso contrário, intimações endereçadas à SUA OAB somem quando o processo foi cadastrado
         // por um colega cuja config de OAB está inativa (bug histórico de "sumiço" de publicações).
         const targetUserId = row.user_id;
-        const directProcess = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        const directProcess = it.numero_processo ? processIndex.get(cnjDigits(it.numero_processo)) || null : null;
         let processId = directProcess?.id ?? null;
         const parentNumero = extractParentProcess(cleanText, it.numero_processo || null);
         const isExecution = detectsExecutionPhase(cleanText) || (!!parentNumero && parentNumero !== it.numero_processo);
