@@ -674,6 +674,22 @@ let OVERRIDE_MAX_PAGES: number | null = null;
 // por mismatch de nome do advogado/destinatário).
 let BYPASS_NAME_FILTER = false;
 
+// GUARD-RAIL ANTI-PERDA: toda publicação que o pipeline descarta antes do insert
+// é registrada aqui. Se a lista não estiver vazia ao final do run, o sync é
+// marcado como 'partial', o payload vai para sync_logs.error_message e o
+// advogado recebe notificação crítica — NUNCA descarte silencioso.
+let SCHEMA_REJECTED: Array<{ id: string; processo: string; data: string; tribunal: string; motivo: string }> = [];
+
+function describeDroppedItem(raw: any, motivo: string) {
+  return {
+    id: String(raw?.id ?? raw?.hash ?? '—'),
+    processo: String(raw?.numeroprocessocommascara ?? raw?.numero_processo ?? '—'),
+    data: String(raw?.data_disponibilizacao ?? '—'),
+    tribunal: String(raw?.siglaTribunal ?? '—'),
+    motivo,
+  };
+}
+
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
   const daysBack = OVERRIDE_DAYS_BACK ?? DAYS_BACK;
   const dataInicio = OVERRIDE_START_DATE || new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
