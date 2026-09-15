@@ -761,6 +761,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         if (parsed.success) {
           if (!parsed.data.data_disponibilizacao) {
             console.warn('[djen-schema] item sem data_disponibilizacao válida — descartado', JSON.stringify(raw).slice(0, 200));
+            SCHEMA_REJECTED.push(describeDroppedItem(raw, 'data_disponibilizacao ausente/inválida'));
             continue;
           }
           // Dedup entre as duas queries (OAB + nomeAdvogado) usando hash/id quando disponível
@@ -772,6 +773,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
           (parsed.data as any).__queryKind = q.kind;
           validItems.push(parsed.data);
         } else {
+          SCHEMA_REJECTED.push(describeDroppedItem(raw, JSON.stringify(parsed.error.flatten().fieldErrors).slice(0, 200)));
           console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
         }
       }
