@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789431280247,
+      "tag": "0000_exclude_cancelled_tasks_from_pending_checks",
+      "breakpoints": true
+    }
+  ]
+}
