@@ -1068,7 +1068,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
         // caso contrário, intimações endereçadas à SUA OAB somem quando o processo foi cadastrado
         // por um colega cuja config de OAB está inativa (bug histórico de "sumiço" de publicações).
         const targetUserId = row.user_id;
-        const directProcess = it.numero_processo ? processIndex.get(it.numero_processo) || null : null;
+        const directProcess = it.numero_processo ? processIndex.get(cnjDigits(it.numero_processo)) || null : null;
         let processId = directProcess?.id ?? null;
         const parentNumero = extractParentProcess(cleanText, it.numero_processo || null);
         const isExecution = detectsExecutionPhase(cleanText) || (!!parentNumero && parentNumero !== it.numero_processo);
