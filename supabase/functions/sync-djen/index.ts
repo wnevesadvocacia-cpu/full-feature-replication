@@ -691,6 +691,7 @@ function describeDroppedItem(raw: any, motivo: string) {
 }
 
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
+  SCHEMA_REJECTED = [];
   const daysBack = OVERRIDE_DAYS_BACK ?? DAYS_BACK;
   const dataInicio = OVERRIDE_START_DATE || new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
   const dataFim = OVERRIDE_END_DATE || new Date().toISOString().slice(0, 10);
