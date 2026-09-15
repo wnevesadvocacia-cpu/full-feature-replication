@@ -1216,6 +1216,29 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     }).eq('id', row.id);
   }
 
+  // GUARD-RAIL ANTI-PERDA: se alguma publicação foi descartada antes do insert
+  // (schema inesperado da API CNJ ou filtro de nome), o run NÃO é reportado como
+  // limpo: vira 'partial', o payload fica em sync_logs.error_message e o advogado
+  // recebe alerta crítico com processo/data para conferência manual imediata.
+  const droppedTotal = SCHEMA_REJECTED.length + nameRejected;
+  if (status !== 'failed' && droppedTotal > 0) {
+    status = 'partial';
+    const detalhe = SCHEMA_REJECTED.slice(0, 10)
+      .map(d => `${d.processo} (${d.data}, ${d.tribunal}): ${d.motivo}`)
+      .join(' | ');
+    errorMessage = [
+      `PUBLICAÇÕES DESCARTADAS: ${SCHEMA_REJECTED.length} por formato inesperado da API + ${nameRejected} pelo filtro de nome.`,
+      detalhe,
+    ].filter(Boolean).join(' ');
+    await supabase.from('notifications').insert({
+      user_id: row.user_id,
+      title: '🚨 Publicação não importada — conferência manual obrigatória',
+      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${SCHEMA_REJECTED.length ? ` Processos: ${SCHEMA_REJECTED.slice(0, 5).map(d => `${d.processo} (${d.data})`).join(', ')}.` : ''} Confira o processo no diário antes de contar prazo.`,
+      type: 'destructive',
+      link: '/intimacoes',
+    });
+  }
+
   await supabase.from('sync_logs').insert({
     user_id: row.user_id,
     oab_settings_id: row.id,
