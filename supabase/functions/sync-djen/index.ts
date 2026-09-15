@@ -674,7 +674,24 @@ let OVERRIDE_MAX_PAGES: number | null = null;
 // por mismatch de nome do advogado/destinatário).
 let BYPASS_NAME_FILTER = false;
 
+// GUARD-RAIL ANTI-PERDA: toda publicação que o pipeline descarta antes do insert
+// é registrada aqui. Se a lista não estiver vazia ao final do run, o sync é
+// marcado como 'partial', o payload vai para sync_logs.error_message e o
+// advogado recebe notificação crítica — NUNCA descarte silencioso.
+let SCHEMA_REJECTED: Array<{ id: string; processo: string; data: string; tribunal: string; motivo: string }> = [];
+
+function describeDroppedItem(raw: any, motivo: string) {
+  return {
+    id: String(raw?.id ?? raw?.hash ?? '—'),
+    processo: String(raw?.numeroprocessocommascara ?? raw?.numero_processo ?? '—'),
+    data: String(raw?.data_disponibilizacao ?? '—'),
+    tribunal: String(raw?.siglaTribunal ?? '—'),
+    motivo,
+  };
+}
+
 async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
+  SCHEMA_REJECTED = [];
   const daysBack = OVERRIDE_DAYS_BACK ?? DAYS_BACK;
   const dataInicio = OVERRIDE_START_DATE || new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
   const dataFim = OVERRIDE_END_DATE || new Date().toISOString().slice(0, 10);
@@ -761,6 +778,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         if (parsed.success) {
           if (!parsed.data.data_disponibilizacao) {
             console.warn('[djen-schema] item sem data_disponibilizacao válida — descartado', JSON.stringify(raw).slice(0, 200));
+            SCHEMA_REJECTED.push(describeDroppedItem(raw, 'data_disponibilizacao ausente/inválida'));
             continue;
           }
           // Dedup entre as duas queries (OAB + nomeAdvogado) usando hash/id quando disponível
@@ -772,6 +790,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
           (parsed.data as any).__queryKind = q.kind;
           validItems.push(parsed.data);
         } else {
+          SCHEMA_REJECTED.push(describeDroppedItem(raw, JSON.stringify(parsed.error.flatten().fieldErrors).slice(0, 200)));
           console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
         }
       }
@@ -1195,6 +1214,29 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       consecutive_failures: 0,
       last_error: null,
     }).eq('id', row.id);
+  }
+
+  // GUARD-RAIL ANTI-PERDA: se alguma publicação foi descartada antes do insert
+  // (schema inesperado da API CNJ ou filtro de nome), o run NÃO é reportado como
+  // limpo: vira 'partial', o payload fica em sync_logs.error_message e o advogado
+  // recebe alerta crítico com processo/data para conferência manual imediata.
+  const droppedTotal = SCHEMA_REJECTED.length + nameRejected;
+  if (status !== 'failed' && droppedTotal > 0) {
+    status = 'partial';
+    const detalhe = SCHEMA_REJECTED.slice(0, 10)
+      .map(d => `${d.processo} (${d.data}, ${d.tribunal}): ${d.motivo}`)
+      .join(' | ');
+    errorMessage = [
+      `PUBLICAÇÕES DESCARTADAS: ${SCHEMA_REJECTED.length} por formato inesperado da API + ${nameRejected} pelo filtro de nome.`,
+      detalhe,
+    ].filter(Boolean).join(' ');
+    await supabase.from('notifications').insert({
+      user_id: row.user_id,
+      title: '🚨 Publicação não importada — conferência manual obrigatória',
+      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${SCHEMA_REJECTED.length ? ` Processos: ${SCHEMA_REJECTED.slice(0, 5).map(d => `${d.processo} (${d.data})`).join(', ')}.` : ''} Confira o processo no diário antes de contar prazo.`,
+      type: 'destructive',
+      link: '/intimacoes',
+    });
   }
 
   await supabase.from('sync_logs').insert({
