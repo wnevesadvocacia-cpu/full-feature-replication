@@ -407,16 +407,20 @@ export default function Tarefas() {
     if (!form.due_date) { toast({ title: 'Informe o prazo final', description: 'O prazo final (vencimento) é obrigatório.', variant: 'destructive' }); return; }
     setSaving(true);
     try {
-      const { error } = await supabase.from('tasks').update({
+      const expectedDueDate = form.due_date || null;
+      const { data: saved, error } = await supabase.from('tasks').update({
         title: form.title,
         description: form.description || null,
         assignee: form.assignee.trim(),
         priority: form.priority,
-        due_date: form.due_date || null,
+        due_date: expectedDueDate,
         start_date: form.start_date || null,
         process_id: form.process_id || null,
-      }).eq('id', editTarget.id);
+      }).eq('id', editTarget.id).select('id, due_date').maybeSingle();
       if (error) throw error;
+      if (saved?.id !== editTarget.id || saved.due_date !== expectedDueDate) {
+        throw new Error('A alteração não foi gravada. Atualize a tela e tente novamente.');
+      }
       await (supabase as any).rpc('notify_task_cc', {
         _cc_user_id: form.cc_user_id,
         _title: form.title,
