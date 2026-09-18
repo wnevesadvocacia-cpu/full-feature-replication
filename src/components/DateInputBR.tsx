@@ -73,9 +73,11 @@ export function DateInputBR({ value, onChange, className, ...rest }: Props) {
         }}
          onBlur={(e) => {
            editingRef.current = false;
-           if (!brToIso(text)) setText(isoToBr(value));
+           const iso = brToIso(text);
+           setText(iso ? isoToBr(iso) : isoToBr(value));
            rest.onBlur?.(e);
          }}
+
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
