@@ -1114,7 +1114,7 @@ export default function Intimacoes() {
                   </DeleteGuard>
                   <Button
                     size="sm"
-                    disabled={manageBusyId === t.id || !t.title}
+                     disabled={manageBusyId === t.id || !t.title || !t.due_date}
                     onClick={async () => {
                       setManageBusyId(t.id);
                       const { data: saved, error } = await (supabase as any)

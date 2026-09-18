@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -16,7 +16,13 @@ function brToIso(br: string) {
   const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(br);
   if (!m) return '';
   const [, d, mo, y] = m;
-  if (+mo < 1 || +mo > 12 || +d < 1 || +d > 31) return '';
+  const parsed = new Date(`${y}-${mo}-${d}T12:00:00`);
+  if (
+    +mo < 1 || +mo > 12 || +d < 1 || +d > 31
+    || parsed.getFullYear() !== +y
+    || parsed.getMonth() + 1 !== +mo
+    || parsed.getDate() !== +d
+  ) return '';
   return `${y}-${mo}-${d}`;
 }
 
@@ -38,9 +44,10 @@ type Props = Omit<React.ComponentProps<typeof Input>, 'type' | 'value' | 'onChan
 export function DateInputBR({ value, onChange, className, ...rest }: Props) {
   const [text, setText] = useState(isoToBr(value));
   const [open, setOpen] = useState(false);
+  const editingRef = useRef(false);
 
   useEffect(() => {
-    setText(isoToBr(value));
+    if (!editingRef.current) setText(isoToBr(value));
   }, [value]);
 
   const selected = value && /^\d{4}-\d{2}-\d{2}/.test(value) ? new Date(`${value.slice(0, 10)}T12:00:00`) : undefined;
@@ -54,12 +61,20 @@ export function DateInputBR({ value, onChange, className, ...rest }: Props) {
         inputMode="numeric"
         placeholder={rest.placeholder ?? 'dd/mm/aaaa'}
         value={text}
+         onFocus={() => { editingRef.current = true; }}
         onChange={(e) => {
           const masked = mask(e.target.value);
           setText(masked);
           const iso = brToIso(masked);
-          if (iso || masked === '') onChange?.(iso);
+           // Nunca preserve silenciosamente a data anterior enquanto o usuário
+           // está digitando uma data incompleta ou inválida.
+           onChange?.(iso);
         }}
+         onBlur={(e) => {
+           editingRef.current = false;
+           if (!brToIso(text)) setText(isoToBr(value));
+           rest.onBlur?.(e);
+         }}
       />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
