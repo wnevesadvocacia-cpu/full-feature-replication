@@ -1117,12 +1117,18 @@ export default function Intimacoes() {
                     disabled={manageBusyId === t.id || !t.title}
                     onClick={async () => {
                       setManageBusyId(t.id);
-                      const original = (manageTasks ?? []).find((x) => x.id === t.id);
-                      const { error } = await (supabase as any)
+                      const { data: saved, error } = await (supabase as any)
                         .from('tasks')
                         .update({ title: t.title, due_date: t.due_date || null })
-                        .eq('id', t.id);
-                      if (!error) {
+                        .eq('id', t.id)
+                        .select('id,title,due_date')
+                        .maybeSingle();
+                      const expectedDueDate = t.due_date || null;
+                      const persisted = !error
+                        && saved?.id === t.id
+                        && saved?.title === t.title
+                        && saved?.due_date === expectedDueDate;
+                      if (persisted) {
                         await (supabase as any).rpc('log_auth_event', {
                           _event: 'PRAZO_EDITADO',
                           _metadata: { task_id: t.id, title: t.title, due_date: t.due_date ?? null, origin: 'intimacoes_duplicidade' },
@@ -1130,7 +1136,16 @@ export default function Intimacoes() {
                       }
                       setManageBusyId(null);
                       if (error) { toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' }); return; }
-                      qc.invalidateQueries({ queryKey: ['tasks'] });
+                      if (!persisted) {
+                        toast({
+                          title: 'Alteração não gravada',
+                          description: 'O prazo permaneceu com os dados anteriores. Atualize a tela e tente novamente.',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      setManageTasks((prev) => (prev ?? []).map((x) => x.id === t.id ? { ...x, ...saved } : x));
+                      await qc.invalidateQueries({ queryKey: ['tasks'] });
                       toast({ title: 'Prazo atualizado', description: 'Alteração registrada na auditoria.' });
                     }}
                   >
