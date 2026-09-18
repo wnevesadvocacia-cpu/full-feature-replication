@@ -13,9 +13,10 @@ function isoToBr(iso?: string) {
 }
 
 function brToIso(br: string) {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(br);
+  const m = /^(\d{2})\/(\d{2})\/(\d{2}|\d{4})$/.exec(br);
   if (!m) return '';
-  const [, d, mo, y] = m;
+  const [, d, mo, yy] = m;
+  const y = yy.length === 2 ? `20${yy}` : yy;
   const parsed = new Date(`${y}-${mo}-${d}T12:00:00`);
   if (
     +mo < 1 || +mo > 12 || +d < 1 || +d > 31
