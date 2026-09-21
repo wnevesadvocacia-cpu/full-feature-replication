@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, Users, CheckSquare, AlertCircle, TrendingUp, Clock, Plus, Paperclip, Loader2 } from 'lucide-react';
+import { FileText, Users, CheckSquare, AlertCircle, TrendingUp, Clock, Plus, Paperclip, Loader2, Calendar } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 import { attachDocumentToProcess } from '@/lib/attachDocument';
 import { useToast } from '@/hooks/use-toast';
+import { useTasks } from '@/hooks/useTasks';
+import { formatBR, isBusinessDay, todayISO } from '@/lib/cnjCalendar';
 
 interface ProcessStats {
   total: number;
@@ -32,6 +34,13 @@ interface RecentTask {
   due_date: string;
   completed: boolean;
   process_id: string;
+}
+
+interface TeamMember {
+  user_id: string;
+  email: string;
+  full_name: string;
+  roles: string[];
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -70,6 +79,7 @@ export default function Dashboard() {
   const [taskCount, setTaskCount] = useState(0);
   const [recentProcesses, setRecentProcesses] = useState<RecentProcess[]>([]);
   const [upcomingTasks, setUpcomingTasks] = useState<RecentTask[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [attachOpen, setAttachOpen] = useState(false);
   const [attachProcessId, setAttachProcessId] = useState('');
@@ -77,6 +87,7 @@ export default function Dashboard() {
   const [attachUploading, setAttachUploading] = useState(false);
   const attachFileRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
+  const { data: tasks = [] } = useTasks();
 
   const handleDashboardAttach = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -167,6 +178,9 @@ export default function Dashboard() {
           .order('due_date', { ascending: true })
           .limit(8);
         setUpcomingTasks(tasks ?? []);
+
+        const { data: members } = await supabase.rpc('list_team_members');
+        setTeamMembers((members ?? []) as TeamMember[]);
       } catch (err) {
         console.error('Dashboard load error:', err);
       } finally {
@@ -184,6 +198,46 @@ export default function Dashboard() {
 
   const completionRate = stats.total > 0 ? Math.round((stats.concluded / stats.total) * 100) : 0;
   const avgPerClient = clientCount > 0 ? (stats.total / clientCount).toFixed(1) : '0';
+
+
+  const loadDays = useMemo(() => {
+    const base = new Date(todayISO() + 'T12:00:00');
+    const out: string[] = [];
+    for (let i = 0; i < 21 && out.length < 10; i++) {
+      const d = new Date(base);
+      d.setDate(d.getDate() + i);
+      const iso = d.toISOString().slice(0, 10);
+      if (isBusinessDay(iso)) out.push(iso);
+    }
+    return out;
+  }, []);
+
+  const loadRows = useMemo(() => {
+    const loadMap = new Map<string, number>();
+    (tasks as any[]).forEach((t) => {
+      if (t.completed || t.status === 'cancelada' || !t.due_date) return;
+      const key = `${t.assignee || '—'}|${String(t.due_date).slice(0, 10)}`;
+      loadMap.set(key, (loadMap.get(key) ?? 0) + 1);
+    });
+
+    const emails = new Set<string>();
+    loadMap.forEach((_v, k) => {
+      const [email, iso] = k.split('|');
+      if (loadDays.includes(iso)) emails.add(email);
+    });
+
+    return Array.from(emails).map((email) => {
+      const member = teamMembers.find((m) => m.email === email);
+      const cells = loadDays.map((iso) => loadMap.get(`${email}|${iso}`) ?? 0);
+      return { email, name: member?.full_name || email, cells, total: cells.reduce((a, b) => a + b, 0) };
+    }).sort((a, b) => b.total - a.total);
+  }, [loadDays, tasks, teamMembers]);
+
+  const loadCellClass = (n: number) =>
+    n === 0 ? 'text-stone-300 dark:text-muted-foreground/40'
+      : n <= 2 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
+        : n <= 4 ? 'bg-amber-50 text-amber-700 dark:bg-warning/15 dark:text-warning'
+          : 'bg-red-50 text-red-700 font-bold dark:bg-destructive/15 dark:text-destructive';
 
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
@@ -286,6 +340,51 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </section>
+
+
+        {loadRows.length > 0 && (
+          <section className="rounded-lg border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden shadow-[var(--shadow-card)]">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-stone-200 dark:border-border">
+              <Calendar className="h-4 w-4 text-primary" />
+              <h2 className="text-[11px] font-bold uppercase tracking-widest text-stone-600 dark:text-muted-foreground">
+                Carga de prazos por colaborador (próximos dias úteis)
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-stone-50 dark:bg-muted/40">
+                    <th className="text-left font-semibold px-4 py-2 text-stone-600 dark:text-muted-foreground">Responsável</th>
+                    {loadDays.map((iso) => (
+                      <th key={iso} className="px-2 py-2 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
+                        {formatBR(iso).slice(0, 5)}
+                      </th>
+                    ))}
+                    <th className="px-3 py-2 text-center font-semibold text-stone-600 dark:text-muted-foreground">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loadRows.map((row) => (
+                    <tr key={row.email} className="border-t border-stone-100 dark:border-border/60">
+                      <td className="px-4 py-2 max-w-[220px] truncate text-stone-800 dark:text-foreground" title={row.email}>{row.name}</td>
+                      {row.cells.map((n, i) => (
+                        <td key={loadDays[i]} className="px-1 py-1 text-center">
+                          <span className={`inline-flex h-6 min-w-6 items-center justify-center rounded px-1 tabular-nums ${loadCellClass(n)}`}>
+                            {n || '·'}
+                          </span>
+                        </td>
+                      ))}
+                      <td className="px-3 py-2 text-center font-bold tabular-nums text-stone-900 dark:text-foreground">{row.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="px-4 py-2 text-[11px] text-stone-500 dark:text-muted-foreground border-t border-stone-100 dark:border-border/60">
+              Verde: até 2 prazos · Âmbar: 3-4 · Vermelho: 5 ou mais no mesmo dia.
+            </p>
+          </section>
+        )}
 
         {/* Two-column main */}
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
