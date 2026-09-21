@@ -579,7 +579,6 @@ export default function Tarefas() {
 
   const taskFormFields = (
     <div className="space-y-4">
-      {loadTableCompact}
       <div
         role="alert"
         className="rounded-md border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-400 p-3 text-[12px] leading-relaxed text-amber-900 dark:text-amber-100"
@@ -1260,6 +1259,7 @@ export default function Tarefas() {
               )}
             </DialogTitle>
           </DialogHeader>
+          {loadTableCompact}
           <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6 flex-1 overflow-hidden">
             <div className="overflow-y-auto pr-2 py-1">
               <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
