@@ -533,32 +533,32 @@ export default function Tarefas() {
   }
 
   const loadTableCompact = (
-    <div className="rounded-md border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden">
+    <div className="shrink-0 rounded-md border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 dark:border-border">
         <Calendar className="h-4 w-4 text-primary" />
         <h3 className="text-[11px] font-bold uppercase tracking-widest text-stone-700 dark:text-muted-foreground">
           Controle de carga — prazos por colaborador
         </h3>
       </div>
-      <div className="overflow-x-auto">
+      <div className="max-h-[210px] overflow-auto">
         <table className="w-full min-w-[860px] text-xs">
           <thead>
             <tr className="bg-stone-50 dark:bg-muted/40">
-              <th className="sticky left-0 z-10 min-w-[190px] bg-stone-50 dark:bg-muted px-3 py-2 text-left font-semibold text-stone-600 dark:text-muted-foreground">Colaborador</th>
+              <th className="sticky left-0 top-0 z-30 min-w-[190px] bg-stone-50 dark:bg-muted px-3 py-2 text-left font-semibold text-stone-600 dark:text-muted-foreground">Colaborador</th>
               {loadDays.map((iso) => (
-                <th key={iso} className="min-w-[58px] px-1.5 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
+                <th key={iso} className="sticky top-0 z-20 min-w-[58px] bg-stone-50 dark:bg-muted px-1.5 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
                   <span className="block text-[9px] uppercase">{new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
                   <span className="block text-[11px] text-foreground">{formatBR(iso).slice(0, 5)}</span>
                 </th>
               ))}
-              <th className="min-w-[54px] px-2 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground">Carga</th>
+              <th className="sticky top-0 z-20 min-w-[54px] bg-stone-50 dark:bg-muted px-2 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground">Carga</th>
             </tr>
           </thead>
           <tbody>
             {loadRows.map((row) => (
               <tr key={row.email} className="border-t border-stone-100 dark:border-border/60">
                 <td className="sticky left-0 z-10 bg-white dark:bg-card px-3 py-2 text-stone-800 dark:text-foreground" title={row.email}>
-                  <span className="block max-w-[180px] truncate font-semibold">{row.name}</span>
+                  <span className="block max-w-[180px] truncate font-semibold">{row.name.trim() || row.email}</span>
                   {row.name !== row.email && <span className="block max-w-[180px] truncate text-[9px] text-muted-foreground">{row.email}</span>}
                 </td>
                 {row.cells.map((n, i) => (
