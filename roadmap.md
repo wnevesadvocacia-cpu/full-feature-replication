@@ -1,0 +1,2 @@
+- [x] Exibir controle de carga no Dashboard.
+- [x] Exibir e validar controle de carga no modal Editar Prazo.
