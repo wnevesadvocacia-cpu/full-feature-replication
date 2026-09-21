@@ -254,16 +254,15 @@ export default function Tarefas() {
 
   const loadRows = useMemo(() => {
     const emails = new Set<string>(teamMembers.map((member) => member.email).filter(Boolean));
-    loadMap.forEach((_v, k) => {
-      const [email, iso] = k.split('|');
-      if (loadDays.includes(iso)) emails.add(email);
+    (tasks as any[]).forEach((task) => {
+      if (task.assignee && task.status !== 'cancelada') emails.add(task.assignee);
     });
     return Array.from(emails).map((email) => {
       const member = teamMembers.find((m) => m.email === email);
       const cells = loadDays.map((iso) => loadMap.get(`${email}|${iso}`) ?? 0);
       return { email, name: member?.full_name || email, cells, total: cells.reduce((a, b) => a + b, 0) };
     }).sort((a, b) => b.total - a.total);
-  }, [loadMap, loadDays, teamMembers]);
+  }, [loadMap, loadDays, teamMembers, tasks]);
 
   const loadCellClass = (n: number) =>
     n === 0 ? 'text-stone-300 dark:text-muted-foreground/40'
@@ -542,32 +541,39 @@ export default function Tarefas() {
         </h3>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full min-w-[860px] text-xs">
           <thead>
             <tr className="bg-stone-50 dark:bg-muted/40">
-              <th className="text-left font-semibold px-3 py-1.5 text-stone-600 dark:text-muted-foreground">Responsável</th>
+              <th className="sticky left-0 z-10 min-w-[190px] bg-stone-50 dark:bg-muted px-3 py-2 text-left font-semibold text-stone-600 dark:text-muted-foreground">Colaborador</th>
               {loadDays.map((iso) => (
-                <th key={iso} className="px-1.5 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
-                  {formatBR(iso).slice(0, 5)}
+                <th key={iso} className="min-w-[58px] px-1.5 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground whitespace-nowrap">
+                  <span className="block text-[9px] uppercase">{new Date(`${iso}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}</span>
+                  <span className="block text-[11px] text-foreground">{formatBR(iso).slice(0, 5)}</span>
                 </th>
               ))}
-              <th className="px-2 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground">Total</th>
+              <th className="min-w-[54px] px-2 py-1.5 text-center font-semibold text-stone-600 dark:text-muted-foreground">Carga</th>
             </tr>
           </thead>
           <tbody>
             {loadRows.map((row) => (
               <tr key={row.email} className="border-t border-stone-100 dark:border-border/60">
-                <td className="px-3 py-1.5 max-w-[160px] truncate text-stone-800 dark:text-foreground" title={row.email}>{row.name}</td>
+                <td className="sticky left-0 z-10 bg-white dark:bg-card px-3 py-2 text-stone-800 dark:text-foreground" title={row.email}>
+                  <span className="block max-w-[180px] truncate font-semibold">{row.name}</span>
+                  {row.name !== row.email && <span className="block max-w-[180px] truncate text-[9px] text-muted-foreground">{row.email}</span>}
+                </td>
                 {row.cells.map((n, i) => (
                   <td key={loadDays[i]} className="px-0.5 py-0.5 text-center">
                     <span className={`inline-flex h-5 min-w-5 items-center justify-center rounded px-1 tabular-nums ${loadCellClass(n)}`}>
-                      {n || '·'}
+                      {n}
                     </span>
                   </td>
                 ))}
                 <td className="px-2 py-1.5 text-center font-bold tabular-nums text-stone-900 dark:text-foreground">{row.total}</td>
               </tr>
             ))}
+            {loadRows.length === 0 && (
+              <tr><td colSpan={loadDays.length + 2} className="px-3 py-4 text-center text-muted-foreground">Nenhum colaborador disponível.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
