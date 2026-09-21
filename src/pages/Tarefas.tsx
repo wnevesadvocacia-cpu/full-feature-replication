@@ -1237,7 +1237,7 @@ export default function Tarefas() {
 
       {/* Edit Dialog */}
       <Dialog open={!!editTarget} onOpenChange={(o) => { if (!o) setEditTarget(null); }}>
-        <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-6xl w-[95vw] max-h-[92vh] overflow-y-auto flex flex-col">
           <DialogHeader className="pb-2 border-b">
             <DialogTitle className="flex flex-wrap items-center gap-2">
               <span>Editar Prazo</span>
@@ -1266,14 +1266,14 @@ export default function Tarefas() {
             </DialogTitle>
           </DialogHeader>
           {loadTableCompact}
-          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6 flex-1 overflow-hidden">
-            <div className="overflow-y-auto pr-2 py-1">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6 flex-none">
+            <div className="pr-2 py-1">
               <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados do prazo
               </div>
               {taskFormFields}
             </div>
-            <div className="border-l md:pl-4 flex flex-col overflow-hidden min-h-[400px]">
+            <div className="border-l md:pl-4 flex flex-col min-h-[400px]">
               <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <MessageSquare className="h-3.5 w-3.5" /> Histórico de conversas
               </div>
