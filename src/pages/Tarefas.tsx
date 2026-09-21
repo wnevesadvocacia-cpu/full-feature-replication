@@ -540,7 +540,11 @@ export default function Tarefas() {
           Controle de carga — prazos por colaborador
         </h3>
       </div>
-      <div className="max-h-[210px] overflow-auto">
+      <div
+        className="max-h-[240px] overflow-x-auto overflow-y-scroll overscroll-contain [scrollbar-gutter:stable]"
+        tabIndex={0}
+        aria-label="Tabela rolável de carga por colaborador"
+      >
         <table className="w-full min-w-[860px] text-xs">
           <thead>
             <tr className="bg-stone-50 dark:bg-muted/40">
