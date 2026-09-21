@@ -253,7 +253,7 @@ export default function Tarefas() {
   }, []);
 
   const loadRows = useMemo(() => {
-    const emails = new Set<string>();
+    const emails = new Set<string>(teamMembers.map((member) => member.email).filter(Boolean));
     loadMap.forEach((_v, k) => {
       const [email, iso] = k.split('|');
       if (loadDays.includes(iso)) emails.add(email);
@@ -533,7 +533,7 @@ export default function Tarefas() {
     return <div className="p-6 flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
   }
 
-  const loadTableCompact = loadRows.length > 0 ? (
+  const loadTableCompact = (
     <div className="rounded-md border border-stone-200 dark:border-border bg-white dark:bg-card overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-2 border-b border-stone-200 dark:border-border">
         <Calendar className="h-4 w-4 text-primary" />
@@ -575,7 +575,7 @@ export default function Tarefas() {
         Verde: até 2 · Âmbar: 3-4 · Vermelho: 5+ no mesmo dia.
       </p>
     </div>
-  ) : null;
+  );
 
   const taskFormFields = (
     <div className="space-y-4">
