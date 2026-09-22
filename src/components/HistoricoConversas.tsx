@@ -77,6 +77,7 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
 
   if (!processId && !taskId) {
     console.warn('[HistoricoConversas] requires processId or taskId');
@@ -161,7 +162,9 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
 
   // Auto-scroll quando chega novo comentário
   useEffect(() => {
-    listEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    const timeline = timelineRef.current;
+    if (!timeline) return;
+    timeline.scrollTo({ top: timeline.scrollHeight, behavior: 'smooth' });
   }, [comments.length]);
 
   async function handleSend() {
@@ -237,7 +240,12 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
         </div>
       )}
       {/* Timeline */}
-      <div className="scroll-fluid min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 space-y-4">
+      <div
+        ref={timelineRef}
+        className="scroll-fluid scroll-visible min-h-0 flex-1 overflow-y-scroll overscroll-contain pr-2 space-y-4"
+        tabIndex={0}
+        aria-label="Histórico de conversas rolável"
+      >
         {isLoading && (
           <div className="flex items-center justify-center py-6 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Carregando histórico…
