@@ -254,6 +254,24 @@
     -webkit-overflow-scrolling: touch;
   }
 
+  /* Barra sempre identificável nas áreas com rolagem própria */
+  .scroll-visible {
+    scrollbar-width: auto;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.65) hsl(var(--muted));
+  }
+  .scroll-visible::-webkit-scrollbar {
+    width: 10px;
+  }
+  .scroll-visible::-webkit-scrollbar-track {
+    background: hsl(var(--muted));
+    border-radius: 999px;
+  }
+  .scroll-visible::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.65);
+    border: 2px solid hsl(var(--muted));
+    border-radius: 999px;
+  }
+
 
   .shadow-card { box-shadow: var(--shadow-card); }
   .shadow-card-hover { box-shadow: var(--shadow-card-hover); }
