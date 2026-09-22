@@ -40,6 +40,7 @@ interface Props {
   processId?: string;
   taskId?: string;
   className?: string;
+  scrollWholePanel?: boolean;
 }
 
 function formatDateTime(iso: string): string {
@@ -67,7 +68,7 @@ function colorFor(seed: string): string {
   return COLORS[h % COLORS.length];
 }
 
-export function HistoricoConversas({ processId, taskId, className }: Props) {
+export function HistoricoConversas({ processId, taskId, className, scrollWholePanel = false }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -227,7 +228,7 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
   }
 
   return (
-    <div className={`flex h-full min-h-0 flex-col overflow-hidden ${className ?? ''}`}>
+    <div className={`flex min-h-0 flex-col ${scrollWholePanel ? 'h-auto overflow-visible' : 'h-full overflow-hidden'} ${className ?? ''}`}>
       {unread.length > 0 && (
         <div className="mb-2 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
           <MessageSquare className="h-3.5 w-3.5 shrink-0" />
@@ -242,7 +243,7 @@ export function HistoricoConversas({ processId, taskId, className }: Props) {
       {/* Timeline */}
       <div
         ref={timelineRef}
-        className="scroll-fluid scroll-visible min-h-0 flex-1 overflow-y-scroll overscroll-contain pr-2 space-y-4"
+        className={`scroll-fluid min-h-0 pr-2 space-y-4 ${scrollWholePanel ? 'flex-none overflow-visible' : 'scroll-visible flex-1 overflow-y-scroll overscroll-contain'}`}
         tabIndex={0}
         aria-label="Histórico de conversas rolável"
       >

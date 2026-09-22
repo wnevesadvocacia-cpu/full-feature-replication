@@ -1283,8 +1283,12 @@ export default function Tarefas() {
                 <MessageSquare className="h-3.5 w-3.5" /> Histórico de conversas
               </div>
               {editTarget?.id && (
-                <div className="flex-1 overflow-hidden">
-                  <HistoricoConversas taskId={editTarget.id} processId={editTarget.process_id ?? undefined} />
+                <div className="scroll-fluid scroll-visible min-h-0 flex-1 overflow-y-scroll overscroll-contain pr-2">
+                  <HistoricoConversas
+                    taskId={editTarget.id}
+                    processId={editTarget.process_id ?? undefined}
+                    scrollWholePanel
+                  />
                 </div>
               )}
             </div>
