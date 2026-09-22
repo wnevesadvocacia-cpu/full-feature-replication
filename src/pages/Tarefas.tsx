@@ -1270,15 +1270,15 @@ export default function Tarefas() {
             </DialogTitle>
           </DialogHeader>
           {loadTableCompact}
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6">
-            <div className="pr-2 py-1">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <div className="grid h-full min-h-0 grid-cols-1 md:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-6">
+            <div className="min-h-0 overflow-y-auto overscroll-contain pr-3 py-1">
               <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary" /> Dados do prazo
               </div>
               {taskFormFields}
             </div>
-            <div className="border-l md:pl-4 flex flex-col min-h-[400px]">
+            <div className="border-l md:pl-4 flex flex-col min-h-0 overflow-hidden">
               <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <MessageSquare className="h-3.5 w-3.5" /> Histórico de conversas
               </div>
