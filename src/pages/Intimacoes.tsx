@@ -1070,6 +1070,13 @@ export default function Intimacoes() {
                   />
                 </div>
                 <div>
+                  <Label>Colaborador atribuído</Label>
+                  <Input
+                    value={teamMembers.find((member) => member.email === t.assignee)?.full_name || t.assignee || 'Não informado'}
+                    readOnly
+                  />
+                </div>
+                <div>
                   <Label>Prazo final</Label>
                   <DateInputBR
                     value={t.due_date ?? ''}
