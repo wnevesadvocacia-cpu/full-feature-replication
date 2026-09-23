@@ -541,7 +541,7 @@ export default function Tarefas() {
         </h3>
       </div>
       <div
-        className="max-h-[240px] overflow-x-auto overflow-y-scroll overscroll-contain [scrollbar-gutter:stable]"
+        className="scroll-visible h-[150px] overflow-x-auto overflow-y-scroll overscroll-contain [scrollbar-gutter:stable]"
         tabIndex={0}
         aria-label="Tabela rolável de carga por colaborador"
       >
