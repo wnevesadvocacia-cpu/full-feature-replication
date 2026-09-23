@@ -149,7 +149,7 @@ export default function Dashboard() {
           supabase.from('clients').select('*', { count: 'exact', head: true }),
           supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', uid)
             .eq('completed', false)
-            .neq('status', 'cancelada')
+            .or('status.is.null,status.neq.cancelada')
             .not('assignee', 'eq', 'movimentacao')
             .not('assignee', 'eq', 'documento')
             .not('assignee', 'eq', 'agenda'),
@@ -161,7 +161,7 @@ export default function Dashboard() {
             .select('id, title, due_date, completed, process_id, assignee, status')
             .eq('user_id', uid)
             .eq('completed', false)
-            .neq('status', 'cancelada')
+            .or('status.is.null,status.neq.cancelada')
             .not('due_date', 'is', null)
             .not('assignee', 'eq', 'movimentacao')
             .not('assignee', 'eq', 'documento')
@@ -172,7 +172,7 @@ export default function Dashboard() {
             .select('id, title, due_date, completed, process_id, assignee, status')
             .eq('user_id', uid)
             .eq('completed', false)
-            .neq('status', 'cancelada')
+            .or('status.is.null,status.neq.cancelada')
             .gte('due_date', todayISO())
             .lte('due_date', new Date(Date.now() + 21 * 86_400_000).toISOString().slice(0, 10))
             .not('assignee', 'eq', 'movimentacao')
