@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { ProcessSearchSelect } from '@/components/ProcessSearchSelect';
 import { attachDocumentToProcess } from '@/lib/attachDocument';
 import { useToast } from '@/hooks/use-toast';
-import { useTasks } from '@/hooks/useTasks';
+import { useAuth } from '@/contexts/AuthContext';
 import { formatBR, isBusinessDay, todayISO } from '@/lib/cnjCalendar';
 
 interface ProcessStats {
@@ -34,6 +34,8 @@ interface RecentTask {
   due_date: string;
   completed: boolean;
   process_id: string;
+  assignee?: string | null;
+  status?: string | null;
 }
 
 interface TeamMember {
@@ -87,7 +89,8 @@ export default function Dashboard() {
   const [attachUploading, setAttachUploading] = useState(false);
   const attachFileRef = useRef<HTMLInputElement | null>(null);
   const { toast } = useToast();
-  const { data: tasks = [] } = useTasks();
+  const { user } = useAuth();
+  const [tasks, setTasks] = useState<RecentTask[]>([]);
 
   const handleDashboardAttach = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -118,7 +121,6 @@ export default function Dashboard() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
         const uid = user?.id;
         if (!uid) { setLoading(false); return; }
 
@@ -132,6 +134,10 @@ export default function Dashboard() {
           { count: pendingCount },
           { count: clientTotal },
           { count: taskTotal },
+          { data: recent },
+          { data: upcoming },
+          { data: workload },
+          { data: members },
         ] = await Promise.all([
           supabase.from('processes').select('*', { count: 'exact', head: true }),
           supabase.from('processes').select('*', { count: 'exact', head: true })
@@ -143,9 +149,36 @@ export default function Dashboard() {
           supabase.from('clients').select('*', { count: 'exact', head: true }),
           supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('user_id', uid)
             .eq('completed', false)
+            .or('status.is.null,status.neq.cancelada')
             .not('assignee', 'eq', 'movimentacao')
             .not('assignee', 'eq', 'documento')
             .not('assignee', 'eq', 'agenda'),
+          supabase.from('processes')
+            .select('id, number, title, status, updated_at')
+            .order('updated_at', { ascending: false })
+            .limit(5),
+          supabase.from('tasks')
+            .select('id, title, due_date, completed, process_id, assignee, status')
+            .eq('user_id', uid)
+            .eq('completed', false)
+            .or('status.is.null,status.neq.cancelada')
+            .not('due_date', 'is', null)
+            .not('assignee', 'eq', 'movimentacao')
+            .not('assignee', 'eq', 'documento')
+            .not('assignee', 'eq', 'agenda')
+            .order('due_date', { ascending: true })
+            .limit(8),
+          supabase.from('tasks')
+            .select('id, title, due_date, completed, process_id, assignee, status')
+            .eq('user_id', uid)
+            .eq('completed', false)
+            .or('status.is.null,status.neq.cancelada')
+            .gte('due_date', todayISO())
+            .lte('due_date', new Date(Date.now() + 21 * 86_400_000).toISOString().slice(0, 10))
+            .not('assignee', 'eq', 'movimentacao')
+            .not('assignee', 'eq', 'documento')
+            .not('assignee', 'eq', 'agenda'),
+          supabase.rpc('list_team_members'),
         ]);
 
         setStats({
@@ -157,29 +190,9 @@ export default function Dashboard() {
         setClientCount(clientTotal ?? 0);
         setTaskCount(taskTotal ?? 0);
 
-        // Recent processes
-        const { data: recent } = await supabase
-          .from('processes')
-          .select('id, number, title, status, updated_at')
-          .order('updated_at', { ascending: false })
-          .limit(5);
         setRecentProcesses(recent ?? []);
-
-        // Upcoming tasks (mesma regra da página Tarefas)
-        const { data: tasks } = await supabase
-          .from('tasks')
-          .select('id, title, due_date, completed, process_id, assignee')
-          .eq('user_id', uid)
-          .eq('completed', false)
-          .not('due_date', 'is', null)
-          .not('assignee', 'eq', 'movimentacao')
-          .not('assignee', 'eq', 'documento')
-          .not('assignee', 'eq', 'agenda')
-          .order('due_date', { ascending: true })
-          .limit(8);
-        setUpcomingTasks(tasks ?? []);
-
-        const { data: members } = await supabase.rpc('list_team_members');
+        setUpcomingTasks((upcoming ?? []) as RecentTask[]);
+        setTasks((workload ?? []) as RecentTask[]);
         setTeamMembers((members ?? []) as TeamMember[]);
       } catch (err) {
         console.error('Dashboard load error:', err);
@@ -188,7 +201,7 @@ export default function Dashboard() {
       }
     }
     loadDashboard();
-  }, []);
+  }, [user?.id]);
 
   const formatDate = (iso: string) => {
     if (!iso) return '—';

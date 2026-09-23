@@ -11,10 +11,8 @@ export function NotificationBell() {
   const { data: count = 0 } = useQuery({
     queryKey: ['notifications-unread-count', user?.id],
     enabled: !!user,
-    refetchInterval: 30_000,
-    staleTime: 0,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
     queryFn: async () => {
       if (!user?.id) return 0;
       const { count, error } = await (supabase as any)
