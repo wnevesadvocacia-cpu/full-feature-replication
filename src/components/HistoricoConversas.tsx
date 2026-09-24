@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Send, Loader2, MessageSquare, Paperclip } from 'lucide-react';
+import { Send, Loader2, MessageSquare, Paperclip, FileText, X } from 'lucide-react';
 import { attachDocumentToProcess } from '@/lib/attachDocument';
 
 export type CommentType =
@@ -76,6 +76,7 @@ export function HistoricoConversas({ processId, taskId, className, scrollWholePa
   const [type, setType] = useState<CommentType>('comentario');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -172,58 +173,76 @@ export function HistoricoConversas({ processId, taskId, className, scrollWholePa
     const content = text.trim();
     if (!content || !user) return;
     setSending(true);
-    const author_name = (user.user_metadata as any)?.full_name || user.email || 'Usuário';
-    const payload: any = {
-      user_id: user.id,
-      author_name,
-      content,
-      type,
-      process_id: processId ?? null,
-      task_id: taskId ?? null,
-    };
-    const { error } = await supabase.from('process_comments' as any).insert(payload);
-    setSending(false);
-    if (error) {
-      toast({ title: 'Erro ao enviar', description: error.message, variant: 'destructive' });
-      return;
+    try {
+      let commentContent = content;
+      let commentType = type;
+
+      if (pendingFile) {
+        if (!processId) throw new Error('Abra a conversa por um processo para anexar documentos.');
+        setUploading(true);
+        const doc = await attachDocumentToProcess({
+          userId: user.id,
+          file: pendingFile,
+          processId,
+          description: content,
+          category: 'comentario',
+        });
+        commentContent = `${content}\n\n📎 Documento anexado: ${pendingFile.name}\n[[document:${doc.id}]]`;
+        commentType = 'documento';
+      }
+
+      const author_name = (user.user_metadata as any)?.full_name || user.email || 'Usuário';
+      const { error } = await supabase.from('process_comments' as any).insert({
+        user_id: user.id,
+        author_name,
+        content: commentContent,
+        type: commentType,
+        process_id: processId ?? null,
+        task_id: taskId ?? null,
+      });
+      if (error) throw error;
+
+      setText('');
+      setPendingFile(null);
+      setType('comentario');
+      if (fileRef.current) fileRef.current.value = '';
+      qc.invalidateQueries({ queryKey });
+      qc.invalidateQueries({ queryKey: ['documentos'] });
+    } catch (e: any) {
+      toast({ title: 'Erro ao enviar', description: e.message, variant: 'destructive' });
+    } finally {
+      setSending(false);
+      setUploading(false);
     }
-    setText('');
-    setType('comentario');
-    qc.invalidateQueries({ queryKey });
   }
 
-  async function handleAttach(file: File | null) {
+  function handleAttach(file: File | null) {
     if (!file || !user) return;
     if (!processId) {
       toast({ title: 'Anexo requer processo', description: 'Abra a partir de um processo para anexar documentos.', variant: 'destructive' });
       return;
     }
-    setUploading(true);
+    setPendingFile(file);
+  }
+
+  async function openAttachedDocument(comment: Comment) {
     try {
-      const doc = await attachDocumentToProcess({
-        userId: user.id,
-        file,
-        processId,
-        description: 'Anexado via comentário',
-        category: 'comentario',
-      });
-      const author_name = (user.user_metadata as any)?.full_name || user.email || 'Usuário';
-      await supabase.from('process_comments' as any).insert({
-        user_id: user.id,
-        author_name,
-        content: `📎 Documento anexado: ${doc?.name ?? file.name}`,
-        type: 'documento' as CommentType,
-        process_id: processId ?? null,
-        task_id: taskId ?? null,
-      });
-      qc.invalidateQueries({ queryKey });
-      qc.invalidateQueries({ queryKey: ['documentos'] });
-      toast({ title: 'Documento anexado ao processo.' });
+      const id = comment.content.match(/\[\[document:([0-9a-f-]+)\]\]/i)?.[1];
+      const legacyName = comment.content.match(/📎 Documento anexado:\s*([^\n]+)/)?.[1]?.trim();
+      let query = supabase.from('documents').select('storage_path').limit(1);
+      if (id) query = query.eq('id', id);
+      else if (legacyName && processId) query = query.eq('process_id', processId).eq('name', legacyName).order('created_at', { ascending: false });
+      else throw new Error('Documento não identificado neste comentário.');
+
+      const { data: documents, error } = await query;
+      if (error) throw error;
+      const storagePath = documents?.[0]?.storage_path;
+      if (!storagePath) throw new Error('Documento não encontrado.');
+      const { data: signed, error: signedError } = await supabase.storage.from('documents').createSignedUrl(storagePath, 300);
+      if (signedError || !signed?.signedUrl) throw signedError ?? new Error('Não foi possível abrir o documento.');
+      window.open(signed.signedUrl, '_blank', 'noopener,noreferrer');
     } catch (e: any) {
-      toast({ title: 'Erro ao anexar', description: e.message, variant: 'destructive' });
-    } finally {
-      setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
+      toast({ title: 'Erro ao abrir documento', description: e.message, variant: 'destructive' });
     }
   }
 
@@ -295,8 +314,20 @@ export function HistoricoConversas({ processId, taskId, className, scrollWholePa
                   <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">{formatDateTime(c.created_at)}</span>
                 </div>
                 <p className="text-sm text-foreground whitespace-pre-wrap break-words leading-relaxed">
-                  {c.content}
+                  {c.content.replace(/\n?\[\[document:[0-9a-f-]+\]\]/ig, '').replace(/\n?📎 Documento anexado:[^\n]*/i, '').trim()}
                 </p>
+                {(c.type === 'documento' || /📎 Documento anexado:/.test(c.content)) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 max-w-full"
+                    onClick={() => openAttachedDocument(c)}
+                  >
+                    <FileText className="mr-1.5 h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{c.content.match(/📎 Documento anexado:\s*([^\n]+)/)?.[1]?.trim() || 'Abrir documento'}</span>
+                  </Button>
+                )}
               </div>
             </div>
           );
@@ -331,6 +362,25 @@ export function HistoricoConversas({ processId, taskId, className, scrollWholePa
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend(); }
           }}
         />
+        {pendingFile && (
+          <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs">
+            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">{pendingFile.name}</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 shrink-0"
+              aria-label="Remover anexo"
+              onClick={() => {
+                setPendingFile(null);
+                if (fileRef.current) fileRef.current.value = '';
+              }}
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
         <div className="flex justify-end gap-2 items-center">
           <input
             ref={fileRef}
@@ -342,14 +392,14 @@ export function HistoricoConversas({ processId, taskId, className, scrollWholePa
             variant="outline"
             size="sm"
             onClick={() => fileRef.current?.click()}
-            disabled={uploading || !user || !processId}
+            disabled={sending || uploading || !user || !processId}
             title={processId ? 'Anexar documento ao processo/cliente' : 'Disponível quando aberto por processo'}
           >
             {uploading ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Paperclip className="h-3.5 w-3.5 mr-1" />}
             Anexar
           </Button>
           <span className="text-[10px] text-muted-foreground self-center">Ctrl/⌘ + Enter para enviar</span>
-          <Button size="sm" onClick={handleSend} disabled={sending || !text.trim() || !user}>
+          <Button size="sm" onClick={handleSend} disabled={sending || uploading || !text.trim() || !user}>
             {sending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Send className="h-3.5 w-3.5 mr-1" />}
             Enviar
           </Button>
