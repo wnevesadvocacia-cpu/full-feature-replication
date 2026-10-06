@@ -937,7 +937,7 @@ export default function Tarefas() {
               const showDeadlineAlert = !task.completed && dueDay && daysLeft !== null && daysLeft <= 2;
               const member = task.assignee ? teamMembers.find(m => m.email === task.assignee) : null;
               const draftingMember = teamMembers.find(m => m.user_id === task.elaborating_by);
-              const draftingLabel = draftingMember?.full_name?.trim() || draftingMember?.email || 'colaborador não identificado';
+              const draftingLabel = abbreviateName(draftingMember?.full_name) || draftingMember?.email || 'colaborador não identificado';
               const short = member?.full_name ? abbreviateName(member.full_name) : '';
               const initials = (member?.full_name || task.assignee || '?')
                 .replace(/@.*/, '')
