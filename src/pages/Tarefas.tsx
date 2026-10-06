@@ -302,7 +302,10 @@ export default function Tarefas() {
       old?.map((t) => (t.id === task.id ? { ...t, status, completed: false } : t)) ?? old
     );
     try {
-      await updateTask.mutateAsync({ id: task.id, status, completed: false });
+      const savedTask = await updateTask.mutateAsync({ id: task.id, status, completed: false });
+      qc.setQueryData(['tasks'], (old: any[] | undefined) =>
+        old?.map((t) => (t.id === task.id ? { ...t, ...savedTask } : t)) ?? old
+      );
       toast({
         title: status === 'em_elaboracao' ? 'Prazo em elaboração' : 'Prazo pendente',
         action: (
@@ -933,6 +936,8 @@ export default function Tarefas() {
               const daysLeft = dueDay ? Math.ceil((dueDay.getTime() - today.getTime()) / (1000*60*60*24)) : null;
               const showDeadlineAlert = !task.completed && dueDay && daysLeft !== null && daysLeft <= 2;
               const member = task.assignee ? teamMembers.find(m => m.email === task.assignee) : null;
+              const draftingMember = teamMembers.find(m => m.user_id === task.elaborating_by);
+              const draftingLabel = draftingMember?.full_name?.trim() || draftingMember?.email || 'colaborador não identificado';
               const short = member?.full_name ? abbreviateName(member.full_name) : '';
               const initials = (member?.full_name || task.assignee || '?')
                 .replace(/@.*/, '')
@@ -1039,9 +1044,9 @@ export default function Tarefas() {
                           )}
 
                           {task.status === 'em_elaboracao' && !task.completed && (
-                            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-tighter rounded-full border shadow-gold bg-warning text-warning-foreground border-warning dark:bg-warning dark:text-warning-foreground dark:border-warning">
-                              <span className="h-2 w-2 rounded-full bg-warning-foreground animate-pulse" />
-                              Em elaboração
+                            <span className="inline-flex max-w-full items-center gap-2 px-3.5 py-1.5 text-[11px] font-extrabold uppercase rounded-full border shadow-gold bg-warning text-warning-foreground border-warning dark:bg-warning dark:text-warning-foreground dark:border-warning">
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-warning-foreground animate-pulse" />
+                              <span className="min-w-0 break-words">Em elaboração por {draftingLabel}</span>
                             </span>
                           )}
                           {showDeadlineAlert && (
