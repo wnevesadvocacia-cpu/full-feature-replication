@@ -8,6 +8,13 @@
       "when": 1789431280247,
       "tag": "0000_exclude_cancelled_tasks_from_pending_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791312400982,
+      "tag": "0001_track_task_drafting_actor",
+      "breakpoints": true
     }
   ]
 }

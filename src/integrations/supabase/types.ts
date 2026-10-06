@@ -1624,6 +1624,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          elaborating_by: string | null
           end_time: string | null
           event_type: string | null
           id: string
@@ -1646,6 +1647,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          elaborating_by?: string | null
           end_time?: string | null
           event_type?: string | null
           id?: string
@@ -1668,6 +1670,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          elaborating_by?: string | null
           end_time?: string | null
           event_type?: string | null
           id?: string
