@@ -1044,9 +1044,9 @@ export default function Tarefas() {
                           )}
 
                           {task.status === 'em_elaboracao' && !task.completed && (
-                            <span className="inline-flex max-w-full items-center gap-2 px-3.5 py-1.5 text-[11px] font-extrabold uppercase rounded-full border shadow-gold bg-warning text-warning-foreground border-warning dark:bg-warning dark:text-warning-foreground dark:border-warning">
-                              <span className="h-2 w-2 shrink-0 rounded-full bg-warning-foreground animate-pulse" />
-                              <span className="min-w-0 break-words">Em elaboração por {draftingLabel}</span>
+                            <span className="inline-flex max-w-full items-center gap-2 px-3.5 py-1.5 text-[11px] font-medium rounded-full border bg-warning/10 text-foreground border-warning/30">
+                              <span className="h-2 w-2 shrink-0 rounded-full bg-warning" />
+                              <span className="min-w-0 break-words">Em elaboração por <strong className="font-bold">{draftingLabel}</strong></span>
                             </span>
                           )}
                           {showDeadlineAlert && (
