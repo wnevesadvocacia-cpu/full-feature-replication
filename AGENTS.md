@@ -1,0 +1,1 @@
+Identify the drafting actor through a server-stamped task field on status transitions, not the assignee, so attribution is independent and cannot be spoofed by the client.
