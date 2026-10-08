@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, Link, AlertTriangle, RefreshCw } from "lucide-react";
+import { Download, Link, AlertTriangle, RefreshCw, ExternalLink, ChevronDown, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
-export function JusbrExtension() {
+export function JusbrExtension({
+  onReconcile,
+  reconciling,
+  reconciliationNotice,
+}: {
+  onReconcile: () => void;
+  reconciling: boolean;
+  reconciliationNotice?: string;
+}) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
   const [notice, setNotice] = useState(
-    "v0.3.3 · busca em segmentos de até 7 dias, com redução por truncamento. Vínculo/preenchimento da 0.3.2 confirmados; nenhum lote confirmado. Cobertura incompleta.",
+    "Conexão ainda não validada nesta sessão. Abra o Diário da Justiça no portal e confira a extensão.",
   );
   const [batchNotice, setBatchNotice] = useState("");
   const paired = useRef<string | null>(null);
@@ -165,84 +173,130 @@ export function JusbrExtension() {
     setNotice("Solicitando conferência; mantenha Diário da Justiça e Intimações abertos.");
     window.postMessage({ type: "WNEVES_JUSBR_SCAN_NOW", owner: user.id }, window.location.origin);
   };
+  const interrupted = /interrompida|falha|não foi possível|indisponível|expirada/i.test(notice);
+  const working = !interrupted && /pesquisando|aguardando busca|solicitando conferência|já em andamento/i.test(notice);
+  const summary = interrupted
+    ? "Conferência interrompida. Veja os detalhes."
+    : working
+      ? "Conferência em andamento…"
+      : batches.length
+        ? "Conferência complementar · cobertura parcial"
+        : "Conexão aguardando validação";
   return (
-    <div className="space-y-2 border-t border-warning/30 pt-3">
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={download}>
-          <Download className="h-4 w-4 mr-1" />
-          Baixar extensão v0.3.3
-        </Button>
-        <Button variant="outline" onClick={checkNow} disabled={!user}>
-          <RefreshCw className="h-4 w-4 mr-1" />
-          Conferir agora
-        </Button>
-        <Button variant="outline" onClick={pair} disabled={!user}>
-          <Link className="h-4 w-4 mr-1" />
-          Vincular uma vez
-        </Button>
-      </div>
-      <details className="text-sm text-muted-foreground">
-        <summary className="cursor-pointer">Instalação e validação</summary>
-        <ol className="list-decimal pl-5 space-y-1 mt-2">
-          <li>
-            Descompacte; em chrome://extensions ou edge://extensions, ative Modo do desenvolvedor e Carregar sem
-            compactação. Para atualizar, substitua os arquivos da pasta e clique Recarregar.
-          </li>
-          <li>Recarregue Intimações e a Central Jus.br; vincule uma vez na sua conta. Mantenha ambas abertas.</li>
-          <li>
-            Faça login com seu token exclusivamente no portal. Abra Minhas comunicações processuais → Diário da Justiça.
-          </li>
-          <li>
-            A busca aguarda o ciclo de carregamento por até 120s e valida filtros, datas e contador. Divide períodos em
-            até 7 dias; aviso dos 100 primeiros reduz a janela. Dia único truncado interrompe com cobertura incompleta.
-          </li>
-          <li>
-            Não abra Domicílio nem ações de ciência para testar. Avanço e fim da interface confirmados pelo titular.
-            Vínculo e preenchimento da versão 0.3.2 confirmados pelo titular, sem lote confirmado. Ciclo/segmentação na
-            0.3.3, estado vazio e persistência/importação ainda exigem validação; ausência de tela não confirma sessão
-            expirada.
-          </li>
-        </ol>
-      </details>
-      <p role="status" aria-live="polite" className="text-sm font-medium text-foreground flex gap-2">
-        <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
-        {notice}
-      </p>
-      {batchNotice && <p className="text-sm text-muted-foreground">{batchNotice}</p>}
-      {batchesError && (
-        <p className="text-sm text-destructive">Histórico indisponível; não considere a conferência concluída.</p>
-      )}
-      {!!batches.length && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-2">Conferência</th>
-                <th className="text-left p-2">Telas observadas</th>
-                <th className="text-left p-2">Importações DJEN</th>
-                <th className="text-left p-2">Identidades pendentes</th>
-                <th className="text-left p-2">Cobertura</th>
-              </tr>
-            </thead>
-            <tbody>
-              {batches.map((batch) => (
-                <tr key={batch.id} className="border-b">
-                  <td className="p-2 whitespace-nowrap">{new Date(batch.created_at).toLocaleString("pt-BR")}</td>
-                  <td className="p-2">{Number((batch.coverage as { page?: number })?.page || 0)}</td>
-                  <td className="p-2">{batch.inserted}</td>
-                  <td className="p-2">{batch.pending}</td>
-                  <td className="p-2 min-w-[220px]">
-                    {batch.status === "running" || batch.status === "starting" || batch.status === "queued"
-                      ? "Em processamento"
-                      : "Incompleta"}{" "}
-                    · {batch.error || "Aguardando conclusão persistida"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <section aria-label="Conferência complementar no Jus.br" className="rounded-xl border bg-card shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Bell className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">
+              Jus.br <span className="ml-2 text-xs font-normal text-muted-foreground">Diário da Justiça</span>
+            </h2>
+            <p
+              role="status"
+              aria-live="polite"
+              className={`mt-0.5 text-xs ${interrupted ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"}`}
+            >
+              {summary}
+            </p>
+          </div>
         </div>
-      )}
-    </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="ghost" asChild>
+            <a
+              href="https://portaldeservicos.pdpj.jus.br/central-comunicacoes"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
+              Abrir portal
+            </a>
+          </Button>
+          <Button size="sm" variant="outline" onClick={checkNow} disabled={!user}>
+            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${working ? "animate-spin" : ""}`} />
+            Conferir agora
+          </Button>
+        </div>
+      </div>
+      <details className="group border-t border-border/60">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
+          <span>Detalhes e configuração</span>
+          <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+        </summary>
+        <div className="space-y-4 px-4 pb-4 pt-2">
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            A conferência usa o Diário público com o portal autenticado. Comunicações privadas do Domicílio Eletrônico
+            precisam ser conferidas no Jus.br.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={pair} disabled={!user}>
+              <Link className="mr-1.5 h-3.5 w-3.5" />
+              Vincular extensão
+            </Button>
+            <Button size="sm" variant="ghost" onClick={download}>
+              <Download className="mr-1.5 h-3.5 w-3.5" />
+              Baixar extensão
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onReconcile} disabled={reconciling}>
+              <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${reconciling ? "animate-spin" : ""}`} />
+              Recuperar publicações DJEN
+            </Button>
+          </div>
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer">Como instalar ou atualizar</summary>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-4 leading-relaxed">
+              <li>
+                Baixe e descompacte a extensão. Em chrome://extensions ou edge://extensions, ative Modo do desenvolvedor
+                e escolha Carregar sem compactação. Para atualizar, substitua os arquivos e clique Recarregar.
+              </li>
+              <li>
+                Recarregue Intimações e a Central Jus.br, faça login no portal e abra Diário da Justiça. Vincule a
+                extensão uma vez e mantenha as duas páginas abertas.
+              </li>
+            </ol>
+          </details>
+          <div className="rounded-lg bg-muted/40 p-3 text-xs leading-relaxed">
+            <p className="flex gap-2">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+              <span>{notice}</span>
+            </p>
+            {batchNotice && <p className="mt-2 text-muted-foreground">{batchNotice}</p>}
+            {reconciliationNotice && <p className="mt-2 text-muted-foreground">{reconciliationNotice}</p>}
+            {batchesError && <p className="mt-2 text-destructive">Histórico indisponível. Conclusão não confirmada.</p>}
+          </div>
+          {!!batches.length && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b text-muted-foreground">
+                    <th className="py-2 pr-4 text-left font-medium">Últimas conferências</th>
+                    <th className="p-2 text-right font-medium">Importações</th>
+                    <th className="p-2 text-right font-medium">Pendentes</th>
+                    <th className="p-2 text-left font-medium">Situação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {batches.map((batch) => (
+                    <tr key={batch.id} className="border-b last:border-0">
+                      <td className="whitespace-nowrap py-2 pr-4">
+                        {new Date(batch.created_at).toLocaleString("pt-BR")}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">{batch.inserted}</td>
+                      <td className="p-2 text-right tabular-nums">{batch.pending}</td>
+                      <td className="p-2" title={batch.error || "Aguardando conclusão persistida"}>
+                        {["running", "starting", "queued"].includes(batch.status)
+                          ? "Em processamento"
+                          : "Cobertura parcial"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </details>
+    </section>
   );
 }
