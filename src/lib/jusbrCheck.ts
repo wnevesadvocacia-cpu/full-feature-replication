@@ -20,6 +20,6 @@ export function readJusbrRows(value: unknown): JusbrRow[] {
 export function unmatchedJusbrRows(rows: JusbrRow[], records: { user_id: string; content: string; received_at: string; court?: string | null }[], owner: string) {
   return rows.filter(row => !records.some(record => record.user_id === owner
     && record.received_at.slice(0, 10) === row.date
-    && (record.content.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g) || []).includes(row.cnj)
+    && (record.content.match(/\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g) || []).some(cnj => cnj === row.cnj)
     && record.court?.trim().toUpperCase() === row.court.trim().toUpperCase()));
 }
