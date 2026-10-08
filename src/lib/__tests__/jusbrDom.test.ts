@@ -24,9 +24,7 @@ function fixture(total = 9, size = 3) {
   const search = document.querySelector<HTMLButtonElement>('form button'); const next = document.querySelector<HTMLButtonElement>('[aria-label="próxima"]');
   if (!search || !next) throw Error('fixture');
   search.onclick = () => { page = 1; document.querySelector('tbody')?.replaceChildren(); setTimeout(() => render(), 100); }; next.onclick = () => { page++; render(); };
-  let clock = 0;
-  class ClockDate extends Date { static now() { return clock; } }
-  const context = vm.createContext({ document, location: { pathname: '/central-comunicacoes' }, HTMLInputElement, Event, MutationObserver, getComputedStyle, Date: ClockDate, setTimeout: (fn: () => void, ms: number) => globalThis.setTimeout(() => { clock += ms; fn(); }, ms), crypto });
+  const context = vm.createContext({ document, location: { pathname: '/central-comunicacoes' }, HTMLInputElement, Event, MutationObserver, getComputedStyle, Date, setTimeout, crypto });
   vm.runInContext(fs.readFileSync('extension/jusbr/core.js','utf8'), context);
   vm.runInContext(fs.readFileSync('extension/jusbr/dom.js','utf8'), context);
   return { dom: context.JusbrDom, core: context.JusbrCore, forbidden, next, search, render };
@@ -88,37 +86,33 @@ describe('adaptador Diário com controles relatados', () => {
     expect(start.value).toBe('01/10/2026');
   });
   it('não envia linhas antigas com contador estável e mutação irrelevante após Buscar', async () => {
-    vi.useFakeTimers();
     const { dom, core, search } = fixture(); const emit = vi.fn();
     search.onclick = () => document.querySelector('tbody')?.append(document.createComment('mutation'));
     const pending = core.collect(dom.create(setting, period), { run: 'stale', page: 1, seen: [], period }, vi.fn(), emit);
     const assertion = expect(pending).rejects.toThrow('Resultado obsoleto');
-    await vi.advanceTimersByTimeAsync(21000); await assertion;
+    await assertion;
     expect(emit).not.toHaveBeenCalled();
-  });
+  }, 25000);
   it('rejeita linhas antigas idênticas mesmo após esvaziamento e reapresentação', async () => {
-    vi.useFakeTimers();
     const { dom, search, render } = fixture();
     search.onclick = () => { document.querySelector('tbody')?.replaceChildren(); setTimeout(() => render('05/10/2026'), 100); };
     const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow('Resultado obsoleto');
-    await vi.advanceTimersByTimeAsync(21000); await assertion;
-  });
+    await assertion;
+  }, 25000);
   it('rejeita resposta alterada com datas fora da janela do dia', async () => {
-    vi.useFakeTimers();
     const { dom, core } = fixture(); const emit = vi.fn();
     const day = { start: '2026-10-08', end: '2026-10-08' };
     const pending = core.collect(dom.create(setting, day), { run: 'outside', page: 1, seen: [], period: day }, vi.fn(), emit);
     const assertion = expect(pending).rejects.toThrow('Resultado obsoleto');
-    await vi.advanceTimersByTimeAsync(21000); await assertion;
+    await assertion;
     expect(emit).not.toHaveBeenCalled();
-  });
+  }, 25000);
   it('aguarda saída dos dados antigos, transição e resposta estável dentro do dia', async () => {
-    vi.useFakeTimers();
     const { dom, search, render } = fixture(); const day = { start: '2026-10-08', end: '2026-10-08' };
     search.onclick = () => { setTimeout(() => document.querySelector('tbody')?.replaceChildren(), 900); setTimeout(() => render('08/10/2026'), 1500); };
     const done = vi.fn(); const adapter = dom.create(setting, day); const pending = adapter.search({ page: 1 }).then(done);
-    await vi.advanceTimersByTimeAsync(1400); expect(done).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1200); await pending;
+    await new Promise(resolve => setTimeout(resolve, 1400)); expect(done).not.toHaveBeenCalled();
+    await pending;
     expect(done).toHaveBeenCalledTimes(1);
     expect((await adapter.read()).rows.every((row: { date: string }) => row.date === '2026-10-08')).toBe(true);
   });
