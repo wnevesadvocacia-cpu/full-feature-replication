@@ -2,4 +2,4 @@
 - [x] Exibir e validar controle de carga no modal Editar Prazo.
 - [x] Identificar quem iniciou a elaboração independentemente do responsável e validar a exibição.
 - [x] Corrigir timeout da sincronização manual e impedir confirmação falsa de ausência de publicações; validar execução autenticada.
-- [ ] Impedir cobertura completa falsa por falhas nos diários adicionais, paginação ou leitura de processos; validar e identificar limites externos.
+- [x] Impedir cobertura completa falsa por falhas nos diários adicionais, paginação ou leitura de processos; 12 testes e busca autenticada concluída (262 consultas); atos fora das fontes públicas exigem conferência autenticada nos tribunais.
