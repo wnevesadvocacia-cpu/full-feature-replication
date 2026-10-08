@@ -21,7 +21,7 @@ const JusbrDom = (() => {
   const disabled = el => el.disabled || el.getAttribute('aria-disabled') === 'true';
   function range() {
     scope();
-    const candidates = [...document.querySelectorAll('#diario_justica_tabela *,[class*="paginator"] *,[role="status"]')].filter(el => visible(el) && /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(el)) && ![...el.children].some(child => /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(child))));
+    const candidates = [...document.querySelectorAll('#diario_justica_tabela *,[role="status"]')].filter(el => visible(el) && /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(el)) && ![...el.children].some(child => /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(child))));
     // No paginator CSS dependency: fall back to exact observed counter text.
     const nodes = candidates.length ? candidates : [...document.querySelectorAll('span,div,p')].filter(el => visible(el) && /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(el)) && ![...el.children].some(child => /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(child))));
     const counter = unique(nodes, 'contador do Diário');

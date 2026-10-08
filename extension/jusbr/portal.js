@@ -1,6 +1,7 @@
 // Public Diario only. No portal credentials, network requests or row actions.
 let busy = false;
 let timer;
+let notified = false;
 const report = message => chrome.runtime.sendMessage({ type: 'PORTAL_STATUS', message }).catch(() => {});
 async function scan(m) {
   if (busy) return { ok: false, message: 'Conferência já em andamento.' };
@@ -35,7 +36,7 @@ chrome.runtime.onMessage.addListener((m, _sender, reply) => {
 // Ask the paired worker to start when the user opens/selects the public Diario.
 function ready() {
   if (busy) return;
-  try { JusbrDom.scope(); void chrome.runtime.sendMessage({ type: 'PORTAL_READY' }).catch(() => {}); } catch { /* Scheduled SCAN reports unavailable structures. */ }
+  try { JusbrDom.scope(); if (!notified) { notified = true; void chrome.runtime.sendMessage({ type: 'PORTAL_READY' }).catch(() => { notified = false; }); } } catch { notified = false; }
 }
 new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(ready, 1500); }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected'] });
 setTimeout(ready, 1500);
