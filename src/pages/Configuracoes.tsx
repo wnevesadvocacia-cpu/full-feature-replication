@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useUserRoles, type AppRole } from '@/hooks/useUserRole';
 import { MfaEnrollDialog } from '@/components/MfaEnrollDialog';
+import { runDjenSync } from '@/lib/runDjenSync';
 
 const ROLE_LABELS: Record<AppRole, string> = {
   admin: 'Administrador',
@@ -254,11 +255,8 @@ export default function Configuracoes() {
     if (!user?.id) return;
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-djen?manual=1', { body: {}, method: 'POST' });
-      if (error) throw error;
-      const totalInserted = (data?.results || []).reduce((s: number, r: any) => s + (r.inserted || 0), 0);
-      const totalFound = (data?.results || []).reduce((s: number, r: any) => s + (r.total || 0), 0);
-      toast({ title: 'Sincronização concluída', description: `${totalInserted} novas / ${totalFound} encontradas em ${(data?.results || []).length} OAB(s)` });
+      const r = await runDjenSync();
+      toast({ title: 'Sincronização concluída', description: `${r.inserted} novas / ${r.total} encontradas` });
       const { data: oabRows } = await (supabase as any).from('oab_settings').select('*').eq('user_id', user.id).order('created_at', { ascending: true });
       if (oabRows) setOabs(oabRows.map((r: any) => ({ id: r.id, oab_number: r.oab_number, oab_uf: r.oab_uf, active: r.active, last_sync_at: r.last_sync_at, last_success_at: r.last_success_at, consecutive_failures: r.consecutive_failures, last_error: r.last_error, lawyer_name: r.lawyer_name ?? '', name_variations: r.name_variations ?? [], name_match_threshold: r.name_match_threshold ?? 0.85 })));
     } catch (e: any) { toast({ title: 'Erro ao sincronizar', description: e.message, variant: 'destructive' }); }
