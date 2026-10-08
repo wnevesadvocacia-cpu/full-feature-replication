@@ -13,16 +13,16 @@
 // 9. external_id = SHA-256 determinístico → imune a mudança de formato da API
 // 10. Batch lookup de processes (sem N+1) → escala com volume
 // 11. Cálculo de prazo em DIAS ÚTEIS (calendário CNJ)
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { z } from 'https://esm.sh/zod@3.23.8';
-import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from '../_shared/cors.ts';
-import { rejectIfCsrfBlocked } from '../_shared/csrf.ts';
-import { captureException } from '../_shared/sentry.ts';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { z } from "https://esm.sh/zod@3.23.8";
+import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from "../_shared/cors.ts";
+import { rejectIfCsrfBlocked } from "../_shared/csrf.ts";
+import { captureException } from "../_shared/sentry.ts";
 // PR2 — edge unificada: detectDeadline canônico (mesma engine do frontend).
-import { detectDeadline } from '../_shared/legalDeadlines.ts';
-import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from '../_shared/cnjCalendar.ts';
-import { assertTribunalHtml, readDjenPage, recordCoverageIssue } from '../_shared/djenCoverage.ts';
-import { pendingDjenEntries } from '../_shared/djenImport.ts';
+import { detectDeadline } from "../_shared/legalDeadlines.ts";
+import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from "../_shared/cnjCalendar.ts";
+import { assertTribunalHtml, readDjenPage, recordCoverageIssue } from "../_shared/djenCoverage.ts";
+import { pendingDjenEntries, djenIdentityAliases } from "../_shared/djenImport.ts";
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
 // Se um item falhar na validação, sync marca status='partial', preserva
@@ -33,18 +33,23 @@ import { pendingDjenEntries } from '../_shared/djenImport.ts';
 // inclusive `texto` em intimações cujo corpo só existe no documento vinculado
 // (PJe TJBA, p.ex.). `.optional()` puro rejeitava esses itens e a publicação
 // era PERDIDA silenciosamente. Todos os opcionais aceitam null (`nullish`).
-const DjenItemSchema = z.object({
-  id: z.union([z.number(), z.string()]).nullish(),
-  hash: z.string().nullish(),
-  numero_processo: z.string().nullish(),
-  texto: z.string().nullish(),
-  // data_disponibilizacao DEVE ser ISO YYYY-MM-DD se presente
-  data_disponibilizacao: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'data_disponibilizacao inválida').nullish(),
-  siglaTribunal: z.string().nullish(),
-  nomeOrgao: z.string().nullish(),
-  tipoComunicacao: z.string().nullish(),
-  prazo: z.string().nullish(),
-}).passthrough(); // permite campos extras (CNJ adiciona campos sem aviso)
+const DjenItemSchema = z
+  .object({
+    id: z.union([z.number(), z.string()]).nullish(),
+    hash: z.string().nullish(),
+    numero_processo: z.string().nullish(),
+    texto: z.string().nullish(),
+    // data_disponibilizacao DEVE ser ISO YYYY-MM-DD se presente
+    data_disponibilizacao: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "data_disponibilizacao inválida")
+      .nullish(),
+    siglaTribunal: z.string().nullish(),
+    nomeOrgao: z.string().nullish(),
+    tipoComunicacao: z.string().nullish(),
+    prazo: z.string().nullish(),
+  })
+  .passthrough(); // permite campos extras (CNJ adiciona campos sem aviso)
 
 type DjenItem = z.infer<typeof DjenItemSchema>;
 
@@ -57,7 +62,16 @@ const TJSP_DJE_DELAY_MS = 200;
 
 // ============= Calendário CNJ (dias úteis) =============
 const FIXED_HOLIDAYS: Array<[number, number]> = [
-  [1, 1], [4, 21], [5, 1], [9, 7], [10, 12], [11, 2], [11, 15], [11, 20], [12, 25], [12, 8],
+  [1, 1],
+  [4, 21],
+  [5, 1],
+  [9, 7],
+  [10, 12],
+  [11, 2],
+  [11, 15],
+  [11, 20],
+  [12, 25],
+  [12, 8],
 ];
 
 function easterSunday(year: number): Date {
@@ -79,10 +93,14 @@ function easterSunday(year: number): Date {
 }
 
 function addDaysUTC(d: Date, n: number): Date {
-  const x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x;
+  const x = new Date(d);
+  x.setUTCDate(x.getUTCDate() + n);
+  return x;
 }
 
-function fmtISO(d: Date): string { return d.toISOString().slice(0, 10); }
+function fmtISO(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
 
 const holidayCache = new Map<number, Set<string>>();
 function getHolidays(year: number): Set<string> {
@@ -99,7 +117,7 @@ function getHolidays(year: number): Set<string> {
 }
 
 function inRecesso(iso: string): boolean {
-  const [, mm, dd] = iso.split('-').map(Number);
+  const [, mm, dd] = iso.split("-").map(Number);
   if (mm === 12 && dd >= 20) return true;
   if (mm === 1 && dd <= 20) return true;
   return false;
@@ -112,10 +130,10 @@ const tribunalHolidaySets = new Map<string, Set<string>>();
 async function loadLegalCalendar(supabase: any) {
   suspendedSet = new Set();
   tribunalHolidaySets.clear();
-  const { data: sus } = await supabase.from('judicial_suspensions').select('start_date,end_date,tribunal_codigo');
+  const { data: sus } = await supabase.from("judicial_suspensions").select("start_date,end_date,tribunal_codigo");
   (sus || []).forEach((s: any) => {
-    const start = new Date(s.start_date + 'T12:00:00Z');
-    const end = new Date(s.end_date + 'T12:00:00Z');
+    const start = new Date(s.start_date + "T12:00:00Z");
+    const end = new Date(s.end_date + "T12:00:00Z");
     for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
       // tribunal_codigo NULL => suspensão geral; específica vai no set do tribunal
       if (!s.tribunal_codigo) suspendedSet.add(fmtISO(d));
@@ -126,7 +144,7 @@ async function loadLegalCalendar(supabase: any) {
       }
     }
   });
-  const { data: th } = await supabase.from('tribunal_holidays').select('tribunal_codigo,holiday_date');
+  const { data: th } = await supabase.from("tribunal_holidays").select("tribunal_codigo,holiday_date");
   (th || []).forEach((h: any) => {
     const tset = tribunalHolidaySets.get(h.tribunal_codigo) ?? new Set<string>();
     tset.add(h.holiday_date);
@@ -135,7 +153,7 @@ async function loadLegalCalendar(supabase: any) {
 }
 
 function isBusinessDay(iso: string, tribunal?: string | null): boolean {
-  const d = new Date(iso + 'T12:00:00Z');
+  const d = new Date(iso + "T12:00:00Z");
   const dow = d.getUTCDay();
   if (dow === 0 || dow === 6) return false;
   if (inRecesso(iso)) return false;
@@ -149,8 +167,10 @@ function isBusinessDay(iso: string, tribunal?: string | null): boolean {
 }
 
 function nextBusinessDay(iso: string, tribunal?: string | null): string {
-  let d = new Date(iso + 'T12:00:00Z');
-  do { d = addDaysUTC(d, 1); } while (!isBusinessDay(fmtISO(d), tribunal));
+  let d = new Date(iso + "T12:00:00Z");
+  do {
+    d = addDaysUTC(d, 1);
+  } while (!isBusinessDay(fmtISO(d), tribunal));
   return fmtISO(d);
 }
 
@@ -160,7 +180,7 @@ function ensureBusinessDay(iso: string, tribunal?: string | null): string {
 }
 
 function addBusinessDays(startIso: string, days: number, tribunal?: string | null): string {
-  let d = new Date(startIso + 'T12:00:00Z');
+  let d = new Date(startIso + "T12:00:00Z");
   let added = 0;
   while (added < days) {
     d = addDaysUTC(d, 1);
@@ -173,8 +193,8 @@ function businessDaysUntil(targetIso: string, tribunal?: string | null): number 
   const today = fmtISO(new Date());
   if (targetIso <= today) return 0;
   let count = 0;
-  let d = new Date(today + 'T12:00:00Z');
-  const target = new Date(targetIso + 'T12:00:00Z').getTime();
+  let d = new Date(today + "T12:00:00Z");
+  const target = new Date(targetIso + "T12:00:00Z").getTime();
   while (d.getTime() < target) {
     d = addDaysUTC(d, 1);
     if (isBusinessDay(fmtISO(d), tribunal)) count++;
@@ -185,8 +205,10 @@ function businessDaysUntil(targetIso: string, tribunal?: string | null): number 
 // ============= Hash determinístico (imune a mudança de formato) =============
 async function sha256Hex(input: string): Promise<string> {
   const buf = new TextEncoder().encode(input);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function buildExternalId(it: DjenItem): Promise<string> {
@@ -198,73 +220,79 @@ async function buildExternalId(it: DjenItem): Promise<string> {
   if (it.id) return `djen:id:${it.id}`;
   // Camada 3: hash SHA-256 do conteúdo canônico (proc + data + texto trim)
   const canonical = [
-    it.numero_processo || '',
-    it.data_disponibilizacao || '',
-    (it.texto || it.tipoComunicacao || '').slice(0, 2000).trim(),
-    it.siglaTribunal || '',
-    it.nomeOrgao || '',
-  ].join('|');
+    it.numero_processo || "",
+    it.data_disponibilizacao || "",
+    (it.texto || it.tipoComunicacao || "").slice(0, 2000).trim(),
+    it.siglaTribunal || "",
+    it.nomeOrgao || "",
+  ].join("|");
   const h = await sha256Hex(canonical);
   return `djen:sha:${h}`;
 }
 
 function maskProcessNumber(raw?: string | null): string | null {
-  const d = (raw || '').replace(/\D/g, '');
+  const d = (raw || "").replace(/\D/g, "");
   if (d.length !== 20) return raw || null;
   return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
 }
 
 function normalizeProcessNumber(raw?: string | null): string | null {
-  const d = (raw || '').replace(/\D/g, '');
+  const d = (raw || "").replace(/\D/g, "");
   if (d.length !== 20) return null;
   return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
 }
 
 function htmlDecode(raw: string): string {
-  return (raw || '')
+  return (raw || "")
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&aacute;/gi, 'á').replace(/&agrave;/gi, 'à').replace(/&acirc;/gi, 'â').replace(/&atilde;/gi, 'ã')
-    .replace(/&eacute;/gi, 'é').replace(/&ecirc;/gi, 'ê')
-    .replace(/&iacute;/gi, 'í')
-    .replace(/&oacute;/gi, 'ó').replace(/&ocirc;/gi, 'ô').replace(/&otilde;/gi, 'õ')
-    .replace(/&uacute;/gi, 'ú')
-    .replace(/&ccedil;/gi, 'ç');
+    .replace(/&aacute;/gi, "á")
+    .replace(/&agrave;/gi, "à")
+    .replace(/&acirc;/gi, "â")
+    .replace(/&atilde;/gi, "ã")
+    .replace(/&eacute;/gi, "é")
+    .replace(/&ecirc;/gi, "ê")
+    .replace(/&iacute;/gi, "í")
+    .replace(/&oacute;/gi, "ó")
+    .replace(/&ocirc;/gi, "ô")
+    .replace(/&otilde;/gi, "õ")
+    .replace(/&uacute;/gi, "ú")
+    .replace(/&ccedil;/gi, "ç");
 }
 
 function stripHtmlToText(raw: string): string {
   return htmlDecode(raw)
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
 function addCalendarDaysISO(iso: string, days: number): string {
-  return fmtISO(addDaysUTC(new Date(iso + 'T12:00:00Z'), days));
+  return fmtISO(addDaysUTC(new Date(iso + "T12:00:00Z"), days));
 }
 
 function dateToTjmgDia(iso: string): string {
-  const [, m, d] = iso.split('-');
+  const [, m, d] = iso.split("-");
   return `${d}${m}`;
 }
 
 function tjmgComarcaParamFromProcess(numero: string): string | null {
-  const d = numero.replace(/\D/g, '');
-  if (d.length !== 20 || d.slice(14, 16) !== '13') return null;
+  const d = numero.replace(/\D/g, "");
+  if (d.length !== 20 || d.slice(14, 16) !== "13") return null;
   const foro = d.slice(16, 20);
-  return foro === '0024' ? 'capital|j1' : `interior|${foro}`;
+  return foro === "0024" ? "capital|j1" : `interior|${foro}`;
 }
 
 function buildTjmgExpedienteDates(dataInicio: string, dataFim: string): string[] {
   const dates: string[] = [];
-  let d = new Date(addCalendarDaysISO(dataInicio, -3) + 'T12:00:00Z');
-  const end = new Date(dataFim + 'T12:00:00Z').getTime();
+  let d = new Date(addCalendarDaysISO(dataInicio, -3) + "T12:00:00Z");
+  const end = new Date(dataFim + "T12:00:00Z").getTime();
   while (d.getTime() <= end) {
     const iso = fmtISO(d);
     if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6) dates.push(iso);
@@ -280,9 +308,15 @@ function looksLikeHeading(line: string): boolean {
   return line === line.toUpperCase() && /[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(line) && line.length <= 80;
 }
 
-async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string, coverageIssues: string[]): Promise<DjenItem[]> {
+async function fetchTjmgDjeFallback(
+  processNumbers: string[],
+  refNames: string[],
+  dataInicio: string,
+  dataFim: string,
+  coverageIssues: string[],
+): Promise<DjenItem[]> {
   const normalizedNumbers = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
-  const tjmgNumbers = normalizedNumbers.filter(n => n.includes('.8.13.'));
+  const tjmgNumbers = normalizedNumbers.filter((n) => n.includes(".8.13."));
   if (!tjmgNumbers.length) return [];
 
   const numberSet = new Set(tjmgNumbers);
@@ -294,50 +328,59 @@ async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[]
 
   for (const completa of comarcas) {
     for (const expedienteDate of dates) {
-      const disponibilizacao = nextBusinessDay(expedienteDate, 'TJMG');
+      const disponibilizacao = nextBusinessDay(expedienteDate, "TJMG");
       if (disponibilizacao < dataInicio || disponibilizacao > dataFim) continue;
 
       const url = `https://www8.tjmg.jus.br/juridico/diario/index.jsp?dia=${dateToTjmgDia(expedienteDate)}&completa=${encodeURIComponent(completa)}`;
-      let html = '';
+      let html = "";
       try {
         const res = await fetchWithRetry(url);
         if (!res.ok) throw new Error(`TJMG HTTP ${res.status}`);
-        html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
-        assertTribunalHtml(html, 'TJMG');
+        html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
+        assertTribunalHtml(html, "TJMG");
       } catch (e) {
         recordCoverageIssue(coverageIssues, `TJMG ${completa} ${expedienteDate}: ${(e as Error).message}`);
-        console.warn('[tjmg-dje] fallback falhou:', (e as Error).message);
+        console.warn("[tjmg-dje] fallback falhou:", (e as Error).message);
         continue;
       }
 
       const paragraphs = Array.from(html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi))
-        .map(m => stripHtmlToText(m[1]))
+        .map((m) => stripHtmlToText(m[1]))
         .filter(Boolean);
 
-      let comarca = 'COMARCA';
-      let vara = '';
-      let classe = '';
+      let comarca = "COMARCA";
+      let vara = "";
+      let classe = "";
       for (let i = 0; i < paragraphs.length; i++) {
         const line = paragraphs[i];
-        if (/^COMARCA\s+DE\s+/i.test(line)) { comarca = line; continue; }
-        if (/VARA|JUIZADO|TURMA RECURSAL/i.test(line) && line.length <= 90) { vara = line; continue; }
-        if (looksLikeHeading(line)) { classe = line; continue; }
+        if (/^COMARCA\s+DE\s+/i.test(line)) {
+          comarca = line;
+          continue;
+        }
+        if (/VARA|JUIZADO|TURMA RECURSAL/i.test(line) && line.length <= 90) {
+          vara = line;
+          continue;
+        }
+        if (looksLikeHeading(line)) {
+          classe = line;
+          continue;
+        }
 
         const m = line.match(/^(\d{5})\s*-\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})$/);
         if (!m) continue;
         const seq = m[1];
         const numero = m[2];
-        const detail = paragraphs[i + 1] || '';
+        const detail = paragraphs[i + 1] || "";
         const detailNorm = normalizeName(detail);
         const byProcess = numberSet.has(numero);
-        const byName = normalizedRefs.length > 0 && normalizedRefs.some(n => detailNorm.includes(n));
+        const byName = normalizedRefs.length > 0 && normalizedRefs.some((n) => detailNorm.includes(n));
         if (!byProcess && !byName) continue;
 
         const key = `tjmg-dje:${expedienteDate}:${seq}:${numero}`;
         if (seen.has(key)) continue;
         seen.add(key);
 
-        const orgao = [vara, comarca].filter(Boolean).join(' DA ');
+        const orgao = [vara, comarca].filter(Boolean).join(" DA ");
         const content = [
           `Disponibilização: ${disponibilizacao}`,
           `Expediente TJMG: ${expedienteDate}`,
@@ -346,7 +389,9 @@ async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[]
           classe,
           `${seq} - ${numero}`,
           detail,
-        ].filter(Boolean).join('\n');
+        ]
+          .filter(Boolean)
+          .join("\n");
 
         items.push({
           id: key,
@@ -354,15 +399,15 @@ async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[]
           numero_processo: numero,
           texto: content,
           data_disponibilizacao: disponibilizacao,
-          siglaTribunal: 'TJMG',
+          siglaTribunal: "TJMG",
           nomeOrgao: orgao || comarca,
-          tipoComunicacao: classe || 'Publicação TJMG',
-          __queryKind: 'process',
-          __source: 'tjmg-dje',
+          tipoComunicacao: classe || "Publicação TJMG",
+          __queryKind: "process",
+          __source: "tjmg-dje",
         } as DjenItem);
       }
 
-      await new Promise(r => setTimeout(r, TJMG_DJE_DELAY_MS));
+      await new Promise((r) => setTimeout(r, TJMG_DJE_DELAY_MS));
     }
   }
 
@@ -375,13 +420,19 @@ async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[]
 // nem TJMG. Primeira execução em produção pode vir vazia até calibrarmos o
 // parser conforme HTML real devolvido pelo eSAJ.
 function toBrDate(iso: string): string {
-  const [y, m, d] = iso.split('-');
+  const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
 }
 
-async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string, coverageIssues: string[]): Promise<DjenItem[]> {
+async function fetchTjspDjeFallback(
+  processNumbers: string[],
+  refNames: string[],
+  dataInicio: string,
+  dataFim: string,
+  coverageIssues: string[],
+): Promise<DjenItem[]> {
   const normalized = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
-  const tjspNumbers = normalized.filter(n => n.includes('.8.26.'));
+  const tjspNumbers = normalized.filter((n) => n.includes(".8.26."));
   if (!tjspNumbers.length) return [];
 
   const normalizedRefs = refNames.map(normalizeName).filter(Boolean);
@@ -393,35 +444,36 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
 
   for (const numero of tjspNumbers) {
     const body = new URLSearchParams();
-    body.set('dadosConsulta.pesquisaLivre', numero);
-    body.set('cbPesquisa', 'NUMPROC');
-    body.set('tipoConsulta', 'BUSCA_AVANCADA');
-    body.set('dadosConsulta.dtInicio', dtInicio);
-    body.set('dadosConsulta.dtFim', dtFim);
-    body.set('dadosConsulta.cdCaderno', '-1');
+    body.set("dadosConsulta.pesquisaLivre", numero);
+    body.set("cbPesquisa", "NUMPROC");
+    body.set("tipoConsulta", "BUSCA_AVANCADA");
+    body.set("dadosConsulta.dtInicio", dtInicio);
+    body.set("dadosConsulta.dtFim", dtFim);
+    body.set("dadosConsulta.cdCaderno", "-1");
 
-    let html = '';
+    let html = "";
     try {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      const res = await fetch('https://esaj.tjsp.jus.br/cdje/consultaAvancada.do', {
-        method: 'POST',
+      const res = await fetch("https://esaj.tjsp.jus.br/cdje/consultaAvancada.do", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'text/html,application/xhtml+xml',
-          'Accept-Language': 'pt-BR,pt;q=0.9',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "pt-BR,pt;q=0.9",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         },
         body: body.toString(),
         signal: controller.signal,
       });
       clearTimeout(timer);
       if (!res.ok) throw new Error(`TJSP HTTP ${res.status}`);
-      html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
-      assertTribunalHtml(html, 'TJSP');
+      html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
+      assertTribunalHtml(html, "TJSP");
     } catch (e) {
       recordCoverageIssue(coverageIssues, `TJSP ${numero}: ${(e as Error).message}`);
-      console.warn('[tjsp-dje] fallback falhou para', numero, (e as Error).message);
+      console.warn("[tjsp-dje] fallback falhou para", numero, (e as Error).message);
       continue;
     }
 
@@ -431,19 +483,19 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
       const block = r[1];
       // Data de disponibilização em formato DD/MM/YYYY dentro do bloco
       const dateMatch = block.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-      const disponibilizacao = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : '';
+      const disponibilizacao = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : "";
       if (!disponibilizacao || disponibilizacao < dataInicio || disponibilizacao > dataFim) continue;
 
       // Caderno / vara
       const cadernoMatch = block.match(/Caderno[^<]*<[^>]*>\s*([^<]+)/i);
-      const caderno = cadernoMatch ? cadernoMatch[1].trim() : '';
+      const caderno = cadernoMatch ? cadernoMatch[1].trim() : "";
 
       // Trecho de texto (conteúdo do popup vem via ecx.js; usamos o resumo visível)
-      const detail = stripHtmlToText(block).replace(/\s+/g, ' ').trim();
+      const detail = stripHtmlToText(block).replace(/\s+/g, " ").trim();
       if (!detail) continue;
 
       const detailNorm = normalizeName(detail);
-      const byName = normalizedRefs.length > 0 && normalizedRefs.some(n => detailNorm.includes(n));
+      const byName = normalizedRefs.length > 0 && normalizedRefs.some((n) => detailNorm.includes(n));
       // Consulta é por NUMPROC — resultado já é do processo em questão.
       // Se houver refNames, filtra por nome para reduzir falso-positivo em processos com muitas partes.
       if (normalizedRefs.length > 0 && !byName) continue;
@@ -456,17 +508,17 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
         id: key,
         hash: key,
         numero_processo: numero,
-        texto: [`Disponibilização: ${disponibilizacao}`, caderno, numero, detail].filter(Boolean).join('\n'),
+        texto: [`Disponibilização: ${disponibilizacao}`, caderno, numero, detail].filter(Boolean).join("\n"),
         data_disponibilizacao: disponibilizacao,
-        siglaTribunal: 'TJSP',
-        nomeOrgao: caderno || 'TJSP',
-        tipoComunicacao: 'Publicação TJSP',
-        __queryKind: 'process',
-        __source: 'tjsp-dje',
+        siglaTribunal: "TJSP",
+        nomeOrgao: caderno || "TJSP",
+        tipoComunicacao: "Publicação TJSP",
+        __queryKind: "process",
+        __source: "tjsp-dje",
       } as DjenItem);
     }
 
-    await new Promise(r => setTimeout(r, TJSP_DJE_DELAY_MS));
+    await new Promise((r) => setTimeout(r, TJSP_DJE_DELAY_MS));
   }
 
   return items;
@@ -478,8 +530,14 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
 // atas de julgamento, listas de distribuição da Secretaria Judiciária) e
 // cujos CNJs podem nem estar cadastrados no sistema. Definitivo para o gap
 // DEJESP → DJEN. Falha isolada — não afeta as demais fontes.
-async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataInicio: string, dataFim: string, coverageIssues: string[]): Promise<DjenItem[]> {
-  if (!oabNumber || (oabUf || '').toUpperCase() !== 'SP') return [];
+async function fetchTjspDjeByOabFallback(
+  oabNumber: string,
+  oabUf: string,
+  dataInicio: string,
+  dataFim: string,
+  coverageIssues: string[],
+): Promise<DjenItem[]> {
+  if (!oabNumber || (oabUf || "").toUpperCase() !== "SP") return [];
   const items: DjenItem[] = [];
   const seen = new Set<string>();
   const dtInicio = toBrDate(dataInicio);
@@ -487,35 +545,36 @@ async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataI
 
   const body = new URLSearchParams();
   // eSAJ: pesquisa por OAB usa cbPesquisa=NUMOAB e o número puro no campo pesquisaLivre.
-  body.set('dadosConsulta.pesquisaLivre', String(oabNumber).replace(/\D/g, ''));
-  body.set('cbPesquisa', 'NUMOAB');
-  body.set('tipoConsulta', 'BUSCA_AVANCADA');
-  body.set('dadosConsulta.dtInicio', dtInicio);
-  body.set('dadosConsulta.dtFim', dtFim);
-  body.set('dadosConsulta.cdCaderno', '-1');
+  body.set("dadosConsulta.pesquisaLivre", String(oabNumber).replace(/\D/g, ""));
+  body.set("cbPesquisa", "NUMOAB");
+  body.set("tipoConsulta", "BUSCA_AVANCADA");
+  body.set("dadosConsulta.dtInicio", dtInicio);
+  body.set("dadosConsulta.dtFim", dtFim);
+  body.set("dadosConsulta.cdCaderno", "-1");
 
-  let html = '';
+  let html = "";
   try {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    const res = await fetch('https://esaj.tjsp.jus.br/cdje/consultaAvancada.do', {
-      method: 'POST',
+    const res = await fetch("https://esaj.tjsp.jus.br/cdje/consultaAvancada.do", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'pt-BR,pt;q=0.9',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "pt-BR,pt;q=0.9",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
       body: body.toString(),
       signal: controller.signal,
     });
     clearTimeout(timer);
     if (!res.ok) throw new Error(`TJSP HTTP ${res.status}`);
-    html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
-    assertTribunalHtml(html, 'TJSP');
+    html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
+    assertTribunalHtml(html, "TJSP");
   } catch (e) {
     recordCoverageIssue(coverageIssues, `TJSP OAB ${oabNumber}/${oabUf}: ${(e as Error).message}`);
-    console.warn('[tjsp-dje-oab] falhou:', (e as Error).message);
+    console.warn("[tjsp-dje-oab] falhou:", (e as Error).message);
     return [];
   }
 
@@ -523,18 +582,18 @@ async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataI
   for (const r of rows) {
     const block = r[1];
     const dateMatch = block.match(/(\d{2})\/(\d{2})\/(\d{4})/);
-    const disponibilizacao = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : '';
+    const disponibilizacao = dateMatch ? `${dateMatch[3]}-${dateMatch[2]}-${dateMatch[1]}` : "";
     if (!disponibilizacao || disponibilizacao < dataInicio || disponibilizacao > dataFim) continue;
 
     const cadernoMatch = block.match(/Caderno[^<]*<[^>]*>\s*([^<]+)/i);
-    const caderno = cadernoMatch ? cadernoMatch[1].trim() : '';
-    const detail = stripHtmlToText(block).replace(/\s+/g, ' ').trim();
+    const caderno = cadernoMatch ? cadernoMatch[1].trim() : "";
+    const detail = stripHtmlToText(block).replace(/\s+/g, " ").trim();
     if (!detail) continue;
 
     // Extrai CNJ do bloco quando presente; se não houver, mantém publicação
     // com numero_processo vazio (será tratada como intimação sem processo).
     const cnjRaw = detail.match(/\d{7}-?\d{2}\.?\d{4}\.?\d\.?\d{2}\.?\d{4}/);
-    const numero = cnjRaw ? normalizeProcessNumber(cnjRaw[0]) || '' : '';
+    const numero = cnjRaw ? normalizeProcessNumber(cnjRaw[0]) || "" : "";
 
     // Dedup por (data + numero + primeiros 120 chars) para não gerar variantes
     // por espaços/HTML diferentes entre execuções.
@@ -546,13 +605,13 @@ async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataI
       id: key,
       hash: key,
       numero_processo: numero,
-      texto: [`Disponibilização: ${disponibilizacao}`, caderno, numero, detail].filter(Boolean).join('\n'),
+      texto: [`Disponibilização: ${disponibilizacao}`, caderno, numero, detail].filter(Boolean).join("\n"),
       data_disponibilizacao: disponibilizacao,
-      siglaTribunal: 'TJSP',
-      nomeOrgao: caderno || 'TJSP - DEJESP',
-      tipoComunicacao: 'Publicação TJSP',
-      __queryKind: 'oab',
-      __source: 'tjsp-dje-oab',
+      siglaTribunal: "TJSP",
+      nomeOrgao: caderno || "TJSP - DEJESP",
+      tipoComunicacao: "Publicação TJSP",
+      __queryKind: "oab",
+      __source: "tjsp-dje-oab",
     } as DjenItem);
   }
 
@@ -566,9 +625,10 @@ async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
   try {
     const res = await fetch(url, {
       headers: {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'pt-BR,pt;q=0.9',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "pt-BR,pt;q=0.9",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       },
       signal: controller.signal,
     });
@@ -576,9 +636,17 @@ async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
     // CloudFront do CNJ bloqueia por geo (403). Edge runtime Supabase está em eu-central-1.
     // Solução: configurar PROXY_BR_URL apontando para proxy reverso hospedado no Brasil.
     if ((res.status >= 500 || res.status === 429) && attempt < MAX_RETRIES) {
-      const wait = 2 ** attempt * 1000 + Math.random() * 500;
+      const retryAfter = res.headers.get("Retry-After");
+      const advisedMs = retryAfter
+        ? /^\d+$/.test(retryAfter)
+          ? Number(retryAfter) * 1000
+          : Date.parse(retryAfter) - Date.now()
+        : 0;
+      // Defer long upstream cooldowns to the durable queue instead of holding the runtime open.
+      if (Number.isFinite(advisedMs) && advisedMs > 30000) return res;
+      const wait = Math.max(2 ** attempt * 1000 + Math.random() * 500, Number.isFinite(advisedMs) ? advisedMs : 0);
       console.warn(`DJEN ${res.status} — tentativa ${attempt}/${MAX_RETRIES}, aguardando ${Math.round(wait)}ms`);
-      await new Promise(r => setTimeout(r, wait));
+      await new Promise((r) => setTimeout(r, wait));
       return fetchWithRetry(url, attempt + 1);
     }
     return res;
@@ -587,7 +655,7 @@ async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
     if (attempt < MAX_RETRIES) {
       const wait = 2 ** attempt * 1000 + Math.random() * 500;
       console.warn(`DJEN fetch erro (${e.message}) — tentativa ${attempt}/${MAX_RETRIES}`);
-      await new Promise(r => setTimeout(r, wait));
+      await new Promise((r) => setTimeout(r, wait));
       return fetchWithRetry(url, attempt + 1);
     }
     throw e;
@@ -596,12 +664,12 @@ async function fetchWithRetry(url: string, attempt = 1): Promise<Response> {
 
 // ============= Fuzzy match de nome (Levenshtein normalizado) =============
 function normalizeName(s: string): string {
-  return (s || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // remove acentos
+  return (s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
     .toLowerCase()
-    .replace(/[^a-z\s]/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/[^a-z\s]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -638,9 +706,12 @@ function similarity(a: string, b: string): number {
  */
 function extractDjenNames(it: any): string[] {
   const names: string[] = [];
-  const push = (v: any) => { if (typeof v === 'string' && v.trim().length > 3) names.push(v); };
+  const push = (v: any) => {
+    if (typeof v === "string" && v.trim().length > 3) names.push(v);
+  };
   if (Array.isArray(it.destinatarios)) it.destinatarios.forEach((d: any) => push(d?.nome));
-  if (Array.isArray(it.destinatarioadvogados)) it.destinatarioadvogados.forEach((d: any) => push(d?.advogado?.nome ?? d?.nome));
+  if (Array.isArray(it.destinatarioadvogados))
+    it.destinatarioadvogados.forEach((d: any) => push(d?.advogado?.nome ?? d?.nome));
   if (Array.isArray(it.advogados)) it.advogados.forEach((a: any) => push(a?.nome));
   push(it.nomeAdvogado);
   push(it.intimado);
@@ -655,19 +726,23 @@ function extractDjenNames(it: any): string[] {
  * - Se houver nomes no payload mas NENHUM bater: rejeita (publicação direcionada a outro advogado).
  * - Se o payload não trouxer nomes estruturados: aceita (não temos como rejeitar com segurança).
  */
-function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number): { ok: boolean; bestScore: number; reason: string } {
-  if (!refNames.length) return { ok: true, bestScore: 1, reason: 'no-ref' };
+function matchesConfiguredLawyer(
+  it: any,
+  refNames: string[],
+  threshold: number,
+): { ok: boolean; bestScore: number; reason: string } {
+  if (!refNames.length) return { ok: true, bestScore: 1, reason: "no-ref" };
   const candidates = extractDjenNames(it);
-  if (!candidates.length) return { ok: true, bestScore: 0, reason: 'no-candidates' };
+  if (!candidates.length) return { ok: true, bestScore: 0, reason: "no-candidates" };
   let best = 0;
   for (const c of candidates) {
     for (const r of refNames) {
       const s = similarity(c, r);
       if (s > best) best = s;
-      if (s >= threshold) return { ok: true, bestScore: s, reason: 'match' };
+      if (s >= threshold) return { ok: true, bestScore: s, reason: "match" };
     }
   }
-  return { ok: false, bestScore: best, reason: 'mismatch' };
+  return { ok: false, bestScore: best, reason: "mismatch" };
 }
 
 // Configuration is scoped to one request; rejects are scoped to one OAB.
@@ -679,20 +754,27 @@ interface SyncContext {
   maxPages: number | null;
   bypassNameFilter: boolean;
   processNumbers: string[];
+  targetedOnly: boolean;
   rejected: Array<{ id: string; processo: string; data: string; tribunal: string; motivo: string }>;
 }
 
 function describeDroppedItem(raw: any, motivo: string) {
   return {
-    id: String(raw?.id ?? raw?.hash ?? '—'),
-    processo: String(raw?.numeroprocessocommascara ?? raw?.numero_processo ?? '—'),
-    data: String(raw?.data_disponibilizacao ?? '—'),
-    tribunal: String(raw?.siglaTribunal ?? '—'),
+    id: String(raw?.id ?? raw?.hash ?? "—"),
+    processo: String(raw?.numeroprocessocommascara ?? raw?.numero_processo ?? "—"),
+    data: String(raw?.data_disponibilizacao ?? "—"),
+    tribunal: String(raw?.siglaTribunal ?? "—"),
     motivo,
   };
 }
 
-async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[], ctx: SyncContext): Promise<{ items: DjenItem[]; attempts: number; incomplete: boolean }> {
+async function fetchDjen(
+  oab: string,
+  uf: string,
+  lawyerName?: string | null,
+  processNumbers: string[],
+  ctx: SyncContext,
+): Promise<{ items: DjenItem[]; attempts: number; incomplete: boolean }> {
   ctx.rejected = [];
   const daysBack = ctx.daysBack ?? DAYS_BACK;
   const dataInicio = ctx.startDate || new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
@@ -708,8 +790,11 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
   // Prioridade: 1) ctx.proxyUrl (configurado pela UI em djen_proxy_config),
   //             2) secret DJEN_PROXY_URL, 3) URL direta do CNJ.
-  const PROXY = (ctx.proxyUrl || Deno.env.get('DJEN_PROXY_URL') || 'https://djen-proxy-five.vercel.app').replace(/\/$/, '');
-  const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
+  const PROXY = (ctx.proxyUrl || Deno.env.get("DJEN_PROXY_URL") || "https://djen-proxy-five.vercel.app").replace(
+    /\/$/,
+    "",
+  );
+  const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : "https://comunicaapi.pje.jus.br/api/v1/comunicacao";
 
   // Constrói lista de queries:
   //   1) sempre por OAB (comunicações dirigidas ao advogado);
@@ -717,18 +802,31 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
   //   3) por numeroProcesso para CADA processo cadastrado — cobre pautas de julgamento,
   //      listas de distribuição e atos administrativos que a API DJEN só retorna quando
   //      consultada pelo número do processo (não pela OAB).
-  const queries: Array<{ kind: 'oab' | 'nome' | 'process'; build: (p: number) => string }> = [
-    { kind: 'oab', build: (p) => `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` },
-  ];
-  if (lawyerName && lawyerName.trim().length >= 5) {
-    queries.push({ kind: 'nome', build: (p) => `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` });
+  const queries: Array<{ kind: "oab" | "nome" | "process"; build: (p: number) => string }> = ctx.targetedOnly
+    ? []
+    : [
+        {
+          kind: "oab",
+          build: (p) =>
+            `${API_BASE}?numeroOab=${encodeURIComponent(oab)}&ufOab=${encodeURIComponent(uf)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
+        },
+      ];
+  if (!ctx.targetedOnly && lawyerName && lawyerName.trim().length >= 5) {
+    queries.push({
+      kind: "nome",
+      build: (p) =>
+        `${API_BASE}?nomeAdvogado=${encodeURIComponent(lawyerName.trim())}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
+    });
   }
   for (const numero of processNumbers) {
-    const n = (numero || '').trim();
+    const n = (numero || "").trim();
     if (n.length < 15) continue;
-    queries.push({ kind: 'process', build: (p) => `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100` });
+    queries.push({
+      kind: "process",
+      build: (p) =>
+        `${API_BASE}?numeroProcesso=${encodeURIComponent(n)}&dataDisponibilizacaoInicio=${dataInicio}&dataDisponibilizacaoFim=${dataFim}&pagina=${p}&itensPorPagina=100`,
+    });
   }
-
 
   for (const q of queries) {
     if (upstreamDegraded) break;
@@ -754,7 +852,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         // Detecta geo-block do CloudFront do CNJ — mensagem acionável em vez de HTML cru
         if (res.status === 403 && /block access from your country/i.test(t)) {
           const msg =
-            `DJEN 403 GEO-BLOCK: o proxy configurado (${PROXY || 'direto'}) está saindo por IP fora do Brasil. ` +
+            `DJEN 403 GEO-BLOCK: o proxy configurado (${PROXY || "direto"}) está saindo por IP fora do Brasil. ` +
             `Solução: use proxy hospedado em região BR (ver docs/cloudflare-worker-djen.md). ` +
             `Tribunal CNJ bloqueia CloudFront por geolocalização.`;
           if (all.length > 0) {
@@ -777,7 +875,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         pageResult = readDjenPage(await res.json(), pagina, maxPages);
       } catch (e) {
         if (!all.length && pagina === 1) throw e;
-        console.warn('[sync-djen] resposta inválida; preservando itens anteriores:', String(e));
+        console.warn("[sync-djen] resposta inválida; preservando itens anteriores:", String(e));
         upstreamDegraded = true;
         break;
       }
@@ -789,12 +887,15 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         const parsed = DjenItemSchema.safeParse(raw);
         if (parsed.success) {
           if (!parsed.data.data_disponibilizacao) {
-            console.warn('[djen-schema] item sem data_disponibilizacao válida — descartado', JSON.stringify(raw).slice(0, 200));
-            ctx.rejected.push(describeDroppedItem(raw, 'data_disponibilizacao ausente/inválida'));
+            console.warn(
+              "[djen-schema] item sem data_disponibilizacao válida — descartado",
+              JSON.stringify(raw).slice(0, 200),
+            );
+            ctx.rejected.push(describeDroppedItem(raw, "data_disponibilizacao ausente/inválida"));
             continue;
           }
           // Dedup entre as duas queries (OAB + nomeAdvogado) usando hash/id quando disponível
-          const dedupKey = parsed.data.hash || String(parsed.data.id || '') || JSON.stringify(raw).slice(0, 200);
+          const dedupKey = parsed.data.hash || String(parsed.data.id || "") || JSON.stringify(raw).slice(0, 200);
           if (seen.has(dedupKey)) continue;
           seen.add(dedupKey);
           // Marca origem da query para o filtro server-side pular items obtidos
@@ -803,31 +904,35 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
           validItems.push(parsed.data);
         } else {
           ctx.rejected.push(describeDroppedItem(raw, JSON.stringify(parsed.error.flatten().fieldErrors).slice(0, 200)));
-          console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
+          console.warn(
+            "[djen-schema] item rejeitado pelo Zod:",
+            parsed.error.flatten(),
+            JSON.stringify(raw).slice(0, 200),
+          );
         }
       }
       all.push(...validItems);
       queryItems += validItems.length;
       if (!pageResult.more) break;
       pagina++;
-      await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
+      await new Promise((r) => setTimeout(r, PAGE_DELAY_MS));
     }
   }
   return { items: all, attempts: totalAttempts, incomplete: upstreamDegraded || truncated };
 }
 
 function cleanHtml(raw: string): string {
-  if (!raw) return '';
+  if (!raw) return "";
   return raw
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
@@ -840,7 +945,7 @@ function classifyIntimation(text: string, receivedAt: string, tribunal?: string 
 
 // ============= Batch lookup (elimina N+1) =============
 function cnjDigits(v: string | null | undefined): string {
-  return (v || '').replace(/\D/g, '');
+  return (v || "").replace(/\D/g, "");
 }
 
 function cnjFormatted(v: string | null | undefined): string | null {
@@ -849,7 +954,11 @@ function cnjFormatted(v: string | null | undefined): string | null {
   return `${d.slice(0, 7)}-${d.slice(7, 9)}.${d.slice(9, 13)}.${d.slice(13, 14)}.${d.slice(14, 16)}.${d.slice(16, 20)}`;
 }
 
-async function buildProcessIndex(supabase: any, userIds: string[], numeros: string[]): Promise<Map<string, { id: string; user_id: string }>> {
+async function buildProcessIndex(
+  supabase: any,
+  userIds: string[],
+  numeros: string[],
+): Promise<Map<string, { id: string; user_id: string }>> {
   const map = new Map<string, { id: string; user_id: string }>();
   // Índice sempre chaveado por DÍGITOS: a API DJEN devolve o CNJ sem máscara
   // ("00021210320218260604") e o cadastro guarda com máscara — sem normalizar,
@@ -869,7 +978,11 @@ async function buildProcessIndex(supabase: any, userIds: string[], numeros: stri
   const BATCH = 500;
   for (let i = 0; i < unique.length; i += BATCH) {
     const chunk = unique.slice(i, i + BATCH);
-    const { data } = await supabase.from('processes').select('id, number, user_id').in('user_id', users).in('number', chunk);
+    const { data } = await supabase
+      .from("processes")
+      .select("id, number, user_id")
+      .in("user_id", users)
+      .in("number", chunk);
     (data || []).forEach((p: any) => map.set(cnjDigits(p.number), { id: p.id, user_id: p.user_id }));
   }
   return map;
@@ -888,7 +1001,7 @@ async function buildProcessIndex(supabase: any, userIds: string[], numeros: stri
 function extractParentProcess(content: string, currentNumero: string | null): string | null {
   if (!content) return null;
   const CNJ = /\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}/g;
-  const text = content.replace(/\s+/g, ' ');
+  const text = content.replace(/\s+/g, " ");
   const patterns: RegExp[] = [
     /processo\s+principal[:\s]*?(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/i,
     /cumprimento\s+de\s+senten[çc]a[^()]*\((\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})\)/i,
@@ -909,9 +1022,10 @@ function extractParentProcess(content: string, currentNumero: string | null): st
 /** Detecta se a publicação trata de fase de execução / cumprimento de sentença. */
 function detectsExecutionPhase(content: string): boolean {
   if (!content) return false;
-  return /cumprimento\s+de\s+senten[çc]a|execu[çc][ãa]o\s+de\s+(senten[çc]a|t[íi]tulo)|fase\s+de\s+execu[çc][ãa]o/i.test(content);
+  return /cumprimento\s+de\s+senten[çc]a|execu[çc][ãa]o\s+de\s+(senten[çc]a|t[íi]tulo)|fase\s+de\s+execu[çc][ãa]o/i.test(
+    content,
+  );
 }
-
 
 async function syncForOab(supabase: any, row: any, triggeredBy: string, requestContext: SyncContext) {
   const ctx = { ...requestContext, rejected: [] as SyncContext["rejected"] };
@@ -922,7 +1036,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
   let urgentDeadlines = 0;
   let nameRejected = 0;
   let errorMessage: string | null = null;
-  let status: 'success' | 'partial' | 'failed' = 'success';
+  let status: "success" | "partial" | "failed" = "success";
   const triggerCounts: Record<string, number> = {};
   const coverageIssues: string[] = [];
 
@@ -931,25 +1045,28 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
     ...(row.lawyer_name ? [String(row.lawyer_name)] : []),
     ...(Array.isArray(row.name_variations) ? row.name_variations.filter(Boolean).map(String) : []),
   ];
-  const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.80;
-  const syncStartDate = ctx.startDate || new Date(Date.now() - (ctx.daysBack ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
+  const threshold = typeof row.name_match_threshold === "number" ? row.name_match_threshold : 0.8;
+  const syncStartDate =
+    ctx.startDate || new Date(Date.now() - (ctx.daysBack ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
   const syncEndDate = ctx.endDate || new Date().toISOString().slice(0, 10);
   // Fallback TJMG estadual é pesado (HTML por comarca/data). No cron, cobre a
   // semana corrente/redundante; em reconciliação manual respeita a janela pedida.
-  const stateFallbackStartDate = ctx.startDate
-    || new Date(Date.now() - Math.min(7, ctx.daysBack ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
+  const stateFallbackStartDate =
+    ctx.startDate ||
+    new Date(Date.now() - Math.min(7, ctx.daysBack ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
 
   try {
     clearLegalCalendarCache();
     const [{ data: suspensions }, { data: tribunalHolidays }] = await Promise.all([
-      supabase.from('judicial_suspensions').select('tribunal_codigo,start_date,end_date'),
-      supabase.from('tribunal_holidays').select('tribunal_codigo,holiday_date'),
+      supabase.from("judicial_suspensions").select("tribunal_codigo,start_date,end_date"),
+      supabase.from("tribunal_holidays").select("tribunal_codigo,holiday_date"),
     ]);
     const suspended: string[] = [];
     for (const s of suspensions || []) {
       const start = new Date(`${s.start_date}T12:00:00Z`);
       const end = new Date(`${s.end_date}T12:00:00Z`);
-      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) suspended.push(d.toISOString().slice(0, 10));
+      for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1))
+        suspended.push(d.toISOString().slice(0, 10));
     }
     setSuspensionWindow(suspended);
     const holidaysByTribunal = new Map<string, string[]>();
@@ -960,39 +1077,64 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
     }
     holidaysByTribunal.forEach((dates, code) => setTribunalHolidaySet(code, dates));
 
-    const { data: roleRows } = await supabase.from('user_roles').select('user_id');
-    const officeUserIds = [...new Set([row.user_id, ...((roleRows || []).map((r: any) => r.user_id).filter(Boolean))])];
+    const { data: roleRows } = await supabase.from("user_roles").select("user_id");
+    const officeUserIds = [...new Set([row.user_id, ...(roleRows || []).map((r: any) => r.user_id).filter(Boolean)])];
 
     // Carrega números de processos do usuário da OAB para varredura adicional DJEN (pautas,
     // listas de distribuição, atos administrativos que só aparecem por numeroProcesso).
-    const { data: ownProcs, error: ownProcsError } = await supabase
-      .from('processes')
-      .select('number')
-      .eq('user_id', row.user_id)
-      .not('number', 'is', null);
+    const { data: ownProcs, error: ownProcsError } = ctx.targetedOnly
+      ? { data: [], error: null }
+      : await supabase.from("processes").select("number").eq("user_id", row.user_id).not("number", "is", null);
     if (ownProcsError) throw new Error(`Leitura dos processos falhou: ${ownProcsError.message}`);
-    const processNumbers = [...new Set([...(ownProcs || []).map((p: any) => p.number).filter(Boolean), ...ctx.processNumbers])];
+    const processNumbers = [
+      ...new Set([...(ownProcs || []).map((p: any) => p.number).filter(Boolean), ...ctx.processNumbers]),
+    ];
 
     const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers, ctx);
     if (result.incomplete) {
-      status = 'partial';
-      recordCoverageIssue(coverageIssues, 'Consulta DJEN interrompida ou limite de páginas atingido.');
+      status = "partial";
+      recordCoverageIssue(coverageIssues, "Consulta DJEN interrompida ou limite de páginas atingido.");
     }
-    const { data: officeProcs, error: officeProcsError } = await supabase
-      .from('processes')
-      .select('number')
-      .in('user_id', officeUserIds)
-      .not('number', 'is', null);
-    if (officeProcsError) recordCoverageIssue(coverageIssues, `Leitura dos processos do escritório falhou: ${officeProcsError.message}`);
+    const { data: officeProcs, error: officeProcsError } = ctx.targetedOnly
+      ? { data: [], error: null }
+      : await supabase.from("processes").select("number").in("user_id", officeUserIds).not("number", "is", null);
+    if (officeProcsError)
+      recordCoverageIssue(coverageIssues, `Leitura dos processos do escritório falhou: ${officeProcsError.message}`);
     const officeProcessNumbers = (officeProcs || []).map((p: any) => p.number).filter(Boolean);
-    const [tjmgFallbackItems, tjspFallbackItems, tjspOabFallbackItems] = await Promise.all([
-      fetchTjmgDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate, coverageIssues)
-        .catch((e) => { recordCoverageIssue(coverageIssues, `tjmg-dje: ${(e as Error).message}`); return [] as DjenItem[]; }),
-      fetchTjspDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate, coverageIssues)
-        .catch((e) => { recordCoverageIssue(coverageIssues, `tjsp-dje: ${(e as Error).message}`); return [] as DjenItem[]; }),
-      fetchTjspDjeByOabFallback(row.oab_number, row.oab_uf, stateFallbackStartDate, syncEndDate, coverageIssues)
-        .catch((e) => { recordCoverageIssue(coverageIssues, `tjsp-dje-oab: ${(e as Error).message}`); return [] as DjenItem[]; }),
-    ]);
+    const [tjmgFallbackItems, tjspFallbackItems, tjspOabFallbackItems] = ctx.targetedOnly
+      ? [[], [], []]
+      : await Promise.all([
+          fetchTjmgDjeFallback(
+            officeProcessNumbers,
+            refNames,
+            stateFallbackStartDate,
+            syncEndDate,
+            coverageIssues,
+          ).catch((e) => {
+            recordCoverageIssue(coverageIssues, `tjmg-dje: ${(e as Error).message}`);
+            return [] as DjenItem[];
+          }),
+          fetchTjspDjeFallback(
+            officeProcessNumbers,
+            refNames,
+            stateFallbackStartDate,
+            syncEndDate,
+            coverageIssues,
+          ).catch((e) => {
+            recordCoverageIssue(coverageIssues, `tjsp-dje: ${(e as Error).message}`);
+            return [] as DjenItem[];
+          }),
+          fetchTjspDjeByOabFallback(
+            row.oab_number,
+            row.oab_uf,
+            stateFallbackStartDate,
+            syncEndDate,
+            coverageIssues,
+          ).catch((e) => {
+            recordCoverageIssue(coverageIssues, `tjsp-dje-oab: ${(e as Error).message}`);
+            return [] as DjenItem[];
+          }),
+        ]);
 
     const merged: DjenItem[] = [];
     const mergedSeen = new Set<string>();
@@ -1006,10 +1148,10 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
     attempts = result.attempts;
   } catch (e: any) {
     errorMessage = e.message || String(e);
-    status = 'failed';
+    status = "failed";
   }
 
-  if (status !== 'failed' && items.length > 0) {
+  if (status !== "failed" && items.length > 0) {
     // Filtro server-side por nome: desabilitado quando a intimação foi capturada
     // via numeroProcesso (pautas de julgamento não citam nome do advogado no
     // campo destinatários). Só aplicamos filtro se o payload tem destinatário
@@ -1021,82 +1163,108 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
         // Items obtidos via numeroProcesso são de processos JÁ cadastrados pelo
         // usuário — pular filtro fuzzy evita perdas grosseiras (pautas, atos
         // administrativos, publicações sem destinatário estruturado).
-        if ((it as any).__queryKind === 'process') { filtered.push(it); continue; }
+        if ((it as any).__queryKind === "process") {
+          filtered.push(it);
+          continue;
+        }
         const m = matchesConfiguredLawyer(it as any, refNames, threshold);
         if (m.ok) filtered.push(it);
-        else { nameRejected++; console.info(`[name-filter] descartado (score=${m.bestScore.toFixed(2)} < ${threshold})`); }
+        else {
+          nameRejected++;
+          console.info(`[name-filter] descartado (score=${m.bestScore.toFixed(2)} < ${threshold})`);
+        }
       }
       items = filtered;
     }
 
-
     // The redundant search still covers the full window, but persisted publications
     // must not consume CPU in name/parent/deadline classification on every run.
-    const entries = await Promise.all(items.map(async item => ({ item, externalId: await buildExternalId(item) })));
+    const entries = await Promise.all(items.map(async (item) => ({ item, externalId: await buildExternalId(item) })));
     const existingIds: string[] = [];
     for (let offset = 0; offset < entries.length; offset += 100) {
-      const { data: existing, error: lookupError } = await supabase.from('intimations')
-        .select('external_id').eq('user_id', row.user_id)
-        .in('external_id', entries.slice(offset, offset + 100).map(entry => entry.externalId));
+      const { data: existing, error: lookupError } = await supabase
+        .from("intimations")
+        .select("external_id")
+        .eq("user_id", row.user_id)
+        .in(
+          "external_id",
+          entries.slice(offset, offset + 100).flatMap((entry) => djenIdentityAliases(entry.externalId)),
+        );
       if (lookupError) throw new Error(`Leitura das publicações já importadas falhou: ${lookupError.message}`);
       existingIds.push(...(existing || []).map((entry: { external_id: string }) => entry.external_id));
     }
     const pendingEntries = pendingDjenEntries(entries, existingIds);
     console.info(`[sync-djen] ${items.length} encontradas, ${pendingEntries.length} ainda não importadas.`);
-    const pendingItems = pendingEntries.map(entry => entry.item);
-    const externalIds = new Map(pendingEntries.map(entry => [entry.item, entry.externalId]));
+    const pendingItems = pendingEntries.map((entry) => entry.item);
+    const externalIds = new Map(pendingEntries.map((entry) => [entry.item, entry.externalId]));
     // Batch lookup de processes — inclui CNJs do cabeçalho E "processo principal" extraído do conteúdo
-    const numeros = pendingItems.map(it => it.numero_processo || '').filter(Boolean);
-    const parents = pendingItems.map(it => extractParentProcess(cleanHtml(it.texto || ''), it.numero_processo || null) || '').filter(Boolean);
-    const { data: roleRowsForIndex } = await supabase.from('user_roles').select('user_id');
-    const processUserIds = [...new Set([row.user_id, ...((roleRowsForIndex || []).map((r: any) => r.user_id).filter(Boolean))])];
+    const numeros = pendingItems.map((it) => it.numero_processo || "").filter(Boolean);
+    const parents = pendingItems
+      .map((it) => extractParentProcess(cleanHtml(it.texto || ""), it.numero_processo || null) || "")
+      .filter(Boolean);
+    const { data: roleRowsForIndex } = await supabase.from("user_roles").select("user_id");
+    const processUserIds = [
+      ...new Set([row.user_id, ...(roleRowsForIndex || []).map((r: any) => r.user_id).filter(Boolean)]),
+    ];
     const processIndex = await buildProcessIndex(supabase, processUserIds, [...numeros, ...parents]);
-
 
     const userEmailById = new Map<string, string | null>();
     for (const uid of processUserIds) {
       try {
         const { data: u } = await supabase.auth.admin.getUserById(uid);
         userEmailById.set(uid, u?.user?.email ?? null);
-      } catch (_) { userEmailById.set(uid, null); }
+      } catch (_) {
+        userEmailById.set(uid, null);
+      }
     }
 
     for (const it of pendingItems) {
       try {
         const externalId = externalIds.get(it);
-        if (!externalId) throw new Error('Identidade da publicação não encontrada.');
-        const _body = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
+        if (!externalId) throw new Error("Identidade da publicação não encontrada.");
+        const _body = cleanHtml(it.texto || it.tipoComunicacao || "Sem conteúdo");
         // AASP-style header: enriquece o conteúdo com metadados estruturados
         // que a API DJEN retorna em campos separados (não vêm no `texto`).
         const _fmtDate = (iso?: string) => {
-          if (!iso) return '';
-          const [y, m, d] = iso.split('-');
-          return (y && m && d) ? `${d}/${m}/${y}` : iso;
+          if (!iso) return "";
+          const [y, m, d] = iso.split("-");
+          return y && m && d ? `${d}/${m}/${y}` : iso;
         };
         const _partes = Array.isArray((it as any).destinatarios)
-          ? (it as any).destinatarios.map((d: any) => d?.nome).filter(Boolean).join('; ')
-          : '';
+          ? (it as any).destinatarios
+              .map((d: any) => d?.nome)
+              .filter(Boolean)
+              .join("; ")
+          : "";
         const _advs = Array.isArray((it as any).destinatarioadvogados)
-          ? (it as any).destinatarioadvogados.map((d: any) => {
-              const nome = d?.advogado?.nome ?? d?.nome;
-              const num = d?.advogado?.numero_oab ?? d?.numero_oab;
-              const uf = d?.advogado?.uf_oab ?? d?.uf_oab;
-              return nome ? `${nome}${num ? ` OAB ${uf || ''}${uf ? '-' : ''}${num}` : ''}` : '';
-            }).filter(Boolean).join(', ')
-          : (Array.isArray((it as any).advogados)
-              ? (it as any).advogados.map((a: any) => a?.nome).filter(Boolean).join(', ')
-              : '');
+          ? (it as any).destinatarioadvogados
+              .map((d: any) => {
+                const nome = d?.advogado?.nome ?? d?.nome;
+                const num = d?.advogado?.numero_oab ?? d?.numero_oab;
+                const uf = d?.advogado?.uf_oab ?? d?.uf_oab;
+                return nome ? `${nome}${num ? ` OAB ${uf || ""}${uf ? "-" : ""}${num}` : ""}` : "";
+              })
+              .filter(Boolean)
+              .join(", ")
+          : Array.isArray((it as any).advogados)
+            ? (it as any).advogados
+                .map((a: any) => a?.nome)
+                .filter(Boolean)
+                .join(", ")
+            : "";
         const _headerLines = [
-          it.tipoComunicacao ? `${it.tipoComunicacao}${it.numero_processo ? ` Processo: ${maskProcessNumber(it.numero_processo)}` : ''}` : (it.numero_processo ? `Processo: ${maskProcessNumber(it.numero_processo)}` : ''),
-          it.nomeOrgao ? `Órgão: ${it.nomeOrgao}` : '',
-          it.data_disponibilizacao ? `Data de disponibilização: ${_fmtDate(it.data_disponibilizacao)}` : '',
-          (it as any).meio ? `Meio: ${(it as any).meio}` : '',
-          _partes ? `Parte(s): ${_partes}` : '',
-          _advs ? `Advogado(s): ${_advs}` : '',
+          it.tipoComunicacao
+            ? `${it.tipoComunicacao}${it.numero_processo ? ` Processo: ${maskProcessNumber(it.numero_processo)}` : ""}`
+            : it.numero_processo
+              ? `Processo: ${maskProcessNumber(it.numero_processo)}`
+              : "",
+          it.nomeOrgao ? `Órgão: ${it.nomeOrgao}` : "",
+          it.data_disponibilizacao ? `Data de disponibilização: ${_fmtDate(it.data_disponibilizacao)}` : "",
+          (it as any).meio ? `Meio: ${(it as any).meio}` : "",
+          _partes ? `Parte(s): ${_partes}` : "",
+          _advs ? `Advogado(s): ${_advs}` : "",
         ].filter(Boolean);
-        const cleanText = _headerLines.length
-          ? `${_headerLines.join('\n')}\n\n${_body}`
-          : _body;
+        const cleanText = _headerLines.length ? `${_headerLines.join("\n")}\n\n${_body}` : _body;
         // SprintClosure #9: já garantido pelo Zod schema que data_disponibilizacao existe.
         // Não há mais fallback silencioso para today.
         const receivedAt = it.data_disponibilizacao!;
@@ -1106,21 +1274,24 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
         //   * auto_alta (≥0.9): grava deadline canônico.
         //   * demais (auto_media/baixa/ambigua_urgente): deadline=null + dump em deadline_sugerido_inseguro.
         const detected = classifyIntimation(cleanText, receivedAt, tribunal);
-        const trigKey = detected?.triggerSource ?? 'none';
+        const trigKey = detected?.triggerSource ?? "none";
         triggerCounts[trigKey] = (triggerCounts[trigKey] || 0) + 1;
-        const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;
+        const isSafe = !!detected && detected.classificacaoStatus === "auto_alta" && !!detected.dueDate;
         const deadline = isSafe ? detected!.dueDate : null;
-        const deadlineSugeridoInseguro = (detected && !isSafe) ? {
-          due_date: detected.dueDate,
-          start_date: detected.startDate,
-          days: detected.days,
-          unit: detected.unit,
-          label: detected.label,
-          confianca: detected.confianca,
-          classificacao_status: detected.classificacaoStatus,
-          trigger_source: detected.triggerSource,
-          calculated_at: new Date().toISOString(),
-        } : null;
+        const deadlineSugeridoInseguro =
+          detected && !isSafe
+            ? {
+                due_date: detected.dueDate,
+                start_date: detected.startDate,
+                days: detected.days,
+                unit: detected.unit,
+                label: detected.label,
+                confianca: detected.confianca,
+                classificacao_status: detected.classificacaoStatus,
+                trigger_source: detected.triggerSource,
+                calculated_at: new Date().toISOString(),
+              }
+            : null;
         // Resolução de processo: tenta CNJ direto; se não houver match, tenta "processo principal" do conteúdo.
         // IMPORTANTE: a intimação SEMPRE fica sob o user_id do dono da OAB que a capturou
         // (row.user_id). Só o process_id pode apontar para processo de outro membro do escritório —
@@ -1136,42 +1307,49 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
         // do próprio CNJ, a intimação fica órfã (com botão "Cadastrar processo").
         const linkedToParent = false;
 
-        const classificationMeta: Record<string, any> | null = (isExecution || linkedToParent || parentNumero) ? {
-          fase: isExecution ? 'execucao' : null,
-          numero_execucao: linkedToParent ? (it.numero_processo || null) : null,
-          processo_principal: parentNumero,
-          linked_to_parent: linkedToParent,
-        } : null;
+        const classificationMeta: Record<string, any> | null =
+          isExecution || linkedToParent || parentNumero
+            ? {
+                fase: isExecution ? "execucao" : null,
+                numero_execucao: linkedToParent ? it.numero_processo || null : null,
+                processo_principal: parentNumero,
+                linked_to_parent: linkedToParent,
+              }
+            : null;
 
-        const { data: insertedRow, error } = await supabase.from('intimations').insert({
-          user_id: targetUserId,
-          external_id: externalId,
-          source: (it as any).__source || 'djen',
-          court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? ' - ' + it.nomeOrgao : ''}` : it.nomeOrgao,
-          content: cleanText,
-          received_at: receivedAt,
-          deadline,
-          deadline_sugerido_inseguro: deadlineSugeridoInseguro,
-          peca_sugerida: detected?.pecaSugerida ?? null,
-          base_legal: detected?.baseLegal ?? null,
-          confianca_classificacao: detected?.confianca ?? null,
-          classificacao_status: detected?.classificacaoStatus ?? null,
-          classification_meta: classificationMeta,
-          process_id: processId,
-          status: 'pendente',
-        }).select('id').single();
+        const { data: insertedRow, error } = await supabase
+          .from("intimations")
+          .insert({
+            user_id: targetUserId,
+            external_id: externalId,
+            source: (it as any).__source || "djen",
+            court: it.siglaTribunal ? `${it.siglaTribunal}${it.nomeOrgao ? " - " + it.nomeOrgao : ""}` : it.nomeOrgao,
+            content: cleanText,
+            received_at: receivedAt,
+            deadline,
+            deadline_sugerido_inseguro: deadlineSugeridoInseguro,
+            peca_sugerida: detected?.pecaSugerida ?? null,
+            base_legal: detected?.baseLegal ?? null,
+            confianca_classificacao: detected?.confianca ?? null,
+            classificacao_status: detected?.classificacaoStatus ?? null,
+            classification_meta: classificationMeta,
+            process_id: processId,
+            status: "pendente",
+          })
+          .select("id")
+          .single();
 
         if (!error && insertedRow) {
           inserted++;
           const isUrgent = !!(deadline && businessDaysUntil(deadline, tribunal) <= 5);
           if (isUrgent) urgentDeadlines++;
 
-          await supabase.from('notifications').insert({
+          await supabase.from("notifications").insert({
             user_id: targetUserId,
-            title: isUrgent ? '⚠️ Intimação URGENTE — prazo ≤ 5 dias úteis' : 'Nova intimação DJEN',
-            message: `OAB/${row.oab_uf} ${row.oab_number} — ${it.siglaTribunal || 'Tribunal'} - ${it.numero_processo || 'Processo'}${deadline ? ` (vence ${deadline})` : ''}`,
-            type: isUrgent ? 'destructive' : 'warning',
-            link: '/intimacoes',
+            title: isUrgent ? "⚠️ Intimação URGENTE — prazo ≤ 5 dias úteis" : "Nova intimação DJEN",
+            message: `OAB/${row.oab_uf} ${row.oab_number} — ${it.siglaTribunal || "Tribunal"} - ${it.numero_processo || "Processo"}${deadline ? ` (vence ${deadline})` : ""}`,
+            type: isUrgent ? "destructive" : "warning",
+            link: "/intimacoes",
           });
 
           // GAP 5: enfileira email instantâneo se prazo ≤ 5 dias úteis
@@ -1183,42 +1361,42 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
 <div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
   <div style="background:#dc2626;color:#fff;padding:14px 20px;font-weight:bold;font-size:16px">⚠️ Prazo processual crítico</div>
   <div style="padding:20px">
-    <p style="margin:0 0 12px"><strong>Tribunal:</strong> ${it.siglaTribunal || '—'}</p>
-    <p style="margin:0 0 12px"><strong>Processo:</strong> ${it.numero_processo || '—'}</p>
+    <p style="margin:0 0 12px"><strong>Tribunal:</strong> ${it.siglaTribunal || "—"}</p>
+    <p style="margin:0 0 12px"><strong>Processo:</strong> ${it.numero_processo || "—"}</p>
     <p style="margin:0 0 12px"><strong>Vencimento:</strong> ${deadline} (${diasUteis} dia(s) útil(eis) restante(s))</p>
     <p style="margin:0 0 12px"><strong>OAB:</strong> ${row.oab_number}/${row.oab_uf}</p>
     <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0">
     <p style="margin:0 0 12px;font-size:13px;color:#374151">Conteúdo:</p>
-    <p style="margin:0;font-size:13px;color:#111;white-space:pre-wrap">${cleanText.slice(0,1500).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'} as any)[c])}</p>
+    <p style="margin:0;font-size:13px;color:#111;white-space:pre-wrap">${cleanText.slice(0, 1500).replace(/[<>&]/g, (c) => (({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }) as any)[c])}</p>
     <p style="margin:24px 0 0;font-size:12px;color:#6b7280">Acesse o sistema para tratar esta intimação.</p>
   </div>
 </div></body></html>`;
             const messageId = `djen-urgent-${insertedRow.id}`;
             try {
-              await supabase.rpc('enqueue_email', {
-                queue_name: 'transactional_emails',
+              await supabase.rpc("enqueue_email", {
+                queue_name: "transactional_emails",
                 payload: {
                   to: userEmail,
                   subject,
                   html,
-                  label: 'prazo-critico-djen',
-                  purpose: 'transactional',
+                  label: "prazo-critico-djen",
+                  purpose: "transactional",
                   message_id: messageId,
                   idempotency_key: messageId,
                   queued_at: new Date().toISOString(),
                 },
               });
             } catch (mailErr) {
-              console.error('enqueue urgent email failed:', mailErr);
+              console.error("enqueue urgent email failed:", mailErr);
             }
           }
-        } else if (error && error.code !== '23505') {
-          console.error('insert intimation error:', error);
-          status = 'partial';
+        } else if (error && error.code !== "23505") {
+          console.error("insert intimation error:", error);
+          status = "partial";
         }
       } catch (itemErr: any) {
-        console.error('item processing error:', itemErr);
-        status = 'partial';
+        console.error("item processing error:", itemErr);
+        status = "partial";
       }
     }
   }
@@ -1231,63 +1409,79 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
   // limpo: vira 'partial', o payload fica em sync_logs.error_message e o advogado
   // recebe alerta crítico com processo/data para conferência manual imediata.
   const droppedTotal = ctx.rejected.length + nameRejected;
-  if (status !== 'failed' && droppedTotal > 0) {
-    status = 'partial';
-    const detalhe = ctx.rejected.slice(0, 10)
-      .map(d => `${d.processo} (${d.data}, ${d.tribunal}): ${d.motivo}`)
-      .join(' | ');
+  if (status !== "failed" && droppedTotal > 0) {
+    status = "partial";
+    const detalhe = ctx.rejected
+      .slice(0, 10)
+      .map((d) => `${d.processo} (${d.data}, ${d.tribunal}): ${d.motivo}`)
+      .join(" | ");
     errorMessage = [
       `PUBLICAÇÕES DESCARTADAS: ${ctx.rejected.length} por formato inesperado da API + ${nameRejected} pelo filtro de nome.`,
       detalhe,
-    ].filter(Boolean).join(' ');
-    await supabase.from('notifications').insert({
+    ]
+      .filter(Boolean)
+      .join(" ");
+    await supabase.from("notifications").insert({
       user_id: row.user_id,
-      title: '🚨 Publicação não importada — conferência manual obrigatória',
-      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${ctx.rejected.length ? ` Processos: ${ctx.rejected.slice(0, 5).map(d => `${d.processo} (${d.data})`).join(', ')}.` : ''} Confira o processo no diário antes de contar prazo.`,
-      type: 'destructive',
-      link: '/intimacoes',
+      title: "🚨 Publicação não importada — conferência manual obrigatória",
+      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${
+        ctx.rejected.length
+          ? ` Processos: ${ctx.rejected
+              .slice(0, 5)
+              .map((d) => `${d.processo} (${d.data})`)
+              .join(", ")}.`
+          : ""
+      } Confira o processo no diário antes de contar prazo.`,
+      type: "destructive",
+      link: "/intimacoes",
     });
   }
 
-  if (status !== 'failed' && coverageIssues.length) {
-    status = 'partial';
-    errorMessage = [errorMessage, `COBERTURA INCOMPLETA: ${coverageIssues.join(' | ')}`].filter(Boolean).join(' ');
-    await supabase.from('notifications').insert({
+  if (status !== "failed" && coverageIssues.length) {
+    status = "partial";
+    errorMessage = [errorMessage, `COBERTURA INCOMPLETA: ${coverageIssues.join(" | ")}`].filter(Boolean).join(" ");
+    await supabase.from("notifications").insert({
       user_id: row.user_id,
-      title: 'Conferência de intimações incompleta',
-      message: `${inserted} publicação(ões) importada(s). ${coverageIssues.slice(0, 3).join(' | ')} Confira as fontes indicadas nos portais oficiais; resultado vazio não comprova ausência de atos.`,
-      type: 'destructive',
-      link: '/intimacoes',
+      title: "Conferência de intimações incompleta",
+      message: `${inserted} publicação(ões) importada(s). ${coverageIssues.slice(0, 3).join(" | ")} Confira as fontes indicadas nos portais oficiais; resultado vazio não comprova ausência de atos.`,
+      type: "destructive",
+      link: "/intimacoes",
     });
   }
 
-  if (status !== 'success') {
-    await supabase.from('oab_settings').update({
-      last_sync_at: now,
-      consecutive_failures: (row.consecutive_failures || 0) + 1,
-      last_error: errorMessage?.slice(0, 500),
-    }).eq('id', row.id);
+  if (status !== "success") {
+    await supabase
+      .from("oab_settings")
+      .update({
+        last_sync_at: now,
+        consecutive_failures: (row.consecutive_failures || 0) + 1,
+        last_error: errorMessage?.slice(0, 500),
+      })
+      .eq("id", row.id);
 
     const failureCount = (row.consecutive_failures || 0) + 1;
     if (failureCount >= 2) {
-      await supabase.from('notifications').insert({
+      await supabase.from("notifications").insert({
         user_id: row.user_id,
-        title: '🚨 Falha crítica na sincronização DJEN',
+        title: "🚨 Falha crítica na sincronização DJEN",
         message: `OAB/${row.oab_uf} ${row.oab_number} falhou ${failureCount}x consecutivas. Verifique imediatamente em Configurações → Intimações. Erro: ${errorMessage?.slice(0, 100)}`,
-        type: 'destructive',
-        link: '/configuracoes',
+        type: "destructive",
+        link: "/configuracoes",
       });
     }
   } else {
-    await supabase.from('oab_settings').update({
-      last_sync_at: now,
-      last_success_at: now,
-      consecutive_failures: 0,
-      last_error: null,
-    }).eq('id', row.id);
+    await supabase
+      .from("oab_settings")
+      .update({
+        last_sync_at: now,
+        last_success_at: now,
+        consecutive_failures: 0,
+        last_error: null,
+      })
+      .eq("id", row.id);
   }
 
-  await supabase.from('sync_logs').insert({
+  await supabase.from("sync_logs").insert({
     user_id: row.user_id,
     oab_settings_id: row.id,
     oab_number: row.oab_number,
@@ -1327,209 +1521,350 @@ Deno.serve(async (req) => {
   // Cron interno chama sem Origin/Referer e passa pelo helper.
   const url = new URL(req.url);
   const runId = crypto.randomUUID();
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-  );
+  const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  const requestBody = req.method === 'POST' ? await req.clone().json().catch(() => ({})) : {};
-  const ctx: SyncContext = { proxyUrl: null, startDate: null, endDate: null, daysBack: null, maxPages: null, bypassNameFilter: false, processNumbers: [], rejected: [] };
+  const requestBody =
+    req.method === "POST"
+      ? await req
+          .clone()
+          .json()
+          .catch(() => ({}))
+      : {};
+  const ctx: SyncContext = {
+    proxyUrl: null,
+    startDate: null,
+    endDate: null,
+    daysBack: null,
+    maxPages: null,
+    bypassNameFilter: false,
+    processNumbers: [],
+    targetedOnly: requestBody?.targeted_only === true,
+    rejected: [],
+  };
   if (requestBody?.process_numbers !== undefined) {
-    if (!Array.isArray(requestBody.process_numbers) || requestBody.process_numbers.length > 100
-      || requestBody.process_numbers.some((n: unknown) => typeof n !== 'string' || !/^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/.test(n))) {
-      return new Response(JSON.stringify({ error: 'Processos direcionados inválidos.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (
+      !Array.isArray(requestBody.process_numbers) ||
+      requestBody.process_numbers.length > 100 ||
+      requestBody.process_numbers.some(
+        (n: unknown) => typeof n !== "string" || !/^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/.test(n),
+      )
+    ) {
+      return new Response(JSON.stringify({ error: "Processos direcionados inválidos." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
     ctx.processNumbers = [...new Set<string>(requestBody.process_numbers)];
   }
+  if (ctx.targetedOnly && (!ctx.processNumbers.length || ctx.processNumbers.length > 10)) {
+    return new Response(JSON.stringify({ error: "Reconferência direcionada exige de 1 a 10 processos." }), {
+      status: 400,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
   const dateRe = /^\d{4}-\d{2}-\d{2}$/;
-  ctx.startDate = typeof requestBody?.date_start === 'string' && dateRe.test(requestBody.date_start) ? requestBody.date_start : null;
-  ctx.endDate = typeof requestBody?.date_end === 'string' && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
-  ctx.daysBack = Number.isFinite(Number(requestBody?.days_back)) ? Math.max(0, Math.min(90, Number(requestBody.days_back))) : null;
-  ctx.maxPages = Number.isFinite(Number(requestBody?.max_pages)) ? Math.max(1, Math.min(20, Number(requestBody.max_pages))) : null;
+  ctx.startDate =
+    typeof requestBody?.date_start === "string" && dateRe.test(requestBody.date_start) ? requestBody.date_start : null;
+  ctx.endDate =
+    typeof requestBody?.date_end === "string" && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
+  ctx.daysBack = Number.isFinite(Number(requestBody?.days_back))
+    ? Math.max(0, Math.min(90, Number(requestBody.days_back)))
+    : null;
+  ctx.maxPages = Number.isFinite(Number(requestBody?.max_pages))
+    ? Math.max(1, Math.min(20, Number(requestBody.max_pages)))
+    : null;
   ctx.bypassNameFilter = requestBody?.bypass_name_filter === true;
 
   // Manual = ?manual=1 OU reconciliação (bypass_name_filter=true) OU qualquer POST com body
   // de override de datas (evita ficar preso no lock do cron durante recuperação manual).
-  const isManual = url.searchParams.get('manual') === '1'
-    || ctx.processNumbers.length > 0
-    || ctx.bypassNameFilter
-    || requestBody?.manual === true
-    || !!(ctx.startDate || ctx.endDate);
+  const isManual =
+    url.searchParams.get("manual") === "1" ||
+    ctx.processNumbers.length > 0 ||
+    ctx.bypassNameFilter ||
+    requestBody?.manual === true ||
+    !!(ctx.startDate || ctx.endDate);
   if (isManual) {
     const csrfBlock = rejectIfCsrfBlocked(req, corsHeaders);
     if (csrfBlock) return csrfBlock;
   }
 
-
   // Resolve proxy URL configurado pela UI (tabela djen_proxy_config). Falha silenciosa
   // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.
   try {
-    const { data: cfg } = await supabase.from('djen_proxy_config').select('proxy_url').eq('id', 1).maybeSingle();
-    ctx.proxyUrl = ((cfg as { proxy_url?: string } | null)?.proxy_url) ?? null;
+    const { data: cfg } = await supabase.from("djen_proxy_config").select("proxy_url").eq("id", 1).maybeSingle();
+    ctx.proxyUrl = (cfg as { proxy_url?: string } | null)?.proxy_url ?? null;
   } catch (e) {
-    console.warn('[sync-djen] não foi possível ler djen_proxy_config:', (e as Error).message);
+    console.warn("[sync-djen] não foi possível ler djen_proxy_config:", (e as Error).message);
     ctx.proxyUrl = null;
   }
 
   // Validate identity before accepting background work or exposing its result.
-  const authHeader = req.headers.get('Authorization') || '';
+  const authHeader = req.headers.get("Authorization") || "";
   let manualUserId: string | null = null;
-  if (isManual || url.searchParams.has('run_id')) {
-    const { data, error } = await supabase.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''));
-    if (error || !data.user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  if (isManual || url.searchParams.has("run_id")) {
+    const { data, error } = await supabase.auth.getUser(authHeader.replace(/^Bearer\s+/i, ""));
+    if (error || !data.user)
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     manualUserId = data.user.id;
   }
-  if (url.searchParams.has('run_id')) {
-    const { data } = await supabase.from('cron_runs').select('status,metadata,error_message').eq('job_name', 'sync-djen').eq('run_id', url.searchParams.get('run_id')).maybeSingle();
-    if (!data || data.metadata?.user_id !== manualUserId) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    return new Response(JSON.stringify({ status: data.status, success: data.status === 'success', results: data.metadata?.results, error: data.error_message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  if (url.searchParams.has("run_id")) {
+    const { data } = await supabase
+      .from("cron_runs")
+      .select("status,metadata,error_message")
+      .eq("job_name", "sync-djen")
+      .eq("run_id", url.searchParams.get("run_id"))
+      .maybeSingle();
+    if (!data || data.metadata?.user_id !== manualUserId)
+      return new Response(JSON.stringify({ error: "Not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    return new Response(
+      JSON.stringify({
+        status: data.status,
+        success: data.status === "success",
+        results: data.metadata?.results,
+        error: data.error_message,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   }
+  // A database lease survives HTTP connection pooling, unlike session advisory locks.
+  const { data: recentRuns, error: recentRunsError } = await supabase
+    .from("cron_runs")
+    .select("id")
+    .eq("job_name", "sync-djen")
+    .eq("status", "running")
+    .gte("started_at", new Date(Date.now() - 8 * 60000).toISOString())
+    .limit(1);
+  if (recentRunsError)
+    return new Response(JSON.stringify({ retryable: true, error: "Fila DJEN indisponível; lote preservado." }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  if (recentRuns?.length)
+    return new Response(JSON.stringify({ retryable: true, error: "DJEN ocupado; lote aguardando na fila." }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  const { data: leaseAcquired, error: leaseError } = await supabase.rpc("acquire_djen_work", { _token: runId });
+  if (leaseError || leaseAcquired !== true)
+    return new Response(JSON.stringify({ retryable: true, error: "DJEN ocupado; lote aguardando na fila." }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   let lockAcquired = false;
   if (!isManual) {
-    const { data: lockOk } = await supabase.rpc('try_acquire_cron_lock', { _job_name: 'sync-djen' });
+    const { data: lockOk } = await supabase.rpc("try_acquire_cron_lock", { _job_name: "sync-djen" });
     lockAcquired = lockOk === true;
-    if (!lockAcquired) return new Response(JSON.stringify({ success: false, skipped: true, reason: 'another_run_in_progress' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!lockAcquired) {
+      await supabase.rpc("release_djen_work", { _token: runId });
+      return new Response(
+        JSON.stringify({ success: false, skipped: true, retryable: true, reason: "another_run_in_progress" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
   }
-  const { data: cronRow, error: runError } = await supabase.from('cron_runs').insert({
-    job_name: 'sync-djen', run_id: runId, status: 'running', triggered_by: isManual ? 'manual' : 'cron', metadata: { user_id: manualUserId },
-  }).select('id').single();
+  const { data: cronRow, error: runError } = await supabase
+    .from("cron_runs")
+    .insert({
+      job_name: "sync-djen",
+      run_id: runId,
+      status: "running",
+      triggered_by: isManual ? "manual" : "cron",
+      metadata: { user_id: manualUserId },
+    })
+    .select("id")
+    .single();
   if (runError || !cronRow) {
-    if (lockAcquired) await supabase.rpc('release_cron_lock', { _job_name: 'sync-djen' });
-    return new Response(JSON.stringify({ success: false, error: 'Não foi possível registrar a busca.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    await supabase.rpc("release_djen_work", { _token: runId });
+    if (lockAcquired) await supabase.rpc("release_cron_lock", { _job_name: "sync-djen" });
+    return new Response(JSON.stringify({ success: false, error: "Não foi possível registrar a busca." }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
   const cronRunId = cronRow.id;
 
   const runSync = async (): Promise<Response> => {
-   try {
-    const authHeader = req.headers.get('Authorization');
-    const triggeredBy = isManual ? 'manual' : 'cron';
-
-    let targets: any[] = [];
-
-    if (isManual && authHeader) {
-      const userClient = createClient(
-        Deno.env.get('SUPABASE_URL')!,
-        Deno.env.get('SUPABASE_ANON_KEY')!,
-        { global: { headers: { Authorization: authHeader } } },
-      );
-      const { data: userData, error: userErr } = await userClient.auth.getUser();
-      if (userErr || !userData?.user?.id) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      const { data } = await supabase.from('oab_settings').select('*').eq('user_id', userData.user.id).eq('active', true);
-      targets = data || [];
-    } else {
-      const { data } = await supabase.from('oab_settings').select('*').eq('active', true);
-      targets = data || [];
-    }
-
-    await loadLegalCalendar(supabase);
-
-    const CONCURRENCY = 5;
-    const results: any[] = [];
-    for (let i = 0; i < targets.length; i += CONCURRENCY) {
-      const batch = targets.slice(i, i + CONCURRENCY);
-      const batchResults = await Promise.allSettled(batch.map(row => syncForOab(supabase, row, triggeredBy, ctx)));
-      for (const r of batchResults) {
-        if (r.status === 'fulfilled') results.push(r.value);
-        else results.push({ status: 'failed', error: String(r.reason) });
-      }
-    }
-
     try {
-      const anyOk = results.length > 0 && results.every((r: any) => r?.status === 'success');
-      const allFailed = results.some((r: any) => r?.status !== 'success');
-      if (anyOk) {
-        await supabase.from('djen_source_health').update({
-          current_source: 'djen',
-          last_ok_at: new Date().toISOString(),
-          consecutive_failures: 0,
-          last_error: null,
-          updated_at: new Date().toISOString(),
-        }).eq('id', 1);
-      } else if (allFailed) {
-        const firstErr = String((results.find((r: any) => r?.error)?.error) ?? 'todas OABs falharam').slice(0, 500);
-        const { data: cur } = await supabase.from('djen_source_health').select('consecutive_failures').eq('id', 1).maybeSingle();
-        const nextFails = ((cur as any)?.consecutive_failures ?? 0) + 1;
-        await supabase.from('djen_source_health').update({
-          current_source: nextFails >= 2 ? 'degraded' : 'djen',
-          last_fail_at: new Date().toISOString(),
-          consecutive_failures: nextFails,
-          last_error: firstErr,
-          updated_at: new Date().toISOString(),
-        }).eq('id', 1);
-      }
-    } catch (e) { console.warn('[sync-djen] health update falhou:', (e as Error).message); }
+      const authHeader = req.headers.get("Authorization");
+      const triggeredBy = isManual ? "manual" : "cron";
 
-    if (cronRunId) {
-      const aggTriggers: Record<string, number> = {};
-      for (const r of results) {
-        const tc = (r as any)?.trigger_counts as Record<string, number> | undefined;
-        if (tc) for (const [k, v] of Object.entries(tc)) aggTriggers[k] = (aggTriggers[k] || 0) + v;
-      }
-      await supabase.from('cron_runs').update({
-        status: results.length > 0 && results.every(r => r.status === 'success') ? 'success' : 'failed', ended_at: new Date().toISOString(),
-        metadata: { user_id: manualUserId, targets: targets.length, results, trigger_counts: aggTriggers },
-        error_message: results.length ? results.find(r => r.status !== 'success')?.error || null : 'Nenhuma OAB ativa.',
-      }).eq('id', cronRunId);
-    }
+      let targets: any[] = [];
 
-    try {
-      await supabase.functions.invoke('enrich-datajud', {
-        body: { limit: 100 },
-        headers: { 'x-admin-token': Deno.env.get('IMPORT_TOKEN') ?? '' },
+      if (isManual && authHeader) {
+        const userClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const { data: userData, error: userErr } = await userClient.auth.getUser();
+        if (userErr || !userData?.user?.id) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const { data } = await supabase
+          .from("oab_settings")
+          .select("*")
+          .eq("user_id", userData.user.id)
+          .eq("active", true);
+        targets = data || [];
+      } else {
+        const { data } = await supabase.from("oab_settings").select("*").eq("active", true);
+        targets = data || [];
+      }
+
+      await loadLegalCalendar(supabase);
+
+      if (ctx.targetedOnly) targets = targets.slice(0, 1);
+      const CONCURRENCY = 1;
+      const results: any[] = [];
+      for (let i = 0; i < targets.length; i += CONCURRENCY) {
+        const batch = targets.slice(i, i + CONCURRENCY);
+        const batchResults = await Promise.allSettled(batch.map((row) => syncForOab(supabase, row, triggeredBy, ctx)));
+        for (const r of batchResults) {
+          if (r.status === "fulfilled") results.push(r.value);
+          else results.push({ status: "failed", error: String(r.reason) });
+        }
+      }
+
+      if (!ctx.targetedOnly)
+        try {
+          const anyOk = results.length > 0 && results.every((r: any) => r?.status === "success");
+          const allFailed = results.some((r: any) => r?.status !== "success");
+          if (anyOk) {
+            await supabase
+              .from("djen_source_health")
+              .update({
+                current_source: "djen",
+                last_ok_at: new Date().toISOString(),
+                consecutive_failures: 0,
+                last_error: null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", 1);
+          } else if (allFailed) {
+            const firstErr = String(results.find((r: any) => r?.error)?.error ?? "todas OABs falharam").slice(0, 500);
+            const { data: cur } = await supabase
+              .from("djen_source_health")
+              .select("consecutive_failures")
+              .eq("id", 1)
+              .maybeSingle();
+            const nextFails = ((cur as any)?.consecutive_failures ?? 0) + 1;
+            await supabase
+              .from("djen_source_health")
+              .update({
+                current_source: nextFails >= 2 ? "degraded" : "djen",
+                last_fail_at: new Date().toISOString(),
+                consecutive_failures: nextFails,
+                last_error: firstErr,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", 1);
+          }
+        } catch (e) {
+          console.warn("[sync-djen] health update falhou:", (e as Error).message);
+        }
+
+      if (cronRunId) {
+        const aggTriggers: Record<string, number> = {};
+        for (const r of results) {
+          const tc = (r as any)?.trigger_counts as Record<string, number> | undefined;
+          if (tc) for (const [k, v] of Object.entries(tc)) aggTriggers[k] = (aggTriggers[k] || 0) + v;
+        }
+        await supabase
+          .from("cron_runs")
+          .update({
+            status: results.length > 0 && results.every((r) => r.status === "success") ? "success" : "failed",
+            ended_at: new Date().toISOString(),
+            metadata: { user_id: manualUserId, targets: targets.length, results, trigger_counts: aggTriggers },
+            error_message: results.length
+              ? results.find((r) => r.status !== "success")?.error || null
+              : "Nenhuma OAB ativa.",
+          })
+          .eq("id", cronRunId);
+      }
+
+      if (!ctx.targetedOnly)
+        try {
+          await supabase.functions.invoke("enrich-datajud", {
+            body: { limit: 100 },
+            headers: { "x-admin-token": Deno.env.get("IMPORT_TOKEN") ?? "" },
+          });
+        } catch (e) {
+          console.warn("[sync-djen] enrich-datajud falhou:", (e as Error).message);
+        }
+
+      return new Response(JSON.stringify({ success: true, run_id: runId, results }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
-    } catch (e) {
-      console.warn('[sync-djen] enrich-datajud falhou:', (e as Error).message);
+    } catch (e: any) {
+      console.error("sync-djen fatal:", e);
+      await captureException(e, { fn: "sync-djen", extra: { run_id: runId } });
+      if (cronRunId) {
+        await supabase
+          .from("cron_runs")
+          .update({
+            status: "failed",
+            ended_at: new Date().toISOString(),
+            error_message: String(e?.message || e).slice(0, 1000),
+          })
+          .eq("id", cronRunId);
+      }
+      const msg = String(e?.message || e);
+      const isUpstream = /DJEN\s+(502|503|504)|timeout|aborted|ETIMEDOUT|ECONNRESET/i.test(msg);
+      try {
+        const { data: cur } = await supabase
+          .from("djen_source_health")
+          .select("consecutive_failures")
+          .eq("id", 1)
+          .maybeSingle();
+        const nextFails = ((cur as any)?.consecutive_failures ?? 0) + 1;
+        await supabase
+          .from("djen_source_health")
+          .update({
+            current_source: nextFails >= 2 ? "degraded" : "djen",
+            last_fail_at: new Date().toISOString(),
+            consecutive_failures: nextFails,
+            last_error: msg.slice(0, 500),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", 1);
+      } catch (_) {
+        /* ignore */
+      }
+      if (isUpstream) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            upstream_unavailable: true,
+            error: "O Diário Eletrônico (CNJ/DJEN) está temporariamente instável. Tente novamente em alguns minutos.",
+            detail: msg.slice(0, 200),
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(JSON.stringify({ success: false, error: msg }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    } finally {
+      await supabase.rpc("release_djen_work", { _token: runId });
+      if (lockAcquired) {
+        await supabase.rpc("release_cron_lock", { _job_name: "sync-djen" });
+      }
     }
-
-    return new Response(JSON.stringify({ success: true, run_id: runId, results }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } catch (e: any) {
-    console.error('sync-djen fatal:', e);
-    await captureException(e, { fn: 'sync-djen', extra: { run_id: runId } });
-    if (cronRunId) {
-      await supabase.from('cron_runs').update({
-        status: 'failed', ended_at: new Date().toISOString(), error_message: String(e?.message || e).slice(0, 1000),
-      }).eq('id', cronRunId);
-    }
-    const msg = String(e?.message || e);
-    const isUpstream = /DJEN\s+(502|503|504)|timeout|aborted|ETIMEDOUT|ECONNRESET/i.test(msg);
-    try {
-      const { data: cur } = await supabase.from('djen_source_health').select('consecutive_failures').eq('id', 1).maybeSingle();
-      const nextFails = ((cur as any)?.consecutive_failures ?? 0) + 1;
-      await supabase.from('djen_source_health').update({
-        current_source: nextFails >= 2 ? 'degraded' : 'djen',
-        last_fail_at: new Date().toISOString(),
-        consecutive_failures: nextFails,
-        last_error: msg.slice(0, 500),
-        updated_at: new Date().toISOString(),
-      }).eq('id', 1);
-    } catch (_) { /* ignore */ }
-    if (isUpstream) {
-      return new Response(JSON.stringify({
-        success: false,
-        upstream_unavailable: true,
-        error: 'O Diário Eletrônico (CNJ/DJEN) está temporariamente instável. Tente novamente em alguns minutos.',
-        detail: msg.slice(0, 200),
-      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-    return new Response(JSON.stringify({ success: false, error: msg }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  } finally {
-    if (lockAcquired) {
-      await supabase.rpc('release_cron_lock', { _job_name: 'sync-djen' });
-    }
-  }
   };
 
   // Manual and cron both return promptly; the persisted run is the completion signal.
   // @ts-ignore EdgeRuntime is provided by the hosted runtime.
   EdgeRuntime.waitUntil(runSync());
   return new Response(JSON.stringify({ success: true, run_id: runId, background: true }), {
-    status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status: 202,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 });
