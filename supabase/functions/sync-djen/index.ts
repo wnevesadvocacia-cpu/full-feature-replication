@@ -770,8 +770,15 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         }
         throw new Error(msg);
       }
-      const json = await res.json();
-      const pageResult = readDjenPage(json, pagina, maxPages);
+      let pageResult: ReturnType<typeof readDjenPage>;
+      try {
+        pageResult = readDjenPage(await res.json(), pagina, maxPages);
+      } catch (e) {
+        if (!all.length && pagina === 1) throw e;
+        console.warn('[sync-djen] resposta inválida; preservando itens anteriores:', String(e));
+        upstreamDegraded = true;
+        break;
+      }
       const rawItems: unknown[] = pageResult.items;
       if (pageResult.truncated) truncated = true;
       if (!rawItems.length) break;
