@@ -15,6 +15,13 @@
       "when": 1791312400982,
       "tag": "0001_track_task_drafting_actor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791478817357,
+      "tag": "0002_jusbr_persisted_batches",
+      "breakpoints": true
     }
   ]
 }

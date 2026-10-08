@@ -1010,6 +1010,51 @@ export type Database = {
         }
         Relationships: []
       }
+      jusbr_batches: {
+        Row: {
+          coverage: Json
+          created_at: string
+          djen_run_id: string | null
+          error: string | null
+          id: string
+          inserted: number
+          notified: boolean
+          pending: number
+          rows: Json
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coverage?: Json
+          created_at?: string
+          djen_run_id?: string | null
+          error?: string | null
+          id: string
+          inserted?: number
+          notified?: boolean
+          pending?: number
+          rows?: Json
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coverage?: Json
+          created_at?: string
+          djen_run_id?: string | null
+          error?: string | null
+          id?: string
+          inserted?: number
+          notified?: boolean
+          pending?: number
+          rows?: Json
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       kanban_columns: {
         Row: {
           color: string
