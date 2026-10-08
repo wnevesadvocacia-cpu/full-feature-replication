@@ -34,7 +34,7 @@ const JusbrDom = (() => {
     if (atEnd !== !!disabled(next) || atEnd !== !!disabled(last)) throw Error('Contador e botões próxima/Última página inconsistentes; cobertura interrompida.');
     return { start, end, total, next };
   }
-  function read() {
+  function read(period) {
     const { table } = scope(); const r = range();
     const headers = [...table.querySelectorAll('th,[role="columnheader"]')].map(text);
     const indexes = ['Processo','Tribunal','Data de Disponibilização'].map(h => headers.findIndex(v => v.toLocaleLowerCase('pt-BR') === h.toLocaleLowerCase('pt-BR')));
@@ -47,37 +47,51 @@ const JusbrDom = (() => {
       const date = text(cells[indexes[2]]).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
       const court = text(cells[indexes[1]]);
       if (!cnj || !date || !court || court.length > 80) throw Error('Linha malformada; cobertura incompleta.');
-      rows.push({ cnj, date: `${date[3]}-${date[2]}-${date[1]}`, court });
+      const iso = `${date[3]}-${date[2]}-${date[1]}`;
+      const parsed = new Date(`${iso}T00:00:00Z`);
+      if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso) throw Error('Data de linha inválida; cobertura interrompida.');
+      if (period && (iso < period.start || iso > period.end)) throw Error('Resultado obsoleto: data da linha fora da janela pesquisada.');
+      rows.push({ cnj, date: iso, court });
     }
     if (rows.length !== r.end - r.start + 1 || rows.length > 100) throw Error('Contagem de linhas divergente ou vazio NÃO confirmado.');
     return { rows, signature: JSON.stringify([r.start,r.end,r.total,rows]), start: r.start, endIndex: r.end, total: r.total, next: r.end < r.total, end: r.end === r.total };
   }
-  function input(form, label) { return unique([...form.querySelectorAll('input')].filter(el => visible(el) && label.test(name(el))), String(label)); }
+  function input(form, placeholder) { return unique([...form.querySelectorAll('input')].filter(el => visible(el) && el.type === 'text' && el.getAttribute('placeholder') === placeholder), placeholder); }
   function setValue(el, value) {
     if (el.disabled || el.readOnly) throw Error('Campo indisponível; pesquisa interrompida.');
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
     if (!setter) throw Error('Campo não suportado.');
-    setter.call(el, value); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.focus(); setter.call(el, value);
+    el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true }));
+    // blur marks Angular controls as touched; no credential inputs are selected.
+    el.blur();
     if (el.value !== value || !el.checkValidity()) throw Error('Valor rejeitado no formulário.');
   }
-  async function wait(action, accept, observeSearch = false) {
-    const { table } = scope(); let changed = false;
-    const observer = new MutationObserver(() => { changed = true; });
+  async function wait(action, accept, searchEvidence = null) {
+    const { table } = scope(); let transitioned = false; let stale = false;
+    // No invented spinner selector. Require an observed unavailable/empty table
+    // followed by new stable data; identical results remain unverified.
+    const inspectTransition = () => {
+      if (!visible(table) || !table.querySelector('td,[role="cell"]')) transitioned = true;
+    };
+    const observer = new MutationObserver(inspectTransition);
     observer.observe(table, { childList: true, subtree: true, characterData: true });
     try {
       action(); const deadline = Date.now() + 20000; let stable = ''; let since = 0;
       while (Date.now() < deadline) {
-        scope();
+        inspectTransition();
         try {
-          const result = read();
-          if ((!observeSearch || changed) && accept(result)) {
+          const result = read(searchEvidence?.period);
+          const fresh = !searchEvidence || (transitioned && result.signature !== searchEvidence.before);
+          if (!fresh && searchEvidence) stale = true;
+          if (fresh && accept(result)) {
             if (stable !== result.signature) { stable = result.signature; since = Date.now(); }
             if (Date.now() - since >= 500) return result;
           } else stable = '';
-        } catch (e) { if (/sessão|Estrutura|Selecione/.test(e.message)) throw e; stable = ''; }
+        } catch (e) { if (/sessão|Estrutura|Selecione/.test(e.message)) throw e; if (/obsoleto/.test(e.message)) stale = true; stable = ''; }
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      throw Error('Busca/avanço sem conclusão comprovada em 20s; vazio não confirmado. Retomada preservada.');
+      throw Error(`${searchEvidence && stale ? 'Resultado obsoleto ou carregamento/conclusão não comprovados' : 'Busca/avanço sem conclusão comprovada'} em 20s; vazio não confirmado. Retomada preservada.`);
     } finally { observer.disconnect(); }
   }
   function create(setting, period) {
@@ -85,23 +99,30 @@ const JusbrDom = (() => {
       verified: true,
       async search(state) {
         const { form } = scope();
-        const process = input(form, /^Número do Processo$/i);
-        const oab = input(form, /^Número da OAB$/i);
-        const start = input(form, /^(?:Período\s*[-–:]?\s*)?(?:início|data de início)$/i);
-        const end = input(form, /^(?:Período\s*[-–:]?\s*)?(?:fim|data de fim)$/i);
+        const process = input(form, '0000000-00.0000.0.00.0000');
+        const oab = input(form, 'UF1234567A ou UF1234567');
+        const start = input(form, 'Data inicial');
+        const end = input(form, 'Data final');
+        for (const date of [period.start, period.end]) {
+          const parsed = new Date(`${date}T00:00:00Z`);
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0,10) !== date) throw Error('Janela de datas inválida.');
+        }
+        if (period.start > period.end) throw Error('Janela de datas invertida.');
         if (!/^[A-Z]{2}$/.test(setting.oab_uf) || !/^\d+$/.test(setting.oab_number)) throw Error('OAB/UF inválidas.');
         const format = (el, date) => el.type === 'date' ? date : date.split('-').reverse().join('/');
         setValue(process, ''); setValue(oab, setting.oab_uf + setting.oab_number);
         setValue(start, format(start, period.start)); setValue(end, format(end, period.end));
         const search = button('Buscar', form); if (disabled(search)) throw Error('Buscar indisponível.');
-        await wait(() => search.click(), result => result.start === 1, true);
+        let before = null;
+        try { before = read().signature; } catch { /* Unknown/empty initial state is not a completed result. */ }
+        await wait(() => search.click(), result => result.start === 1, { before, period });
         for (let page = 1; page < state.page; page++) await this.next();
       },
-      async read() { return read(); },
+      async read() { return read(period); },
       async next() {
-        const before = read(); const next = range().next;
+        const before = read(period); const next = range().next;
         if (disabled(next)) throw Error('Próxima desabilitada antes do avanço esperado.');
-        await wait(() => next.click(), result => result.start === before.endIndex + 1 && result.total === before.total);
+        await wait(() => next.click(), result => result.start === before.endIndex + 1 && result.total === before.total && result.rows.every(row => row.date >= period.start && row.date <= period.end));
       },
     };
   }

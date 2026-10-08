@@ -14,7 +14,8 @@
 - [x] Reduzir CPU evitando classificar publicações já persistidas e distinguir falhas complementares no indicador; 16 testes passaram, busca autenticada concluiu com 266 consultas/306 publicações existentes/0 novas e saúde operante sem falhas; instabilidade externa pode reaparecer.
 
 - [x] Implementar fila/vínculo persistentes, ingestão e reconciliação direcionada, controlador seguro e pacote Jus.br v0.2; 31 testes passaram, build OK, funções implantadas, RLS/grants verificados e rejeição 401 validada. Controlador testado em simulação; adaptador real continua restrito às telas visíveis.
-- [ ] Validar extensão Jus.br ponta a ponta — pesquisa/avanço/fim da interface confirmados pelo titular (1–10/29 → 11–20/29 → 21–29/29, próxima/Última desabilitadas). Pendentes labels exatos de início/fim, vazio, extensão instalada e persistência/importação.
+- [ ] Validar extensão Jus.br ponta a ponta — campos/pesquisa/avanço/fim da interface confirmados pelo titular. Pendentes sinais reais de carregamento/conclusão, vazio, extensão instalada e persistência/importação.
 
 - [x] Implementar adaptador com controles relatados em 08/10: pesquisa, avanço pelo contador, retomada por conta/OAB e multiplicidade; 36 testes passaram. v0.3.0 empacotada; validação autenticada e avanço incremental permanecem pendentes.
 - [x] Exigir fim pelo total do contador e próxima/Última página desabilitadas; v0.3.1 com percurso 10/10/9 e divergência de fim testados. 22 testes focados passaram; ZIP íntegro. Validação real da interface relatada pelo titular, não da extensão ponta a ponta.
+- [x] Usar placeholders confirmados e input/change/blur; rejeitar dados antigos, idênticos reapresentados e fora da janela. 27 testes focados passaram; ZIP v0.3.2 atualizado, sem instalação/publicação. Sinal real de carregamento/conclusão e preenchimento aceito pelo portal permanecem pendentes.
