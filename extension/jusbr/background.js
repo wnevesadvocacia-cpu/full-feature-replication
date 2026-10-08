@@ -5,7 +5,12 @@ let processing = false;
 let serial = Promise.resolve();
 function exclusive(fn) { const task = serial.then(fn); serial = task.catch(() => {}); return task; }
 async function status(message) {
-  await chrome.storage.local.set({ message });
+  const state = await chrome.storage.local.get(['owner','tabId','origin']);
+  await chrome.storage.local.set({ message, messageOwner: state.owner });
+  if (state.owner && state.tabId && appOrigins.has(state.origin)) {
+    const tab = await chrome.tabs.get(state.tabId).catch(() => null);
+    if (tab?.url && new URL(tab.url).origin === state.origin) await chrome.tabs.sendMessage(state.tabId, { type: 'PORTAL_STATUS', owner: state.owner, message }).catch(() => {});
+  }
   await chrome.action.setBadgeText({ text: '!' });
 }
 async function pump() {
@@ -62,14 +67,18 @@ async function scan() {
 }
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
   exclusive(async () => {
-    if (['PAIR','RESTORE'].includes(m.type)) {
+    if (['PAIR','RESTORE','SCAN_NOW'].includes(m.type)) {
       if (!appOrigins.has(origin(sender)) || !sender.tab || !/^[0-9a-f-]{36}$/i.test(m.owner || '')) throw Error('Vínculo inválido.');
       const state = await chrome.storage.local.get(['owner','queue']);
-      if (m.type === 'RESTORE' && state.owner !== m.owner) return { ok: false };
+      if (['RESTORE','SCAN_NOW'].includes(m.type) && state.owner !== m.owner) return { ok: false, message: 'Vincule a conta antes de conferir.' };
+      if (m.type === 'SCAN_NOW') {
+        await chrome.storage.local.set({ tabId: sender.tab.id, origin: origin(sender), queue: (state.queue || []).map(q => q.owner === m.owner ? { ...q, retryAt: 0 } : q) });
+        return { ok: true, owner: m.owner };
+      }
       if (state.owner && state.owner !== m.owner && state.queue?.length) throw Error('Há lotes da conta anterior. Retome nessa conta antes de trocar o vínculo.');
       await chrome.storage.local.set({ owner: m.owner, tabId: sender.tab.id, origin: origin(sender), settings: m.settings, ...(state.owner !== m.owner ? { queue: [], checkpoints: {}, lastCompleteEnd: null } : {}) });
       await chrome.alarms.create('scan', { periodInMinutes: 60 });
-      await status('Vínculo persistido. Pesquisa por controles observados; avanço/vazio e extensão real aguardam validação.');
+      await status('Vínculo persistido. Busca segmentada com ciclo de carregamento; cobertura e importação ponta a ponta ainda incompletas.');
       return { ok: true, owner: m.owner };
     }
     if (origin(sender) !== 'https://portaldeservicos.pdpj.jus.br') throw Error('Origem inválida.');
@@ -96,6 +105,8 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       }
     }
     if (m.type === 'PORTAL_STATUS') {
+      const state = await chrome.storage.local.get('owner');
+      if (!state.owner || m.owner !== state.owner) throw Error('Conta alterada; status descartado.');
       await status(String(m.message || 'Estrutura desconhecida.').slice(0, 400));
       return { ok: true };
     }
@@ -105,7 +116,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     await chrome.storage.local.set(JusbrCore.enqueue(state, state.owner, m.batch));
     await chrome.alarms.create('retry', { delayInMinutes: 1 });
     return { ok: true, queued: true };
-  }).then(result => { reply(result); void pump(); if (['PAIR','RESTORE'].includes(m.type) && result.ok) void scan(); })
+  }).then(result => { reply(result); void pump(); if (['PAIR','RESTORE','SCAN_NOW'].includes(m.type) && result.ok) void scan(); })
     .catch(async e => { await status(e.message); reply({ ok: false, message: e.message }); });
   return true;
 });
