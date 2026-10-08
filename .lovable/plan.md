@@ -1,8 +1,8 @@
-# Automação local Jus.br
+# Jus.br v0.3.3
 ## Tarefa / Escopo
-- Persistir vínculo e lotes por usuário, processar com confirmações do servidor e retentativas por alarmes, sem bloqueio entre páginas.
-- Acrescentar controlador de pesquisa/paginação retomável e incremental; adaptador real limitado aos controles comprovados. Pesquisa/paginação ficam explicitamente bloqueadas se não houver evidência dos controles.
-- Persistir conferências no backend, reconciliar CNJs direcionados com DJEN sem alterar importações existentes e alertar resultados incompletos.
-- Atualizar versão, pacote, painel e instruções; testar controlador, fila, validação, vazio, deduplicação e isolamento.
+- Confirmar nova busca pelo ciclo visível de #is_loading antes/depois de Buscar, até 120s, com filtros/datas/contador validados.
+- Segmentar 90 dias em até 7 dias; subdividir aviso de truncamento e interromper dia único truncado sem certificar cobertura.
+- Preservar IDs, filas, confirmações e retomadas; mostrar status e Conferir agora em Intimações.
+- Atualizar testes, documentação e ZIP; verificar compilação automática.
 ## Fora
-Login automatizado, credenciais do Jus.br, Domicílio, ciência, publicação do site, instalação/ativação da extensão e alegação de validação autenticada.
+- Credenciais, detalhes/documentos, ciência, publicação e declaração de integração ponta a ponta concluída.

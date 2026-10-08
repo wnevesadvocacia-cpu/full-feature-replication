@@ -75,6 +75,50 @@ describe('Jus.br automação segura', () => {
     expect(c.window('2026-10-07').start).toBe('2026-09-30');
     expect(c.window(null).start).toBe('2026-07-10');
   });
+  it('divide janela de 90 dias em segmentos de no máximo sete dias sem lacunas', () => {
+    const c = core(); const periods = c.segments(c.window(null));
+    expect(periods[0].start).toBe('2026-07-10'); expect(periods.at(-1).end).toBe('2026-10-08');
+    expect(periods).toHaveLength(13);
+    periods.forEach((p: any, i: number) => {
+      expect((Date.parse(p.end) - Date.parse(p.start)) / 86400000).toBeLessThanOrEqual(6);
+      if (i) expect(Date.parse(p.start) - Date.parse(periods[i-1].end)).toBe(86400000);
+    });
+  });
+  it('subdivide truncamento recursivamente e nunca emite dados truncados', async () => {
+    const c = core(); const emit = vi.fn(); let saved: any;
+    const factory = (p: any) => ({ verified: true, search: async () => { if (p.start !== p.end) throw Object.assign(Error('100'), { code: 'TRUNCATED' }); }, read: async () => ({ rows: [row], signature: p.start, end: true }) });
+    await c.collectSegments(factory, { run: owner, period: { start: '2026-10-01', end: '2026-10-07' }, page: 1, seen: [] }, async (s: any) => { saved = s; }, emit);
+    expect(emit).toHaveBeenCalledTimes(7); expect(saved.finished).toBe(true); expect(saved.segments).toHaveLength(7);
+  });
+  it('dia único truncado preserva checkpoint sem concluir nem emitir lote', async () => {
+    const c = core(); const emit = vi.fn(); let saved: any;
+    const factory = () => ({ verified: true, search: async () => { throw Object.assign(Error('100'), { code: 'TRUNCATED' }); } });
+    await expect(c.collectSegments(factory, { run: owner, period: { start: '2026-10-08', end: '2026-10-08' }, page: 1, seen: [] }, async (s: any) => { saved = s; }, emit)).rejects.toThrow('Dia único truncado');
+    expect(saved.finished).toBe(false); expect(saved.period.start).toBe('2026-10-08'); expect(emit).not.toHaveBeenCalled();
+  });
+  it('retoma segmento com ID imutável após falha e não repete segmento anterior', async () => {
+    const c = core(); let saved: any; let fail = true;
+    const factory = (p: any) => ({ verified: true, search: vi.fn(), read: async () => ({ rows: [row], signature: p.start, end: true }) });
+    const initial = { run: owner, period: { start: '2026-10-01', end: '2026-10-08' }, page: 1, seen: [] };
+    const emit = vi.fn(async () => { if (emit.mock.calls.length === 2 && fail) throw Error('offline'); });
+    const save = async (s: any) => { saved = s; };
+    await expect(c.collectSegments(factory, initial, save, emit)).rejects.toThrow('offline');
+    expect(saved.segmentIndex).toBe(1); const id = saved.batchId; fail = false;
+    const retry = vi.fn(); await c.collectSegments(factory, saved, save, retry);
+    expect(retry).toHaveBeenCalledTimes(1); expect(retry.mock.calls[0][0].id).toBe(id); expect(saved.finished).toBe(true);
+  });
+  it('preserva retomada 0.3.2 sem reutilizar ID em período dividido', async () => {
+    const c = core(); const emit = vi.fn(); const search = vi.fn(); let saved: any;
+    const period = { start: '2026-07-10', end: '2026-10-08' };
+    const checkpoint = { run: owner, period, page: 2, seen: ['1'], batchId: 'legacy', pendingSignature: '2' };
+    const factory = vi.fn(() => ({ verified: true, search, read: async () => ({ rows: [row], signature: '2', end: true }) }));
+    await c.collectSegments(factory, checkpoint, async (s: any) => { saved = s; }, emit);
+    expect(factory.mock.calls[0][0]).toEqual(period); expect(search.mock.calls[0][0].page).toBe(2);
+    expect(emit.mock.calls[0][0].id).toBe('legacy'); expect(saved.finished).toBe(true);
+    const truncated = () => ({ verified: true, search: async () => { throw Object.assign(Error('100'), { code: 'TRUNCATED' }); } });
+    await expect(c.collectSegments(truncated, checkpoint, async (s: any) => { saved = s; }, vi.fn())).rejects.toThrow('Truncamento durante retomada');
+    expect(saved.batchId).toBe('legacy'); expect(saved.finished).toBe(false);
+  });
   it('servidor preserva ocorrências, direciona CNJs únicos e rejeita datas/vazio sem evidência', () => {
     const rows = validateObservations([row,row]);
     expect(rows).toHaveLength(2);

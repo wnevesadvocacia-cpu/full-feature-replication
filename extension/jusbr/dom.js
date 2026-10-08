@@ -67,34 +67,45 @@ const JusbrDom = (() => {
     el.blur();
     if (el.value !== value || !el.checkValidity()) throw Error('Valor rejeitado no formulário.');
   }
-  async function wait(action, accept, searchEvidence = null) {
-    const { table } = scope(); let transitioned = false; let stale = false;
-    // No invented spinner selector. Require an observed unavailable/empty table
-    // followed by new stable data; identical results remain unverified.
-    const inspectTransition = () => {
-      if (!visible(table) || !table.querySelector('td,[role="cell"]')) transitioned = true;
-    };
-    const observer = new MutationObserver(inspectTransition);
-    observer.observe(table, { childList: true, subtree: true, characterData: true });
+  const truncationText = 'A pesquisa retornou muitos resultados e estamos exibindo os 100 primeiros. Caso deseje refinar a busca, favor utilizar outros filtros.';
+  function truncated() {
+    return [...document.querySelectorAll('p,span,div')].some(el => visible(el) && text(el) === truncationText);
+  }
+  function assertNotTruncated() {
+    if (truncated()) { const error = Error('100 primeiros: busca truncada; cobertura incompleta.'); error.code = 'TRUNCATED'; throw error; }
+  }
+  const loading = () => [...document.querySelectorAll('mat-progress-bar#is_loading[role="progressbar"]')].some(visible);
+  async function wait(action, accept, evidence = null, report = () => {}) {
+    let started = false; let completed = false;
+    const inspect = () => { if (loading()) started = true; else if (started) completed = true; };
+    if (evidence && loading()) throw Error('Busca anterior ainda carregando; retomada preservada.');
+    const observer = new MutationObserver(inspect);
+    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
     try {
-      action(); const deadline = Date.now() + 20000; let stable = ''; let since = 0;
+      action(); inspect(); const timeout = evidence ? 120000 : 20000;
+      const deadline = Date.now() + timeout; let stable = ''; let since = 0; let lastStatus = 0; let reason = '';
       while (Date.now() < deadline) {
-        inspectTransition();
-        try {
-          const result = read(searchEvidence?.period);
-          const fresh = !searchEvidence || (transitioned && result.signature !== searchEvidence.before);
-          if (!fresh && searchEvidence) stale = true;
-          if (fresh && accept(result)) {
-            if (stable !== result.signature) { stable = result.signature; since = Date.now(); }
-            if (Date.now() - since >= 500) return result;
-          } else stable = '';
-        } catch (e) { if (/sessão|Estrutura|Selecione/.test(e.message)) throw e; if (/obsoleto/.test(e.message)) stale = true; stable = ''; }
+        inspect();
+        if (evidence && Date.now() - lastStatus >= 10000) {
+          report(`Aguardando busca: ${started ? 'carregamento observado' : 'aguardando #is_loading'}; limite 120s.`); lastStatus = Date.now();
+        }
+        if (!evidence || (started && completed && !loading())) {
+          if (evidence) evidence.validate();
+          assertNotTruncated();
+          try {
+            const result = read(evidence?.period);
+            if (accept(result)) {
+              if (stable !== result.signature) { stable = result.signature; since = Date.now(); }
+              if (Date.now() - since >= 500) return result;
+            } else stable = '';
+          } catch (e) { if (/sessão|Estrutura|Selecione|obsoleto/.test(e.message)) throw e; reason = e.message; stable = ''; }
+        } else stable = '';
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      throw Error(`${searchEvidence && stale ? 'Resultado obsoleto ou carregamento/conclusão não comprovados' : 'Busca/avanço sem conclusão comprovada'} em 20s; vazio não confirmado. Retomada preservada.`);
+      throw Error(`${evidence ? 'Busca sem ciclo #is_loading presente→ausente e resposta válida em 120s' : 'Avanço sem conclusão comprovada em 20s'}${reason ? ': ' + reason : ''}; vazio não confirmado. Retomada preservada.`);
     } finally { observer.disconnect(); }
   }
-  function create(setting, period) {
+  function create(setting, period, report = () => {}) {
     return {
       verified: true,
       async search(state) {
@@ -113,12 +124,17 @@ const JusbrDom = (() => {
         setValue(process, ''); setValue(oab, setting.oab_uf + setting.oab_number);
         setValue(start, format(start, period.start)); setValue(end, format(end, period.end));
         const search = button('Buscar', form); if (disabled(search)) throw Error('Buscar indisponível.');
-        let before = null;
-        try { before = read().signature; } catch { /* Unknown/empty initial state is not a completed result. */ }
-        await wait(() => search.click(), result => result.start === 1, { before, period });
+        const validate = () => {
+          const current = scope().form;
+          if (input(current, '0000000-00.0000.0.00.0000').value !== ''
+            || input(current, 'UF1234567A ou UF1234567').value !== setting.oab_uf + setting.oab_number
+            || input(current, 'Data inicial').value !== format(start, period.start)
+            || input(current, 'Data final').value !== format(end, period.end)) throw Error('Filtros alterados; cobertura interrompida.');
+        };
+        await wait(() => search.click(), result => result.start === 1, { period, validate }, report);
         for (let page = 1; page < state.page; page++) await this.next();
       },
-      async read() { return read(period); },
+      async read() { assertNotTruncated(); return read(period); },
       async next() {
         const before = read(period); const next = range().next;
         if (disabled(next)) throw Error('Próxima desabilitada antes do avanço esperado.');

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const cnj = '1003778-63.2024.8.26.0084';
@@ -23,12 +23,14 @@ function fixture(total = 9, size = 3) {
   document.addEventListener('click', e => { if (/Peticionar|Visualizar|Domicílio/.test((e.target as HTMLElement).textContent || '')) forbidden(); }, { signal: controller.signal });
   const search = document.querySelector<HTMLButtonElement>('form button'); const next = document.querySelector<HTMLButtonElement>('[aria-label="próxima"]');
   if (!search || !next) throw Error('fixture');
-  search.onclick = () => { page = 1; document.querySelector('tbody')?.replaceChildren(); setTimeout(() => render(), 100); }; next.onclick = () => { page++; render(); };
+  const begin = () => { const bar = document.createElement('mat-progress-bar'); bar.id = 'is_loading'; bar.setAttribute('role','progressbar'); document.body.append(bar); return bar; };
+  search.onclick = () => { page = 1; const bar = begin(); setTimeout(() => { render(); bar.remove(); }, 100); }; next.onclick = () => { page++; render(); };
   const context = vm.createContext({ document, location: { pathname: '/central-comunicacoes' }, HTMLInputElement, Event, MutationObserver, getComputedStyle, Date, setTimeout, crypto });
   vm.runInContext(fs.readFileSync('extension/jusbr/core.js','utf8'), context);
   vm.runInContext(fs.readFileSync('extension/jusbr/dom.js','utf8'), context);
-  return { dom: context.JusbrDom, core: context.JusbrCore, forbidden, next, search, render };
+  return { dom: context.JusbrDom, core: context.JusbrCore, forbidden, next, search, render, begin };
 }
+beforeEach(() => { vi.useFakeTimers({ shouldAdvanceTime: true }); });
 let controller = new AbortController();
 afterEach(() => { controller.abort(); controller = new AbortController(); vi.restoreAllMocks(); vi.useRealTimers(); document.body.innerHTML = ''; });
 const setting = { oab_uf: 'SP', oab_number: '290702' };
@@ -89,16 +91,44 @@ describe('adaptador Diário com controles relatados', () => {
     const { dom, core, search } = fixture(); const emit = vi.fn();
     search.onclick = () => document.querySelector('tbody')?.append(document.createComment('mutation'));
     const pending = core.collect(dom.create(setting, period), { run: 'stale', page: 1, seen: [], period }, vi.fn(), emit);
-    const assertion = expect(pending).rejects.toThrow('Resultado obsoleto');
-    await assertion;
+    const assertion = expect(pending).rejects.toThrow('sem ciclo');
+    await vi.advanceTimersByTimeAsync(120100); await assertion;
     expect(emit).not.toHaveBeenCalled();
   }, 25000);
-  it('rejeita linhas antigas idênticas mesmo após esvaziamento e reapresentação', async () => {
+  it('aceita dados idênticos sem esvaziar tabela somente após ciclo comprovado', async () => {
+    const { dom, search, begin } = fixture();
+    search.onclick = () => { const bar = begin(); setTimeout(() => bar.remove(), 100); };
+    await dom.create(setting, period).search({ page: 1 });
+    expect((await dom.read()).rows[0].date).toBe('2026-10-05');
+  });
+  it('rejeita esvaziamento/reapresentação idêntica sem ciclo loading', async () => {
     const { dom, search, render } = fixture();
     search.onclick = () => { document.querySelector('tbody')?.replaceChildren(); setTimeout(() => render('05/10/2026'), 100); };
-    const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow('Resultado obsoleto');
-    await assertion;
-  }, 25000);
+    const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow('sem ciclo');
+    await vi.advanceTimersByTimeAsync(120100); await assertion;
+  });
+  it('observa ciclo síncrono iniciado no clique e espera conclusão longa até 120s', async () => {
+    const { dom, search, begin } = fixture(); const report = vi.fn();
+    search.onclick = () => { const bar = begin(); setTimeout(() => bar.remove(), 90000); };
+    const done = vi.fn(); const pending = dom.create(setting, period, report).search({ page: 1 }).then(done);
+    await vi.advanceTimersByTimeAsync(89000); expect(done).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1600); await pending; expect(done).toHaveBeenCalledTimes(1); expect(report).toHaveBeenCalled();
+  });
+  it('interrompe loading que não termina em 120s', async () => {
+    const { dom, search, begin } = fixture(); search.onclick = begin;
+    const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow('120s');
+    await vi.advanceTimersByTimeAsync(120100); await assertion;
+  });
+  it('rejeita filtros alterados durante loading', async () => {
+    const { dom, search, begin } = fixture();
+    search.onclick = () => { const bar = begin(); document.querySelectorAll('input')[1].value = 'RJ1'; setTimeout(() => bar.remove(), 100); };
+    await expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow('Filtros alterados');
+  });
+  it('contador 100 com aviso exato não certifica cobertura', async () => {
+    const { dom, search, begin } = fixture(100, 10);
+    search.onclick = () => { const bar = begin(); const p = document.createElement('p'); p.textContent = 'A pesquisa retornou muitos resultados e estamos exibindo os 100 primeiros. Caso deseje refinar a busca, favor utilizar outros filtros.'; document.body.append(p); setTimeout(() => bar.remove(), 100); };
+    await expect(dom.create(setting, period).search({ page: 1 })).rejects.toMatchObject({ code: 'TRUNCATED' });
+  });
   it('rejeita resposta alterada com datas fora da janela do dia', async () => {
     const { dom, core } = fixture(); const emit = vi.fn();
     const day = { start: '2026-10-08', end: '2026-10-08' };
@@ -108,8 +138,8 @@ describe('adaptador Diário com controles relatados', () => {
     expect(emit).not.toHaveBeenCalled();
   }, 25000);
   it('aguarda saída dos dados antigos, transição e resposta estável dentro do dia', async () => {
-    const { dom, search, render } = fixture(); const day = { start: '2026-10-08', end: '2026-10-08' };
-    search.onclick = () => { setTimeout(() => document.querySelector('tbody')?.replaceChildren(), 900); setTimeout(() => render('08/10/2026'), 1500); };
+    const { dom, search, render, begin } = fixture(); const day = { start: '2026-10-08', end: '2026-10-08' };
+    search.onclick = () => { const bar = begin(); setTimeout(() => { render('08/10/2026'); bar.remove(); }, 1500); };
     const done = vi.fn(); const adapter = dom.create(setting, day); const pending = adapter.search({ page: 1 }).then(done);
     await new Promise(resolve => setTimeout(resolve, 1400)); expect(done).not.toHaveBeenCalled();
     await pending;
@@ -125,7 +155,8 @@ describe('adaptador Diário com controles relatados', () => {
   });
   it('interrompe quando próxima não muda efetivamente a página', async () => {
     const { dom, next } = fixture(); next.onclick = () => {};
-    await expect(dom.create(setting, period).next()).rejects.toThrow('sem conclusão comprovada');
+    const assertion = expect(dom.create(setting, period).next()).rejects.toThrow('sem conclusão comprovada');
+    await vi.advanceTimersByTimeAsync(20100); await assertion;
   }, 25000);
   it('não reenvia ID imutável com dados diferentes após interrupção', async () => {
     const { core } = fixture(); const emit = vi.fn();
