@@ -106,6 +106,20 @@ afterEach(() => {
 const setting = { oab_uf: "SP", oab_number: "290702" };
 const period = { start: "2026-10-01", end: "2026-10-08" };
 describe("adaptador Diário com controles relatados", () => {
+  it("retorna à primeira página antes de validar contador mantido além do novo total", async () => {
+    const { dom, next, search, begin } = fixture();
+    next.click();
+    next.click();
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => {
+        document.querySelector('[role="status"]')!.textContent = "7 - 9 / 3";
+        bar.remove();
+      }, 100);
+    };
+    await dom.create(setting, period).search({ page: 1 });
+    expect(dom.read().start).toBe(1);
+  });
   it("confirma as datas no calendário e retorna à primeira página quando Buscar mantém o contador anterior", async () => {
     const { dom, next, search, begin, render } = fixture();
     next.click();
