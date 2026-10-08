@@ -24,7 +24,10 @@ function fixture(total = 9, size = 3) {
   const search = document.querySelector<HTMLButtonElement>('form button'); const next = document.querySelector<HTMLButtonElement>('[aria-label="próxima"]');
   if (!search || !next) throw Error('fixture');
   search.onclick = () => { page = 1; document.querySelector('tbody')?.replaceChildren(); setTimeout(() => render(), 100); }; next.onclick = () => { page++; render(); };
-  const context = vm.createContext({ document, location: { pathname: '/central-comunicacoes' }, HTMLInputElement, Event, MutationObserver, getComputedStyle, Date, setTimeout, crypto });
+  class ClockDate extends Date {
+    static now() { return vi.getMockedSystemTime()?.getTime() ?? Date.now(); }
+  }
+  const context = vm.createContext({ document, location: { pathname: '/central-comunicacoes' }, HTMLInputElement, Event, MutationObserver, getComputedStyle, Date: ClockDate, setTimeout: (fn: () => void, ms: number) => globalThis.setTimeout(fn, ms), crypto });
   vm.runInContext(fs.readFileSync('extension/jusbr/core.js','utf8'), context);
   vm.runInContext(fs.readFileSync('extension/jusbr/dom.js','utf8'), context);
   return { dom: context.JusbrDom, core: context.JusbrCore, forbidden, next, search, render };
