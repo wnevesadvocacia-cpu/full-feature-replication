@@ -1,38 +1,91 @@
+importScripts('core.js');
 const appOrigins = new Set(['https://wnevesbox.com', 'https://www.wnevesbox.com', 'https://full-feature-replication.lovable.app', 'https://id-preview--b753a021-ff4f-4e59-b4fd-f9f912a4c7bf.lovable.app']);
 const origin = sender => { try { return new URL(sender.url).origin; } catch { return ''; } };
-async function status(message, error = true) {
+let processing = false;
+let serial = Promise.resolve();
+function exclusive(fn) { const task = serial.then(fn); serial = task.catch(() => {}); return task; }
+async function status(message) {
   await chrome.storage.local.set({ message });
-  await chrome.action.setBadgeText({ text: error ? '!' : 'OK' });
+  await chrome.action.setBadgeText({ text: '!' });
+}
+async function pump() {
+  if (processing) return;
+  processing = true;
+  try {
+    const state = await chrome.storage.local.get(['owner','tabId','queue','origin']);
+    const item = state.queue?.find(q => q.owner === state.owner && q.retryAt <= Date.now());
+    if (!item) return;
+    try {
+      const tab = await chrome.tabs.get(state.tabId);
+      if (!tab.url || new URL(tab.url).origin !== state.origin) throw Error('Abra Intimações na conta vinculada para retomar.');
+      const result = await chrome.tabs.sendMessage(state.tabId, { type: 'CHECK_BATCH', owner: state.owner, batch: item });
+      if (!result?.ok || !result.persisted) throw Error(result?.message || 'Lote sem confirmação do servidor.');
+      if (result.done) {
+        await exclusive(async () => {
+          const latest = await chrome.storage.local.get(['owner','queue']);
+          if (latest.owner !== item.owner) return;
+          await chrome.storage.local.set(JusbrCore.acknowledge(latest, item.owner, item.id));
+        });
+        await status(result.message);
+      } else {
+        await exclusive(async () => {
+          const latest = await chrome.storage.local.get(['owner','queue']);
+          if (latest.owner !== item.owner) return;
+          await chrome.storage.local.set({ queue: (latest.queue || []).map(q => q.id === item.id ? { ...q, retryAt: Date.now() + 60000 } : q) });
+        });
+        await status(result.message);
+      }
+    } catch (e) {
+      await exclusive(async () => {
+        const latest = await chrome.storage.local.get(['owner','queue']);
+        if (latest.owner !== item.owner) return;
+        await chrome.storage.local.set({ queue: (latest.queue || []).map(q => q.id === item.id ? JusbrCore.retry(q, Date.now()) : q) });
+      });
+      await status(`${e.message} Retentativa automática; importações preservadas.`);
+    }
+  } finally {
+    processing = false;
+    const state = await chrome.storage.local.get('queue');
+    if (state.queue?.length) await chrome.alarms.create('retry', { delayInMinutes: 1 });
+    else await chrome.alarms.clear('retry');
+  }
+}
+async function scan() {
+  const state = await chrome.storage.local.get(['owner','settings','lastCompleteEnd']);
+  if (!state.owner) return;
+  const tabs = await chrome.tabs.query({ url: 'https://portaldeservicos.pdpj.jus.br/*' });
+  if (!tabs.length) return status('Jus.br não está aberto. Faça login no portal; credenciais nunca são capturadas.');
+  for (const tab of tabs) {
+    try { await chrome.tabs.sendMessage(tab.id, { type: 'SCAN', window: JusbrCore.window(state.lastCompleteEnd), settings: state.settings }); }
+    catch { await status('Recarregue a Central Jus.br. Estrutura/sessão não verificada.'); }
+  }
 }
 chrome.runtime.onMessage.addListener((m, sender, reply) => {
-  (async () => {
-    if (m.type === 'PAIR') {
+  exclusive(async () => {
+    if (['PAIR','RESTORE'].includes(m.type)) {
       if (!appOrigins.has(origin(sender)) || !sender.tab || !/^[0-9a-f-]{36}$/i.test(m.owner || '')) throw Error('Vínculo inválido.');
-      const current = await chrome.storage.local.get(['owner', 'busyUntil']);
-      if (current.busyUntil > Date.now()) throw Error('Aguarde a conferência em andamento antes de vincular novamente.');
-      await chrome.storage.local.set({ owner: m.owner, tabId: sender.tab.id, origin: origin(sender), ...(current.owner !== m.owner ? { completedKeys: [], lastCheckAt: 0 } : {}) });
-      await status('Vinculada. Leia os resultados do Diário da Justiça na Central. Cobertura limitada às linhas exibidas.', false);
+      const state = await chrome.storage.local.get(['owner','queue']);
+      if (m.type === 'RESTORE' && state.owner !== m.owner) return { ok: false };
+      if (state.owner && state.owner !== m.owner && state.queue?.length) throw Error('Há lotes da conta anterior. Retome nessa conta antes de trocar o vínculo.');
+      await chrome.storage.local.set({ owner: m.owner, tabId: sender.tab.id, origin: origin(sender), settings: m.settings, ...(state.owner !== m.owner ? { queue: [], lastCompleteEnd: null } : {}) });
+      await chrome.alarms.create('scan', { periodInMinutes: 60 });
+      await status('Vínculo persistido. Pesquisa/paginação reais aguardam validação dos controles.');
       return { ok: true, owner: m.owner };
     }
-    if (m.type !== 'JUSBR_VISIBLE' || origin(sender) !== 'https://portaldeservicos.pdpj.jus.br') throw Error('Origem inválida.');
-    if (!Array.isArray(m.rows) || !m.rows.length || m.rows.length > 100) throw Error('Resultados inválidos.');
-    const state = await chrome.storage.local.get(['owner', 'tabId', 'completedKeys', 'busyUntil', 'origin', 'lastCheckAt']);
-    if (!state.owner || !Number.isInteger(state.tabId)) throw Error('Abra Intimações no WnevesBox e clique em Vincular extensão.');
-    const key = JSON.stringify([state.owner, m.rows]);
-    if ((state.completedKeys || []).includes(key)) return { ok: true };
-    if (state.busyUntil > Date.now()) throw Error('Conferência em andamento; novas linhas ainda não conferidas.');
-    if (state.lastCheckAt > Date.now() - 30 * 60_000) throw Error('Novas linhas ainda não conferidas: intervalo de segurança de 30 minutos. Confira o portal e revisite esta página depois.');
-    const tab = await chrome.tabs.get(state.tabId);
-    if (!tab.url || new URL(tab.url).origin !== state.origin) throw Error('Reabra Intimações e vincule novamente.');
-    await chrome.storage.local.set({ busyUntil: Date.now() + 11 * 60_000, lastCheckAt: Date.now() });
-    await status('Conferindo linhas visíveis. Não confirma cobertura integral.');
-    try {
-      const result = await chrome.tabs.sendMessage(state.tabId, { type: 'CHECK_VISIBLE', owner: state.owner, rows: m.rows });
-      if (!result?.ok) throw Error(result?.message || 'Conferência incompleta.');
-      await chrome.storage.local.set({ completedKeys: [...(state.completedKeys || []), key].slice(-100) });
-      await status(result.message, true); // Always alert: visible metadata is incomplete coverage.
+    if (origin(sender) !== 'https://portaldeservicos.pdpj.jus.br') throw Error('Origem inválida.');
+    if (m.type === 'PORTAL_STATUS') {
+      await status(String(m.message || 'Estrutura desconhecida.').slice(0, 400));
       return { ok: true };
-    } finally { await chrome.storage.local.set({ busyUntil: 0 }); }
-  })().then(reply).catch(async e => { await status(e.message || 'Conferência incompleta.'); reply({ ok: false }); });
+    }
+    if (m.type !== 'JUSBR_BATCH' || !Array.isArray(m.batch?.rows) || m.batch.rows.length > 100) throw Error('Lote inválido.');
+    const state = await chrome.storage.local.get(['owner','queue']);
+    if (!state.owner) throw Error('Vincule a extensão no WnevesBox uma vez.');
+    await chrome.storage.local.set(JusbrCore.enqueue(state, state.owner, m.batch));
+    await chrome.alarms.create('retry', { delayInMinutes: 1 });
+    return { ok: true, queued: true };
+  }).then(result => { reply(result); void pump(); if (['PAIR','RESTORE'].includes(m.type) && result.ok) void scan(); })
+    .catch(async e => { await status(e.message); reply({ ok: false, message: e.message }); });
   return true;
 });
+chrome.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'retry') void pump(); if (alarm.name === 'scan') void scan(); });
+chrome.runtime.onStartup.addListener(() => { void pump(); void scan(); });

@@ -2,24 +2,26 @@ const pending = new Map();
 window.addEventListener('message', async event => {
   if (event.source !== window || event.origin !== location.origin) return;
   const m = event.data;
-  if (m?.type === 'WNEVES_JUSBR_PAIR' && /^[0-9a-f-]{36}$/i.test(m.owner || '')) {
-    const response = await chrome.runtime.sendMessage({ type: 'PAIR', owner: m.owner });
-    window.postMessage({ type: 'WNEVES_JUSBR_PAIRED', ...response }, location.origin);
+  if (['WNEVES_JUSBR_PAIR','WNEVES_JUSBR_RESTORE'].includes(m?.type) && /^[0-9a-f-]{36}$/i.test(m.owner || '')) {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: m.type.endsWith('RESTORE') ? 'RESTORE' : 'PAIR', owner: m.owner, settings: m.settings });
+      window.postMessage({ type: 'WNEVES_JUSBR_PAIRED', ...response }, location.origin);
+    } catch { window.postMessage({ type: 'WNEVES_JUSBR_PAIRED', ok: false }, location.origin); }
   }
   if (m?.type === 'WNEVES_JUSBR_RESULT' && pending.has(m.requestId)) {
-    pending.get(m.requestId)({ ok: m.ok === true, message: String(m.message || '').slice(0, 400) });
+    pending.get(m.requestId)({ ok: m.ok === true, persisted: m.persisted === true, done: m.done === true, message: String(m.message || '').slice(0, 1000) });
     pending.delete(m.requestId);
   }
 });
 chrome.runtime.onMessage.addListener((m, _sender, reply) => {
-  if (m.type !== 'CHECK_VISIBLE') return;
+  if (m.type !== 'CHECK_BATCH') return;
   const requestId = crypto.randomUUID();
   pending.set(requestId, reply);
-  window.postMessage({ type: 'WNEVES_JUSBR_CHECK', requestId, owner: m.owner, rows: m.rows }, location.origin);
+  window.postMessage({ type: 'WNEVES_JUSBR_CHECK', requestId, owner: m.owner, batch: m.batch }, location.origin);
   setTimeout(() => {
     if (!pending.has(requestId)) return;
     pending.delete(requestId);
-    reply({ ok: false, message: 'Conferência sem conclusão confirmada. Mantenha Intimações aberta e confira o portal.' });
-  }, 11 * 60_000);
+    reply({ ok: false, message: 'Servidor sem confirmação; lote preservado para retentativa.' });
+  }, 30000);
   return true;
 });
