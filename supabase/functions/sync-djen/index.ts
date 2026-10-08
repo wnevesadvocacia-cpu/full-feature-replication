@@ -21,6 +21,7 @@ import { captureException } from '../_shared/sentry.ts';
 // PR2 — edge unificada: detectDeadline canônico (mesma engine do frontend).
 import { detectDeadline } from '../_shared/legalDeadlines.ts';
 import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from '../_shared/cnjCalendar.ts';
+import { assertTribunalHtml, readDjenPage, recordCoverageIssue } from '../_shared/djenCoverage.ts';
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
 // Se um item falhar na validação, sync marca status='partial', preserva
@@ -278,7 +279,7 @@ function looksLikeHeading(line: string): boolean {
   return line === line.toUpperCase() && /[A-ZÁÉÍÓÚÂÊÔÃÕÇ]/.test(line) && line.length <= 80;
 }
 
-async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string): Promise<DjenItem[]> {
+async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string, coverageIssues: string[]): Promise<DjenItem[]> {
   const normalizedNumbers = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
   const tjmgNumbers = normalizedNumbers.filter(n => n.includes('.8.13.'));
   if (!tjmgNumbers.length) return [];
@@ -299,9 +300,11 @@ async function fetchTjmgDjeFallback(processNumbers: string[], refNames: string[]
       let html = '';
       try {
         const res = await fetchWithRetry(url);
-        if (!res.ok) continue;
+        if (!res.ok) throw new Error(`TJMG HTTP ${res.status}`);
         html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
+        assertTribunalHtml(html, 'TJMG');
       } catch (e) {
+        recordCoverageIssue(coverageIssues, `TJMG ${completa} ${expedienteDate}: ${(e as Error).message}`);
         console.warn('[tjmg-dje] fallback falhou:', (e as Error).message);
         continue;
       }
@@ -375,7 +378,7 @@ function toBrDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string): Promise<DjenItem[]> {
+async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[], dataInicio: string, dataFim: string, coverageIssues: string[]): Promise<DjenItem[]> {
   const normalized = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
   const tjspNumbers = normalized.filter(n => n.includes('.8.26.'));
   if (!tjspNumbers.length) return [];
@@ -412,9 +415,11 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
         signal: controller.signal,
       });
       clearTimeout(timer);
-      if (!res.ok) continue;
+      if (!res.ok) throw new Error(`TJSP HTTP ${res.status}`);
       html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
+      assertTribunalHtml(html, 'TJSP');
     } catch (e) {
+      recordCoverageIssue(coverageIssues, `TJSP ${numero}: ${(e as Error).message}`);
       console.warn('[tjsp-dje] fallback falhou para', numero, (e as Error).message);
       continue;
     }
@@ -472,7 +477,7 @@ async function fetchTjspDjeFallback(processNumbers: string[], refNames: string[]
 // atas de julgamento, listas de distribuição da Secretaria Judiciária) e
 // cujos CNJs podem nem estar cadastrados no sistema. Definitivo para o gap
 // DEJESP → DJEN. Falha isolada — não afeta as demais fontes.
-async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataInicio: string, dataFim: string): Promise<DjenItem[]> {
+async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataInicio: string, dataFim: string, coverageIssues: string[]): Promise<DjenItem[]> {
   if (!oabNumber || (oabUf || '').toUpperCase() !== 'SP') return [];
   const items: DjenItem[] = [];
   const seen = new Set<string>();
@@ -504,9 +509,11 @@ async function fetchTjspDjeByOabFallback(oabNumber: string, oabUf: string, dataI
       signal: controller.signal,
     });
     clearTimeout(timer);
-    if (!res.ok) return [];
+    if (!res.ok) throw new Error(`TJSP HTTP ${res.status}`);
     html = new TextDecoder('iso-8859-1').decode(await res.arrayBuffer());
+    assertTribunalHtml(html, 'TJSP');
   } catch (e) {
+    recordCoverageIssue(coverageIssues, `TJSP OAB ${oabNumber}/${oabUf}: ${(e as Error).message}`);
     console.warn('[tjsp-dje-oab] falhou:', (e as Error).message);
     return [];
   }
@@ -693,6 +700,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
   const seen = new Set<string>();
   let totalAttempts = 0;
   let upstreamDegraded = false;
+  let truncated = false;
 
   // Base URL da API CNJ — usa proxy BR (Cloudflare Worker) se configurado para
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
@@ -762,8 +770,17 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         }
         throw new Error(msg);
       }
-      const json = await res.json();
-      const rawItems: unknown[] = json.items || json.data || [];
+      let pageResult: ReturnType<typeof readDjenPage>;
+      try {
+        pageResult = readDjenPage(await res.json(), pagina, maxPages);
+      } catch (e) {
+        if (!all.length && pagina === 1) throw e;
+        console.warn('[sync-djen] resposta inválida; preservando itens anteriores:', String(e));
+        upstreamDegraded = true;
+        break;
+      }
+      const rawItems: unknown[] = pageResult.items;
+      if (pageResult.truncated) truncated = true;
       if (!rawItems.length) break;
       const validItems: DjenItem[] = [];
       for (const raw of rawItems) {
@@ -789,12 +806,12 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
       }
       all.push(...validItems);
       queryItems += validItems.length;
-      if (rawItems.length < 100) break;
+      if (!pageResult.more) break;
       pagina++;
       await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
     }
   }
-  return { items: all, attempts: totalAttempts, incomplete: upstreamDegraded };
+  return { items: all, attempts: totalAttempts, incomplete: upstreamDegraded || truncated };
 }
 
 function cleanHtml(raw: string): string {
@@ -905,6 +922,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
   let errorMessage: string | null = null;
   let status: 'success' | 'partial' | 'failed' = 'success';
   const triggerCounts: Record<string, number> = {};
+  const coverageIssues: string[] = [];
 
   // Nomes de referência para fuzzy match: lawyer_name + variações.
   const refNames: string[] = [
@@ -945,31 +963,33 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
 
     // Carrega números de processos do usuário da OAB para varredura adicional DJEN (pautas,
     // listas de distribuição, atos administrativos que só aparecem por numeroProcesso).
-    const { data: ownProcs } = await supabase
+    const { data: ownProcs, error: ownProcsError } = await supabase
       .from('processes')
       .select('number')
       .eq('user_id', row.user_id)
       .not('number', 'is', null);
+    if (ownProcsError) throw new Error(`Leitura dos processos falhou: ${ownProcsError.message}`);
     const processNumbers = (ownProcs || []).map((p: any) => p.number).filter(Boolean);
 
     const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers, ctx);
     if (result.incomplete) {
       status = 'partial';
-      errorMessage = 'Consulta DJEN interrompida: cobertura incompleta, confira as publicações.';
+      recordCoverageIssue(coverageIssues, 'Consulta DJEN interrompida ou limite de páginas atingido.');
     }
-    const { data: officeProcs } = await supabase
+    const { data: officeProcs, error: officeProcsError } = await supabase
       .from('processes')
       .select('number')
       .in('user_id', officeUserIds)
       .not('number', 'is', null);
+    if (officeProcsError) recordCoverageIssue(coverageIssues, `Leitura dos processos do escritório falhou: ${officeProcsError.message}`);
     const officeProcessNumbers = (officeProcs || []).map((p: any) => p.number).filter(Boolean);
     const [tjmgFallbackItems, tjspFallbackItems, tjspOabFallbackItems] = await Promise.all([
-      fetchTjmgDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate)
-        .catch((e) => { console.warn('[tjmg-dje] falhou geral:', (e as Error).message); return [] as DjenItem[]; }),
-      fetchTjspDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate)
-        .catch((e) => { console.warn('[tjsp-dje] falhou geral:', (e as Error).message); return [] as DjenItem[]; }),
-      fetchTjspDjeByOabFallback(row.oab_number, row.oab_uf, stateFallbackStartDate, syncEndDate)
-        .catch((e) => { console.warn('[tjsp-dje-oab] falhou geral:', (e as Error).message); return [] as DjenItem[]; }),
+      fetchTjmgDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate, coverageIssues)
+        .catch((e) => { recordCoverageIssue(coverageIssues, `tjmg-dje: ${(e as Error).message}`); return [] as DjenItem[]; }),
+      fetchTjspDjeFallback(officeProcessNumbers, refNames, stateFallbackStartDate, syncEndDate, coverageIssues)
+        .catch((e) => { recordCoverageIssue(coverageIssues, `tjsp-dje: ${(e as Error).message}`); return [] as DjenItem[]; }),
+      fetchTjspDjeByOabFallback(row.oab_number, row.oab_uf, stateFallbackStartDate, syncEndDate, coverageIssues)
+        .catch((e) => { recordCoverageIssue(coverageIssues, `tjsp-dje-oab: ${(e as Error).message}`); return [] as DjenItem[]; }),
     ]);
 
     const merged: DjenItem[] = [];
@@ -1188,7 +1208,42 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
   const duration = Date.now() - startedAt;
   const now = new Date().toISOString();
 
-  if (status === 'failed') {
+  // GUARD-RAIL ANTI-PERDA: se alguma publicação foi descartada antes do insert
+  // (schema inesperado da API CNJ ou filtro de nome), o run NÃO é reportado como
+  // limpo: vira 'partial', o payload fica em sync_logs.error_message e o advogado
+  // recebe alerta crítico com processo/data para conferência manual imediata.
+  const droppedTotal = ctx.rejected.length + nameRejected;
+  if (status !== 'failed' && droppedTotal > 0) {
+    status = 'partial';
+    const detalhe = ctx.rejected.slice(0, 10)
+      .map(d => `${d.processo} (${d.data}, ${d.tribunal}): ${d.motivo}`)
+      .join(' | ');
+    errorMessage = [
+      `PUBLICAÇÕES DESCARTADAS: ${ctx.rejected.length} por formato inesperado da API + ${nameRejected} pelo filtro de nome.`,
+      detalhe,
+    ].filter(Boolean).join(' ');
+    await supabase.from('notifications').insert({
+      user_id: row.user_id,
+      title: '🚨 Publicação não importada — conferência manual obrigatória',
+      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${ctx.rejected.length ? ` Processos: ${ctx.rejected.slice(0, 5).map(d => `${d.processo} (${d.data})`).join(', ')}.` : ''} Confira o processo no diário antes de contar prazo.`,
+      type: 'destructive',
+      link: '/intimacoes',
+    });
+  }
+
+  if (status !== 'failed' && coverageIssues.length) {
+    status = 'partial';
+    errorMessage = [errorMessage, `COBERTURA INCOMPLETA: ${coverageIssues.join(' | ')}`].filter(Boolean).join(' ');
+    await supabase.from('notifications').insert({
+      user_id: row.user_id,
+      title: 'Conferência de intimações incompleta',
+      message: `${inserted} publicação(ões) importada(s). ${coverageIssues.slice(0, 3).join(' | ')} Confira as fontes indicadas nos portais oficiais; resultado vazio não comprova ausência de atos.`,
+      type: 'destructive',
+      link: '/intimacoes',
+    });
+  }
+
+  if (status !== 'success') {
     await supabase.from('oab_settings').update({
       last_sync_at: now,
       consecutive_failures: (row.consecutive_failures || 0) + 1,
@@ -1212,29 +1267,6 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
       consecutive_failures: 0,
       last_error: null,
     }).eq('id', row.id);
-  }
-
-  // GUARD-RAIL ANTI-PERDA: se alguma publicação foi descartada antes do insert
-  // (schema inesperado da API CNJ ou filtro de nome), o run NÃO é reportado como
-  // limpo: vira 'partial', o payload fica em sync_logs.error_message e o advogado
-  // recebe alerta crítico com processo/data para conferência manual imediata.
-  const droppedTotal = ctx.rejected.length + nameRejected;
-  if (status !== 'failed' && droppedTotal > 0) {
-    status = 'partial';
-    const detalhe = ctx.rejected.slice(0, 10)
-      .map(d => `${d.processo} (${d.data}, ${d.tribunal}): ${d.motivo}`)
-      .join(' | ');
-    errorMessage = [
-      `PUBLICAÇÕES DESCARTADAS: ${ctx.rejected.length} por formato inesperado da API + ${nameRejected} pelo filtro de nome.`,
-      detalhe,
-    ].filter(Boolean).join(' ');
-    await supabase.from('notifications').insert({
-      user_id: row.user_id,
-      title: '🚨 Publicação não importada — conferência manual obrigatória',
-      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${ctx.rejected.length ? ` Processos: ${ctx.rejected.slice(0, 5).map(d => `${d.processo} (${d.data})`).join(', ')}.` : ''} Confira o processo no diário antes de contar prazo.`,
-      type: 'destructive',
-      link: '/intimacoes',
-    });
   }
 
   await supabase.from('sync_logs').insert({
