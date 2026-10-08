@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { djenFailureSource } from '@/lib/djenHealth';
 
 interface Health {
   current_source: string;
@@ -47,8 +48,8 @@ export function DjenHealthBadge() {
   const label = ok
     ? `DJEN/CNJ operante · última sync ${timeAgo(data.last_ok_at)}`
     : degraded
-      ? `DJEN/CNJ indisponível (${data.consecutive_failures} falhas) · última OK ${timeAgo(data.last_ok_at)}`
-      : `DJEN/CNJ instável · última tentativa falhou ${timeAgo(data.last_fail_at)}`;
+      ? `${djenFailureSource(data.last_error)} incompleta (${data.consecutive_failures} falhas) · última OK ${timeAgo(data.last_ok_at)}`
+      : `${djenFailureSource(data.last_error)} falhou · última tentativa ${timeAgo(data.last_fail_at)}`;
 
   const cls = ok
     ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30 dark:text-emerald-400'

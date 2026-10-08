@@ -1,3 +1,4 @@
 Identify the drafting actor through a server-stamped task field on status transitions, not the assignee, so attribution is independent and cannot be spoofed by the client.
 Run manual DJEN sync asynchronously with request-scoped configuration and owner-validated persisted completion; never interpret acceptance or partial results as a completed empty search.
 Treat failed supplemental tribunal queries, malformed source responses, failed process reads and page limits as incomplete coverage; preserve imported publications and alert the owner rather than claiming an empty completed search.
+Skip deadline and parent-process classification only for external IDs already persisted for the same owner, preserving the redundant search window and failing closed on lookup errors to reduce sync CPU usage.
