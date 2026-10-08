@@ -1,4 +1,4 @@
-# Jus.br v0.3.0 — validação e limites
+# Jus.br v0.3.1 — validação e limites
 
 ## Entregue
 - Vínculo persistente por usuário, restaurado com identidade atual do aplicativo; lotes de outra conta nunca são enviados pela nova conta.
@@ -20,7 +20,7 @@ Se o início DJEN for interrompido antes de salvar run_id, marcar incompleto e a
 API Domicílio não implementada: credenciamento e operações sem ciência precisam de confirmação oficial.
 
 ## Passos exatos no portal real (titular, etapa posterior)
-1. Descompactar ZIP v0.3.0; carregar sem compactação em Chrome/Edge; atualizar extensão existente e recarregar abas. Esta implementação não instalou/ativou extensão.
+1. Descompactar ZIP v0.3.1; carregar sem compactação em Chrome/Edge; atualizar extensão existente e recarregar abas. Esta implementação não instalou/ativou extensão.
 2. Entrar no WnevesBox na conta correta; abrir Intimações; clicar Vincular uma vez. Recarregar e conferir restauração automática.
 3. Fazer login com token exclusivamente no Jus.br. Não compartilhar token/PIN/cookies/senha/certificado ou chave privada.
 4. Abrir Minhas comunicações processuais → Diário da Justiça e acompanhar pesquisa automática da OAB cadastrada. Se início/fim não forem identificados, fornecer somente seus labels/aria sanitizados para adaptar; não compartilhar campos secretos.
@@ -32,4 +32,4 @@ API Domicílio não implementada: credenciamento e operações sem ciência prec
 10. Comparar contagens e atos das páginas com os lotes/importações; testar ausência de ciência sem abrir conteúdo privado. Não clicar em olho/link/confirmar comunicação.
 
 ## Verificação desta entrega
-36 testes passaram, incluindo pesquisa DOM, três páginas, retomada, falha de avanço, datas ambíguas e multiplicidade; sintaxe JS e ZIP verificados. Testes usam mocks/fixtures, não sessão Jus.br. Nada comprova funcionamento real autenticado ou cobertura integral. Backend novo é compartilhado pela aplicação publicada, mas site/ZIP v0.3.0 não foram publicados.
+Testes DOM incluem as faixas reais relatadas (10/10/9 linhas), fim pelos dois botões desabilitados, divergência de fim, retomada, falha de avanço, datas ambíguas e multiplicidade; sintaxe JS e ZIP verificados. Testes usam mocks/fixtures, não sessão Jus.br. Nada comprova funcionamento real autenticado ou cobertura integral. Backend novo é compartilhado pela aplicação publicada, mas site/ZIP v0.3.1 não foram publicados.
