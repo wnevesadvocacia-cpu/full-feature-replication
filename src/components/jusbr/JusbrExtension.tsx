@@ -3,106 +3,114 @@ import { Download, Link, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { readJusbrRows, unmatchedJusbrRows, type JusbrRow } from '@/lib/jusbrCheck';
-import { runDjenSync } from '@/lib/runDjenSync';
 
 export function JusbrExtension() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [notice, setNotice] = useState('Validação no portal autenticado pendente. A extensão lê somente linhas exibidas; não executa busca ou paginação no Jus.br.');
+  const [notice, setNotice] = useState('v0.2.0 · fila e retomada disponíveis. Pesquisa/paginação reais bloqueadas até validação dos controles autenticados.');
   const paired = useRef<string | null>(null);
-  const busy = useRef(false);
-  const pairing = useRef(false);
+  const { data: batches = [], error: batchesError } = useQuery({
+    queryKey: ['jusbr-batches', user?.id], enabled: !!user,
+    queryFn: async () => {
+      if (!user) return [];
+      const { data, error } = await supabase.from('jusbr_batches').select('id,status,coverage,inserted,pending,error,created_at')
+        .eq('user_id', user.id).order('created_at', { ascending: false }).limit(10);
+      if (error) throw error;
+      return data || [];
+    }, refetchInterval: 60000,
+  });
 
   useEffect(() => {
     paired.current = null;
-    pairing.current = false;
+    if (!user) return;
+    let active = true;
+    const restore = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!active || error || data.user?.id !== user.id) return;
+      const { data: settings } = await supabase.from('oab_settings').select('oab_number,oab_uf').eq('user_id', user.id).eq('active', true);
+      if (active) window.postMessage({ type: 'WNEVES_JUSBR_RESTORE', owner: user.id, settings: settings || [] }, window.location.origin);
+    };
     const listener = async (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== window) return;
       const m = event.data;
-      if (m?.type === 'WNEVES_JUSBR_PAIRED' && pairing.current && m.ok && m.owner === user?.id) {
-        pairing.current = false;
-        paired.current = m.owner;
-        setNotice('Extensão vinculada. Entre no Jus.br → Minhas comunicações processuais → Diário da Justiça. As linhas exibidas serão conferidas; mantenha esta página aberta.');
+      if (m?.type === 'WNEVES_JUSBR_PAIRED') {
+        if (m.ok && m.owner === user.id) {
+          paired.current = user.id;
+          setNotice('Vínculo restaurado. Retentativas automáticas com Intimações aberta. Pesquisa/paginação Jus.br ainda não validadas.');
+        } else if (m.message) setNotice(m.message);
         return;
       }
       if (m?.type !== 'WNEVES_JUSBR_CHECK' || typeof m.requestId !== 'string' || m.requestId.length > 50) return;
-      const respond = (ok: boolean, message: string) => window.postMessage({ type: 'WNEVES_JUSBR_RESULT', requestId: m.requestId, ok, message }, window.location.origin);
-      if (!user || paired.current !== user.id || m.owner !== user.id || busy.current) {
-        respond(false, 'Vínculo indisponível ou conferência em andamento. Vincule novamente na conta correta.');
-        return;
+      const respond = (result: Record<string, unknown>) => window.postMessage({ type: 'WNEVES_JUSBR_RESULT', requestId: m.requestId, ...result }, window.location.origin);
+      if (paired.current !== user.id || m.owner !== user.id || !m.batch) {
+        respond({ ok: false, message: 'Conta/vínculo indisponível. Lote preservado.' }); return;
       }
-      busy.current = true;
       try {
         const { data: identity, error: identityError } = await supabase.auth.getUser();
-        if (identityError || identity.user?.id !== user.id) throw new Error('Sessão alterada. Entre e vincule novamente.');
-        const rows = readJusbrRows(m.rows);
-        const readRecords = async () => {
-          const dates = rows.map(row => row.date).sort();
-          const { data, error } = await supabase.from('intimations').select('user_id,content,received_at,court')
-            .eq('user_id', user.id).gte('received_at', dates[0]).lte('received_at', `${dates[dates.length - 1]}T23:59:59.999Z`).limit(2001);
-          if (error) throw error;
-          if (!data || data.length > 2000) throw new Error('Limite de leitura atingido; conferência incompleta.');
-          return data;
-        };
-        let missing: JusbrRow[] = unmatchedJusbrRows(rows, await readRecords(), user.id);
-        let inserted = 0;
-        // Even a CNJ/date match may hide another act: reconcile the full visible period.
-        if (rows.length) {
-          setNotice(`${missing.length} linhas sem correspondência. Reconferência DJEN em andamento para todas as linhas; não considere concluída.`);
-          const dates = rows.map(row => row.date).sort();
-          const result = await runDjenSync({ date_start: dates[0], date_end: dates[dates.length - 1], bypass_name_filter: true });
-          inserted = result.inserted;
-          missing = unmatchedJusbrRows(rows, await readRecords(), user.id);
+        if (identityError || identity.user?.id !== user.id) throw Error('Sessão WnevesBox expirada ou conta alterada.');
+        const { data, error } = await supabase.functions.invoke('jusbr-ingest', { body: { id: m.batch.id, rows: m.batch.rows, coverage: m.batch.coverage } });
+        if (error) throw error;
+        if (!data?.ok || !data.persisted) throw Error(data?.error || 'Servidor não confirmou a gravação.');
+        if (!active) { respond({ ok: false, message: 'Conta/tela alterada; retomada necessária.' }); return; }
+        setNotice(data.message);
+        respond(data);
+        await qc.invalidateQueries({ queryKey: ['jusbr-batches', user.id] });
+        if (data.done) {
           await qc.invalidateQueries({ queryKey: ['intimations'] });
+          toast({ title: 'Conferência Jus.br — cobertura incompleta', description: data.message });
         }
-        const message = `${rows.length} linhas visíveis conferidas; ${inserted} publicações recuperadas pelo DJEN; ${missing.length} sem correspondência. Cobertura incompleta: linhas não identificam o ato integral, outras páginas e Domicílio não foram lidos. Confira o portal.`;
-        const { error: notifyError } = await supabase.from('notifications').insert({ user_id: user.id, title: 'Conferência complementar Jus.br — atenção', message, type: 'warning', link: '/intimacoes' });
-        if (notifyError) throw new Error('Conferência efetuada, mas alerta não gravado. Confira o portal.');
-        setNotice(message);
-        toast({ title: 'Conferência complementar — atenção', description: message });
-        respond(true, message);
       } catch (error) {
-        const message = `Conferência incompleta: ${error instanceof Error ? error.message : 'Falha de leitura'}. Publicações importadas preservadas; confira o Jus.br.`;
-        setNotice(message);
-        toast({ title: 'Conferência incompleta', description: message, variant: 'destructive' });
-        await supabase.from('notifications').insert({ user_id: user.id, title: 'Conferência Jus.br incompleta', message, type: 'warning', link: '/intimacoes' });
-        respond(false, message);
-      } finally { busy.current = false; }
+        const message = `Conferência incompleta: ${error instanceof Error ? error.message : 'Falha de envio'}. Retentativa automática; importações preservadas.`;
+        if (active) setNotice(message);
+        respond({ ok: false, message });
+      }
     };
     window.addEventListener('message', listener);
-    return () => window.removeEventListener('message', listener);
+    // Content scripts are present before mount; retry restoration also handles delayed hydration.
+    void restore();
+    const timer = window.setTimeout(() => { void restore(); }, 1500);
+    return () => { active = false; window.clearTimeout(timer); window.removeEventListener('message', listener); };
   }, [user?.id, qc, toast]);
 
   const download = async () => {
     try {
       const response = await fetch('/wnevesbox-jusbr.zip');
-      if (!response.ok) throw new Error('Download indisponível.');
+      if (!response.ok) throw Error('Download indisponível.');
       const url = URL.createObjectURL(await response.blob());
       const a = document.createElement('a');
-      a.href = url; a.download = 'wnevesbox-jusbr.zip'; a.click();
+      a.href = url; a.download = 'wnevesbox-jusbr-0.2.0.zip'; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setNotice('Não foi possível baixar a extensão. Tente novamente.'); }
   };
-
-  const pair = () => {
+  const pair = async () => {
     if (!user) return;
-    pairing.current = true;
-    setNotice('Aguardando a extensão. Se não vincular, instale e recarregue esta página.');
-    window.postMessage({ type: 'WNEVES_JUSBR_PAIR', owner: user.id }, window.location.origin);
+    const { data: identity, error } = await supabase.auth.getUser();
+    if (error || identity.user?.id !== user.id) { setNotice('Entre novamente na conta correta.'); return; }
+    const { data: settings } = await supabase.from('oab_settings').select('oab_number,oab_uf').eq('user_id', user.id).eq('active', true);
+    setNotice('Aguardando vínculo. Instale v0.2.0 e recarregue esta página e a Central Jus.br.');
+    window.postMessage({ type: 'WNEVES_JUSBR_PAIR', owner: user.id, settings: settings || [] }, window.location.origin);
   };
-
   return <div className="space-y-2 border-t border-warning/30 pt-3">
     <div className="flex flex-wrap gap-2">
-      <Button variant="outline" onClick={download}><Download className="h-4 w-4 mr-1" />Baixar extensão Chrome/Edge</Button>
-      <Button variant="outline" onClick={pair} disabled={!user}><Link className="h-4 w-4 mr-1" />Vincular extensão</Button>
+      <Button variant="outline" onClick={download}><Download className="h-4 w-4 mr-1" />Baixar extensão v0.2.0</Button>
+      <Button variant="outline" onClick={pair} disabled={!user}><Link className="h-4 w-4 mr-1" />Vincular uma vez</Button>
     </div>
-    <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">Instalação — uma vez</summary>
-      <ol className="list-decimal pl-5 space-y-1 mt-2"><li>Baixe e descompacte o arquivo.</li><li>Abra chrome://extensions (Edge: edge://extensions) e ative “Modo do desenvolvedor”.</li><li>Clique “Carregar sem compactação” e selecione a pasta descompactada.</li><li>Recarregue esta página e a Central do Jus.br; clique “Vincular extensão”.</li></ol>
+    <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">Instalação e validação</summary>
+      <ol className="list-decimal pl-5 space-y-1 mt-2">
+        <li>Descompacte; em chrome://extensions ou edge://extensions, ative Modo do desenvolvedor e Carregar sem compactação. Para atualizar, substitua os arquivos da pasta e clique Recarregar.</li>
+        <li>Recarregue Intimações e a Central Jus.br; vincule uma vez na sua conta. Mantenha ambas abertas.</li>
+        <li>Faça login com seu token exclusivamente no portal. Abra Minhas comunicações processuais → Diário da Justiça.</li>
+        <li>Enquanto os controles reais não forem validados, pesquise e percorra páginas manualmente. Linhas são enfileiradas sem espera de 30 minutos entre páginas.</li>
+        <li>Não abra Domicílio nem ações de ciência para testar. Pesquisa/paginação automáticas e confirmação de sessão expirada permanecem pendentes de validação no portal.</li>
+      </ol>
     </details>
     <p role="status" aria-live="polite" className="text-sm font-medium text-foreground flex gap-2"><AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />{notice}</p>
+    {batchesError && <p className="text-sm text-destructive">Histórico indisponível; não considere a conferência concluída.</p>}
+    {!!batches.length && <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b"><th className="text-left p-2">Conferência</th><th className="text-left p-2">Telas observadas</th><th className="text-left p-2">Importações DJEN</th><th className="text-left p-2">Identidades pendentes</th><th className="text-left p-2">Cobertura</th></tr></thead>
+      <tbody>{batches.map(batch => <tr key={batch.id} className="border-b"><td className="p-2 whitespace-nowrap">{new Date(batch.created_at).toLocaleString('pt-BR')}</td><td className="p-2">{Number((batch.coverage as { page?: number })?.page || 0)}</td><td className="p-2">{batch.inserted}</td><td className="p-2">{batch.pending}</td><td className="p-2 min-w-[220px]">{batch.status === 'running' || batch.status === 'starting' || batch.status === 'queued' ? 'Em processamento' : 'Incompleta'} · {batch.error || 'Aguardando conclusão persistida'}</td></tr>)}</tbody>
+    </table></div>}
   </div>;
 }
