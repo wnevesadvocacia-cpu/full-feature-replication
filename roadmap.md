@@ -14,6 +14,6 @@
 - [x] Reduzir CPU evitando classificar publicações já persistidas e distinguir falhas complementares no indicador; 16 testes passaram, busca autenticada concluiu com 266 consultas/306 publicações existentes/0 novas e saúde operante sem falhas; instabilidade externa pode reaparecer.
 
 - [x] Implementar fila/vínculo persistentes, ingestão e reconciliação direcionada, controlador seguro e pacote Jus.br v0.2; 31 testes passaram, build OK, funções implantadas, RLS/grants verificados e rejeição 401 validada. Controlador testado em simulação; adaptador real continua restrito às telas visíveis.
-- [ ] Validar pesquisa/paginação Jus.br real — adaptador implementado com evidência relatada; pendentes avanço efetivo, labels exatos de início/fim, estado vazio e extensão instalada.
+- [ ] Validar extensão Jus.br ponta a ponta — pesquisa/avanço/fim da interface confirmados pelo titular (1–10/29 → 11–20/29 → 21–29/29, próxima/Última desabilitadas). Pendentes labels exatos de início/fim, vazio, extensão instalada e persistência/importação.
 
 - [x] Implementar adaptador com controles relatados em 08/10: pesquisa, avanço pelo contador, retomada por conta/OAB e multiplicidade; 36 testes passaram. v0.3.0 empacotada; validação autenticada e avanço incremental permanecem pendentes.
