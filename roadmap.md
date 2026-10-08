@@ -1,5 +1,6 @@
 - [ ] Preparar extensão local para conferência após login no Jus.br, sem ciência automática; verificar leitura, autorização e limites antes de declarar cobertura.
 - [ ] Considerar o ícone “Minhas publicações processuais” indicado pelo usuário como entrada da conferência no portal.
+- [ ] Avaliar login Jus.br dentro do sistema — botão externo existente; login incorporado não transfere sessão nem habilita integração autorizada.
 - [x] Exibir controle de carga no Dashboard.
 - [x] Disponibilizar conferência manual na Central do Jus.br na página de intimações; endereço e aviso verificados em sessão autenticada. Integração automática privada permanece bloqueada por falta de acesso autorizado para o aplicativo.
 - [x] Exibir aviso de login e oferecer reconciliação pública dos últimos 30 dias com resultado/erro visível e alerta; 16 testes passaram e compilação OK. Não há detecção do login externo nem rastreamento da sessão privada.
