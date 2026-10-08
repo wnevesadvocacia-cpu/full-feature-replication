@@ -15,6 +15,50 @@ const JusbrCore = {
     return { ...state, queue: (state.queue || []).filter(q => q.id !== id) };
   },
   retry(item, now) { return { ...item, attempts: item.attempts + 1, retryAt: now + Math.min(60 * 60000, 60000 * 2 ** Math.min(item.attempts, 6)) }; },
+  segments(period) {
+    const result = []; const day = 86400000;
+    for (let start = Date.parse(period.start); start <= Date.parse(period.end); start += 7 * day) {
+      result.push({ start: new Date(start).toISOString().slice(0,10), end: new Date(Math.min(start + 6 * day, Date.parse(period.end))).toISOString().slice(0,10) });
+    }
+    return result;
+  },
+  split(period) {
+    if (period.start === period.end) throw Error('Dia único truncado (100 primeiros); cobertura incompleta. Retomada e lotes preservados.');
+    const middle = Date.parse(period.start) + Math.floor((Date.parse(period.end) - Date.parse(period.start)) / 86400000 / 2) * 86400000;
+    return [{ start: period.start, end: new Date(middle).toISOString().slice(0,10) }, { start: new Date(middle + 86400000).toISOString().slice(0,10), end: period.end }];
+  },
+  async collectSegments(factory, checkpoint, save, emit, report = () => {}) {
+    let state = { ...checkpoint };
+    if (!state.segments) {
+      // Legacy in-flight IDs cannot be repurposed for a different search.
+      if (state.batchId || state.page > 1) throw Error('Retomada v0.3.2 em andamento; lote/página preservados. Cobertura incompleta; não reutilizar IDs em outra janela.');
+      state = { ...state, segments: this.segments(state.period), segmentIndex: 0, page: 1, seen: [], finished: false };
+      state.period = state.segments[0]; await save(state);
+    }
+    while (state.segmentIndex < state.segments.length) {
+      if (state.segmentFinished) {
+        const index = state.segmentIndex + 1;
+        state = { ...state, segmentIndex: index, segmentFinished: false, finished: index === state.segments.length,
+          run: crypto.randomUUID(), page: 1, seen: [], batchId: null, pendingSignature: null, period: state.segments[index] || state.period };
+        await save(state);
+        if (state.finished) return;
+      }
+      report(`Pesquisando ${state.period.start} a ${state.period.end}; segmento ${state.segmentIndex + 1}/${state.segments.length}, página ${state.page}.`);
+      try {
+        await this.collect(factory(state.period), state, async current => {
+          state = { ...current, finished: false, segmentFinished: current.finished === true };
+          await save(state);
+        }, emit);
+      } catch (error) {
+        if (error.code !== 'TRUNCATED') throw error;
+        if (state.batchId || state.page > 1) throw Error('Truncamento durante retomada; lotes preservados, cobertura incompleta.');
+        const halves = this.split(state.period);
+        const segments = [...state.segments]; segments.splice(state.segmentIndex, 1, ...halves);
+        state = { ...state, segments, period: halves[0], page: 1, seen: [], segmentFinished: false };
+        await save(state); report('Aviso dos 100 primeiros: reduzindo período; janela não certificada.');
+      }
+    }
+  },
   async collect(adapter, checkpoint, save, emit) {
     if (!adapter.verified) throw Error('Pesquisa/paginação pendentes: controles autenticados sem evidência.');
     let state = checkpoint || { run: crypto.randomUUID(), page: 1, seen: [] };

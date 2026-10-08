@@ -20,9 +20,9 @@ async function scan(m) {
         if (!result?.ok) throw Error(result?.message || 'Fila/retomada não confirmada.');
       };
       await report(`Pesquisando Diário ${key}; retomada na página ${state.page}. Metadados não confirmam cobertura integral.`);
-      await JusbrCore.collect(JusbrDom.create(setting, state.period), state,
+      await JusbrCore.collectSegments(period => JusbrDom.create(setting, period, report), state,
         checkpoint => send({ type: 'CHECKPOINT_SAVE', checkpoint }),
-        batch => send({ type: 'JUSBR_BATCH', batch }));
+        batch => send({ type: 'JUSBR_BATCH', batch }), report);
       await report(`Páginas do Diário ${key} percorridas; lotes aguardam confirmação DJEN. Cobertura de atos permanece incompleta.`);
     }
     return { ok: true, automatedSearch: true };
