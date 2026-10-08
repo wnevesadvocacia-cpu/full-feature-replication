@@ -22,6 +22,7 @@ import { captureException } from '../_shared/sentry.ts';
 import { detectDeadline } from '../_shared/legalDeadlines.ts';
 import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from '../_shared/cnjCalendar.ts';
 import { assertTribunalHtml, readDjenPage, recordCoverageIssue } from '../_shared/djenCoverage.ts';
+import { pendingDjenEntries } from '../_shared/djenImport.ts';
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
 // Se um item falhar na validação, sync marca status='partial', preserva
@@ -1028,9 +1029,24 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
     }
 
 
+    // The redundant search still covers the full window, but persisted publications
+    // must not consume CPU in name/parent/deadline classification on every run.
+    const entries = await Promise.all(items.map(async item => ({ item, externalId: await buildExternalId(item) })));
+    const existingIds: string[] = [];
+    for (let offset = 0; offset < entries.length; offset += 100) {
+      const { data: existing, error: lookupError } = await supabase.from('intimations')
+        .select('external_id').eq('user_id', row.user_id)
+        .in('external_id', entries.slice(offset, offset + 100).map(entry => entry.externalId));
+      if (lookupError) throw new Error(`Leitura das publicações já importadas falhou: ${lookupError.message}`);
+      existingIds.push(...(existing || []).map((entry: { external_id: string }) => entry.external_id));
+    }
+    const pendingEntries = pendingDjenEntries(entries, existingIds);
+    console.info(`[sync-djen] ${items.length} encontradas, ${pendingEntries.length} ainda não importadas.`);
+    const pendingItems = pendingEntries.map(entry => entry.item);
+    const externalIds = new Map(pendingEntries.map(entry => [entry.item, entry.externalId]));
     // Batch lookup de processes — inclui CNJs do cabeçalho E "processo principal" extraído do conteúdo
-    const numeros = items.map(it => it.numero_processo || '').filter(Boolean);
-    const parents = items.map(it => extractParentProcess(cleanHtml(it.texto || ''), it.numero_processo || null) || '').filter(Boolean);
+    const numeros = pendingItems.map(it => it.numero_processo || '').filter(Boolean);
+    const parents = pendingItems.map(it => extractParentProcess(cleanHtml(it.texto || ''), it.numero_processo || null) || '').filter(Boolean);
     const { data: roleRowsForIndex } = await supabase.from('user_roles').select('user_id');
     const processUserIds = [...new Set([row.user_id, ...((roleRowsForIndex || []).map((r: any) => r.user_id).filter(Boolean))])];
     const processIndex = await buildProcessIndex(supabase, processUserIds, [...numeros, ...parents]);
@@ -1044,9 +1060,10 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
       } catch (_) { userEmailById.set(uid, null); }
     }
 
-    for (const it of items) {
+    for (const it of pendingItems) {
       try {
-        const externalId = await buildExternalId(it);
+        const externalId = externalIds.get(it);
+        if (!externalId) throw new Error('Identidade da publicação não encontrada.');
         const _body = cleanHtml(it.texto || it.tipoComunicacao || 'Sem conteúdo');
         // AASP-style header: enriquece o conteúdo com metadados estruturados
         // que a API DJEN retorna em campos separados (não vêm no `texto`).
