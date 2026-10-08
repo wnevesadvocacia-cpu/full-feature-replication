@@ -18,4 +18,4 @@
 
 - [x] Implementar adaptador com controles relatados em 08/10: pesquisa, avanço pelo contador, retomada por conta/OAB e multiplicidade; 36 testes passaram. v0.3.0 empacotada; validação autenticada e avanço incremental permanecem pendentes.
 - [x] Exigir fim pelo total do contador e próxima/Última página desabilitadas; v0.3.1 com percurso 10/10/9 e divergência de fim testados. 22 testes focados passaram; ZIP íntegro. Validação real da interface relatada pelo titular, não da extensão ponta a ponta.
-- [ ] Usar placeholders confirmados, input/change/blur e rejeitar resultados obsoletos; testar transição de pesquisa e atualizar ZIP sem instalação/publicação.
+- [x] Usar placeholders confirmados e input/change/blur; rejeitar dados antigos, idênticos reapresentados e fora da janela. 27 testes focados passaram; ZIP v0.3.2 atualizado, sem instalação/publicação. Sinal real de carregamento/conclusão e preenchimento aceito pelo portal permanecem pendentes.
