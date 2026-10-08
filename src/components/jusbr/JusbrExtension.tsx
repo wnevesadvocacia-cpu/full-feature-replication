@@ -13,6 +13,7 @@ export function JusbrExtension() {
   const [notice, setNotice] = useState(
     "v0.3.3 · busca em segmentos de até 7 dias, com redução por truncamento. Vínculo/preenchimento da 0.3.2 confirmados; nenhum lote confirmado. Cobertura incompleta.",
   );
+  const [batchNotice, setBatchNotice] = useState("");
   const paired = useRef<string | null>(null);
   const { data: batches = [], error: batchesError } = useQuery({
     queryKey: ["jusbr-batches", user?.id],
@@ -94,7 +95,7 @@ export function JusbrExtension() {
           respond({ ok: false, message: "Conta/tela alterada; retomada necessária." });
           return;
         }
-        setNotice(data.message);
+        setBatchNotice(data.message);
         respond(data);
         await qc.invalidateQueries({ queryKey: ["jusbr-batches", user.id] });
         if (data.done) {
@@ -103,7 +104,7 @@ export function JusbrExtension() {
         }
       } catch (error) {
         const message = `Conferência incompleta: ${error instanceof Error ? error.message : "Falha de envio"}. Retentativa automática; importações preservadas.`;
-        if (active) setNotice(message);
+        if (active) setBatchNotice(message);
         respond({ ok: false, message });
       }
     };
@@ -207,6 +208,7 @@ export function JusbrExtension() {
         <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
         {notice}
       </p>
+      {batchNotice && <p className="text-sm text-muted-foreground">{batchNotice}</p>}
       {batchesError && (
         <p className="text-sm text-destructive">Histórico indisponível; não considere a conferência concluída.</p>
       )}
