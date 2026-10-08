@@ -1,4 +1,5 @@
 - [x] Exibir controle de carga no Dashboard.
+- [ ] Integrar a Central de Comunicações do Jus.br como checagem adicional de intimações, validando a fonte e os requisitos de acesso.
 - [x] Exibir e validar controle de carga no modal Editar Prazo.
 - [x] Identificar quem iniciou a elaboração independentemente do responsável e validar a exibição.
 - [x] Corrigir timeout da sincronização manual e impedir confirmação falsa de ausência de publicações; validar execução autenticada.
