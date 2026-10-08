@@ -997,7 +997,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
     const merged: DjenItem[] = [];
     const mergedSeen = new Set<string>();
     for (const it of [...result.items, ...tjmgFallbackItems, ...tjspFallbackItems, ...tjspOabFallbackItems]) {
-      const key = `${it.hash || it.id || ''}|${it.numero_processo || ''}|${it.data_disponibilizacao || ''}|${(it.texto || '').slice(0, 200)}`;
+      const key = await buildExternalId(it);
       if (mergedSeen.has(key)) continue;
       mergedSeen.add(key);
       merged.push(it);

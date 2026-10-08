@@ -46,7 +46,7 @@ async function pump() {
   } finally {
     processing = false;
     const state = await chrome.storage.local.get('queue');
-    if (state.queue?.length) await chrome.alarms.create('retry', { delayInMinutes: 1 });
+    if (state.queue?.length) await chrome.alarms.create('retry', { when: Math.max(Date.now() + 60000, Math.min(...state.queue.map(q => q.retryAt || 0))) });
     else await chrome.alarms.clear('retry');
   }
 }
