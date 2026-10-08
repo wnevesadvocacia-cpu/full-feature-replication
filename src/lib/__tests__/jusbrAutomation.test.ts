@@ -95,7 +95,7 @@ describe('adaptador DOM limitado e sem ciência', () => {
     const table = { querySelectorAll: (selector: string) => selector.startsWith('th') ? ['Processo','Data de disponibilização','Tribunal'].map(textContent => ({ textContent })) : dataRows };
     const context = vm.createContext({
       crypto: { randomUUID: () => owner }, location: { pathname: '/central-comunicacoes' },
-      document: { documentElement: {}, querySelectorAll: (s: string) => s.includes('tab') ? [selected] : [table] },
+      document: { documentElement: {}, querySelectorAll: (s: string) => s === '[role="tab"]' ? [selected] : [table] },
       getComputedStyle: () => ({ visibility: 'visible' }),
       MutationObserver: class { observe() {} }, setTimeout: () => 0, clearTimeout: () => {},
       chrome: { runtime: { onMessage: { addListener: (fn: any) => { listener = fn; } }, sendMessage: async (m: any) => { messages.push(m); return { ok: true }; } } },
