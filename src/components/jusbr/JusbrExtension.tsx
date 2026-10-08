@@ -62,8 +62,10 @@ export function JusbrExtension({
       if (event.origin !== window.location.origin || event.source !== window) return;
       const m = event.data;
       if (m?.type === "WNEVES_JUSBR_STATUS") {
-        if (active && paired.current === user.id && m.owner === user.id && typeof m.message === "string")
-          setNotice(m.message.slice(0, 1000));
+        if (active && paired.current === user.id && m.owner === user.id && typeof m.message === "string") {
+          if (m.message.startsWith("Jus.br: página")) setBatchNotice(m.message.slice(0, 1000));
+          else setNotice(m.message.slice(0, 1000));
+        }
         return;
       }
       if (m?.type === "WNEVES_JUSBR_SCAN_ACCEPTED") {
