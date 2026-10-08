@@ -662,23 +662,16 @@ function matchesConfiguredLawyer(it: any, refNames: string[], threshold: number)
   return { ok: false, bestScore: best, reason: 'mismatch' };
 }
 
-// Proxy resolvido na inicialização do handler (lê djen_proxy_config). Module-level
-// para evitar refazer query a cada chamada de fetchDjen dentro de um run.
-let RESOLVED_PROXY_URL: string | null = null;
-let OVERRIDE_START_DATE: string | null = null;
-let OVERRIDE_END_DATE: string | null = null;
-let OVERRIDE_DAYS_BACK: number | null = null;
-let OVERRIDE_MAX_PAGES: number | null = null;
-// Reconciliação manual: ignora filtro fuzzy de nome (usado quando o usuário
-// aciona "Reconciliar DJEN" para recuperar publicações grosseiramente perdidas
-// por mismatch de nome do advogado/destinatário).
-let BYPASS_NAME_FILTER = false;
-
-// GUARD-RAIL ANTI-PERDA: toda publicação que o pipeline descarta antes do insert
-// é registrada aqui. Se a lista não estiver vazia ao final do run, o sync é
-// marcado como 'partial', o payload vai para sync_logs.error_message e o
-// advogado recebe notificação crítica — NUNCA descarte silencioso.
-let SCHEMA_REJECTED: Array<{ id: string; processo: string; data: string; tribunal: string; motivo: string }> = [];
+// Configuration is scoped to one request; rejects are scoped to one OAB.
+interface SyncContext {
+  proxyUrl: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  daysBack: number | null;
+  maxPages: number | null;
+  bypassNameFilter: boolean;
+  rejected: Array<{ id: string; processo: string; data: string; tribunal: string; motivo: string }>;
+}
 
 function describeDroppedItem(raw: any, motivo: string) {
   return {
@@ -690,12 +683,12 @@ function describeDroppedItem(raw: any, motivo: string) {
   };
 }
 
-async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[] = []): Promise<{ items: DjenItem[]; attempts: number }> {
-  SCHEMA_REJECTED = [];
-  const daysBack = OVERRIDE_DAYS_BACK ?? DAYS_BACK;
-  const dataInicio = OVERRIDE_START_DATE || new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
-  const dataFim = OVERRIDE_END_DATE || new Date().toISOString().slice(0, 10);
-  const maxPages = OVERRIDE_MAX_PAGES ?? 20;
+async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, processNumbers: string[], ctx: SyncContext): Promise<{ items: DjenItem[]; attempts: number; incomplete: boolean }> {
+  ctx.rejected = [];
+  const daysBack = ctx.daysBack ?? DAYS_BACK;
+  const dataInicio = ctx.startDate || new Date(Date.now() - daysBack * 86400_000).toISOString().slice(0, 10);
+  const dataFim = ctx.endDate || new Date().toISOString().slice(0, 10);
+  const maxPages = ctx.maxPages ?? 20;
   const all: DjenItem[] = [];
   const seen = new Set<string>();
   let totalAttempts = 0;
@@ -703,9 +696,9 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
 
   // Base URL da API CNJ — usa proxy BR (Cloudflare Worker) se configurado para
   // contornar o geo-block da CloudFront que rejeita requests de fora do Brasil.
-  // Prioridade: 1) RESOLVED_PROXY_URL (configurado pela UI em djen_proxy_config),
+  // Prioridade: 1) ctx.proxyUrl (configurado pela UI em djen_proxy_config),
   //             2) secret DJEN_PROXY_URL, 3) URL direta do CNJ.
-  const PROXY = (RESOLVED_PROXY_URL || Deno.env.get('DJEN_PROXY_URL') || 'https://djen-proxy-five.vercel.app').replace(/\/$/, '');
+  const PROXY = (ctx.proxyUrl || Deno.env.get('DJEN_PROXY_URL') || 'https://djen-proxy-five.vercel.app').replace(/\/$/, '');
   const API_BASE = PROXY ? `${PROXY}/api/v1/comunicacao` : 'https://comunicaapi.pje.jus.br/api/v1/comunicacao';
 
   // Constrói lista de queries:
@@ -778,7 +771,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
         if (parsed.success) {
           if (!parsed.data.data_disponibilizacao) {
             console.warn('[djen-schema] item sem data_disponibilizacao válida — descartado', JSON.stringify(raw).slice(0, 200));
-            SCHEMA_REJECTED.push(describeDroppedItem(raw, 'data_disponibilizacao ausente/inválida'));
+            ctx.rejected.push(describeDroppedItem(raw, 'data_disponibilizacao ausente/inválida'));
             continue;
           }
           // Dedup entre as duas queries (OAB + nomeAdvogado) usando hash/id quando disponível
@@ -790,7 +783,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
           (parsed.data as any).__queryKind = q.kind;
           validItems.push(parsed.data);
         } else {
-          SCHEMA_REJECTED.push(describeDroppedItem(raw, JSON.stringify(parsed.error.flatten().fieldErrors).slice(0, 200)));
+          ctx.rejected.push(describeDroppedItem(raw, JSON.stringify(parsed.error.flatten().fieldErrors).slice(0, 200)));
           console.warn('[djen-schema] item rejeitado pelo Zod:', parsed.error.flatten(), JSON.stringify(raw).slice(0, 200));
         }
       }
@@ -801,7 +794,7 @@ async function fetchDjen(oab: string, uf: string, lawyerName?: string | null, pr
       await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
     }
   }
-  return { items: all, attempts: totalAttempts };
+  return { items: all, attempts: totalAttempts, incomplete: upstreamDegraded };
 }
 
 function cleanHtml(raw: string): string {
@@ -901,7 +894,8 @@ function detectsExecutionPhase(content: string): boolean {
 }
 
 
-async function syncForOab(supabase: any, row: any, triggeredBy: string) {
+async function syncForOab(supabase: any, row: any, triggeredBy: string, requestContext: SyncContext) {
+  const ctx = { ...requestContext, rejected: [] as SyncContext["rejected"] };
   const startedAt = Date.now();
   let items: DjenItem[] = [];
   let attempts = 0;
@@ -918,12 +912,12 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     ...(Array.isArray(row.name_variations) ? row.name_variations.filter(Boolean).map(String) : []),
   ];
   const threshold = typeof row.name_match_threshold === 'number' ? row.name_match_threshold : 0.80;
-  const syncStartDate = OVERRIDE_START_DATE || new Date(Date.now() - (OVERRIDE_DAYS_BACK ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
-  const syncEndDate = OVERRIDE_END_DATE || new Date().toISOString().slice(0, 10);
+  const syncStartDate = ctx.startDate || new Date(Date.now() - (ctx.daysBack ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
+  const syncEndDate = ctx.endDate || new Date().toISOString().slice(0, 10);
   // Fallback TJMG estadual é pesado (HTML por comarca/data). No cron, cobre a
   // semana corrente/redundante; em reconciliação manual respeita a janela pedida.
-  const stateFallbackStartDate = OVERRIDE_START_DATE
-    || new Date(Date.now() - Math.min(7, OVERRIDE_DAYS_BACK ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
+  const stateFallbackStartDate = ctx.startDate
+    || new Date(Date.now() - Math.min(7, ctx.daysBack ?? DAYS_BACK) * 86400_000).toISOString().slice(0, 10);
 
   try {
     clearLegalCalendarCache();
@@ -958,7 +952,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
       .not('number', 'is', null);
     const processNumbers = (ownProcs || []).map((p: any) => p.number).filter(Boolean);
 
-    const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers);
+    const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers, ctx);
+    if (result.incomplete) {
+      status = 'partial';
+      errorMessage = 'Consulta DJEN interrompida: cobertura incompleta, confira as publicações.';
+    }
     const { data: officeProcs } = await supabase
       .from('processes')
       .select('number')
@@ -995,7 +993,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
     // campo destinatários). Só aplicamos filtro se o payload tem destinatário
     // estruturado E existe conflito — a função matchesConfiguredLawyer já trata
     // "no-candidates" como aceite.
-    if (refNames.length && !BYPASS_NAME_FILTER) {
+    if (refNames.length && !ctx.bypassNameFilter) {
       const filtered: DjenItem[] = [];
       for (const it of items) {
         // Items obtidos via numeroProcesso são de processos JÁ cadastrados pelo
@@ -1220,20 +1218,20 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string) {
   // (schema inesperado da API CNJ ou filtro de nome), o run NÃO é reportado como
   // limpo: vira 'partial', o payload fica em sync_logs.error_message e o advogado
   // recebe alerta crítico com processo/data para conferência manual imediata.
-  const droppedTotal = SCHEMA_REJECTED.length + nameRejected;
+  const droppedTotal = ctx.rejected.length + nameRejected;
   if (status !== 'failed' && droppedTotal > 0) {
     status = 'partial';
-    const detalhe = SCHEMA_REJECTED.slice(0, 10)
+    const detalhe = ctx.rejected.slice(0, 10)
       .map(d => `${d.processo} (${d.data}, ${d.tribunal}): ${d.motivo}`)
       .join(' | ');
     errorMessage = [
-      `PUBLICAÇÕES DESCARTADAS: ${SCHEMA_REJECTED.length} por formato inesperado da API + ${nameRejected} pelo filtro de nome.`,
+      `PUBLICAÇÕES DESCARTADAS: ${ctx.rejected.length} por formato inesperado da API + ${nameRejected} pelo filtro de nome.`,
       detalhe,
     ].filter(Boolean).join(' ');
     await supabase.from('notifications').insert({
       user_id: row.user_id,
       title: '🚨 Publicação não importada — conferência manual obrigatória',
-      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${SCHEMA_REJECTED.length ? ` Processos: ${SCHEMA_REJECTED.slice(0, 5).map(d => `${d.processo} (${d.data})`).join(', ')}.` : ''} Confira o processo no diário antes de contar prazo.`,
+      message: `${droppedTotal} publicação(ões) do DJEN não foram importadas nesta sincronização (OAB/${row.oab_uf} ${row.oab_number}).${ctx.rejected.length ? ` Processos: ${ctx.rejected.slice(0, 5).map(d => `${d.processo} (${d.data})`).join(', ')}.` : ''} Confira o processo no diário antes de contar prazo.`,
       type: 'destructive',
       link: '/intimacoes',
     });
@@ -1285,19 +1283,20 @@ Deno.serve(async (req) => {
   );
 
   const requestBody = req.method === 'POST' ? await req.clone().json().catch(() => ({})) : {};
+  const ctx: SyncContext = { proxyUrl: null, startDate: null, endDate: null, daysBack: null, maxPages: null, bypassNameFilter: false, rejected: [] };
   const dateRe = /^\d{4}-\d{2}-\d{2}$/;
-  OVERRIDE_START_DATE = typeof requestBody?.date_start === 'string' && dateRe.test(requestBody.date_start) ? requestBody.date_start : null;
-  OVERRIDE_END_DATE = typeof requestBody?.date_end === 'string' && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
-  OVERRIDE_DAYS_BACK = Number.isFinite(Number(requestBody?.days_back)) ? Math.max(0, Math.min(90, Number(requestBody.days_back))) : null;
-  OVERRIDE_MAX_PAGES = Number.isFinite(Number(requestBody?.max_pages)) ? Math.max(1, Math.min(20, Number(requestBody.max_pages))) : null;
-  BYPASS_NAME_FILTER = requestBody?.bypass_name_filter === true;
+  ctx.startDate = typeof requestBody?.date_start === 'string' && dateRe.test(requestBody.date_start) ? requestBody.date_start : null;
+  ctx.endDate = typeof requestBody?.date_end === 'string' && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
+  ctx.daysBack = Number.isFinite(Number(requestBody?.days_back)) ? Math.max(0, Math.min(90, Number(requestBody.days_back))) : null;
+  ctx.maxPages = Number.isFinite(Number(requestBody?.max_pages)) ? Math.max(1, Math.min(20, Number(requestBody.max_pages))) : null;
+  ctx.bypassNameFilter = requestBody?.bypass_name_filter === true;
 
   // Manual = ?manual=1 OU reconciliação (bypass_name_filter=true) OU qualquer POST com body
   // de override de datas (evita ficar preso no lock do cron durante recuperação manual).
   const isManual = url.searchParams.get('manual') === '1'
-    || BYPASS_NAME_FILTER
+    || ctx.bypassNameFilter
     || requestBody?.manual === true
-    || !!(OVERRIDE_START_DATE || OVERRIDE_END_DATE);
+    || !!(ctx.startDate || ctx.endDate);
   if (isManual) {
     const csrfBlock = rejectIfCsrfBlocked(req, corsHeaders);
     if (csrfBlock) return csrfBlock;
@@ -1308,28 +1307,39 @@ Deno.serve(async (req) => {
   // → cai pro secret DJEN_PROXY_URL ou URL direta sem quebrar a sync.
   try {
     const { data: cfg } = await supabase.from('djen_proxy_config').select('proxy_url').eq('id', 1).maybeSingle();
-    RESOLVED_PROXY_URL = ((cfg as { proxy_url?: string } | null)?.proxy_url) ?? null;
+    ctx.proxyUrl = ((cfg as { proxy_url?: string } | null)?.proxy_url) ?? null;
   } catch (e) {
     console.warn('[sync-djen] não foi possível ler djen_proxy_config:', (e as Error).message);
-    RESOLVED_PROXY_URL = null;
+    ctx.proxyUrl = null;
   }
 
+  // Validate identity before accepting background work or exposing its result.
+  const authHeader = req.headers.get('Authorization') || '';
+  let manualUserId: string | null = null;
+  if (isManual || url.searchParams.has('run_id')) {
+    const { data, error } = await supabase.auth.getUser(authHeader.replace(/^Bearer\s+/i, ''));
+    if (error || !data.user) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    manualUserId = data.user.id;
+  }
+  if (url.searchParams.has('run_id')) {
+    const { data } = await supabase.from('cron_runs').select('status,metadata,error_message').eq('job_name', 'sync-djen').eq('run_id', url.searchParams.get('run_id')).maybeSingle();
+    if (!data || data.metadata?.user_id !== manualUserId) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ status: data.status, success: data.status === 'success', results: data.metadata?.results, error: data.error_message }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
   let lockAcquired = false;
-  let cronRunId: string | null = null;
   if (!isManual) {
     const { data: lockOk } = await supabase.rpc('try_acquire_cron_lock', { _job_name: 'sync-djen' });
     lockAcquired = lockOk === true;
-    if (!lockAcquired) {
-      console.warn('[sync-djen] outra execução em andamento — abortando este disparo');
-      return new Response(JSON.stringify({ success: false, skipped: true, reason: 'another_run_in_progress' }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const { data: cronRow } = await supabase.from('cron_runs').insert({
-      job_name: 'sync-djen', run_id: runId, status: 'running', triggered_by: 'cron',
-    }).select('id').single();
-    cronRunId = cronRow?.id ?? null;
+    if (!lockAcquired) return new Response(JSON.stringify({ success: false, skipped: true, reason: 'another_run_in_progress' }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
+  const { data: cronRow, error: runError } = await supabase.from('cron_runs').insert({
+    job_name: 'sync-djen', run_id: runId, status: 'running', triggered_by: isManual ? 'manual' : 'cron', metadata: { user_id: manualUserId },
+  }).select('id').single();
+  if (runError || !cronRow) {
+    if (lockAcquired) await supabase.rpc('release_cron_lock', { _job_name: 'sync-djen' });
+    return new Response(JSON.stringify({ success: false, error: 'Não foi possível registrar a busca.' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  }
+  const cronRunId = cronRow.id;
 
   const runSync = async (): Promise<Response> => {
    try {
@@ -1361,7 +1371,7 @@ Deno.serve(async (req) => {
     const results: any[] = [];
     for (let i = 0; i < targets.length; i += CONCURRENCY) {
       const batch = targets.slice(i, i + CONCURRENCY);
-      const batchResults = await Promise.allSettled(batch.map(row => syncForOab(supabase, row, triggeredBy)));
+      const batchResults = await Promise.allSettled(batch.map(row => syncForOab(supabase, row, triggeredBy, ctx)));
       for (const r of batchResults) {
         if (r.status === 'fulfilled') results.push(r.value);
         else results.push({ status: 'failed', error: String(r.reason) });
@@ -1369,8 +1379,8 @@ Deno.serve(async (req) => {
     }
 
     try {
-      const anyOk = results.some((r: any) => r?.status === 'success' || r?.status === 'partial');
-      const allFailed = results.length > 0 && results.every((r: any) => r?.status === 'failed');
+      const anyOk = results.length > 0 && results.every((r: any) => r?.status === 'success');
+      const allFailed = results.some((r: any) => r?.status !== 'success');
       if (anyOk) {
         await supabase.from('djen_source_health').update({
           current_source: 'djen',
@@ -1400,8 +1410,9 @@ Deno.serve(async (req) => {
         if (tc) for (const [k, v] of Object.entries(tc)) aggTriggers[k] = (aggTriggers[k] || 0) + v;
       }
       await supabase.from('cron_runs').update({
-        status: 'success', ended_at: new Date().toISOString(),
-        metadata: { targets: targets.length, results: results.length, trigger_counts: aggTriggers },
+        status: results.length > 0 && results.every(r => r.status === 'success') ? 'success' : 'failed', ended_at: new Date().toISOString(),
+        metadata: { user_id: manualUserId, targets: targets.length, results, trigger_counts: aggTriggers },
+        error_message: results.length ? results.find(r => r.status !== 'success')?.error || null : 'Nenhuma OAB ativa.',
       }).eq('id', cronRunId);
     }
 
@@ -1457,15 +1468,10 @@ Deno.serve(async (req) => {
   }
   };
 
-  // Cron/watchdog: roda em background para escapar do idle timeout de 150s
-  // do gateway. Manual (UI): aguarda a resposta para exibir os resultados.
-  if (!isManual) {
-    // @ts-ignore EdgeRuntime disponível no runtime Supabase
-    EdgeRuntime.waitUntil(runSync());
-    return new Response(JSON.stringify({ success: true, run_id: runId, background: true }), {
-      status: 202,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-  return await runSync();
+  // Manual and cron both return promptly; the persisted run is the completion signal.
+  // @ts-ignore EdgeRuntime is provided by the hosted runtime.
+  EdgeRuntime.waitUntil(runSync());
+  return new Response(JSON.stringify({ success: true, run_id: runId, background: true }), {
+    status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
 });
