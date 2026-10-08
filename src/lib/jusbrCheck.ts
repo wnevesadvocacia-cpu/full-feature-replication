@@ -1,4 +1,4 @@
-export interface JusbrRow { cnj: string; date: string; court: string }
+export interface JusbrRow { cnj: string; date: string; court: string; occurrence?: string }
 
 export function readJusbrRows(value: unknown): JusbrRow[] {
   if (!Array.isArray(value) || value.length === 0 || value.length > 100) throw new Error('Linhas do portal inválidas; conferência incompleta.');
@@ -10,7 +10,7 @@ export function readJusbrRows(value: unknown): JusbrRow[] {
       || typeof row.court !== 'string' || row.court.length > 80) throw new Error('Metadados inválidos; confira o portal.');
     const date = Date.parse(`${row.date}T12:00:00Z`);
     if (date > Date.now() + 86400000 || date < Date.now() - 90 * 86400000) throw new Error('Período fora da janela de 90 dias; confira manualmente.');
-    if (!rows.some(item => item.cnj === row.cnj && item.date === row.date && item.court === row.court)) rows.push({ cnj: row.cnj, date: row.date, court: row.court });
+    rows.push({ cnj: row.cnj, date: row.date, court: row.court });
   }
   return rows;
 }

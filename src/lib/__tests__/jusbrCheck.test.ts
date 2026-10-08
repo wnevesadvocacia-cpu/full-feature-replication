@@ -5,8 +5,8 @@ const row = { cnj: '1003778-63.2024.8.26.0084', date: '2026-10-06', court: 'TJSP
 describe('conferência complementar Jus.br', () => {
   beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-08T16:00:00Z')); });
   afterEach(() => vi.useRealTimers());
-  it('deduplica linhas visíveis, sem criar publicação a partir do resumo', () => {
-    expect(readJusbrRows([row, row])).toEqual([row]);
+  it('preserva atos diferentes com metadados iguais, sem criar publicação a partir do resumo', () => {
+    expect(readJusbrRows([row, row])).toEqual([row, row]);
   });
   it('rejeita metadados e datas inválidas', () => {
     expect(() => readJusbrRows([{ ...row, date: '2026-02-30' }])).toThrow();
