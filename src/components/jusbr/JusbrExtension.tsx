@@ -41,6 +41,43 @@ export function JusbrExtension({
   });
 
   useEffect(() => {
+    if (!user) return;
+    let active = true;
+    let busy = false;
+    const resume = async () => {
+      if (busy || !active) return;
+      busy = true;
+      try {
+        const { data: identity, error: authError } = await supabase.auth.getUser();
+        if (!active || authError || identity.user?.id !== user.id) return;
+        const { data, error } = await supabase.functions.invoke("jusbr-ingest", { body: { resume: true } });
+        if (!active) return;
+        if (error || !data?.ok) throw error || Error(data?.error || "Retomada sem confirmação.");
+        if (!data.idle) {
+          setBatchNotice(data.message);
+          await qc.invalidateQueries({ queryKey: ["jusbr-batches", user.id] });
+          if (data.done) await qc.invalidateQueries({ queryKey: ["intimations"] });
+        }
+      } catch {
+        if (active) setBatchNotice("Retomada pendente. Os lotes gravados serão conferidos novamente.");
+      } finally {
+        busy = false;
+      }
+    };
+    const first = window.setTimeout(() => {
+      void resume();
+    }, 5000);
+    const timer = window.setInterval(() => {
+      void resume();
+    }, 30000);
+    return () => {
+      active = false;
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, [user?.id, qc]);
+
+  useEffect(() => {
     paired.current = null;
     if (!user) return;
     let active = true;
