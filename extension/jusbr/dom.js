@@ -273,16 +273,16 @@ const JusbrDom = (() => {
         let resetting = false;
         const prepare = () => {
           if (loading()) return false;
-          const current = range();
-          if (current.start === 1) return true;
           if (!resetting) {
             const first = button("Primeira página");
-            if (disabled(first)) throw Error("Primeira página indisponível após pesquisa.");
             resetting = true;
-            first.click();
-            report("Nova pesquisa manteve paginação; retornando à primeira página.");
+            if (!disabled(first)) {
+              first.click();
+              report("Nova pesquisa manteve paginação; retornando à primeira página.");
+              return false;
+            }
           }
-          return false;
+          return range().start === 1;
         };
         await wait(
           () => search.click(),
