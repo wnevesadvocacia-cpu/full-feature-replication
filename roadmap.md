@@ -1,5 +1,8 @@
-- [ ] Preparar extensão local para conferência após login no Jus.br, sem ciência automática; verificar leitura, autorização e limites antes de declarar cobertura.
-- [ ] Considerar o ícone “Minhas publicações processuais” indicado pelo usuário como entrada da conferência no portal.
+- [x] Preparar extensão local para conferência após login no Jus.br, sem ciência automática; pacote e download validados, 22 testes passaram, leitura do Diário e exclusão do Domicílio verificadas em página de teste. Não declarar cobertura autenticada.
+- [ ] Validar compatibilidade e permissão de leitura no portal real — bloqueado: requer extensão instalada no navegador do titular, login autorizado com token e verificação das regras do portal; sessão e token não são acessados pelo WnevesBox.
+- [x] Considerar o ícone indicado pelo usuário como entrada; instrução aponta “Minhas comunicações processuais” → “Diário da Justiça”, sem clicar em atos de ciência.
+- [x] Avaliar login Jus.br dentro do sistema — botão externo existente; login incorporado não transfere sessão nem habilita integração autorizada.
+- [x] Preservar login com token exclusivamente no Jus.br, sem captura do token pela extensão.
 - [x] Exibir controle de carga no Dashboard.
 - [x] Disponibilizar conferência manual na Central do Jus.br na página de intimações; endereço e aviso verificados em sessão autenticada. Integração automática privada permanece bloqueada por falta de acesso autorizado para o aplicativo.
 - [x] Exibir aviso de login e oferecer reconciliação pública dos últimos 30 dias com resultado/erro visível e alerta; 16 testes passaram e compilação OK. Não há detecção do login externo nem rastreamento da sessão privada.

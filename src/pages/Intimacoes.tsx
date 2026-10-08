@@ -24,6 +24,7 @@ import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 import { confirmModal } from '@/lib/confirmModal';
 import { useTasks } from '@/hooks/useTasks';
 import { runDjenSync } from '@/lib/runDjenSync';
+import { JusbrExtension } from '@/components/jusbr/JusbrExtension';
 
 // Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
 // Retorna o número efetivo (com sufixo, se houver) e os dígitos correspondentes.
@@ -768,6 +769,7 @@ export default function Intimacoes() {
           </Button>
         </div>
         {reconciliationNotice && <p role="status" aria-live="polite" className="text-sm font-medium text-foreground">{reconciliationNotice}</p>}
+        <JusbrExtension />
       </section>
 
       {/* Navegador de data (calendário CNJ) */}
