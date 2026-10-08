@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText, Calendar, Info } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText, Calendar, Info, ExternalLink } from 'lucide-react';
 import { CopyNumber } from '@/components/CopyNumber';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
@@ -728,7 +728,12 @@ export default function Intimacoes() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 md:justify-end">
+          <Button variant="outline" asChild>
+            <a href="https://portaldeservicos.pdpj.jus.br/central-comunicacoes" target="_blank" rel="noopener noreferrer" title="Conferência manual no portal oficial; não importa nem confirma comunicações automaticamente">
+              <ExternalLink className="h-4 w-4 mr-1" /> Conferir no Jus.br
+            </a>
+          </Button>
           <Button variant="outline" onClick={syncDjen} disabled={syncing}>
             {syncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
             Sincronizar
