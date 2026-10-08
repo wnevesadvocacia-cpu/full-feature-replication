@@ -1,54 +1,23 @@
-# Fase 1 — Cobertura Estadual Ampliada
+# Extensão de conferência Jus.br
 
-## Objetivo
-Reduzir dependência do DJEN/CNJ adicionando raspagem/consulta direta aos diários oficiais que concentram ~80% do volume: **TJSP (eSAJ/DJE)**, **TJMG (fallback já existente — endurecer)**, **TJRJ**, **TJRS (eproc)**, e **TRF1 a TRF6**.
+## Tarefa
+Disponibilizar uma extensão para Chrome/Edge, instalada uma vez, que confira publicações acessíveis após o login do usuário no Jus.br e alerte sobre possíveis faltantes no WnevesBox.
 
-## Arquitetura
+## Escopo
+- Usar “Minhas comunicações processuais”, indicado na imagem, como entrada para a Central de Comunicações.
+- Ler somente informações de publicações exibidas na aba Diário da Justiça, sem capturar senha, cookies ou tokens do Jus.br.
+- Vincular a extensão ao usuário autenticado no WnevesBox, com validação de identidade no envio.
+- Reutilizar a busca/importação DJEN para recuperar o texto oficial de publicações faltantes; uma linha resumida do portal não será tratada como intimação completa nem usada para calcular prazo.
+- Mostrar alertas de recuperação e de conferência incompleta; páginas não lidas, resultados sem texto e erros nunca significam ausência de intimações.
+- Disponibilizar download e instruções de instalação na página de intimações.
 
-```text
-sync-djen (orquestrador atual)
-    ├── 1. DJEN oficial (primário)          ← já existe
-    ├── 2. Proxy DJEN alternativo           ← já existe
-    ├── 3. TJMG fallback (HTML DJe)         ← já existe, endurecer parser
-    ├── 4. TJSP fallback (NOVO)             ← eSAJ consultaAvancada por OAB
-    ├── 5. TJRJ fallback (NOVO)             ← DJERJ consulta por OAB
-    ├── 6. TJRS fallback (NOVO)             ← eproc consulta por OAB
-    └── 7. TRF1-6 fallback (NOVO)           ← PJe/eproc federal por OAB
-```
+## Fora
+- Clicar em ciência, abrir comunicações privadas, confirmar recebimento ou praticar atos processuais.
+- Acesso universal aos tribunais, leitura automática do Domicílio Eletrônico ou garantia de cobertura integral.
+- Contornar bloqueios do portal ou transferir sua sessão para o servidor.
 
-Todos os fallbacks compartilham:
-- **Gatilho**: só executam quando DJEN devolve 0 itens para (OAB, data, UF esperada).
-- **Idempotência**: SHA-256 do conteúdo (já implementado em `intimations`).
-- **Enfileiramento**: mesmo pipeline `record_intimation` → `intimations` → notificações.
-- **Health tracking**: cada fonte grava sucesso/erro em `djen_source_health` para o badge de UI já existente.
-
-## Escopo desta entrega (Fase 1)
-
-### Arquivos novos
-- `supabase/functions/sync-djen/fallbacks/tjsp.ts` — scraper eSAJ (busca por OAB).
-- `supabase/functions/sync-djen/fallbacks/tjrj.ts` — DJERJ HTML.
-- `supabase/functions/sync-djen/fallbacks/tjrs.ts` — eproc TJRS.
-- `supabase/functions/sync-djen/fallbacks/trf.ts` — parametrizável por região (1–6).
-- `supabase/functions/sync-djen/fallbacks/_shared.ts` — helpers de parsing HTML, extração de bloco por OAB, geração de SHA-256, normalização de datas BR.
-
-### Arquivos modificados
-- `supabase/functions/sync-djen/index.ts` — chain de fallbacks com short-circuit e log por fonte.
-- `src/components/DjenHealthBadge.tsx` — badge por-fonte (verde/amarelo/vermelho) quando qualquer fonte estiver degradada.
-
-### Sem migrations novas
-Reaproveita `djen_source_health` e `intimations` existentes; adiciona apenas registros novos por fonte (`source_provider` já é aceito).
-
-## Fora do escopo (Fase 2/3 depois)
-- Tribunais PJe-padrão (TJPR, TJSC, TJDFT, TJBA, etc.) — Fase 2.
-- Tribunais com PDF-only (TJAM, TJRR, TJAP, etc.) — Fase 3.
-- Superiores (STJ, STF, TST) — os relevantes já vêm no DJEN.
-
-## Riscos
-- Sites estaduais mudam HTML sem aviso → parser quebra. Mitigação: cada scraper roda em try/catch isolado; falha em um não afeta os outros; falhas geram notificação destrutiva ao admin via `djen-watchdog`.
-- Rate-limit dos tribunais → chamadas serializadas com backoff de 2s entre requisições.
-- Tempo de execução da edge function → cada fallback tem timeout de 30s e cache de 6h por (OAB, UF, data).
-
-## Entrega
-Uma iteração. ~5 arquivos novos, ~2 modificados, zero migration.
-
-**Aprova ou quer ajuste antes de eu implementar?**
+## Detalhes técnicos e validação
+- Manifest V3, permissões limitadas aos endereços necessários, leitura local e envios autenticados limitados e deduplicados.
+- Testes focados de identificação, isolamento por usuário, duplicação e cobertura incompleta.
+- Validar a extensão com uma página de teste reproduzindo a estrutura da imagem. O funcionamento real após login depende de validar a estrutura autenticada e a permissão de uso do portal; se isso não puder ser verificado, apresentar como pendente, não operante.
+- A navegação e a busca automática só serão habilitadas quando seus controles puderem ser identificados com segurança; sem essa validação, limitar a leitura aos resultados já exibidos e sinalizar o limite.
