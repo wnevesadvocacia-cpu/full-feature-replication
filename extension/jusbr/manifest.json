@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "WnevesBox · Conferência Jus.br",
-  "version": "0.2.0",
-  "description": "Fila persistente de conferência do Diário; pesquisa/paginação reais pendentes de validação. Sem ciência.",
+  "version": "0.3.0",
+  "description": "Pesquisa e paginação do Diário por controles observados, com retomada. Validação real pendente; sem ciência.",
   "permissions": [
     "storage",
     "alarms",
@@ -27,6 +27,8 @@
         "https://portaldeservicos.pdpj.jus.br/*"
       ],
       "js": [
+        "core.js",
+        "dom.js",
         "portal.js"
       ]
     },

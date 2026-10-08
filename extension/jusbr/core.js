@@ -24,11 +24,12 @@ const JusbrCore = {
       if (!result || !Array.isArray(result.rows) || (!result.rows.length && result.empty !== true)) throw Error('Vazio sem confirmação ou estrutura desconhecida.');
       if (state.seen.includes(result.signature)) throw Error('Página repetida; cobertura interrompida.');
       // Save before emit; replay uses same batch ID if transport was interrupted.
-      if (!state.batchId) { state = { ...state, batchId: crypto.randomUUID() }; await save(state); }
+      if (state.pendingSignature && state.pendingSignature !== result.signature) throw Error('Página mudou durante retomada; lote preservado, cobertura interrompida.');
+      if (!state.batchId) { state = { ...state, batchId: crypto.randomUUID(), pendingSignature: result.signature }; await save(state); }
       await emit({ id: state.batchId, rows: result.rows, coverage: { run: state.run, page: state.page, kind: result.empty ? 'empty' : 'page', reason: 'Metadados; identidade integral pendente.' } });
       if (result.end === true) { await save({ ...state, finished: true }); return; }
       if (result.next !== true) throw Error('Fim/paginação não comprovados.');
-      state = { ...state, page: state.page + 1, seen: [...state.seen, result.signature], batchId: null };
+      state = { ...state, page: state.page + 1, seen: [...state.seen, result.signature], batchId: null, pendingSignature: null };
       await save(state);
       await adapter.next();
     }

@@ -10,7 +10,7 @@ export function JusbrExtension() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [notice, setNotice] = useState('v0.2.0 · fila e retomada disponíveis. Pesquisa/paginação reais bloqueadas até validação dos controles autenticados.');
+  const [notice, setNotice] = useState('v0.3.0 · fila e retomada disponíveis. Adaptador de pesquisa disponível; avanço de páginas, vazio e extensão instalada ainda exigem validação real.');
   const paired = useRef<string | null>(null);
   const { data: batches = [], error: batchesError } = useQuery({
     queryKey: ['jusbr-batches', user?.id], enabled: !!user,
@@ -39,7 +39,7 @@ export function JusbrExtension() {
       if (m?.type === 'WNEVES_JUSBR_PAIRED') {
         if (m.ok && m.owner === user.id) {
           paired.current = user.id;
-          setNotice('Vínculo restaurado. Retentativas automáticas com Intimações aberta. Pesquisa/paginação Jus.br ainda não validadas.');
+          setNotice('Vínculo restaurado. Retentativas automáticas com Intimações aberta. Pesquisa pelos controles observados; validação real de avanço e vazio pendente.');
         } else if (m.message) setNotice(m.message);
         return;
       }
@@ -81,7 +81,7 @@ export function JusbrExtension() {
       if (!response.ok) throw Error('Download indisponível.');
       const url = URL.createObjectURL(await response.blob());
       const a = document.createElement('a');
-      a.href = url; a.download = 'wnevesbox-jusbr-0.2.0.zip'; a.click();
+      a.href = url; a.download = 'wnevesbox-jusbr-0.3.0.zip'; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch { setNotice('Não foi possível baixar a extensão. Tente novamente.'); }
   };
@@ -90,12 +90,12 @@ export function JusbrExtension() {
     const { data: identity, error } = await supabase.auth.getUser();
     if (error || identity.user?.id !== user.id) { setNotice('Entre novamente na conta correta.'); return; }
     const { data: settings } = await supabase.from('oab_settings').select('oab_number,oab_uf').eq('user_id', user.id).eq('active', true);
-    setNotice('Aguardando vínculo. Instale v0.2.0 e recarregue esta página e a Central Jus.br.');
+    setNotice('Aguardando vínculo. Instale v0.3.0 e recarregue esta página e a Central Jus.br.');
     window.postMessage({ type: 'WNEVES_JUSBR_PAIR', owner: user.id, settings: settings || [] }, window.location.origin);
   };
   return <div className="space-y-2 border-t border-warning/30 pt-3">
     <div className="flex flex-wrap gap-2">
-      <Button variant="outline" onClick={download}><Download className="h-4 w-4 mr-1" />Baixar extensão v0.2.0</Button>
+      <Button variant="outline" onClick={download}><Download className="h-4 w-4 mr-1" />Baixar extensão v0.3.0</Button>
       <Button variant="outline" onClick={pair} disabled={!user}><Link className="h-4 w-4 mr-1" />Vincular uma vez</Button>
     </div>
     <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">Instalação e validação</summary>
@@ -103,8 +103,8 @@ export function JusbrExtension() {
         <li>Descompacte; em chrome://extensions ou edge://extensions, ative Modo do desenvolvedor e Carregar sem compactação. Para atualizar, substitua os arquivos da pasta e clique Recarregar.</li>
         <li>Recarregue Intimações e a Central Jus.br; vincule uma vez na sua conta. Mantenha ambas abertas.</li>
         <li>Faça login com seu token exclusivamente no portal. Abra Minhas comunicações processuais → Diário da Justiça.</li>
-        <li>Enquanto os controles reais não forem validados, pesquise e percorra páginas manualmente. Linhas são enfileiradas sem espera de 30 minutos entre páginas.</li>
-        <li>Não abra Domicílio nem ações de ciência para testar. Pesquisa/paginação automáticas e confirmação de sessão expirada permanecem pendentes de validação no portal.</li>
+        <li>A extensão pesquisa a OAB cadastrada e percorre páginas verificando o contador. Se os campos de início/fim não forem identificados com segurança, interrompe e alerta.</li>
+        <li>Não abra Domicílio nem ações de ciência para testar. Mudança real de página, estado vazio e extensão instalada ainda precisam de validação; ausência de tela não confirma sessão expirada.</li>
       </ol>
     </details>
     <p role="status" aria-live="polite" className="text-sm font-medium text-foreground flex gap-2"><AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />{notice}</p>
