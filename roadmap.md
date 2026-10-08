@@ -1,4 +1,4 @@
 - [x] Exibir controle de carga no Dashboard.
 - [x] Exibir e validar controle de carga no modal Editar Prazo.
 - [x] Identificar quem iniciou a elaboração independentemente do responsável e validar a exibição.
-- [ ] Corrigir timeout da sincronização manual e impedir confirmação falsa de ausência de publicações; validar execução autenticada.
+- [x] Corrigir timeout da sincronização manual e impedir confirmação falsa de ausência de publicações; validar execução autenticada.
