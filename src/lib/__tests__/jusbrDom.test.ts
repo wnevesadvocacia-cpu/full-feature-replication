@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const cnj = '1003778-63.2024.8.26.0084';
-function fixture() {
+function fixture(total = 9, size = 3) {
   document.body.innerHTML = `<div id="tabs_comunicacoes_processuais"><button role="tab" aria-selected="true">Diário da Justiça</button><button role="tab">Domicílio Eletrônico</button></div>
   <form id="form_busca_diario_justica"><label>Número do Processo<input></label><label>Número da OAB<input></label><label>Início<input></label><label>Fim<input></label><button type="button">Buscar</button></form>
   <div id="diario_justica_tabela"><table><thead><tr>${['Processo','Partes','Tipo de Comunicação','Tribunal','Classe','Data de Disponibilização'].map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody></tbody></table></div>
@@ -11,9 +11,12 @@ function fixture() {
   let page = 1;
   const render = () => {
     const tbody = document.querySelector('tbody'); const counter = document.querySelector('[role="status"]'); const next = document.querySelector<HTMLButtonElement>('[aria-label="próxima"]');
-    if (!tbody || !counter || !next) throw Error('fixture');
-    tbody.innerHTML = Array.from({ length: 3 }, () => `<tr><td>${cnj}</td><td>Público</td><td>Intimação</td><td>TJSP</td><td>Classe</td><td>06/10/2026</td><td><button>Peticionar</button><button>Visualizar Detalhes</button><button>Visualizar Documento</button></td></tr>`).join('');
-    counter.textContent = `${(page - 1) * 3 + 1} - ${page * 3} / 9`; next.disabled = page === 3;
+    const last = document.querySelector<HTMLButtonElement>('[aria-label="Última página"]');
+    if (!tbody || !counter || !next || !last) throw Error('fixture');
+    const start = (page - 1) * size + 1;
+    const end = Math.min(page * size, total);
+    tbody.innerHTML = Array.from({ length: end - start + 1 }, () => `<tr><td>${cnj}</td><td>Público</td><td>Intimação</td><td>TJSP</td><td>Classe</td><td>06/10/2026</td><td><button>Peticionar</button><button>Visualizar Detalhes</button><button>Visualizar Documento</button></td></tr>`).join('');
+    counter.textContent = `${start} - ${end} / ${total}`; next.disabled = end === total; last.disabled = end === total;
   };
   render();
   const forbidden = vi.fn();
@@ -31,6 +34,27 @@ afterEach(() => { controller.abort(); controller = new AbortController(); vi.res
 const setting = { oab_uf: 'SP', oab_number: '290702' };
 const period = { start: '2026-10-01', end: '2026-10-08' };
 describe('adaptador Diário com controles relatados', () => {
+  it('percorre 1–10/29, 11–20/29 e 21–29/29 e termina com nove linhas e os dois botões desabilitados', async () => {
+    const { dom, core, next, forbidden } = fixture(29, 10);
+    const emit = vi.fn(); const save = vi.fn();
+    const click = vi.spyOn(next, 'click');
+    await core.collect(dom.create(setting, period), { run: crypto.randomUUID(), page: 1, seen: [], period }, save, emit);
+    expect(emit.mock.calls.map(c => c[0].rows.length)).toEqual([10, 10, 9]);
+    expect(emit.mock.calls.map(c => c[0].coverage.page)).toEqual([1, 2, 3]);
+    expect(click).toHaveBeenCalledTimes(2);
+    expect(dom.read()).toMatchObject({ start: 21, endIndex: 29, total: 29, end: true, next: false });
+    expect(next.disabled).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>('[aria-label="Última página"]')?.disabled).toBe(true);
+    expect(save.mock.calls.at(-1)?.[0].finished).toBe(true);
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+  it('não confirma fim se Última página divergir do contador ou da próxima', () => {
+    const { dom } = fixture(9, 9);
+    const last = document.querySelector<HTMLButtonElement>('[aria-label="Última página"]');
+    if (!last) throw Error('fixture');
+    last.disabled = false;
+    expect(() => dom.read()).toThrow('inconsistentes');
+  });
   it('pesquisa OAB UF+número e período, avança três páginas preservando três atos iguais, sem ações de linha', async () => {
     const { dom, core, forbidden } = fixture(); const emit = vi.fn(); const save = vi.fn();
     await core.collect(dom.create(setting, period), { run: crypto.randomUUID(), page: 1, seen: [], period }, save, emit);

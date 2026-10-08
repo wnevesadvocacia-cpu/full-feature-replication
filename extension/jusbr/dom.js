@@ -29,7 +29,9 @@ const JusbrDom = (() => {
     const [start, end, total] = numbers;
     if (!start || end < start || total < end) throw Error('Resultado vazio NÃO confirmado ou contador inválido.');
     const next = button('próxima');
-    if ((end === total) !== !!disabled(next)) throw Error('Contador e próxima página inconsistentes; cobertura interrompida.');
+    const last = button('Última página');
+    const atEnd = end === total;
+    if (atEnd !== !!disabled(next) || atEnd !== !!disabled(last)) throw Error('Contador e botões próxima/Última página inconsistentes; cobertura interrompida.');
     return { start, end, total, next };
   }
   function read() {
