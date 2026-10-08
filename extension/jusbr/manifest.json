@@ -1,14 +1,45 @@
 {
   "manifest_version": 3,
   "name": "WnevesBox · Conferência Jus.br",
-  "version": "0.1.0",
-  "description": "Conferência complementar de linhas visíveis do Diário da Justiça, sem registrar ciência.",
-  "permissions": ["storage"],
-  "host_permissions": ["https://wnevesbox.com/*", "https://www.wnevesbox.com/*", "https://full-feature-replication.lovable.app/*", "https://id-preview--b753a021-ff4f-4e59-b4fd-f9f912a4c7bf.lovable.app/*"],
-  "background": { "service_worker": "background.js" },
-  "action": { "default_popup": "popup.html" },
+  "version": "0.2.0",
+  "description": "Fila persistente de conferência do Diário; pesquisa/paginação reais pendentes de validação. Sem ciência.",
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://wnevesbox.com/*",
+    "https://www.wnevesbox.com/*",
+    "https://full-feature-replication.lovable.app/*",
+    "https://id-preview--b753a021-ff4f-4e59-b4fd-f9f912a4c7bf.lovable.app/*",
+    "https://portaldeservicos.pdpj.jus.br/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
   "content_scripts": [
-    { "matches": ["https://portaldeservicos.pdpj.jus.br/*"], "js": ["portal.js"] },
-    { "matches": ["https://wnevesbox.com/*", "https://www.wnevesbox.com/*", "https://full-feature-replication.lovable.app/*", "https://id-preview--b753a021-ff4f-4e59-b4fd-f9f912a4c7bf.lovable.app/*"], "js": ["bridge.js"] }
+    {
+      "matches": [
+        "https://portaldeservicos.pdpj.jus.br/*"
+      ],
+      "js": [
+        "portal.js"
+      ]
+    },
+    {
+      "matches": [
+        "https://wnevesbox.com/*",
+        "https://www.wnevesbox.com/*",
+        "https://full-feature-replication.lovable.app/*",
+        "https://id-preview--b753a021-ff4f-4e59-b4fd-f9f912a4c7bf.lovable.app/*"
+      ],
+      "js": [
+        "bridge.js"
+      ]
+    }
   ]
 }

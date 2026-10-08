@@ -678,6 +678,7 @@ interface SyncContext {
   daysBack: number | null;
   maxPages: number | null;
   bypassNameFilter: boolean;
+  processNumbers: string[];
   rejected: Array<{ id: string; processo: string; data: string; tribunal: string; motivo: string }>;
 }
 
@@ -970,7 +971,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
       .eq('user_id', row.user_id)
       .not('number', 'is', null);
     if (ownProcsError) throw new Error(`Leitura dos processos falhou: ${ownProcsError.message}`);
-    const processNumbers = (ownProcs || []).map((p: any) => p.number).filter(Boolean);
+    const processNumbers = [...new Set([...(ownProcs || []).map((p: any) => p.number).filter(Boolean), ...ctx.processNumbers])];
 
     const result = await fetchDjen(row.oab_number, row.oab_uf, row.lawyer_name, processNumbers, ctx);
     if (result.incomplete) {
@@ -996,7 +997,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
     const merged: DjenItem[] = [];
     const mergedSeen = new Set<string>();
     for (const it of [...result.items, ...tjmgFallbackItems, ...tjspFallbackItems, ...tjspOabFallbackItems]) {
-      const key = `${it.hash || it.id || ''}|${it.numero_processo || ''}|${it.data_disponibilizacao || ''}|${(it.texto || '').slice(0, 200)}`;
+      const key = await buildExternalId(it);
       if (mergedSeen.has(key)) continue;
       mergedSeen.add(key);
       merged.push(it);
@@ -1332,7 +1333,14 @@ Deno.serve(async (req) => {
   );
 
   const requestBody = req.method === 'POST' ? await req.clone().json().catch(() => ({})) : {};
-  const ctx: SyncContext = { proxyUrl: null, startDate: null, endDate: null, daysBack: null, maxPages: null, bypassNameFilter: false, rejected: [] };
+  const ctx: SyncContext = { proxyUrl: null, startDate: null, endDate: null, daysBack: null, maxPages: null, bypassNameFilter: false, processNumbers: [], rejected: [] };
+  if (requestBody?.process_numbers !== undefined) {
+    if (!Array.isArray(requestBody.process_numbers) || requestBody.process_numbers.length > 100
+      || requestBody.process_numbers.some((n: unknown) => typeof n !== 'string' || !/^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/.test(n))) {
+      return new Response(JSON.stringify({ error: 'Processos direcionados inválidos.' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    ctx.processNumbers = [...new Set<string>(requestBody.process_numbers)];
+  }
   const dateRe = /^\d{4}-\d{2}-\d{2}$/;
   ctx.startDate = typeof requestBody?.date_start === 'string' && dateRe.test(requestBody.date_start) ? requestBody.date_start : null;
   ctx.endDate = typeof requestBody?.date_end === 'string' && dateRe.test(requestBody.date_end) ? requestBody.date_end : null;
@@ -1343,6 +1351,7 @@ Deno.serve(async (req) => {
   // Manual = ?manual=1 OU reconciliação (bypass_name_filter=true) OU qualquer POST com body
   // de override de datas (evita ficar preso no lock do cron durante recuperação manual).
   const isManual = url.searchParams.get('manual') === '1'
+    || ctx.processNumbers.length > 0
     || ctx.bypassNameFilter
     || requestBody?.manual === true
     || !!(ctx.startDate || ctx.endDate);
