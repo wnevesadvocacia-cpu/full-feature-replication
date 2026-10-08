@@ -60,8 +60,8 @@ describe('adaptador Diário com controles relatados', () => {
     expect(() => dom.scope()).toThrow('Domicílio nunca'); expect(forbidden).not.toHaveBeenCalled();
   });
   it('interrompe quando próxima não muda efetivamente a página', async () => {
-    const { dom, next } = fixture(); next.onclick = () => {};
     vi.useFakeTimers();
+    const { dom, next } = fixture(); next.onclick = () => {};
     const rejected = expect(dom.create(setting, period).next()).rejects.toThrow('sem conclusão comprovada');
     await vi.advanceTimersByTimeAsync(21000); await rejected;
   });

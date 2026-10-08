@@ -55,7 +55,7 @@ async function scan() {
   if (!state.owner) return;
   const tabs = await chrome.tabs.query({ url: 'https://portaldeservicos.pdpj.jus.br/*' });
   if (!tabs.length) return status('Jus.br não está aberto. Faça login no portal; credenciais nunca são capturadas.');
-  for (const tab of tabs) {
+  for (const tab of tabs.slice(0, 1)) {
     try { await chrome.tabs.sendMessage(tab.id, { type: 'SCAN', owner: state.owner, window: JusbrCore.window(state.lastCompleteEnd), settings: state.settings }); }
     catch { await status('Recarregue a Central Jus.br. Estrutura/sessão não verificada.'); }
   }
@@ -82,9 +82,11 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       return { ok: true };
     }
     if (['CHECKPOINT_GET','CHECKPOINT_SAVE','JUSBR_BATCH'].includes(m.type)) {
-      const state = await chrome.storage.local.get(['owner','checkpoints','settings']);
+      const state = await chrome.storage.local.get(['owner','checkpoints','settings','collectorLease']);
       if (!state.owner || m.owner !== state.owner || !state.settings?.some(s => `${s.oab_uf}${s.oab_number}` === m.key)) throw Error('Conta/OAB alterada; coleta interrompida.');
       if (!sender.tab) throw Error('Aba indisponível.');
+      if (state.collectorLease?.until > Date.now() && state.collectorLease.tabId !== sender.tab.id) throw Error('Outra aba do Diário está coletando.');
+      await chrome.storage.local.set({ collectorLease: { tabId: sender.tab.id, until: Date.now() + 60000 } });
       if (m.type === 'CHECKPOINT_GET') return { ok: true, checkpoint: state.checkpoints?.[m.key] || null };
       if (m.type === 'CHECKPOINT_SAVE') {
         const checkpoint = m.checkpoint;
