@@ -1,4 +1,6 @@
 - [x] Exibir controle de carga no Dashboard.
+- [x] Disponibilizar conferência manual na Central do Jus.br na página de intimações; endereço e aviso verificados em sessão autenticada. Integração automática privada permanece bloqueada por falta de acesso autorizado para o aplicativo.
+- [x] Exibir aviso de login e oferecer reconciliação pública dos últimos 30 dias com resultado/erro visível e alerta; 16 testes passaram e compilação OK. Não há detecção do login externo nem rastreamento da sessão privada.
 - [x] Exibir e validar controle de carga no modal Editar Prazo.
 - [x] Identificar quem iniciou a elaboração independentemente do responsável e validar a exibição.
 - [x] Corrigir timeout da sincronização manual e impedir confirmação falsa de ausência de publicações; validar execução autenticada.

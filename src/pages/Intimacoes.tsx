@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText, Calendar, Info } from 'lucide-react';
+import { Plus, Loader2, Trash2, CheckSquare, Bell, RefreshCw, ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, Highlighter, FileText, Calendar, Info, ExternalLink } from 'lucide-react';
 import { CopyNumber } from '@/components/CopyNumber';
 import { useToast } from '@/hooks/use-toast';
 import { isBusinessDay, previousBusinessDay, nextBusinessDay, formatBR, todayISO } from '@/lib/cnjCalendar';
@@ -119,18 +119,24 @@ export default function Intimacoes() {
   // filtro fuzzy de nome do advogado. Recupera publicações perdidas por
   // mismatch de destinatário (ex.: nome ausente/abreviado no payload DJEN).
   const [reconciling, setReconciling] = useState(false);
+  const [reconciliationNotice, setReconciliationNotice] = useState('');
   const reconcileDjen = async () => {
     if (!confirm('Reconciliar 30 dias com a DJEN ignorando filtro de nome? Pode reinserir publicações antes descartadas.')) return;
     setReconciling(true);
+    setReconciliationNotice('Busca pública em andamento. Aguarde a confirmação do resultado; a sessão do Jus.br não é consultada.');
     try {
       const today = todayISO();
       const startDate = new Date(`${today}T12:00:00Z`);
       startDate.setUTCDate(startDate.getUTCDate() - 30);
       const start = startDate.toISOString().slice(0, 10);
       const r = await runDjenSync({ bypass_name_filter: true, date_start: start, date_end: today });
+      setReconciliationNotice(`${r.inserted} publicações recuperadas / ${r.total} verificadas no DJEN. Confira as recuperadas na lista. Este resultado não confirma ausência de comunicações privadas no Jus.br.`);
       toast({ title: 'Reconciliação concluída', description: `${r.inserted} recuperadas / ${r.total} verificadas` });
       qc.invalidateQueries({ queryKey: ['intimations'] });
-    } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
+    } catch (e: any) {
+      setReconciliationNotice(`Conferência incompleta: ${e.message}. Publicações já importadas permanecem preservadas; confira o portal oficial.`);
+      toast({ title: 'Conferência incompleta', description: e.message, variant: 'destructive' });
+    }
     finally { setReconciling(false); }
   };
 
@@ -728,7 +734,7 @@ export default function Intimacoes() {
             </div>
           </div>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex flex-wrap gap-2 md:justify-end">
           <Button variant="outline" onClick={syncDjen} disabled={syncing}>
             {syncing ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
             Sincronizar
@@ -740,6 +746,29 @@ export default function Intimacoes() {
           <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" /> Nova Intimação</Button>
         </div>
       </div>
+
+      <section aria-label="Conferência complementar no Jus.br" className="border-y border-warning/30 bg-warning/10 px-4 py-3 space-y-3">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-warning mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <h2 className="font-semibold text-sm">Conferência complementar · Jus.br</h2>
+            <p className="text-sm text-muted-foreground">Entre na Central de Comunicações e confira Diário da Justiça e Domicílio Eletrônico. O login ocorre somente no portal: o WnevesBox ainda não tem acesso à sua sessão nem às comunicações privadas.</p>
+            <p className="text-sm text-muted-foreground">Após conferir, a nova busca abaixo verifica os últimos 30 dias do DJEN e importa publicações públicas ainda não capturadas. Não substitui a conferência privada no Jus.br.</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <a href="https://portaldeservicos.pdpj.jus.br/central-comunicacoes" target="_blank" rel="noopener noreferrer" title="Login e conferência manual no portal oficial">
+              <ExternalLink className="h-4 w-4 mr-1" /> Entrar no Jus.br
+            </a>
+          </Button>
+          <Button variant="outline" onClick={reconcileDjen} disabled={reconciling || syncing}>
+            {reconciling ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
+            Buscar não capturadas (DJEN)
+          </Button>
+        </div>
+        {reconciliationNotice && <p role="status" aria-live="polite" className="text-sm font-medium text-foreground">{reconciliationNotice}</p>}
+      </section>
 
       {/* Navegador de data (calendário CNJ) */}
       <div className="bg-card rounded-lg border shadow-card p-3 flex items-center gap-3 flex-wrap">
