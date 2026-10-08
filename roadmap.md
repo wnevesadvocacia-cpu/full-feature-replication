@@ -17,3 +17,4 @@
 - [ ] Validar extensão Jus.br ponta a ponta — pesquisa/avanço/fim da interface confirmados pelo titular (1–10/29 → 11–20/29 → 21–29/29, próxima/Última desabilitadas). Pendentes labels exatos de início/fim, vazio, extensão instalada e persistência/importação.
 
 - [x] Implementar adaptador com controles relatados em 08/10: pesquisa, avanço pelo contador, retomada por conta/OAB e multiplicidade; 36 testes passaram. v0.3.0 empacotada; validação autenticada e avanço incremental permanecem pendentes.
+- [x] Exigir fim pelo total do contador e próxima/Última página desabilitadas; v0.3.1 com percurso 10/10/9 e divergência de fim testados. 22 testes focados passaram; ZIP íntegro. Validação real da interface relatada pelo titular, não da extensão ponta a ponta.
