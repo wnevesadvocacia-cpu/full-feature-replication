@@ -15,3 +15,5 @@
 
 - [x] Implementar fila/vínculo persistentes, ingestão e reconciliação direcionada, controlador seguro e pacote Jus.br v0.2; 31 testes passaram, build OK, funções implantadas, RLS/grants verificados e rejeição 401 validada. Controlador testado em simulação; adaptador real continua restrito às telas visíveis.
 - [ ] Habilitar pesquisa/paginação Jus.br real — bloqueado: faltam evidências dos controles autenticados; interromper explicitamente, sem inventar seletores.
+
+- [ ] Implementar adaptador com controles relatados em 08/10: pesquisar, verificar avanço pelo contador, persistir retomada por conta/OAB, testar sem ações de linha; vazio e integração real continuam pendentes.
