@@ -60,11 +60,9 @@ describe('adaptador Diário com controles relatados', () => {
     expect(() => dom.scope()).toThrow('Domicílio nunca'); expect(forbidden).not.toHaveBeenCalled();
   });
   it('interrompe quando próxima não muda efetivamente a página', async () => {
-    vi.useFakeTimers();
     const { dom, next } = fixture(); next.onclick = () => {};
-    const rejected = expect(dom.create(setting, period).next()).rejects.toThrow('sem conclusão comprovada');
-    await vi.advanceTimersByTimeAsync(21000); await rejected;
-  });
+    await expect(dom.create(setting, period).next()).rejects.toThrow('sem conclusão comprovada');
+  }, 25000);
   it('não reenvia ID imutável com dados diferentes após interrupção', async () => {
     const { core } = fixture(); const emit = vi.fn();
     await expect(core.collect({ verified: true, search: vi.fn(), read: async () => ({ rows: [{ cnj }], signature: 'changed', end: true }) }, { page: 1, run: 'r', seen: [], batchId: 'persisted', pendingSignature: 'original' }, vi.fn(), emit)).rejects.toThrow('Página mudou');
