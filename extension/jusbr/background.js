@@ -56,7 +56,7 @@ async function scan() {
   const tabs = await chrome.tabs.query({ url: 'https://portaldeservicos.pdpj.jus.br/*' });
   if (!tabs.length) return status('Jus.br não está aberto. Faça login no portal; credenciais nunca são capturadas.');
   for (const tab of tabs) {
-    try { await chrome.tabs.sendMessage(tab.id, { type: 'SCAN', window: JusbrCore.window(state.lastCompleteEnd), settings: state.settings }); }
+    try { await chrome.tabs.sendMessage(tab.id, { type: 'SCAN', owner: state.owner, window: JusbrCore.window(state.lastCompleteEnd), settings: state.settings }); }
     catch { await status('Recarregue a Central Jus.br. Estrutura/sessão não verificada.'); }
   }
 }
@@ -67,12 +67,32 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       const state = await chrome.storage.local.get(['owner','queue']);
       if (m.type === 'RESTORE' && state.owner !== m.owner) return { ok: false };
       if (state.owner && state.owner !== m.owner && state.queue?.length) throw Error('Há lotes da conta anterior. Retome nessa conta antes de trocar o vínculo.');
-      await chrome.storage.local.set({ owner: m.owner, tabId: sender.tab.id, origin: origin(sender), settings: m.settings, ...(state.owner !== m.owner ? { queue: [], lastCompleteEnd: null } : {}) });
+      await chrome.storage.local.set({ owner: m.owner, tabId: sender.tab.id, origin: origin(sender), settings: m.settings, ...(state.owner !== m.owner ? { queue: [], checkpoints: {}, lastCompleteEnd: null } : {}) });
       await chrome.alarms.create('scan', { periodInMinutes: 60 });
-      await status('Vínculo persistido. Pesquisa/paginação reais aguardam validação dos controles.');
+      await status('Vínculo persistido. Pesquisa por controles observados; avanço/vazio e extensão real aguardam validação.');
       return { ok: true, owner: m.owner };
     }
     if (origin(sender) !== 'https://portaldeservicos.pdpj.jus.br') throw Error('Origem inválida.');
+    if (m.type === 'PORTAL_READY') {
+      const state = await chrome.storage.local.get(['owner','settings','lastCompleteEnd','lastScanAt']);
+      if (state.owner && (!state.lastScanAt || Date.now() - state.lastScanAt > 60000)) {
+        await chrome.storage.local.set({ lastScanAt: Date.now() });
+        void chrome.tabs.sendMessage(sender.tab.id, { type: 'SCAN', owner: state.owner, settings: state.settings, window: JusbrCore.window(state.lastCompleteEnd) }).catch(() => {});
+      }
+      return { ok: true };
+    }
+    if (['CHECKPOINT_GET','CHECKPOINT_SAVE','JUSBR_BATCH'].includes(m.type)) {
+      const state = await chrome.storage.local.get(['owner','checkpoints','settings']);
+      if (!state.owner || m.owner !== state.owner || !state.settings?.some(s => `${s.oab_uf}${s.oab_number}` === m.key)) throw Error('Conta/OAB alterada; coleta interrompida.');
+      if (!sender.tab) throw Error('Aba indisponível.');
+      if (m.type === 'CHECKPOINT_GET') return { ok: true, checkpoint: state.checkpoints?.[m.key] || null };
+      if (m.type === 'CHECKPOINT_SAVE') {
+        const checkpoint = m.checkpoint;
+        if (!checkpoint || !Number.isInteger(checkpoint.page) || checkpoint.page < 1 || checkpoint.page > 1000 || !Array.isArray(checkpoint.seen) || !checkpoint.period) throw Error('Checkpoint inválido.');
+        await chrome.storage.local.set({ checkpoints: { ...(state.checkpoints || {}), [m.key]: checkpoint } });
+        return { ok: true };
+      }
+    }
     if (m.type === 'PORTAL_STATUS') {
       await status(String(m.message || 'Estrutura desconhecida.').slice(0, 400));
       return { ok: true };
