@@ -3,4 +3,4 @@
 - [x] Identificar quem iniciou a elaboração independentemente do responsável e validar a exibição.
 - [x] Corrigir timeout da sincronização manual e impedir confirmação falsa de ausência de publicações; validar execução autenticada.
 - [x] Impedir cobertura completa falsa por falhas nos diários adicionais, paginação ou leitura de processos; 12 testes e busca autenticada concluída (262 consultas); atos fora das fontes públicas exigem conferência autenticada nos tribunais.
-- [ ] Cobrir atos sigilosos e intimações pessoais: verificar integração autorizada aos portais dos tribunais; depende de acesso autenticado oficial, não substituível pelo DJEN/DataJud.
+- [ ] Cobrir atos sigilosos e intimações pessoais — bloqueado: o projeto não possui integração autenticada aos tribunais e o usuário informou não utilizar serviço pago; requer acesso autorizado e integração específica por portal, sem presumir ciência de intimações nem substituir por DJEN/DataJud.
