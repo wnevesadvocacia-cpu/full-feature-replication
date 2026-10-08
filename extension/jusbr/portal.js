@@ -28,7 +28,9 @@ function inspect() {
   const key = JSON.stringify(rows);
   if (key === last) return;
   last = key;
-  chrome.runtime.sendMessage({ type: 'JUSBR_VISIBLE', rows }).catch(() => { last = ''; });
+  chrome.runtime.sendMessage({ type: 'JUSBR_VISIBLE', rows }).then(result => {
+    if (!result?.ok) last = '';
+  }).catch(() => { last = ''; });
 }
 new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(inspect, 1500); }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['aria-selected'] });
 setTimeout(inspect, 1500);

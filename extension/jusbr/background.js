@@ -8,25 +8,28 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
   (async () => {
     if (m.type === 'PAIR') {
       if (!appOrigins.has(origin(sender)) || !sender.tab || !/^[0-9a-f-]{36}$/i.test(m.owner || '')) throw Error('Vínculo inválido.');
-      await chrome.storage.local.set({ owner: m.owner, tabId: sender.tab.id, origin: origin(sender), completedKey: null, busyUntil: 0 });
+      const current = await chrome.storage.local.get(['owner', 'busyUntil']);
+      if (current.busyUntil > Date.now()) throw Error('Aguarde a conferência em andamento antes de vincular novamente.');
+      await chrome.storage.local.set({ owner: m.owner, tabId: sender.tab.id, origin: origin(sender), ...(current.owner !== m.owner ? { completedKeys: [], lastCheckAt: 0 } : {}) });
       await status('Vinculada. Leia os resultados do Diário da Justiça na Central. Cobertura limitada às linhas exibidas.', false);
       return { ok: true, owner: m.owner };
     }
     if (m.type !== 'JUSBR_VISIBLE' || origin(sender) !== 'https://portaldeservicos.pdpj.jus.br') throw Error('Origem inválida.');
     if (!Array.isArray(m.rows) || !m.rows.length || m.rows.length > 100) throw Error('Resultados inválidos.');
-    const state = await chrome.storage.local.get(['owner', 'tabId', 'completedKey', 'busyUntil', 'origin']);
+    const state = await chrome.storage.local.get(['owner', 'tabId', 'completedKeys', 'busyUntil', 'origin', 'lastCheckAt']);
     if (!state.owner || !Number.isInteger(state.tabId)) throw Error('Abra Intimações no WnevesBox e clique em Vincular extensão.');
     const key = JSON.stringify([state.owner, m.rows]);
-    if (state.completedKey === key) return { ok: true };
+    if ((state.completedKeys || []).includes(key)) return { ok: true };
     if (state.busyUntil > Date.now()) throw Error('Conferência em andamento; novas linhas ainda não conferidas.');
+    if (state.lastCheckAt > Date.now() - 30 * 60_000) throw Error('Novas linhas ainda não conferidas: intervalo de segurança de 30 minutos. Confira o portal e revisite esta página depois.');
     const tab = await chrome.tabs.get(state.tabId);
     if (!tab.url || new URL(tab.url).origin !== state.origin) throw Error('Reabra Intimações e vincule novamente.');
-    await chrome.storage.local.set({ busyUntil: Date.now() + 11 * 60_000 });
+    await chrome.storage.local.set({ busyUntil: Date.now() + 11 * 60_000, lastCheckAt: Date.now() });
     await status('Conferindo linhas visíveis. Não confirma cobertura integral.');
     try {
       const result = await chrome.tabs.sendMessage(state.tabId, { type: 'CHECK_VISIBLE', owner: state.owner, rows: m.rows });
       if (!result?.ok) throw Error(result?.message || 'Conferência incompleta.');
-      await chrome.storage.local.set({ completedKey: key });
+      await chrome.storage.local.set({ completedKeys: [...(state.completedKeys || []), key].slice(-100) });
       await status(result.message, true); // Always alert: visible metadata is incomplete coverage.
       return { ok: true };
     } finally { await chrome.storage.local.set({ busyUntil: 0 }); }

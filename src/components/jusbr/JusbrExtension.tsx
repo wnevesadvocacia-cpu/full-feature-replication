@@ -50,9 +50,10 @@ export function JusbrExtension() {
         };
         let missing: JusbrRow[] = unmatchedJusbrRows(rows, await readRecords(), user.id);
         let inserted = 0;
-        if (missing.length) {
-          setNotice(`${missing.length} linhas sem correspondência. Recuperação DJEN em andamento; não considere concluída.`);
-          const dates = missing.map(row => row.date).sort();
+        // Even a CNJ/date match may hide another act: reconcile the full visible period.
+        if (rows.length) {
+          setNotice(`${missing.length} linhas sem correspondência. Reconferência DJEN em andamento para todas as linhas; não considere concluída.`);
+          const dates = rows.map(row => row.date).sort();
           const result = await runDjenSync({ date_start: dates[0], date_end: dates[dates.length - 1], bypass_name_filter: true });
           inserted = result.inserted;
           missing = unmatchedJusbrRows(rows, await readRecords(), user.id);
