@@ -107,6 +107,18 @@ describe('Jus.br automação segura', () => {
     const retry = vi.fn(); await c.collectSegments(factory, saved, save, retry);
     expect(retry).toHaveBeenCalledTimes(1); expect(retry.mock.calls[0][0].id).toBe(id); expect(saved.finished).toBe(true);
   });
+  it('preserva retomada 0.3.2 sem reutilizar ID em período dividido', async () => {
+    const c = core(); const emit = vi.fn(); const search = vi.fn(); let saved: any;
+    const period = { start: '2026-07-10', end: '2026-10-08' };
+    const checkpoint = { run: owner, period, page: 2, seen: ['1'], batchId: 'legacy', pendingSignature: '2' };
+    const factory = vi.fn(() => ({ verified: true, search, read: async () => ({ rows: [row], signature: '2', end: true }) }));
+    await c.collectSegments(factory, checkpoint, async (s: any) => { saved = s; }, emit);
+    expect(factory.mock.calls[0][0]).toEqual(period); expect(search.mock.calls[0][0].page).toBe(2);
+    expect(emit.mock.calls[0][0].id).toBe('legacy'); expect(saved.finished).toBe(true);
+    const truncated = () => ({ verified: true, search: async () => { throw Object.assign(Error('100'), { code: 'TRUNCATED' }); } });
+    await expect(c.collectSegments(truncated, checkpoint, async (s: any) => { saved = s; }, vi.fn())).rejects.toThrow('Truncamento durante retomada');
+    expect(saved.batchId).toBe('legacy'); expect(saved.finished).toBe(false);
+  });
   it('servidor preserva ocorrências, direciona CNJs únicos e rejeita datas/vazio sem evidência', () => {
     const rows = validateObservations([row,row]);
     expect(rows).toHaveLength(2);

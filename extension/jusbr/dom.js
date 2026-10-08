@@ -98,7 +98,7 @@ const JusbrDom = (() => {
               if (stable !== result.signature) { stable = result.signature; since = Date.now(); }
               if (Date.now() - since >= 500) return result;
             } else stable = '';
-          } catch (e) { if (/sessão|Estrutura|Selecione/.test(e.message)) throw e; reason = e.message; stable = ''; }
+          } catch (e) { if (/sessão|Estrutura|Selecione|obsoleto/.test(e.message)) throw e; reason = e.message; stable = ''; }
         } else stable = '';
         await new Promise(resolve => setTimeout(resolve, 100));
       }

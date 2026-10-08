@@ -95,7 +95,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (!state.owner || m.owner !== state.owner || !state.settings?.some(s => `${s.oab_uf}${s.oab_number}` === m.key)) throw Error('Conta/OAB alterada; coleta interrompida.');
       if (!sender.tab) throw Error('Aba indisponível.');
       if (state.collectorLease?.until > Date.now() && state.collectorLease.tabId !== sender.tab.id) throw Error('Outra aba do Diário está coletando.');
-      await chrome.storage.local.set({ collectorLease: { tabId: sender.tab.id, until: Date.now() + 60000 } });
+      await chrome.storage.local.set({ collectorLease: { tabId: sender.tab.id, until: Date.now() + 150000 } });
       if (m.type === 'CHECKPOINT_GET') return { ok: true, checkpoint: state.checkpoints?.[m.key] || null };
       if (m.type === 'CHECKPOINT_SAVE') {
         const checkpoint = m.checkpoint;

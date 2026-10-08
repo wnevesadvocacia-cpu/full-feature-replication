@@ -31,8 +31,8 @@ const JusbrCore = {
     let state = { ...checkpoint };
     if (!state.segments) {
       // Legacy in-flight IDs cannot be repurposed for a different search.
-      if (state.batchId || state.page > 1) throw Error('Retomada v0.3.2 em andamento; lote/página preservados. Cobertura incompleta; não reutilizar IDs em outra janela.');
-      state = { ...state, segments: this.segments(state.period), segmentIndex: 0, page: 1, seen: [], finished: false };
+      const legacy = !!state.batchId || state.page > 1;
+      state = { ...state, segments: legacy ? [state.period] : this.segments(state.period), segmentIndex: 0, page: legacy ? state.page : 1, seen: legacy ? state.seen : [], finished: false };
       state.period = state.segments[0]; await save(state);
     }
     while (state.segmentIndex < state.segments.length) {

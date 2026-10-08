@@ -134,7 +134,7 @@ describe('adaptador Diário com controles relatados', () => {
     const day = { start: '2026-10-08', end: '2026-10-08' };
     const pending = core.collect(dom.create(setting, day), { run: 'outside', page: 1, seen: [], period: day }, vi.fn(), emit);
     const assertion = expect(pending).rejects.toThrow('Resultado obsoleto');
-    await vi.advanceTimersByTimeAsync(120100); await assertion;
+    await assertion;
     expect(emit).not.toHaveBeenCalled();
   }, 25000);
   it('aguarda saída dos dados antigos, transição e resposta estável dentro do dia', async () => {
