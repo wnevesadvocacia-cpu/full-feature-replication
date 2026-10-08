@@ -221,6 +221,14 @@ export function JusbrExtension({
           </Button>
         </div>
       </div>
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-start gap-2 border-t border-border/60 bg-muted/30 px-4 py-2.5 text-xs leading-relaxed"
+      >
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
+        <span>{notice}</span>
+      </div>
       <details className="group border-t border-border/60">
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
           <span>Detalhes e configuração</span>
@@ -259,10 +267,6 @@ export function JusbrExtension({
             </ol>
           </details>
           <div className="rounded-lg bg-muted/40 p-3 text-xs leading-relaxed">
-            <p className="flex gap-2">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-              <span>{notice}</span>
-            </p>
             {batchNotice && <p className="mt-2 text-muted-foreground">{batchNotice}</p>}
             {reconciliationNotice && <p className="mt-2 text-muted-foreground">{reconciliationNotice}</p>}
             {batchesError && <p className="mt-2 text-destructive">Histórico indisponível. Conclusão não confirmada.</p>}
