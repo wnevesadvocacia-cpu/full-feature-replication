@@ -8,6 +8,21 @@ function fixture(total = 9, size = 3) {
   <div id="diario_justica_tabela"><table><thead><tr>${["Processo", "Partes", "Tipo de Comunicação", "Tribunal", "Classe", "Data de Disponibilização"].map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody></tbody></table></div>
   <span role="status">1 - 3 / 9</span><button aria-label="Primeira página" disabled></button><button aria-label="anterior" disabled></button><button aria-label="próxima"></button><button aria-label="Última página"></button>`;
   vi.spyOn(HTMLElement.prototype, "getClientRects").mockReturnValue([{}] as unknown as DOMRectList);
+  const openCalendar = document.createElement("button");
+  openCalendar.type = "button";
+  openCalendar.setAttribute("aria-label", "Open calendar");
+  document.querySelector("form")!.append(openCalendar);
+  openCalendar.onclick = () => {
+    const calendar = document.createElement("div");
+    calendar.id = "test-calendar";
+    calendar.innerHTML =
+      Array.from(
+        { length: 31 },
+        (_, i) => `<button type="button" aria-label="${String(i + 1).padStart(2, "0")}/10/2026">${i + 1}</button>`,
+      ).join("") + '<button type="button">Selecionar</button>';
+    document.body.append(calendar);
+    calendar.querySelector("button:last-child")!.addEventListener("click", () => calendar.remove());
+  };
   let page = 1;
   const render = (date = "06/10/2026") => {
     const tbody = document.querySelector("tbody");
@@ -25,6 +40,7 @@ function fixture(total = 9, size = 3) {
     counter.textContent = `${start} - ${end} / ${total}`;
     next.disabled = end === total;
     last.disabled = end === total;
+    document.querySelector<HTMLButtonElement>('[aria-label="Primeira página"]')!.disabled = page === 1;
   };
   render("05/10/2026");
   const forbidden = vi.fn();
@@ -57,6 +73,10 @@ function fixture(total = 9, size = 3) {
     page++;
     render();
   };
+  document.querySelector<HTMLButtonElement>('[aria-label="Primeira página"]')!.onclick = () => {
+    page = 1;
+    render();
+  };
   const context = vm.createContext({
     document,
     location: { pathname: "/central-comunicacoes" },
@@ -86,6 +106,32 @@ afterEach(() => {
 const setting = { oab_uf: "SP", oab_number: "290702" };
 const period = { start: "2026-10-01", end: "2026-10-08" };
 describe("adaptador Diário com controles relatados", () => {
+  it("confirma as datas no calendário e retorna à primeira página quando Buscar mantém o contador anterior", async () => {
+    const { dom, next, search, begin, render } = fixture();
+    next.click();
+    next.click();
+    const first = document.querySelector<HTMLButtonElement>('[aria-label="Primeira página"]')!;
+    const firstClick = vi.spyOn(first, "click");
+    const selected = vi.fn();
+    document.addEventListener(
+      "click",
+      (e) => {
+        if ((e.target as HTMLElement).textContent === "Selecionar") selected();
+      },
+      { signal: controller.signal },
+    );
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => {
+        render();
+        bar.remove();
+      }, 100);
+    };
+    await dom.create(setting, period).search({ page: 1 });
+    expect(selected).toHaveBeenCalledTimes(1);
+    expect(firstClick).toHaveBeenCalledTimes(1);
+    expect(dom.read().start).toBe(1);
+  });
   it("reconhece Buscar com ícone Angular Material oculto da acessibilidade observado no portal real", async () => {
     const { dom, search } = fixture();
     search.innerHTML =
@@ -175,7 +221,7 @@ describe("adaptador Diário com controles relatados", () => {
       emit,
     );
     const assertion = expect(pending).rejects.toThrow("sem ciclo");
-    await vi.advanceTimersByTimeAsync(120100);
+    await vi.advanceTimersByTimeAsync(122000);
     await assertion;
     expect(emit).not.toHaveBeenCalled();
   }, 25000);
@@ -195,7 +241,7 @@ describe("adaptador Diário com controles relatados", () => {
       setTimeout(() => render("05/10/2026"), 100);
     };
     const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow("sem ciclo");
-    await vi.advanceTimersByTimeAsync(120100);
+    await vi.advanceTimersByTimeAsync(122000);
     await assertion;
   });
   it("observa ciclo síncrono iniciado no clique e espera conclusão longa até 120s", async () => {
@@ -218,7 +264,7 @@ describe("adaptador Diário com controles relatados", () => {
     const { dom, search, begin } = fixture();
     search.onclick = begin;
     const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow("120s");
-    await vi.advanceTimersByTimeAsync(120100);
+    await vi.advanceTimersByTimeAsync(122000);
     await assertion;
   });
   it("rejeita filtros alterados durante loading", async () => {
