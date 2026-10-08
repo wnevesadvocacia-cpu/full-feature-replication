@@ -147,6 +147,34 @@ const JusbrDom = (() => {
     }
   }
   const loading = () => [...document.querySelectorAll('mat-progress-bar#is_loading[role="progressbar"]')].some(visible);
+  async function confirmCalendar(form, period) {
+    button("Open calendar", form).click();
+    const format = (iso) => iso.split("-").reverse().join("/");
+    for (const iso of [period.start, period.end]) {
+      let selected = false;
+      for (let step = 0; step < 14; step++) {
+        const days = [...document.querySelectorAll("button[aria-label]")].filter(
+          (el) => visible(el) && /^\d{2}\/\d{2}\/\d{4}$/.test(el.getAttribute("aria-label") || ""),
+        );
+        const target = days.filter((el) => el.getAttribute("aria-label") === format(iso));
+        if (target.length === 1) {
+          if (disabled(target[0])) throw Error("Dia indisponível no calendário.");
+          target[0].click();
+          selected = true;
+          break;
+        }
+        if (!days.length) throw Error("Calendário sem dias identificáveis; período não confirmado.");
+        const shown = days[0].getAttribute("aria-label").split("/");
+        const month = `${shown[2]}-${shown[1]}`;
+        button(iso.slice(0, 7) < month ? "Previous month" : "Next month").click();
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      if (!selected) throw Error("Período não localizado no calendário.");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    button("Selecionar").click();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
   async function wait(action, accept, evidence = null, report = () => {}) {
     let started = false;
     let completed = false;
@@ -175,6 +203,11 @@ const JusbrDom = (() => {
         if (!evidence || (started && completed && !loading())) {
           if (evidence) evidence.validate();
           assertNotTruncated();
+          if (evidence?.prepare && !evidence.prepare()) {
+            stable = "";
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            continue;
+          }
           try {
             const result = read(evidence?.period);
             if (accept(result)) {
@@ -224,6 +257,7 @@ const JusbrDom = (() => {
         setValue(oab, setting.oab_uf + setting.oab_number);
         setValue(start, format(start, period.start));
         setValue(end, format(end, period.end));
+        await confirmCalendar(form, period);
         const search = button("Buscar", form);
         if (disabled(search)) throw Error("Buscar indisponível.");
         const validate = () => {
@@ -236,10 +270,24 @@ const JusbrDom = (() => {
           )
             throw Error("Filtros alterados; cobertura interrompida.");
         };
+        let resetting = false;
+        const prepare = () => {
+          if (loading()) return false;
+          const current = range();
+          if (current.start === 1) return true;
+          if (!resetting) {
+            const first = button("Primeira página");
+            if (disabled(first)) throw Error("Primeira página indisponível após pesquisa.");
+            resetting = true;
+            first.click();
+            report("Nova pesquisa manteve paginação; retornando à primeira página.");
+          }
+          return false;
+        };
         await wait(
           () => search.click(),
           (result) => result.start === 1,
-          { period, validate },
+          { period, validate, prepare },
           report,
         );
         for (let page = 1; page < state.page; page++) await this.next();
