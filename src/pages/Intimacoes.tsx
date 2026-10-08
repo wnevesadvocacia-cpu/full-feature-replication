@@ -23,6 +23,7 @@ import { DeleteGuard } from '@/components/DeleteGuard';
 import { hasCnj, extractCnjs } from '@/lib/cnjRegex';
 import { confirmModal } from '@/lib/confirmModal';
 import { useTasks } from '@/hooks/useTasks';
+import { runDjenSync } from '@/lib/runDjenSync';
 
 // Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
 // Retorna o número efetivo (com sufixo, se houver) e os dígitos correspondentes.
@@ -107,28 +108,8 @@ export default function Intimacoes() {
   const syncDjen = async () => {
     setSyncing(true);
     try {
-      const { data, error } = await supabase.functions.invoke('sync-djen', { body: {}, method: 'POST' });
-      if (error) throw error;
-      // Upstream do CNJ instável: edge devolve 200 + upstream_unavailable
-      if (data?.upstream_unavailable) {
-        toast({
-          title: 'CNJ/DJEN indisponível',
-          description: data.error || 'O Diário Eletrônico está instável. Tente novamente em alguns minutos.',
-          variant: 'destructive',
-        });
-        return;
-      }
-      const r = (data?.results || [])[0];
-      if (!r) {
-        const { data: oab } = await supabase
-          .from('oab_settings')
-          .select('id')
-          .eq('active', true)
-          .limit(1)
-          .maybeSingle();
-        if (!oab) toast({ title: 'Cadastre sua OAB em Configurações → Intimações', variant: 'destructive' });
-        else toast({ title: 'Sincronizado', description: 'Nenhuma nova publicação encontrada' });
-      } else toast({ title: 'Sincronizado', description: `${r.inserted} novas / ${r.total} encontradas` });
+      const r = await runDjenSync();
+      toast({ title: 'Sincronizado', description: `${r.inserted} novas / ${r.total} encontradas` });
       qc.invalidateQueries({ queryKey: ['intimations'] });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setSyncing(false); }
@@ -146,18 +127,8 @@ export default function Intimacoes() {
       const startDate = new Date(`${today}T12:00:00Z`);
       startDate.setUTCDate(startDate.getUTCDate() - 30);
       const start = startDate.toISOString().slice(0, 10);
-      const { data, error } = await supabase.functions.invoke('sync-djen', {
-        body: { bypass_name_filter: true, date_start: start, date_end: today },
-        method: 'POST',
-      });
-      if (error) throw error;
-      if (data?.upstream_unavailable) {
-        toast({ title: 'CNJ/DJEN indisponível', description: data.error, variant: 'destructive' });
-        return;
-      }
-      const totalIns = (data?.results || []).reduce((s: number, r: any) => s + (r?.inserted || 0), 0);
-      const totalFound = (data?.results || []).reduce((s: number, r: any) => s + (r?.total || 0), 0);
-      toast({ title: 'Reconciliação concluída', description: `${totalIns} recuperadas / ${totalFound} verificadas` });
+      const r = await runDjenSync({ bypass_name_filter: true, date_start: start, date_end: today });
+      toast({ title: 'Reconciliação concluída', description: `${r.inserted} recuperadas / ${r.total} verificadas` });
       qc.invalidateQueries({ queryKey: ['intimations'] });
     } catch (e: any) { toast({ title: 'Erro', description: e.message, variant: 'destructive' }); }
     finally { setReconciling(false); }
