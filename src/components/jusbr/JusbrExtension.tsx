@@ -23,6 +23,23 @@ export function JusbrExtension({
   );
   const [batchNotice, setBatchNotice] = useState("");
   const paired = useRef<string | null>(null);
+  const { data: maintenancePending = false } = useQuery({
+    queryKey: ["jusbr-maintenance", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      if (!user) return false;
+      const { data, error } = await supabase
+        .from("jusbr_batches")
+        .select("id")
+        .eq("user_id", user.id)
+        .in("status", ["queued", "running"])
+        .or("error.ilike.%503%,error.ilike.%manuten%")
+        .limit(1);
+      if (error) throw error;
+      return !!data?.length;
+    },
+    refetchInterval: 30000,
+  });
   const { data: batches = [], error: batchesError } = useQuery({
     queryKey: ["jusbr-batches", user?.id],
     enabled: !!user,
@@ -264,7 +281,14 @@ export function JusbrExtension({
         className="flex items-start gap-2 border-t border-border/60 bg-muted/30 px-4 py-2.5 text-xs leading-relaxed"
       >
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-        <span>{notice}</span>
+        <div className="space-y-1">
+          <p>{notice}</p>
+          {maintenancePending && (
+            <p className="text-amber-700 dark:text-amber-400">
+              Reconferência DJEN pendente após manutenção do serviço. Lotes preservados; nova tentativa automática.
+            </p>
+          )}
+        </div>
       </div>
       <details className="group border-t border-border/60">
         <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted/40 [&::-webkit-details-marker]:hidden">
