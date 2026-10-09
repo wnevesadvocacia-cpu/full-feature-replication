@@ -21,9 +21,11 @@ const JusbrDom = (() => {
     if (items.length !== 1) throw Error(`Controle ${label} ausente ou ambíguo; estrutura não validada.`);
     return items[0];
   };
-  function scope() {
+  function scope(requireTable = false) {
     if (location.pathname !== "/central-comunicacoes")
-      throw Error("Central/sessão indisponível. Faça login manualmente; sessão expirada não certificada.");
+      throw Error(
+        "Central de Comunicações não está aberta nesta aba. Abra Diário da Justiça; o estado do login não foi confirmado.",
+      );
     const tabs = document.querySelector("#tabs_comunicacoes_processuais");
     if (!tabs) throw Error("Estrutura desconhecida: container de abas ausente.");
     const tab = unique(
@@ -34,8 +36,9 @@ const JusbrDom = (() => {
       throw Error("Selecione Diário da Justiça manualmente. Domicílio nunca é aberto.");
     const form = document.querySelector("#form_busca_diario_justica");
     const table = document.querySelector("#diario_justica_tabela");
-    if (!visible(form) || !visible(table))
-      throw Error("Formulário/tabela indisponíveis; sessão ou estrutura não verificada.");
+    if (!visible(form)) throw Error("Formulário do Diário indisponível; aguarde o carregamento da Central.");
+    if (requireTable && !visible(table))
+      throw Error("Resposta do Diário sem tabela válida; vazio e cobertura não confirmados.");
     return { form, table };
   }
   function button(label, root = document) {
@@ -48,7 +51,7 @@ const JusbrDom = (() => {
   }
   const disabled = (el) => el.disabled || el.getAttribute("aria-disabled") === "true";
   function range() {
-    scope();
+    scope(true);
     const candidates = [...document.querySelectorAll('#diario_justica_tabela *,[role="status"]')].filter(
       (el) =>
         visible(el) &&
@@ -76,7 +79,7 @@ const JusbrDom = (() => {
     return { start, end, total, next };
   }
   function read(period) {
-    const { table } = scope();
+    const { table } = scope(true);
     const r = range();
     const headers = [...table.querySelectorAll('th,[role="columnheader"]')].map(text);
     const indexes = ["Processo", "Tribunal", "Data de Disponibilização"].map((h) =>
