@@ -40,6 +40,7 @@ import { hasCnj, extractCnjs } from "@/lib/cnjRegex";
 import { confirmModal } from "@/lib/confirmModal";
 import { useTasks } from "@/hooks/useTasks";
 import { runDjenSync } from "@/lib/runDjenSync";
+import { DjenSyncDeferredError } from "@/lib/djenSyncResult";
 import { JusbrExtension } from "@/components/jusbr/JusbrExtension";
 
 // Detecta sub-incidente do tipo "<CNJ>/NN" (precatório, cumprimento, incidente).
@@ -137,7 +138,11 @@ export default function Intimacoes() {
       toast({ title: "Sincronizado", description: `${r.inserted} novas / ${r.total} encontradas` });
       qc.invalidateQueries({ queryKey: ["intimations"] });
     } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
+      toast(
+        e instanceof DjenSyncDeferredError
+          ? { title: "Aguardando DJEN", description: e.message }
+          : { title: "Erro", description: e.message, variant: "destructive" },
+      );
     } finally {
       setSyncing(false);
     }
@@ -169,6 +174,11 @@ export default function Intimacoes() {
       toast({ title: "Reconciliação concluída", description: `${r.inserted} recuperadas / ${r.total} verificadas` });
       qc.invalidateQueries({ queryKey: ["intimations"] });
     } catch (e: any) {
+      if (e instanceof DjenSyncDeferredError) {
+        setReconciliationNotice(`Aguardando DJEN: ${e.message}. Resultado ainda não confirmado.`);
+        toast({ title: "Aguardando DJEN", description: e.message });
+        return;
+      }
       setReconciliationNotice(
         `Conferência incompleta: ${e.message}. Publicações já importadas permanecem preservadas; confira o portal oficial.`,
       );
