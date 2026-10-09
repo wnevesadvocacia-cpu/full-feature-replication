@@ -13,6 +13,7 @@ const origin = (sender) => {
   }
 };
 let processing = false;
+let scanTask = null;
 let serial = Promise.resolve();
 function exclusive(fn) {
   const task = serial.then(fn);
@@ -96,7 +97,14 @@ async function pump() {
     }
   }
 }
-async function scan() {
+function scan() {
+  if (scanTask) return scanTask;
+  scanTask = performScan().finally(() => {
+    scanTask = null;
+  });
+  return scanTask;
+}
+async function performScan() {
   const state = await chrome.storage.local.get(["owner", "settings", "lastReadEnd", "queue"]);
   if (!state.owner) return;
   if ((state.queue?.length || 0) >= 100) {
@@ -105,14 +113,42 @@ async function scan() {
   }
   const tabs = await chrome.tabs.query({ url: "https://portaldeservicos.pdpj.jus.br/*" });
   if (!tabs.length) return status("Jus.br não está aberto. Faça login no portal; credenciais nunca são capturadas.");
-  for (const tab of tabs.slice(0, 1)) {
+  const isCentral = (tab) => {
     try {
-      await chrome.tabs.sendMessage(tab.id, {
+      return new URL(tab.url).pathname === "/central-comunicacoes";
+    } catch {
+      return false;
+    }
+  };
+  const tab = tabs.find((tab) => tab.active && isCentral(tab)) || tabs.find(isCentral);
+  if (!tab) {
+    const home = tabs.find((tab) => {
+      try {
+        return new URL(tab.url).pathname === "/home";
+      } catch {
+        return false;
+      }
+    });
+    if (!home)
+      return status(
+        "Abra a Central de Comunicações no Jus.br e selecione Diário da Justiça. Login não verificado nesta página.",
+      );
+    const navigation = await chrome.storage.local.get("lastPortalNavigation");
+    if (navigation.lastPortalNavigation && Date.now() - navigation.lastPortalNavigation < 60000)
+      return status("Aguardando a Central de Comunicações carregar. Se o portal pedir login, entre nele.");
+    await chrome.storage.local.set({ lastPortalNavigation: Date.now(), lastScanAt: 0 });
+    await chrome.tabs.update(home.id, { url: "https://portaldeservicos.pdpj.jus.br/central-comunicacoes" });
+    return status("Diário da Justiça aberto; aguardando o carregamento para iniciar a conferência.");
+  }
+  {
+    try {
+      const result = await chrome.tabs.sendMessage(tab.id, {
         type: "SCAN",
         owner: state.owner,
         window: JusbrCore.window(state.lastReadEnd),
         settings: state.settings,
       });
+      if (result?.inProgress && result.owner === state.owner && result.message) await status(result.message);
     } catch {
       await status("Recarregue a Central Jus.br. Estrutura/sessão não verificada.");
     }
@@ -154,7 +190,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     if (origin(sender) !== "https://portaldeservicos.pdpj.jus.br") throw Error("Origem inválida.");
     if (m.type === "PORTAL_READY") {
       const state = await chrome.storage.local.get(["owner", "settings", "lastCompleteEnd", "lastScanAt"]);
-      if (state.owner && (!state.lastScanAt || Date.now() - state.lastScanAt > 60000)) {
+      if (state.owner) {
         await chrome.storage.local.set({ lastScanAt: Date.now() });
         void scan();
       }
