@@ -106,6 +106,25 @@ afterEach(() => {
 const setting = { oab_uf: "SP", oab_number: "290702" };
 const period = { start: "2026-10-01", end: "2026-10-08" };
 describe("adaptador Diário com controles relatados", () => {
+  it("inicia a primeira pesquisa sem tabela anterior e valida a resposta recebida", async () => {
+    const { dom, search, begin, render, forbidden } = fixture();
+    const table = document.querySelector("#diario_justica_tabela")!;
+    table.remove();
+    expect(() => dom.scope()).not.toThrow();
+    expect(() => dom.read()).toThrow("sem tabela válida");
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => {
+        document.body.append(table);
+        render();
+        bar.remove();
+      }, 100);
+    };
+    await dom.create(setting, period).search({ page: 1 });
+    expect(dom.read(period).rows).toHaveLength(3);
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+
   it("retorna à primeira página antes de validar contador mantido além do novo total", async () => {
     const { dom, next, search, begin } = fixture();
     next.click();
