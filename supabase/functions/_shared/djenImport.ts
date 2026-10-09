@@ -11,3 +11,10 @@ export function pendingDjenEntries<T extends { externalId: string }>(entries: T[
     return true;
   });
 }
+
+// Keep the expiring shared lease after an upstream outage, avoiding a new request
+// from each queued Jus.br batch while DJEN is unavailable. Other source failures
+// must not pause healthy DJEN queries.
+export function djenRequiresCooldown(error: unknown): boolean {
+  return /\bDJEN\s+(?:429|502|503|504)\b/i.test(String(error ?? ""));
+}
