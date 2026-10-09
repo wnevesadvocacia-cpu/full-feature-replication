@@ -23,6 +23,65 @@ describe("Jus.br automação segura", () => {
     vi.setSystemTime(new Date("2026-10-08T16:00:00Z"));
   });
   afterEach(() => vi.useRealTimers());
+  it("aceita o dia inteiro no limite inicial de 90 dias, mas rejeita o dia anterior", () => {
+    expect(validateObservations([{ ...row, date: "2026-07-10" }])).toHaveLength(1);
+    expect(() => validateObservations([{ ...row, date: "2026-07-09" }])).toThrow("90 dias");
+  });
+  it("avança a janela de leitura somente depois de todas as OABs terminarem", () => {
+    const c = core();
+    const settings = [
+      { oab_uf: "SP", oab_number: "1" },
+      { oab_uf: "MG", oab_number: "2" },
+    ];
+    const checkpoints = {
+      SP1: { finished: true, period: { end: "2026-10-08" } },
+      MG2: { finished: false, period: { end: "2026-10-07" } },
+    };
+    expect(c.readEnd(checkpoints, settings)).toBeNull();
+    checkpoints.MG2.finished = true;
+    expect(c.readEnd(checkpoints, settings)).toBe("2026-10-07");
+    expect(c.readEnd(checkpoints, [])).toBeNull();
+  });
+  it("transfere um lote gravado para a fila do servidor sem declarar importação concluída", async () => {
+    const state: any = {
+      owner,
+      tabId: 1,
+      origin: "https://wnevesbox.com",
+      queue: [{ id: "batch-1", owner, attempts: 0, retryAt: 0 }],
+    };
+    const response = { ok: true, persisted: true, done: false, message: "Aguardando vez na fila DJEN." };
+    const storage = {
+      get: vi.fn(async () => ({ ...state, queue: [...state.queue] })),
+      set: vi.fn(async (update: any) => Object.assign(state, update)),
+    };
+    const context = vm.createContext({
+      Date,
+      Promise,
+      URL,
+      setTimeout: vi.fn(),
+      importScripts: () => {},
+      JusbrCore: core(),
+      chrome: {
+        storage: { local: storage },
+        tabs: {
+          get: async () => ({ url: "https://wnevesbox.com/#/intimacoes" }),
+          sendMessage: async (_id: number, m: any) => (m.type === "CHECK_BATCH" ? response : {}),
+        },
+        action: { setBadgeText: vi.fn() },
+        alarms: { create: vi.fn(), clear: vi.fn(), onAlarm: { addListener: vi.fn() } },
+        runtime: { onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
+      },
+    });
+    vm.runInContext(fs.readFileSync("extension/jusbr/background.js", "utf8"), context);
+    await context.pump();
+    expect(state.queue).toHaveLength(0);
+    expect(response.done).toBe(false);
+    state.queue = [{ id: "batch-2", owner, attempts: 0, retryAt: 0 }];
+    response.persisted = false;
+    await context.pump();
+    expect(state.queue).toHaveLength(1);
+    expect(state.queue[0].attempts).toBe(1);
+  });
   it("pagina três páginas e preserva dois atos com os mesmos metadados", async () => {
     const c = core();
     const emit = vi.fn();
@@ -275,5 +334,124 @@ describe("Jus.br automação segura", () => {
     expect(() => validateObservations([{ ...row, date: "2026-02-30" }])).toThrow();
     expect(() => validCoverage({ run: owner, page: 1, kind: "visible" }, [])).toThrow("Vazio");
     expect(validCoverage({ run: owner, page: 1, kind: "empty" }, []).complete).toBe(false);
+  });
+
+  it("limita espera interna, libera a coleta e ignora resposta atrasada", async () => {
+    let finishCheckpoint: any;
+    const collector = vi.fn();
+    const messages: any[] = [];
+    const sendMessage = vi.fn((m: any) => {
+      messages.push(m);
+      return m.type === "CHECKPOINT_GET"
+        ? new Promise((resolve) => {
+            finishCheckpoint = resolve;
+          })
+        : Promise.resolve({ ok: true });
+    });
+    const context = vm.createContext({
+      Date,
+      Promise,
+      setTimeout,
+      clearTimeout,
+      crypto: { randomUUID: () => owner },
+      document: { documentElement: {} },
+      MutationObserver: class {
+        observe() {}
+      },
+      JusbrDom: { scope: vi.fn(), create: vi.fn() },
+      JusbrCore: { collectSegments: collector },
+      chrome: { runtime: { sendMessage, onMessage: { addListener: vi.fn() } } },
+    });
+    vm.runInContext(fs.readFileSync("extension/jusbr/portal.js", "utf8"), context);
+    const settings = [{ oab_uf: "SP", oab_number: "1" }];
+    const first = context.scan({ owner, settings });
+    await vi.advanceTimersByTimeAsync(1);
+    const reports = messages.filter((m) => m.type === "PORTAL_STATUS").length;
+    const duplicate = await context.scan({ owner, settings });
+    expect(duplicate.inProgress).toBe(true);
+    expect(messages.filter((m) => m.type === "PORTAL_STATUS")).toHaveLength(reports);
+    await vi.advanceTimersByTimeAsync(15000);
+    expect((await first).ok).toBe(false);
+    finishCheckpoint({ ok: true, checkpoint: null });
+    await Promise.resolve();
+    expect(collector).not.toHaveBeenCalled();
+    sendMessage.mockImplementation(async () => ({ ok: true, checkpoint: null }));
+    expect((await context.scan({ owner, settings })).ok).toBe(true);
+    expect(collector).toHaveBeenCalledOnce();
+  });
+  it("compartilha uma busca em curso sem disparar outro coletor", async () => {
+    let finishScan: any;
+    const state = { owner, settings: [], queue: [] };
+    const query = vi.fn(async () => [{ id: 7, url: "https://portaldeservicos.pdpj.jus.br/central-comunicacoes" }]);
+    const sendMessage = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          finishScan = resolve;
+        }),
+    );
+    const context = vm.createContext({
+      Date,
+      Promise,
+      URL,
+      setTimeout,
+      importScripts: () => {},
+      JusbrCore: core(),
+      chrome: {
+        storage: { local: { get: async () => state, set: vi.fn() } },
+        tabs: { query, sendMessage },
+        action: { setBadgeText: vi.fn() },
+        alarms: { onAlarm: { addListener: vi.fn() } },
+        runtime: { onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
+      },
+    });
+    vm.runInContext(fs.readFileSync("extension/jusbr/background.js", "utf8"), context);
+    const first = context.scan();
+    const duplicate = context.scan();
+    expect(duplicate).toBe(first);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(query).toHaveBeenCalledOnce();
+    expect(sendMessage).toHaveBeenCalledOnce();
+    finishScan({ ok: true });
+    await first;
+    const next = context.scan();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    finishScan({ ok: true });
+    await next;
+  });
+
+  it("prioriza a Central sobre a aba inicial e abre a Central quando só há home", async () => {
+    const state: any = { owner, settings: [], queue: [], tabId: 1, origin: "https://wnevesbox.com" };
+    const tabs: any[] = [
+      { id: 7, url: "https://portaldeservicos.pdpj.jus.br/home" },
+      { id: 8, url: "https://portaldeservicos.pdpj.jus.br/central-comunicacoes" },
+    ];
+    const sendMessage = vi.fn(async () => ({ ok: true }));
+    const update = vi.fn(async () => ({}));
+    const context = vm.createContext({
+      Date,
+      Promise,
+      URL,
+      setTimeout,
+      importScripts: () => {},
+      JusbrCore: core(),
+      chrome: {
+        storage: { local: { get: async () => ({ ...state }), set: async (v: any) => Object.assign(state, v) } },
+        tabs: { query: async () => tabs, get: async () => ({ url: state.origin }), sendMessage, update },
+        action: { setBadgeText: vi.fn() },
+        alarms: { onAlarm: { addListener: vi.fn() } },
+        runtime: { onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
+      },
+    });
+    vm.runInContext(fs.readFileSync("extension/jusbr/background.js", "utf8"), context);
+    await context.scan();
+    expect(sendMessage).toHaveBeenCalledWith(8, expect.objectContaining({ type: "SCAN" }));
+    tabs.splice(1);
+    sendMessage.mockClear();
+    await context.scan();
+    expect(update).toHaveBeenCalledWith(7, { url: "https://portaldeservicos.pdpj.jus.br/central-comunicacoes" });
+    expect(sendMessage.mock.calls.some((args: any) => args[1]?.type === "SCAN")).toBe(false);
+    await context.scan();
+    expect(update).toHaveBeenCalledOnce();
   });
 });
