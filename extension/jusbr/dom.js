@@ -206,12 +206,12 @@ const JusbrDom = (() => {
         if (!evidence || (started && completed && !loading())) {
           if (evidence) evidence.validate();
           assertNotTruncated();
-          if (evidence?.prepare && !evidence.prepare()) {
-            stable = "";
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            continue;
-          }
           try {
+            if (evidence?.prepare && !evidence.prepare()) {
+              stable = "";
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              continue;
+            }
             const result = read(evidence?.period);
             if (accept(result)) {
               if (stable !== result.signature) {
@@ -276,6 +276,11 @@ const JusbrDom = (() => {
         let resetting = false;
         const prepare = () => {
           if (loading()) return false;
+          // A valid first-page counter needs no return button. During repaint,
+          // keep waiting; an unknown response still cannot certify empty coverage.
+          try {
+            if (range().start === 1) return true;
+          } catch {}
           if (!resetting) {
             const first = button("Primeira página");
             resetting = true;
