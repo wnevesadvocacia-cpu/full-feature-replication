@@ -23,20 +23,30 @@ export function JusbrExtension({
   );
   const [batchNotice, setBatchNotice] = useState("");
   const paired = useRef<string | null>(null);
-  const { data: maintenancePending = false } = useQuery({
-    queryKey: ["jusbr-maintenance", user?.id],
+  const { data: reconciliationState, error: reconciliationStateError } = useQuery({
+    queryKey: ["jusbr-reconciliation-state", user?.id],
     enabled: !!user,
     queryFn: async () => {
-      if (!user) return false;
-      const { data, error } = await supabase
-        .from("jusbr_batches")
-        .select("id")
-        .eq("user_id", user.id)
-        .in("status", ["queued", "running"])
-        .or("error.ilike.%503%,error.ilike.%manuten%")
-        .limit(1);
-      if (error) throw error;
-      return !!data?.length;
+      if (!user) return { pending: false, maintenance: false };
+      const [queue, latest] = await Promise.all([
+        supabase
+          .from("jusbr_batches")
+          .select("id")
+          .eq("user_id", user.id)
+          .in("status", ["queued", "running", "starting"])
+          .limit(1),
+        supabase
+          .from("sync_logs")
+          .select("status,error_message")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (queue.error) throw queue.error;
+      if (latest.error) throw latest.error;
+      const maintenance = latest.data?.status !== "success" && /\bDJEN\s+503\b/i.test(latest.data?.error_message || "");
+      return { pending: !!queue.data?.length, maintenance };
     },
     refetchInterval: 30000,
   });
@@ -283,10 +293,19 @@ export function JusbrExtension({
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
         <div className="space-y-1">
           <p>{notice}</p>
-          {maintenancePending && (
-            <p className="text-amber-700 dark:text-amber-400">
-              Reconferência DJEN pendente após manutenção do serviço. Lotes preservados; nova tentativa automática.
+          {reconciliationState?.pending && (
+            <p
+              className={
+                reconciliationState.maintenance ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground"
+              }
+            >
+              {reconciliationState.maintenance
+                ? "DJEN temporariamente indisponível. Lotes preservados; nova tentativa automática."
+                : "Reconferência DJEN na fila. Lotes preservados; processamento automático."}
             </p>
+          )}
+          {reconciliationStateError && (
+            <p className="text-destructive">Não foi possível atualizar o estado da fila DJEN.</p>
           )}
         </div>
       </div>
