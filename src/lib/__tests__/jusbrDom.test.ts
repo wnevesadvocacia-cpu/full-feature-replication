@@ -106,6 +106,59 @@ afterEach(() => {
 const setting = { oab_uf: "SP", oab_number: "290702" };
 const period = { start: "2026-10-01", end: "2026-10-08" };
 describe("adaptador Diário com controles relatados", () => {
+  it("aceita primeira página pelo contador validado sem exigir botão de retorno desnecessário", async () => {
+    const { dom, search, begin, forbidden } = fixture(3, 3);
+    document.querySelector('[aria-label="Primeira página"]')!.remove();
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => bar.remove(), 100);
+    };
+    await dom.create(setting, period).search({ page: 1 });
+    expect(dom.read(period)).toMatchObject({ start: 1, endIndex: 3, total: 3, end: true });
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+  it("aguarda reconstrução do paginador após loading antes de retornar à primeira página", async () => {
+    const { dom, next, search, begin, render, forbidden } = fixture();
+    next.click();
+    next.click();
+    const first = document.querySelector<HTMLButtonElement>('[aria-label="Primeira página"]')!;
+    const click = vi.spyOn(first, "click");
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => {
+        render();
+        first.remove();
+        bar.remove();
+        setTimeout(() => document.body.append(first), 500);
+      }, 100);
+    };
+    await dom.create(setting, period).search({ page: 1 });
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(dom.read(period).start).toBe(1);
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+  it("paginador ausente em retorno desconhecido não certifica vazio nem emite lotes", async () => {
+    const { dom, core, search, begin } = fixture();
+    const emit = vi.fn();
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => {
+        document.querySelector("tbody")!.replaceChildren();
+        document.querySelector('[role="status"]')!.textContent = "0 - 0 / 0";
+        document.querySelector('[aria-label="Primeira página"]')!.remove();
+        bar.remove();
+      }, 100);
+    };
+    const assertion = expect(
+      core.collect(dom.create(setting, period), { run: crypto.randomUUID(), page: 1, seen: [], period }, vi.fn(), emit),
+    ).rejects.toThrow("vazio não confirmado");
+    await vi.advanceTimersByTimeAsync(1000);
+    vi.setSystemTime(Date.now() + 120000);
+    await vi.advanceTimersByTimeAsync(200);
+    await assertion;
+    expect(emit).not.toHaveBeenCalled();
+  });
+
   it("inicia a primeira pesquisa sem tabela anterior e valida a resposta recebida", async () => {
     const { dom, search, begin, render, forbidden } = fixture();
     const table = document.querySelector("#diario_justica_tabela")!;
