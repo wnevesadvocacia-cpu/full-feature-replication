@@ -22,7 +22,7 @@ import { captureException } from "../_shared/sentry.ts";
 import { detectDeadline } from "../_shared/legalDeadlines.ts";
 import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from "../_shared/cnjCalendar.ts";
 import { assertTribunalHtml, readDjenPage, recordCoverageIssue } from "../_shared/djenCoverage.ts";
-import { pendingDjenEntries, djenIdentityAliases } from "../_shared/djenImport.ts";
+import { pendingDjenEntries, djenIdentityAliases, djenRequiresCooldown } from "../_shared/djenImport.ts";
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
 // Se um item falhar na validação, sync marca status='partial', preserva
@@ -1646,16 +1646,16 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   if (recentRuns?.length)
-    return new Response(JSON.stringify({ retryable: true, error: "DJEN ocupado; lote aguardando na fila." }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ retryable: true, error: "DJEN ocupado ou aguardando retentativa; lote preservado." }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   const { data: leaseAcquired, error: leaseError } = await supabase.rpc("acquire_djen_work", { _token: runId });
   if (leaseError || leaseAcquired !== true)
-    return new Response(JSON.stringify({ retryable: true, error: "DJEN ocupado; lote aguardando na fila." }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ retryable: true, error: "DJEN ocupado ou aguardando retentativa; lote preservado." }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   let lockAcquired = false;
   if (!isManual) {
     const { data: lockOk } = await supabase.rpc("try_acquire_cron_lock", { _job_name: "sync-djen" });
@@ -1689,6 +1689,7 @@ Deno.serve(async (req) => {
   }
   const cronRunId = cronRow.id;
 
+  let retainLease = false;
   const runSync = async (): Promise<Response> => {
     try {
       const authHeader = req.headers.get("Authorization");
@@ -1729,6 +1730,10 @@ Deno.serve(async (req) => {
         for (const r of batchResults) {
           if (r.status === "fulfilled") results.push(r.value);
           else results.push({ status: "failed", error: String(r.reason) });
+        }
+        if (results.some((result) => djenRequiresCooldown(result.error))) {
+          retainLease = true;
+          break;
         }
       }
 
@@ -1803,6 +1808,7 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } catch (e: any) {
+      retainLease = retainLease || djenRequiresCooldown(e?.message || e);
       console.error("sync-djen fatal:", e);
       await captureException(e, { fn: "sync-djen", extra: { run_id: runId } });
       if (cronRunId) {
@@ -1853,7 +1859,8 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     } finally {
-      await supabase.rpc("release_djen_work", { _token: runId });
+      // On DJEN outages, the existing 8-minute lease expires naturally.
+      if (!retainLease) await supabase.rpc("release_djen_work", { _token: runId });
       if (lockAcquired) {
         await supabase.rpc("release_cron_lock", { _job_name: "sync-djen" });
       }
