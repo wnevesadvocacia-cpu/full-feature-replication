@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pendingDjenEntries } from "../../../supabase/functions/_shared/djenImport";
+import { pendingDjenEntries, djenRequiresCooldown } from "../../../supabase/functions/_shared/djenImport";
 import { djenFailureSource } from "../djenHealth";
 
 describe("DJEN processing and failure attribution", () => {
@@ -37,5 +37,16 @@ describe("DJEN processing and failure attribution", () => {
   });
   it("does not hide an incomplete DJEN query among supplemental failures", () => {
     expect(djenFailureSource("COBERTURA INCOMPLETA: Consulta DJEN interrompida | TJSP falhou")).toBe("Sincronização");
+  });
+});
+
+describe("DJEN outage cooldown", () => {
+  it.each([429, 502, 503, 504])("retains the shared expiring lease after DJEN %s", (status) => {
+    expect(djenRequiresCooldown(`DJEN ${status} (pag 1): Sistema em manutencao`)).toBe(true);
+  });
+  it("does not pause DJEN because a supplemental court returned 503", () => {
+    expect(djenRequiresCooldown("COBERTURA INCOMPLETA: TJSP HTTP 503")).toBe(false);
+    expect(djenRequiresCooldown("Consulta DJEN interrompida: estrutura inválida")).toBe(false);
+    expect(djenRequiresCooldown(null)).toBe(false);
   });
 });
