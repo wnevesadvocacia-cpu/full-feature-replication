@@ -208,7 +208,11 @@ const JusbrDom = (() => {
           try {
             // Inspect row dates before interpreting truncation: visible values
             // and calendar selection do not prove server-side filter application.
-            read(evidence?.period);
+            try { read(evidence?.period); } catch (error) {
+              if (/obsoleto/.test(error.message)) throw error;
+              // Repaint can temporarily invalidate the range; allow the existing
+              // first-page recovery, then require a complete valid read below.
+            }
             assertNotTruncated();
             if (evidence?.prepare && !evidence.prepare()) {
               stable = "";
