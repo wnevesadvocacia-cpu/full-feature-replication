@@ -772,7 +772,7 @@ function describeDroppedItem(raw: any, motivo: string) {
 async function fetchDjen(
   oab: string,
   uf: string,
-  lawyerName?: string | null,
+  lawyerName: string | null | undefined,
   processNumbers: string[],
   ctx: SyncContext,
 ): Promise<{ items: DjenItem[]; attempts: number; incomplete: boolean }> {
