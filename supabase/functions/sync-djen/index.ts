@@ -18,6 +18,7 @@ import { z } from "https://esm.sh/zod@3.23.8";
 import { corsHeadersFor, handleCorsPreflight, rejectIfDisallowedOrigin } from "../_shared/cors.ts";
 import { rejectIfCsrfBlocked } from "../_shared/csrf.ts";
 import { captureException } from "../_shared/sentry.ts";
+import { sendLoggedEmail } from "../_shared/transactional-email-templates/send-logged-email.ts";
 // PR2 — edge unificada: detectDeadline canônico (mesma engine do frontend).
 import { detectDeadline } from "../_shared/legalDeadlines.ts";
 import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from "../_shared/cnjCalendar.ts";
@@ -1356,38 +1357,21 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
           const userEmail = userEmailById.get(targetUserId) ?? null;
           if (isUrgent && userEmail && deadline) {
             const diasUteis = businessDaysUntil(deadline, tribunal);
-            const subject = `🚨 PRAZO CRÍTICO: ${diasUteis} dia(s) útil(eis) — vence ${deadline}`;
-            const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#fff;color:#111;padding:24px">
-<div style="max-width:560px;margin:0 auto;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
-  <div style="background:#dc2626;color:#fff;padding:14px 20px;font-weight:bold;font-size:16px">⚠️ Prazo processual crítico</div>
-  <div style="padding:20px">
-    <p style="margin:0 0 12px"><strong>Tribunal:</strong> ${it.siglaTribunal || "—"}</p>
-    <p style="margin:0 0 12px"><strong>Processo:</strong> ${it.numero_processo || "—"}</p>
-    <p style="margin:0 0 12px"><strong>Vencimento:</strong> ${deadline} (${diasUteis} dia(s) útil(eis) restante(s))</p>
-    <p style="margin:0 0 12px"><strong>OAB:</strong> ${row.oab_number}/${row.oab_uf}</p>
-    <hr style="border:none;border-top:1px solid #e5e7eb;margin:16px 0">
-    <p style="margin:0 0 12px;font-size:13px;color:#374151">Conteúdo:</p>
-    <p style="margin:0;font-size:13px;color:#111;white-space:pre-wrap">${cleanText.slice(0, 1500).replace(/[<>&]/g, (c) => (({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }) as any)[c])}</p>
-    <p style="margin:24px 0 0;font-size:12px;color:#6b7280">Acesse o sistema para tratar esta intimação.</p>
-  </div>
-</div></body></html>`;
-            const messageId = `djen-urgent-${insertedRow.id}`;
             try {
-              await supabase.rpc("enqueue_email", {
-                queue_name: "transactional_emails",
-                payload: {
-                  to: userEmail,
-                  subject,
-                  html,
-                  label: "prazo-critico-djen",
-                  purpose: "transactional",
-                  message_id: messageId,
-                  idempotency_key: messageId,
-                  queued_at: new Date().toISOString(),
+              await sendLoggedEmail(
+                (row) => supabase.from("email_send_log").insert(row),
+                "prazo-critico-djen", userEmail,
+                {
+                  idempotencyKey: `djen-urgent-${insertedRow.id}`,
+                  templateData: {
+                    tribunal: it.siglaTribunal || "—", process: it.numero_processo || "—",
+                    deadline, days: diasUteis, oab: `${row.oab_number}/${row.oab_uf}`,
+                    content: cleanText.slice(0, 1500),
+                  },
                 },
-              });
-            } catch (mailErr) {
-              console.error("enqueue urgent email failed:", mailErr);
+              );
+            } catch {
+              console.error("Urgent email send failed");
             }
           }
         } else if (error && error.code !== "23505") {
