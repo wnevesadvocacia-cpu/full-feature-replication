@@ -1,4 +1,5 @@
 - [x] Preparar extensão local para conferência após login no Jus.br, sem ciência automática; pacote e download validados, 22 testes passaram, leitura do Diário e exclusão do Domicílio verificadas em página de teste. Não declarar cobertura autenticada.
+- [ ] Atualizar os envios por e-mail anteriormente enfileirados, preservar provedores externos e validar sem publicar.
 - [ ] Validar compatibilidade e permissão de leitura no portal real — bloqueado: requer extensão instalada no navegador do titular, login autorizado com token e verificação das regras do portal; sessão e token não são acessados pelo WnevesBox.
 - [x] Considerar o ícone indicado pelo usuário como entrada; instrução aponta “Minhas comunicações processuais” → “Diário da Justiça”, sem clicar em atos de ciência.
 - [x] Avaliar login Jus.br dentro do sistema — botão externo existente; login incorporado não transfere sessão nem habilita integração autorizada.
