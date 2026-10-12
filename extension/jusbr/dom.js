@@ -102,7 +102,7 @@ const JusbrDom = (() => {
       if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== iso)
         throw Error("Data de linha inválida; cobertura interrompida.");
       if (period && (iso < period.start || iso > period.end))
-        throw Error("Resultado obsoleto: data da linha fora da janela pesquisada.");
+        throw Error(`Resultado obsoleto: data ${iso} fora da janela ${period.start} a ${period.end}. Filtro aplicado pelo portal não comprovado, mesmo com campos preenchidos ou calendário selecionado${truncated() ? '; aviso dos 100 primeiros também presente' : ''}. Nenhum lote desta resposta enviado; cobertura incompleta e retomada preservada.`);
       rows.push({ cnj, date: iso, court });
     }
     if (rows.length !== r.end - r.start + 1 || rows.length > 100)
@@ -205,8 +205,11 @@ const JusbrDom = (() => {
         }
         if (!evidence || (started && completed && !loading())) {
           if (evidence) evidence.validate();
-          assertNotTruncated();
           try {
+            // Inspect row dates before interpreting truncation: visible values
+            // and calendar selection do not prove server-side filter application.
+            read(evidence?.period);
+            assertNotTruncated();
             if (evidence?.prepare && !evidence.prepare()) {
               stable = "";
               await new Promise((resolve) => setTimeout(resolve, 100));
@@ -221,7 +224,10 @@ const JusbrDom = (() => {
               if (Date.now() - since >= 500) return result;
             } else stable = "";
           } catch (e) {
-            if (/sessão|Estrutura|Selecione|obsoleto/.test(e.message)) throw e;
+            if (e.code === "TRUNCATED" || /sessão|Estrutura|Selecione|obsoleto/.test(e.message)) {
+              if (/obsoleto/.test(e.message)) await report(`Conferência interrompida: ${e.message}`);
+              throw e;
+            }
             reason = e.message;
             stable = "";
           }
@@ -301,8 +307,9 @@ const JusbrDom = (() => {
         for (let page = 1; page < state.page; page++) await this.next();
       },
       async read() {
+        const result = read(period);
         assertNotTruncated();
-        return read(period);
+        return result;
       },
       async next() {
         const before = read(period);

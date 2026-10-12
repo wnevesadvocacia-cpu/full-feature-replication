@@ -388,6 +388,22 @@ describe("adaptador Diário com controles relatados", () => {
     await assertion;
     expect(emit).not.toHaveBeenCalled();
   }, 25000);
+  it("prioriza diagnóstico de filtro não comprovado sobre truncamento sem emitir lote", async () => {
+    const { dom, core, search, begin, render } = fixture(100, 10);
+    const report = vi.fn(); const emit = vi.fn(); const save = vi.fn();
+    const day = { start: "2026-10-08", end: "2026-10-08" };
+    search.onclick = () => {
+      const bar = begin();
+      const warning = document.createElement("p");
+      warning.textContent = "A pesquisa retornou muitos resultados e estamos exibindo os 100 primeiros. Caso deseje refinar a busca, favor utilizar outros filtros.";
+      document.body.append(warning);
+      setTimeout(() => { render("05/10/2026"); bar.remove(); }, 100);
+    };
+    await expect(core.collect(dom.create(setting, day, report), { run: "outside", page: 1, seen: [], period: day }, save, emit)).rejects.toThrow("Filtro aplicado pelo portal não comprovado");
+    expect(report).toHaveBeenCalledWith(expect.stringContaining("data 2026-10-05 fora da janela 2026-10-08 a 2026-10-08"));
+    expect(report).toHaveBeenCalledWith(expect.stringContaining("aviso dos 100 primeiros também presente"));
+    expect(emit).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+  });
   it("aguarda saída dos dados antigos, transição e resposta estável dentro do dia", async () => {
     const { dom, search, render, begin } = fixture();
     const day = { start: "2026-10-08", end: "2026-10-08" };
