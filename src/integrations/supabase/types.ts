@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.4"
   }
   public: {
     Tables: {
@@ -322,6 +322,24 @@ export type Database = {
           last_fail_at?: string | null
           last_ok_at?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      djen_work_lease: {
+        Row: {
+          expires_at: string
+          id: number
+          token: string
+        }
+        Insert: {
+          expires_at: string
+          id: number
+          token: string
+        }
+        Update: {
+          expires_at?: string
+          id?: number
+          token?: string
         }
         Relationships: []
       }
@@ -1012,6 +1030,7 @@ export type Database = {
       }
       jusbr_batches: {
         Row: {
+          attempts: number
           coverage: Json
           created_at: string
           djen_run_id: string | null
@@ -1020,12 +1039,14 @@ export type Database = {
           inserted: number
           notified: boolean
           pending: number
+          retry_after: string | null
           rows: Json
           status: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          attempts?: number
           coverage?: Json
           created_at?: string
           djen_run_id?: string | null
@@ -1034,12 +1055,14 @@ export type Database = {
           inserted?: number
           notified?: boolean
           pending?: number
+          retry_after?: string | null
           rows?: Json
           status?: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          attempts?: number
           coverage?: Json
           created_at?: string
           djen_run_id?: string | null
@@ -1048,6 +1071,7 @@ export type Database = {
           inserted?: number
           notified?: boolean
           pending?: number
+          retry_after?: string | null
           rows?: Json
           status?: string
           updated_at?: string
@@ -1882,6 +1906,7 @@ export type Database = {
         Args: { _d: string; _tribunal?: string }
         Returns: string
       }
+      acquire_djen_work: { Args: { _token: string }; Returns: boolean }
       auth_user_exists_by_email: { Args: { _email: string }; Returns: boolean }
       calculate_deadline: {
         Args: {
@@ -2030,6 +2055,7 @@ export type Database = {
         Returns: Json
       }
       release_cron_lock: { Args: { _job_name: string }; Returns: boolean }
+      release_djen_work: { Args: { _token: string }; Returns: undefined }
       reset_mfa_grace: {
         Args: { _days?: number; target_user_id: string }
         Returns: Json
