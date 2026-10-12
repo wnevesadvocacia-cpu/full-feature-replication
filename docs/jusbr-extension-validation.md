@@ -33,3 +33,6 @@ API Domicílio não implementada: credenciamento e operações sem ciência prec
 
 ## Verificação desta entrega
 37 testes focados passaram (18 DOM, 13 automação, 6 metadados), incluindo ciclo iniciado no clique, espera de 90s, timeout 120s, resultados idênticos legítimos, ausência de ciclo, filtros alterados, datas fora da janela, aviso exato dos 100 primeiros, segmentação 7d, divisão recursiva, dia único truncado e retomada com mesmo ID (inclusive legado). Testes usam mocks/fixtures, não sessão Jus.br. Nenhum lote real confirmado; cobertura integral e integração ponta a ponta não comprovadas. v0.3.3 gerada para download, sem publicar nesta entrega.
+
+## Evidência adicional — 12/10/2026
+Fill+Tab e calendário Período (08/10 duas vezes, Selecionar) não comprovaram filtro aplicado: Buscar manteve datas 05/10 e 06/10 e aviso dos 100 primeiros. Valor visível/ng-valid e calendário selecionado não são evidência de filtragem efetiva. O diagnóstico de data fora da janela tem prioridade sobre truncamento e informa data observada, janela solicitada, aviso100 coexistente e ausência de envio desta resposta. PORTAL_STATUS usa o bridge existente para Intimações. Adaptador não plenamente validado; nenhum novo endpoint, sessão ou credencial acessados. 51 testes focados passaram com limite de teste de 20s; compilação automática OK. ZIP atual 0.3.7 reempacotado, sem publicação.

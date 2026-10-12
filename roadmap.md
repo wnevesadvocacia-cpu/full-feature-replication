@@ -21,3 +21,5 @@
 - [x] Usar placeholders confirmados e input/change/blur; rejeitar dados antigos, idênticos reapresentados e fora da janela. 27 testes focados passaram; ZIP v0.3.2 atualizado, sem instalação/publicação. Sinal real de carregamento/conclusão e preenchimento aceito pelo portal permanecem pendentes.
 
 - [x] Corrigir v0.3.3: ciclo #is_loading até 120s, dados idênticos com filtros validados, segmentos 7d e divisão por aviso dos 100 primeiros; status e Conferir agora em Intimações; preservar filas/ack/IDs legados. 37 testes focados passaram; pacote atualizado, sem publicar.
+
+- [x] Priorizar diagnóstico de filtro não comprovado quando datas fora da janela coexistem com aviso100; manter rejeição, bridge de status e retomadas. 51 testes focados passaram; validação real do filtro/importação continua pendente.
