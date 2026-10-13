@@ -347,6 +347,7 @@ describe("adaptador Diário com controles relatados", () => {
     await assertion;
   }, 25000);
   it("observa ciclo síncrono iniciado no clique e espera conclusão longa até 120s", async () => {
+    vi.useRealTimers();
     vi.useFakeTimers({ shouldAdvanceTime: false });
     const { dom, search, begin } = fixture();
     const report = vi.fn();
