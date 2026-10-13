@@ -360,7 +360,7 @@ describe("Jus.br automação segura", () => {
       },
       JusbrDom: { scope: vi.fn(), create: vi.fn() },
       JusbrCore: { collectSegments: collector },
-      chrome: { runtime: { sendMessage, onMessage: { addListener: vi.fn() } } },
+      chrome: { runtime: { sendMessage, getManifest: () => ({ version: "0.3.9" }), onMessage: { addListener: vi.fn() } } },
     });
     vm.runInContext(fs.readFileSync("extension/jusbr/portal.js", "utf8"), context);
     const settings = [{ oab_uf: "SP", oab_number: "1" }];
