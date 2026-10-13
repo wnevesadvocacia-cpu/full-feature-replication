@@ -35,4 +35,4 @@
 Jus.br v0.3.11: suportar a variante pública verificada de 1–10 resultados sem paginator, com reset e validação de filtros complementares/página antes de Buscar e diagnóstico preciso do timeout. Confirmar novo lote persistido no teste real; vazio e cobertura integral permanecem pendentes.
 
 - [x] Validar entrega v0.3.11 e sincronizar ZIP/base64: 73 testes focados passaram e compilação automática OK; oito fontes correspondentes. Sem publicação; novo lote real, vazio e integração ponta a ponta pendentes.
-- [ ] Aplicar v0.3.12: aba READY exata, watchdog 150s sem progresso validado, rejeição de coletor abandonado e pacote/testes sincronizados; sem publicar ou acessar o portal.
+- [x] Aplicar v0.3.12: aba READY exata, watchdog 150s sem progresso validado, rejeição de coletor abandonado e pacote sincronizado; 77 testes passaram e compilação automática OK. Cinco fontes preservadas byte a byte; sem publicar ou acessar o portal. Novo lote real permanece bloqueado pela validação no navegador do titular.
