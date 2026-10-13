@@ -347,19 +347,20 @@ describe("adaptador Diário com controles relatados", () => {
     await assertion;
   }, 25000);
   it("observa ciclo síncrono iniciado no clique e espera conclusão longa até 120s", async () => {
-    vi.useRealTimers();
-    vi.useFakeTimers({ shouldAdvanceTime: false });
     const { dom, search, begin } = fixture();
     const report = vi.fn();
+    let bar: HTMLElement | null = null;
     search.onclick = () => {
-      const bar = begin();
-      setTimeout(() => bar.remove(), 90000);
+      bar = begin();
     };
     const done = vi.fn();
     const pending = dom.create(setting, period, report).search({ page: 1 }).then(done);
-    await vi.advanceTimersByTimeAsync(89000);
+    await vi.advanceTimersByTimeAsync(400);
+    vi.setSystemTime(Date.now() + 89000);
+    await vi.advanceTimersByTimeAsync(100);
     expect(done).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(2000);
+    bar?.remove();
+    await vi.advanceTimersByTimeAsync(1600);
     await pending;
     expect(done).toHaveBeenCalledTimes(1);
     expect(report).toHaveBeenCalled();
@@ -368,7 +369,9 @@ describe("adaptador Diário com controles relatados", () => {
     const { dom, search, begin } = fixture();
     search.onclick = begin;
     const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow("120s");
-    await vi.advanceTimersByTimeAsync(122000);
+    await vi.advanceTimersByTimeAsync(400);
+    vi.setSystemTime(Date.now() + 120000);
+    await vi.advanceTimersByTimeAsync(200);
     await assertion;
   }, 25000);
   it("rejeita filtros alterados durante loading", async () => {

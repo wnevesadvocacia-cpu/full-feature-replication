@@ -207,12 +207,12 @@ const JusbrDom = (() => {
       let reason = "";
       while (Date.now() < deadline) {
         inspect();
-        guard?.();
         if (evidence && Date.now() - lastStatus >= 10000) {
           report(`Aguardando busca: ${started ? "carregamento observado" : "aguardando #is_loading"}; limite 120s.`);
           lastStatus = Date.now();
         }
         if (!loading() && (!evidence || (started && completed))) {
+          guard?.();
           try {
             if (evidence?.prepare && !evidence.prepare()) {
               stable = "";
