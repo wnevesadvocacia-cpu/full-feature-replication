@@ -36,3 +36,6 @@ API Domicílio não implementada: credenciamento e operações sem ciência prec
 
 ## Evidência adicional — 12/10/2026
 Fill+Tab e calendário Período (08/10 duas vezes, Selecionar) não comprovaram filtro aplicado: Buscar manteve datas 05/10 e 06/10 e aviso dos 100 primeiros. Valor visível/ng-valid e calendário selecionado não são evidência de filtragem efetiva. O diagnóstico de data fora da janela tem prioridade sobre truncamento e informa data observada, janela solicitada, aviso100 coexistente e ausência de envio desta resposta. PORTAL_STATUS usa o bridge existente para Intimações. Adaptador não plenamente validado; nenhum novo endpoint, sessão ou credencial acessados. 51 testes focados passaram com limite de teste de 20s; compilação automática OK. ZIP atual 0.3.7 reempacotado, sem publicação.
+
+## v0.3.8 — 13/10/2026
+Evidência real: conferência interrompida com "Controle Primeira página ausente ou ambíguo". O botão Primeira página passa a ser opcional: só é usado se presente e habilitado quando a nova pesquisa mantém página > 1; na ausência, o motivo exibido é o do contador (vazio não confirmado/contador inválido). Cobertura continua falhando fechada; nenhum lote enviado sem primeira página comprovada pelo contador.
