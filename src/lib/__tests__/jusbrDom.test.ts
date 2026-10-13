@@ -102,10 +102,117 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
   document.body.innerHTML = "";
+  document.head.querySelectorAll('script').forEach(el => el.remove());
 });
 const setting = { oab_uf: "SP", oab_number: "290702" };
 const period = { start: "2026-10-01", end: "2026-10-08" };
+function setSupplemental(panel: Element, selector: string, value: string) {
+  const field = panel.querySelector<HTMLInputElement>(selector);
+  if (!field) throw Error('fixture');
+  field.value = value;
+}
+function onePageFixture(size = 10) {
+  const f = fixture(size, size);
+  const root = document.createElement('app-diario-justica');
+  const form = document.querySelector('form');
+  const table = document.querySelector('#diario_justica_tabela');
+  if (!form || !table) throw Error('fixture');
+  root.append(form, table);
+  document.body.append(root);
+  const script = document.createElement('script');
+  script.src = 'https://portaldeservicos.pdpj.jus.br/main.1da43b09b020e9bd.js';
+  document.head.append(script);
+  const panel = document.createElement('div');
+  panel.id = 'filtro-diario-justica';
+  panel.innerHTML = '<input placeholder="Selecione um Tribunal" value="TJSP"><input placeholder="Selecione uma Classe Judicial" value="Classe"><input name="partes" value="Pessoa"><button type="button">Limpar filtros</button>';
+  root.append(panel);
+  const reset = vi.fn(() => panel.querySelectorAll('input').forEach(el => el.value = ''));
+  const resetButton = panel.querySelector('button');
+  if (!resetButton) throw Error('fixture');
+  resetButton.onclick = reset;
+  document.querySelectorAll('[role="status"],[aria-label="Primeira página"],[aria-label="anterior"],[aria-label="próxima"],[aria-label="Última página"]').forEach(el => el.remove());
+  f.search.onclick = () => { const bar = f.begin(); setTimeout(() => bar.remove(), 100); };
+  return { ...f, root, script, panel, reset };
+}
+async function expireSearch(pending: Promise<unknown>, message: string | RegExp) {
+  const assertion = expect(pending).rejects.toThrow(message);
+  await vi.advanceTimersByTimeAsync(1000);
+  vi.setSystemTime(Date.now() + 120000);
+  await vi.advanceTimersByTimeAsync(200);
+  await assertion;
+}
 describe("adaptador Diário com controles relatados", () => {
+  it.each([1, 10])('coleta %i linhas sem paginator no build verificado após reset e ciclo, mantendo atos distintos', async size => {
+    const { dom, core, reset, forbidden } = onePageFixture(size);
+    const emit = vi.fn(); const save = vi.fn();
+    await core.collect(dom.create(setting, period), { run: 'single', page: 1, seen: [], period }, save, emit);
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(emit).toHaveBeenCalledTimes(1);
+    expect(emit.mock.calls[0][0].rows).toHaveLength(size);
+    expect(emit.mock.calls[0][0].coverage.kind).toBe('page');
+    expect(save.mock.calls.at(-1)?.[0].finished).toBe(true);
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+  it('não presume página única antes da pesquisa comprovada nem em leitura genérica', async () => {
+    const { dom } = onePageFixture();
+    expect(() => dom.read(period)).toThrow('contador');
+    await expect(dom.create(setting, period).read()).rejects.toThrow('contador');
+  });
+  it('não aceita uma página sem ciclo mesmo após limpar filtros', async () => {
+    const { dom, search, core } = onePageFixture(); const emit = vi.fn();
+    search.onclick = () => {};
+    await expireSearch(core.collect(dom.create(setting, period), { run: 'r', page: 1, seen: [] }, vi.fn(), emit), 'sem ciclo');
+    expect(emit).not.toHaveBeenCalled();
+  });
+  it('mantém contador obrigatório se o build público for desconhecido', async () => {
+    const { dom, script } = onePageFixture(); script.src = '/main.unknown.js';
+    await expireSearch(dom.create(setting, period).search({ page: 1 }), /Ciclo de carregamento concluído.*contador/);
+  });
+  it('mantém contador obrigatório com paginator ainda presente', async () => {
+    const { dom, root } = onePageFixture(); root.append(document.createElement('mat-paginator'));
+    await expireSearch(dom.create(setting, period).search({ page: 1 }), 'contador');
+  });
+  it('não infere página única com onze linhas', async () => {
+    const { dom } = onePageFixture(11);
+    await expireSearch(dom.create(setting, period).search({ page: 1 }), 'contador');
+  });
+  it('não infere vazio pela ausência de contador e linhas', async () => {
+    const { dom } = onePageFixture(); document.querySelector('tbody')?.replaceChildren();
+    await expireSearch(dom.create(setting, period).search({ page: 1 }), 'vazio não confirmado');
+  });
+  it('exige reset público identificável para limpar paginação e filtros anteriores', async () => {
+    const { dom, panel, search } = onePageFixture(); panel.querySelector('button')?.remove();
+    const click = vi.spyOn(search, 'click');
+    await expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow('Limpar filtros');
+    expect(click).not.toHaveBeenCalled();
+  });
+  it('interrompe filtro complementar alterado durante busca de página única', async () => {
+    const { dom, panel, search, begin } = onePageFixture();
+    search.onclick = () => { const bar = begin(); setSupplemental(panel, 'input', 'TJSP'); setTimeout(() => bar.remove(), 100); };
+    await expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow('Filtros complementares ativos');
+  });
+  it('revalida filtros complementares antes de enviar página única', async () => {
+    const { dom, panel } = onePageFixture(); const adapter = dom.create(setting, period);
+    await adapter.search({ page: 1 }); setSupplemental(panel, 'input[name="partes"]', 'Pessoa');
+    await expect(adapter.read()).rejects.toThrow('Filtros complementares ativos');
+  });
+  it('preserva retomada de página posterior sem convertê-la em uma página única', async () => {
+    const { dom, core } = onePageFixture(); const save = vi.fn(); const emit = vi.fn();
+    await expect(core.collect(dom.create(setting, period), { run: 'legacy', page: 2, seen: [], batchId: 'old', pendingSignature: 'old' }, save, emit)).rejects.toThrow('Retomada exige página posterior');
+    expect(save).not.toHaveBeenCalled(); expect(emit).not.toHaveBeenCalled();
+  });
+  it('rejeita data antiga em resposta sem paginator', async () => {
+    const { dom, core } = onePageFixture(); const emit = vi.fn();
+    const day = { start: '2026-10-08', end: '2026-10-08' };
+    await expect(core.collect(dom.create(setting, day), { run: 'r', page: 1, seen: [] }, vi.fn(), emit)).rejects.toThrow('Resultado obsoleto');
+    expect(emit).not.toHaveBeenCalled();
+  });
+  it('continua rejeitando truncamento exato com contador ausente', async () => {
+    const { dom, core } = onePageFixture(); const emit = vi.fn();
+    const p = document.createElement('p'); p.textContent = 'A pesquisa retornou muitos resultados e estamos exibindo os 100 primeiros. Caso deseje refinar a busca, favor utilizar outros filtros.'; document.body.append(p);
+    await expect(core.collect(dom.create(setting, period), { run: 'r', page: 1, seen: [] }, vi.fn(), emit)).rejects.toMatchObject({ code: 'TRUNCATED' });
+    expect(emit).not.toHaveBeenCalled();
+  });
   it("aceita primeira página pelo contador validado sem exigir botão de retorno desnecessário", async () => {
     const { dom, search, begin, forbidden } = fixture(3, 3);
     document.querySelector('[aria-label="Primeira página"]')!.remove();

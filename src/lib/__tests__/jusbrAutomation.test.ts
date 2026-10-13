@@ -25,13 +25,13 @@ describe("Jus.br automação segura", () => {
       chrome: {
         storage: { local: storage },
         action: { setBadgeText: vi.fn() },
-        runtime: { getManifest: () => ({ version: "0.3.10" }), onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
+        runtime: { getManifest: () => ({ version: "0.3.11" }), onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
         alarms: { onAlarm: { addListener: vi.fn() } },
       },
     });
     vm.runInContext(fs.readFileSync("extension/jusbr/background.js", "utf8"), context);
     await context.status("Recarregue a Central Jus.br.");
-    expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.10] Recarregue a Central Jus.br." }));
+    expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.11] Recarregue a Central Jus.br." }));
     await context.status("[v0.3.9] Conferência interrompida.");
     expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.9] Conferência interrompida." }));
   });
