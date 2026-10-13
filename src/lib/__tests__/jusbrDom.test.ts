@@ -455,6 +455,69 @@ describe("adaptador Diário com controles relatados", () => {
     await vi.advanceTimersByTimeAsync(20100);
     await assertion;
   }, 25000);
+  it("aguarda a tabela atualizar após o fim do loading sem rejeitar linhas antigas transitórias", async () => {
+    const { dom, search, begin, render } = fixture(3, 3);
+    const day = { start: "2026-10-08", end: "2026-10-08" };
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => {
+        bar.remove();
+        setTimeout(() => render("08/10/2026"), 200);
+      }, 100);
+    };
+    await dom.create(setting, day).search({ page: 1 });
+    expect(dom.read(day).rows.every((r: { date: string }) => r.date === day.start)).toBe(true);
+  });
+  it("não aceita avanço enquanto o loading da paginação continua visível", async () => {
+    const { dom, next, begin } = fixture();
+    const adapter = dom.create(setting, period);
+    await adapter.search({ page: 1 });
+    const previous = next.onclick;
+    if (!previous) throw Error("fixture: próxima sem ação");
+    next.onclick = (event) => {
+      previous.call(next, event);
+      const bar = begin();
+      setTimeout(() => bar.remove(), 2000);
+    };
+    const done = vi.fn();
+    const pending = adapter.next().then(done);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(done).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1700);
+    await pending;
+    expect(done).toHaveBeenCalledTimes(1);
+  });
+  it("revalida os filtros antes de emitir a página já pesquisada", async () => {
+    const { dom, forbidden } = fixture();
+    const adapter = dom.create(setting, period);
+    await adapter.search({ page: 1 });
+    const oab = document.querySelector<HTMLInputElement>('[placeholder="UF1234567A ou UF1234567"]');
+    if (!oab) throw Error("fixture: OAB ausente");
+    oab.value = "RJ1";
+    await expect(adapter.read()).rejects.toThrow("Filtros alterados");
+    expect(forbidden).not.toHaveBeenCalled();
+  });
+  it("interrompe mudança de OAB durante a paginação sem emitir a nova página", async () => {
+    const { dom, next } = fixture();
+    const adapter = dom.create(setting, period);
+    await adapter.search({ page: 1 });
+    const previous = next.onclick;
+    if (!previous) throw Error("fixture: próxima sem ação");
+    next.onclick = (event) => {
+      previous.call(next, event);
+      const oab = document.querySelector<HTMLInputElement>('[placeholder="UF1234567A ou UF1234567"]');
+    if (!oab) throw Error("fixture: OAB ausente");
+    oab.value = "RJ1";
+    };
+    await expect(adapter.next()).rejects.toThrow("Filtros alterados");
+  });
+  it("não lê uma tabela anterior enquanto há busca visível em andamento", async () => {
+    const { dom, begin } = fixture();
+    const adapter = dom.create(setting, period);
+    await adapter.search({ page: 1 });
+    begin();
+    await expect(adapter.read()).rejects.toThrow("carregando");
+  });
   it("não reenvia ID imutável com dados diferentes após interrupção", async () => {
     const { core } = fixture();
     const emit = vi.fn();

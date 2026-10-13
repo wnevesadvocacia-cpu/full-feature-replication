@@ -18,6 +18,23 @@ function core() {
   return context.JusbrCore;
 }
 describe("Jus.br automação segura", () => {
+  it("identifica a versão também nos avisos do worker e preserva a versão recebida do portal", async () => {
+    const storage = { get: vi.fn(async () => ({})), set: vi.fn() };
+    const context = vm.createContext({
+      Promise, URL, importScripts: () => {},
+      chrome: {
+        storage: { local: storage },
+        action: { setBadgeText: vi.fn() },
+        runtime: { getManifest: () => ({ version: "0.3.10" }), onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
+        alarms: { onAlarm: { addListener: vi.fn() } },
+      },
+    });
+    vm.runInContext(fs.readFileSync("extension/jusbr/background.js", "utf8"), context);
+    await context.status("Recarregue a Central Jus.br.");
+    expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.10] Recarregue a Central Jus.br." }));
+    await context.status("[v0.3.9] Conferência interrompida.");
+    expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.9] Conferência interrompida." }));
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-08T16:00:00Z"));

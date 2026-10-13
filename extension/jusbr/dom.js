@@ -178,12 +178,22 @@ const JusbrDom = (() => {
     button("Selecionar").click();
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
-  async function wait(action, accept, evidence = null, report = () => {}) {
+  async function wait(action, accept, evidence = null, report = () => {}, guard = evidence?.validate, period = evidence?.period) {
     let started = false;
     let completed = false;
+    let stable = "";
+    let since = 0;
     const inspect = () => {
-      if (loading()) started = true;
+      if (loading()) {
+        started = true;
+        completed = false;
+        stable = "";
+      }
       else if (started) completed = true;
+    };
+    const settled = (signature) => {
+      if (stable !== signature) { stable = signature; since = Date.now(); }
+      return Date.now() - since >= 500;
     };
     if (evidence && loading()) throw Error("Busca anterior ainda carregando; retomada preservada.");
     const observer = new MutationObserver(inspect);
@@ -193,47 +203,39 @@ const JusbrDom = (() => {
       inspect();
       const timeout = evidence ? 120000 : 20000;
       const deadline = Date.now() + timeout;
-      let stable = "";
-      let since = 0;
       let lastStatus = 0;
       let reason = "";
       while (Date.now() < deadline) {
         inspect();
+        guard?.();
         if (evidence && Date.now() - lastStatus >= 10000) {
           report(`Aguardando busca: ${started ? "carregamento observado" : "aguardando #is_loading"}; limite 120s.`);
           lastStatus = Date.now();
         }
-        if (!evidence || (started && completed && !loading())) {
-          if (evidence) evidence.validate();
+        if (!loading() && (!evidence || (started && completed))) {
           try {
-            // Inspect row dates before interpreting truncation: visible values
-            // and calendar selection do not prove server-side filter application.
-            try { read(evidence?.period); } catch (error) {
-              if (/obsoleto/.test(error.message)) throw error;
-              // Repaint can temporarily invalidate the range; allow the existing
-              // first-page recovery, then require a complete valid read below.
-            }
-            assertNotTruncated();
             if (evidence?.prepare && !evidence.prepare()) {
               stable = "";
               await new Promise((resolve) => setTimeout(resolve, 100));
               continue;
             }
-            const result = read(evidence?.period);
+            // The bar can disappear before Angular repaints the table. Both a
+            // valid response and a stale/truncated diagnosis must settle first.
+            // Dates retain priority over truncation once the first page is ready.
+            const result = read(period);
+            assertNotTruncated();
             if (accept(result)) {
-              if (stable !== result.signature) {
-                stable = result.signature;
-                since = Date.now();
-              }
-              if (Date.now() - since >= 500) return result;
+              if (settled(`result:${result.signature}`)) return result;
             } else stable = "";
           } catch (e) {
-            if (e.code === "TRUNCATED" || /sessão|Estrutura|Selecione|obsoleto/.test(e.message)) {
-              if (/obsoleto/.test(e.message)) await report(`Conferência interrompida: ${e.message}`);
-              throw e;
-            }
+            if (/sessão|Estrutura|Selecione/.test(e.message)) throw e;
             reason = e.message;
-            stable = "";
+            if (e.code === "TRUNCATED" || /obsoleto/.test(e.message)) {
+              if (settled(`error:${e.code || "STALE"}:${e.message}`)) {
+                if (/obsoleto/.test(e.message)) await report(`Conferência interrompida: ${e.message}`);
+                throw e;
+              }
+            } else stable = "";
           }
         } else stable = "";
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -246,6 +248,7 @@ const JusbrDom = (() => {
     }
   }
   function create(setting, period, report = () => {}) {
+    let validateFilters;
     return {
       verified: true,
       async search(state) {
@@ -283,6 +286,7 @@ const JusbrDom = (() => {
           )
             throw Error("Filtros alterados; cobertura interrompida.");
         };
+        validateFilters = validate;
         let resetting = false;
         const prepare = () => {
           if (loading()) return false;
@@ -314,12 +318,17 @@ const JusbrDom = (() => {
         for (let page = 1; page < state.page; page++) await this.next();
       },
       async read() {
+        validateFilters?.();
+        if (loading()) throw Error("Diário ainda carregando; nenhum lote desta resposta enviado. Retomada preservada.");
         const result = read(period);
         assertNotTruncated();
         return result;
       },
       async next() {
+        validateFilters?.();
+        if (loading()) throw Error("Diário ainda carregando; paginação interrompida com retomada preservada.");
         const before = read(period);
+        assertNotTruncated();
         const next = range().next;
         if (disabled(next)) throw Error("Próxima desabilitada antes do avanço esperado.");
         await wait(
@@ -328,6 +337,7 @@ const JusbrDom = (() => {
             result.start === before.endIndex + 1 &&
             result.total === before.total &&
             result.rows.every((row) => row.date >= period.start && row.date <= period.end),
+          null, report, validateFilters, period,
         );
       },
     };
