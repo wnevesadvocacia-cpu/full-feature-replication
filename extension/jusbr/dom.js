@@ -286,15 +286,20 @@ const JusbrDom = (() => {
         let resetting = false;
         const prepare = () => {
           if (loading()) return false;
-          // Counter errors (repaint, unknown empty state) propagate as the real
-          // reason; the return button is only looked up when a page > 1 is shown.
-          if (range().start === 1) return true;
+          // The return button is optional; when absent, the counter error (repaint,
+          // unknown empty state) is reported as the real reason instead.
+          let counterError = null;
+          try {
+            if (range().start === 1) return true;
+          } catch (error) {
+            counterError = error;
+          }
           if (resetting) return false;
           const first = [...document.querySelectorAll('button,[role="button"]')].filter(
             (el) => visible(el) && name(el).toLocaleLowerCase("pt-BR") === "primeira página",
           );
           if (first.length !== 1 || disabled(first[0]))
-            throw Error("Nova pesquisa manteve paginação e Primeira página não está disponível; aguardando primeira página.");
+            throw counterError || Error("Nova pesquisa manteve paginação e Primeira página não está disponível; aguardando primeira página.");
           resetting = true;
           first[0].click();
           report("Nova pesquisa manteve paginação; retornando à primeira página.");
