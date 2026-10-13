@@ -50,7 +50,26 @@ const JusbrDom = (() => {
     );
   }
   const disabled = (el) => el.disabled || el.getAttribute("aria-disabled") === "true";
-  function range() {
+  // Public bundle 831.d74efc00acb3737c.js: unfiltered <=10 results hide
+  // the paginator. Searches do NOT reset pageIndex; Limpar filtros does.
+  // Pin this exception to the inspected public build, DOM and search evidence.
+  function singlePageRoot() {
+    if (![...document.querySelectorAll('script[src]')].some((el) =>
+      el.getAttribute('src')?.match(/(?:^|\/)main\.1da43b09b020e9bd\.js$/))) return null;
+    const roots = [...document.querySelectorAll('app-diario-justica')].filter(visible);
+    if (roots.length !== 1) return null;
+    const { form, table } = scope();
+    return roots[0].contains(form) && roots[0].contains(table) ? roots[0] : null;
+  }
+  function supplementalFilters(root) {
+    const panel = root.querySelector('#filtro-diario-justica');
+    if (!visible(panel)) throw Error('Filtros complementares do Diário não verificados; retomada preservada.');
+    const fields = ['input[placeholder="Selecione um Tribunal"]', 'input[placeholder="Selecione uma Classe Judicial"]', 'input[name="partes"]']
+      .map((selector) => unique([...panel.querySelectorAll(selector)].filter(visible), 'filtro complementar'));
+    if (fields.some((el) => el.value.trim())) throw Error('Filtros complementares ativos; cobertura interrompida.');
+    return panel;
+  }
+  function range(onePage = null) {
     scope(true);
     const candidates = [...document.querySelectorAll('#diario_justica_tabela *,[role="status"]')].filter(
       (el) =>
@@ -67,6 +86,17 @@ const JusbrDom = (() => {
             /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(el)) &&
             ![...el.children].some((child) => /^\d+\s*-\s*\d+\s*\/\s*\d+$/.test(text(child))),
         );
+    if (!nodes.length && onePage?.()) {
+      const { table } = scope(true);
+      const root = singlePageRoot();
+      const controls = root && [...root.querySelectorAll('mat-paginator,button,[role="button"]')].filter((el) =>
+        visible(el) && (el.tagName.toLowerCase() === 'mat-paginator' || /^(primeira página|anterior|próxima|última página)$/i.test(name(el))));
+      const count = [...table.querySelectorAll('tr,[role="row"]')].filter((row) => visible(row) && row.querySelector('td,[role="cell"]')).length;
+      if (root && !controls.length && count >= 1 && count <= 10) {
+        supplementalFilters(root);
+        return { start: 1, end: count, total: count, next: null, singlePage: true };
+      }
+    }
     const counter = unique(nodes, "contador do Diário");
     const numbers = text(counter).match(/\d+/g).map(Number);
     const [start, end, total] = numbers;
@@ -78,9 +108,9 @@ const JusbrDom = (() => {
       throw Error("Contador e botões próxima/Última página inconsistentes; cobertura interrompida.");
     return { start, end, total, next };
   }
-  function read(period) {
+  function read(period, onePage = null) {
     const { table } = scope(true);
-    const r = range();
+    const r = range(onePage);
     const headers = [...table.querySelectorAll('th,[role="columnheader"]')].map(text);
     const indexes = ["Processo", "Tribunal", "Data de Disponibilização"].map((h) =>
       headers.findIndex((v) => v.toLocaleLowerCase("pt-BR") === h.toLocaleLowerCase("pt-BR")),
@@ -115,6 +145,7 @@ const JusbrDom = (() => {
       total: r.total,
       next: r.end < r.total,
       end: r.end === r.total,
+      singlePage: r.singlePage === true,
     };
   }
   function input(form, placeholder) {
@@ -222,7 +253,7 @@ const JusbrDom = (() => {
             // The bar can disappear before Angular repaints the table. Both a
             // valid response and a stale/truncated diagnosis must settle first.
             // Dates retain priority over truncation once the first page is ready.
-            const result = read(period);
+            const result = read(period, evidence?.onePage);
             assertNotTruncated();
             if (accept(result)) {
               if (settled(`result:${result.signature}`)) return result;
@@ -240,19 +271,47 @@ const JusbrDom = (() => {
         } else stable = "";
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      throw Error(
-        `${evidence ? "Busca sem ciclo #is_loading presente→ausente e resposta válida em 120s" : "Avanço sem conclusão comprovada em 20s"}${reason ? ": " + reason : ""}; vazio não confirmado. Retomada preservada.`,
-      );
+      const failure = !evidence ? 'Avanço sem conclusão comprovada em 20s' :
+        !started ? 'Busca sem ciclo #is_loading presente→ausente em 120s' :
+        !completed ? 'Carregamento observado, mas sem conclusão em 120s' :
+        'Ciclo de carregamento concluído, mas resposta não validada em 120s';
+      throw Error(`${failure}${reason ? ': ' + reason : ''}; vazio não confirmado. Retomada preservada.`);
     } finally {
       observer.disconnect();
     }
   }
   function create(setting, period, report = () => {}) {
     let validateFilters;
+    let singlePageReady = false;
+    let resetVerified = false;
+    const onePage = () => {
+      const root = singlePageRoot();
+      if (!resetVerified || !root) return false;
+      supplementalFilters(root);
+      return true;
+    };
     return {
       verified: true,
       async search(state) {
+        singlePageReady = false;
+        resetVerified = false;
         const { form } = scope();
+        if (loading()) throw Error('Busca anterior ainda carregando; retomada preservada.');
+        const root = singlePageRoot();
+        if (root) {
+          const panel = root.querySelector('#filtro-diario-justica');
+          if (visible(panel)) {
+            // Public UI reset clears all three client filters and pageIndex.
+            button('Limpar filtros', panel).click();
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            supplementalFilters(root);
+            resetVerified = true;
+          } else if (!root.querySelector('app-lista') && !root.querySelector('mat-paginator')) {
+            // Inspected component initial state has pageIndex=0; the first
+            // nonempty response mounts the filter panel, validated at read.
+            resetVerified = true;
+          }
+        }
         const process = input(form, "0000000-00.0000.0.00.0000");
         const oab = input(form, "UF1234567A ou UF1234567");
         const start = input(form, "Data inicial");
@@ -285,6 +344,7 @@ const JusbrDom = (() => {
             input(current, "Data final").value !== format(end, period.end)
           )
             throw Error("Filtros alterados; cobertura interrompida.");
+          if (resetVerified && singlePageRoot()?.querySelector('#filtro-diario-justica')) supplementalFilters(singlePageRoot());
         };
         validateFilters = validate;
         let resetting = false;
@@ -294,7 +354,7 @@ const JusbrDom = (() => {
           // unknown empty state) is reported as the real reason instead.
           let counterError = null;
           try {
-            if (range().start === 1) return true;
+            if (range(onePage).start === 1) return true;
           } catch (error) {
             counterError = error;
           }
@@ -309,26 +369,30 @@ const JusbrDom = (() => {
           report("Nova pesquisa manteve paginação; retornando à primeira página.");
           return false;
         };
-        await wait(
+        const result = await wait(
           () => search.click(),
           (result) => result.start === 1,
-          { period, validate, prepare },
+          { period, validate, prepare, onePage },
           report,
         );
+        singlePageReady = true;
+        if (result.singlePage && state.page > 1)
+          throw Error('Retomada exige página posterior, mas resposta atual tem uma só página; lotes preservados.');
         for (let page = 1; page < state.page; page++) await this.next();
       },
       async read() {
         validateFilters?.();
         if (loading()) throw Error("Diário ainda carregando; nenhum lote desta resposta enviado. Retomada preservada.");
-        const result = read(period);
+        const result = read(period, singlePageReady ? onePage : null);
         assertNotTruncated();
         return result;
       },
       async next() {
         validateFilters?.();
         if (loading()) throw Error("Diário ainda carregando; paginação interrompida com retomada preservada.");
-        const before = read(period);
+        const before = read(period, singlePageReady ? onePage : null);
         assertNotTruncated();
+        if (before.singlePage) throw Error('Resposta de uma página sem avanço; retomada preservada.');
         const next = range().next;
         if (disabled(next)) throw Error("Próxima desabilitada antes do avanço esperado.");
         await wait(
