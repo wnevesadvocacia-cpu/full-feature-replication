@@ -984,8 +984,8 @@ export default function Intimacoes() {
       {filtered.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Bell className="h-10 w-10 mx-auto mb-2 opacity-40" />
-          <p>Nenhuma publicação disponibilizada em {formatBR(selectedDate)}.</p>
-          <p className="text-xs mt-1">Use "Sincronizar" para buscar novas intimações deste dia.</p>
+          <p>Nenhuma publicação importada para {formatBR(selectedDate)} com os filtros selecionados.</p>
+          <p className="text-xs mt-1">Conferência ainda incompleta; isso não confirma ausência de intimações.</p>
         </div>
       ) : (
         <div className="space-y-2">
