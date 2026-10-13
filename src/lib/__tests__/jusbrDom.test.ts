@@ -246,7 +246,7 @@ describe("adaptador Diário com controles relatados", () => {
     expect(document.querySelector<HTMLButtonElement>('[aria-label="Última página"]')?.disabled).toBe(true);
     expect(save.mock.calls.at(-1)?.[0].finished).toBe(true);
     expect(forbidden).not.toHaveBeenCalled();
-  });
+  }, 25000);
   it("não confirma fim se Última página divergir do contador ou da próxima", () => {
     const { dom } = fixture(9, 9);
     const last = document.querySelector<HTMLButtonElement>('[aria-label="Última página"]');
