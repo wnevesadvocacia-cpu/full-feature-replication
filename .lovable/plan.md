@@ -1,8 +1,7 @@
-# Jus.br v0.3.3
+# Jus.br — pacote de download v0.3.8
 ## Tarefa / Escopo
-- Confirmar nova busca pelo ciclo visível de #is_loading antes/depois de Buscar, até 120s, com filtros/datas/contador validados.
-- Segmentar 90 dias em até 7 dias; subdividir aviso de truncamento e interromper dia único truncado sem certificar cobertura.
-- Preservar IDs, filas, confirmações e retomadas; mostrar status e Conferir agora em Intimações.
-- Atualizar testes, documentação e ZIP; verificar compilação automática.
+- Substituir o ZIP 0.3.7 embutido no botão de download pelo ZIP 0.3.8 já corrigido.
+- Testar igualdade byte a byte entre pacote baixado, ZIP público e fontes, incluindo versão e nome.
+- Preservar controles, filas, confirmações e retomadas; documentar a divergência encontrada.
 ## Fora
-- Credenciais, detalhes/documentos, ciência, publicação e declaração de integração ponta a ponta concluída.
+- Alterações nos prazos, publicações, credenciais, detalhes/documentos, ciência, publicação e declaração de integração ponta a ponta concluída.
