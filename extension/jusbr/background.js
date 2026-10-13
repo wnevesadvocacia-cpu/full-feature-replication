@@ -14,6 +14,9 @@ const origin = (sender) => {
 };
 let processing = false;
 let scanTask = null;
+let collectorTabId = null;
+let collectorProgressAt = 0;
+let rescanRequested = false;
 let serial = Promise.resolve();
 function exclusive(fn) {
   const task = serial.then(fn);
@@ -103,11 +106,45 @@ function scan() {
   if (scanTask) return scanTask;
   scanTask = performScan().finally(() => {
     scanTask = null;
+    if (rescanRequested) {
+      rescanRequested = false;
+      setTimeout(() => { void scan(); }, 0);
+    }
   });
   return scanTask;
 }
+function requestScan(tabId, payload) {
+  collectorTabId = tabId;
+  collectorProgressAt = Date.now();
+  return new Promise((resolve, reject) => {
+    let timer;
+    let done = false;
+    const settle = (fn, value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      collectorTabId = null;
+      fn(value);
+    };
+    const check = () => {
+      const remaining = 150000 - (Date.now() - collectorProgressAt);
+      if (remaining <= 0) {
+        settle(reject, Error('Portal sem progresso em 150s; tentativa encerrada, fila e retomada preservadas.'));
+      } else timer = setTimeout(check, remaining);
+    };
+    timer = setTimeout(check, 150000);
+    Promise.resolve().then(() => chrome.tabs.sendMessage(tabId, payload))
+      .then(value => settle(resolve, value), error => settle(reject, error));
+  });
+}
+function requireCollector(tabId) {
+  if (tabId === collectorTabId) return;
+  const error = Error('Coletor anterior encerrado; retomada preservada.');
+  error.code = 'STALE_COLLECTOR';
+  throw error;
+}
 async function performScan() {
-  const state = await chrome.storage.local.get(["owner", "settings", "lastReadEnd", "queue"]);
+  const state = await chrome.storage.local.get(["owner", "settings", "lastReadEnd", "queue", "portalTabId"]);
   if (!state.owner) return;
   if ((state.queue?.length || 0) >= 100) {
     await chrome.storage.local.set({ scanPaused: true });
@@ -122,8 +159,12 @@ async function performScan() {
       return false;
     }
   };
-  const tab = tabs.find((tab) => tab.active && isCentral(tab)) || tabs.find(isCentral);
+  // Only collect from the exact public tab whose content script declared READY.
+  // active is true in each Chrome window and cannot identify the right tab.
+  const tab = tabs.find((tab) => tab.id === state.portalTabId && isCentral(tab));
   if (!tab) {
+    if (tabs.some(isCentral))
+      return status('Aguardando o Diário da Justiça informar que está pronto. Recarregue a aba que deseja conferir.');
     const home = tabs.find((tab) => {
       try {
         return new URL(tab.url).pathname === "/home";
@@ -144,15 +185,20 @@ async function performScan() {
   }
   {
     try {
-      const result = await chrome.tabs.sendMessage(tab.id, {
+      const result = await requestScan(tab.id, {
         type: "SCAN",
         owner: state.owner,
         window: JusbrCore.window(state.lastReadEnd),
         settings: state.settings,
       });
       if (result?.inProgress && result.owner === state.owner && result.message) await status(result.message);
-    } catch {
-      await status("Recarregue a Central Jus.br. Estrutura/sessão não verificada.");
+    } catch (error) {
+      if (/Portal sem progresso/.test(error.message)) await status(error.message);
+      else await status('Recarregue a aba do Diário selecionada. Conexão com a extensão não confirmada; retomada preservada.');
+    } finally {
+      const current = await chrome.storage.local.get(['owner', 'collectorLease']);
+      if (current.owner === state.owner && current.collectorLease?.tabId === tab.id)
+        await chrome.storage.local.set({ collectorLease: null });
     }
   }
 }
@@ -180,7 +226,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
         origin: origin(sender),
         settings: m.settings,
         ...(state.owner !== m.owner
-          ? { queue: [], checkpoints: {}, lastCompleteEnd: null, lastReadEnd: null, scanPaused: false }
+          ? { queue: [], checkpoints: {}, lastCompleteEnd: null, lastReadEnd: null, scanPaused: false, portalTabId: null }
           : {}),
       });
       await chrome.alarms.create("scan", { periodInMinutes: 60 });
@@ -191,9 +237,11 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     }
     if (origin(sender) !== "https://portaldeservicos.pdpj.jus.br") throw Error("Origem inválida.");
     if (m.type === "PORTAL_READY") {
+      if (!sender.tab || new URL(sender.url).pathname !== '/central-comunicacoes') throw Error('Aba do Diário não validada.');
       const state = await chrome.storage.local.get(["owner", "settings", "lastCompleteEnd", "lastScanAt"]);
       if (state.owner) {
-        await chrome.storage.local.set({ lastScanAt: Date.now() });
+        if (collectorTabId !== null && collectorTabId !== sender.tab.id) rescanRequested = true;
+        await chrome.storage.local.set({ lastScanAt: Date.now(), portalTabId: sender.tab.id });
         void scan();
       }
       return { ok: true };
@@ -207,6 +255,8 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       )
         throw Error("Conta/OAB alterada; coleta interrompida.");
       if (!sender.tab) throw Error("Aba indisponível.");
+      requireCollector(sender.tab.id);
+      collectorProgressAt = Date.now();
       if (state.collectorLease?.until > Date.now() && state.collectorLease.tabId !== sender.tab.id)
         throw Error("Outra aba do Diário está coletando.");
       await chrome.storage.local.set({ collectorLease: { tabId: sender.tab.id, until: Date.now() + 150000 } });
@@ -231,6 +281,8 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
     if (m.type === "PORTAL_STATUS") {
       const state = await chrome.storage.local.get("owner");
       if (!state.owner || m.owner !== state.owner) throw Error("Conta alterada; status descartado.");
+      requireCollector(sender.tab?.id);
+      collectorProgressAt = Date.now();
       await status(String(m.message || "Estrutura desconhecida.").slice(0, 400));
       return { ok: true };
     }
@@ -252,7 +304,7 @@ chrome.runtime.onMessage.addListener((m, sender, reply) => {
       if (["PAIR", "RESTORE", "SCAN_NOW"].includes(m.type) && result.ok) void scan();
     })
     .catch(async (e) => {
-      await status(e.message);
+      if (e.code !== 'STALE_COLLECTOR') await status(e.message);
       reply({ ok: false, message: e.message });
     });
   return true;
