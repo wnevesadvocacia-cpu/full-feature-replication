@@ -28,3 +28,5 @@
 - [x] Priorizar diagnóstico de filtro não comprovado quando datas fora da janela coexistem com aviso100; manter rejeição, bridge de status e retomadas. 51 testes focados passaram; validação real do filtro/importação continua pendente.
 
 - [x] Aplicar v0.3.10 fornecida: estabilidade após loading, filtros em leitura/paginação, status do worker e pacote sincronizado; 59 testes focados passaram e compilação automática OK. Sem publicar/instalar/login; filtro real, vazio e lote ponta a ponta permanecem bloqueados pela validação no navegador do titular.
+
+- [ ] Ajuste final v0.3.10: guard após loading/ciclo, dois testes com salto de relógio, ZIP e base64 sincronizados; validar sem publicar.
