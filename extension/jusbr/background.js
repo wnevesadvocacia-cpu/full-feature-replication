@@ -21,6 +21,8 @@ function exclusive(fn) {
   return task;
 }
 async function status(message) {
+  const version = chrome.runtime.getManifest?.().version;
+  if (version && !/^\[v[^\]]+\]/.test(message)) message = `[v${version}] ${message}`;
   const state = await chrome.storage.local.get(["owner", "tabId", "origin"]);
   await chrome.storage.local.set({ message, messageOwner: state.owner });
   if (state.owner && state.tabId && appOrigins.has(state.origin)) {

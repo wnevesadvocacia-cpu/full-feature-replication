@@ -26,3 +26,5 @@
 - [x] Corrigir v0.3.3: ciclo #is_loading até 120s, dados idênticos com filtros validados, segmentos 7d e divisão por aviso dos 100 primeiros; status e Conferir agora em Intimações; preservar filas/ack/IDs legados. 37 testes focados passaram; pacote atualizado, sem publicar.
 
 - [x] Priorizar diagnóstico de filtro não comprovado quando datas fora da janela coexistem com aviso100; manter rejeição, bridge de status e retomadas. 51 testes focados passaram; validação real do filtro/importação continua pendente.
+
+- [x] Aplicar v0.3.10 fornecida: estabilidade após loading, filtros em leitura/paginação, status do worker e pacote sincronizado; 59 testes focados passaram e compilação automática OK. Sem publicar/instalar/login; filtro real, vazio e lote ponta a ponta permanecem bloqueados pela validação no navegador do titular.
