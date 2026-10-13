@@ -42,3 +42,7 @@ Evidência real: conferência interrompida com "Controle Primeira página ausent
 
 ## Correção do download — 13/10/2026
 O botão Baixar extensão ainda continha um ZIP 0.3.7 embutido, embora o nome do arquivo anunciasse 0.3.8 e o ZIP público já fosse 0.3.8. Esse pacote antigo exigia Primeira página, reproduzindo exatamente a mensagem relatada após atualizar. O arquivo embutido foi substituído pelo ZIP público 0.3.8, sem alterar o adaptador, filas ou checkpoints. Teste de integridade compara os bytes do download, ZIP público e cada fonte, além da versão e nome do arquivo. A extensão instalada no navegador do titular e a importação ponta a ponta continuam sem verificação pelo agente.
+
+## v0.3.9 — 13/10/2026
+
+Toda mensagem de status da extensão começa com `[vX.Y.Z]` (versão instalada). Mensagem sem prefixo vem de instalação anterior a 0.3.9. Validação no portal real continua pendente.
