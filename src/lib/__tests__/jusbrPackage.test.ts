@@ -10,7 +10,7 @@ describe("Pacote baixado da extensão Jus.br", () => {
     const bytes = Buffer.from(encoded[1], "base64");
     expect(bytes.equals(fs.readFileSync("public/wnevesbox-jusbr.zip"))).toBe(true);
     const manifest = JSON.parse(fs.readFileSync("extension/jusbr/manifest.json", "utf8"));
-    expect(manifest.version).toBe("0.3.11");
+    expect(manifest.version).toBe("0.3.12");
     expect(component.match(/a\.download = "([^"]+)"/)?.[1]).toBe(`wnevesbox-jusbr-${manifest.version}.zip`);
     // Standard-library ZIP reader checks every archived source, not only the label.
     const result = execFileSync(process.env.PYTHON || (process.platform === "win32" ? "python" : "python3"), ["-c", `

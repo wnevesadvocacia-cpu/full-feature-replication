@@ -1,7 +1,8 @@
-# Jus.br — pacote de download v0.3.8
+# Jus.br — correção v0.3.12
 ## Tarefa / Escopo
-- Substituir o ZIP 0.3.7 embutido no botão de download pelo ZIP 0.3.8 já corrigido.
-- Testar igualdade byte a byte entre pacote baixado, ZIP público e fontes, incluindo versão e nome.
-- Preservar controles, filas, confirmações e retomadas; documentar a divergência encontrada.
+- Aplicar o patch fornecido: selecionar a aba READY e encerrar transporte após 150s sem progresso validado.
+- Recusar mensagens tardias, agendar nova aba e liberar somente o lease correspondente.
+- Atualizar versão, ZIP/base64 e quatro testes Jus.br; conferir compilação automática.
+- Preservar os demais leitores, filas, IDs, checkpoints, ack e lastCompleteEnd.
 ## Fora
-- Alterações nos prazos, publicações, credenciais, detalhes/documentos, ciência, publicação e declaração de integração ponta a ponta concluída.
+- Publicação, instalação, login, portal privado e declaração de lote real ou integração concluída.
