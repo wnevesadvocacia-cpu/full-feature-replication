@@ -286,21 +286,19 @@ const JusbrDom = (() => {
         let resetting = false;
         const prepare = () => {
           if (loading()) return false;
-          // A valid first-page counter needs no return button. During repaint,
-          // keep waiting; an unknown response still cannot certify empty coverage.
-          try {
-            if (range().start === 1) return true;
-          } catch {}
-          if (!resetting) {
-            const first = button("Primeira página");
-            resetting = true;
-            if (!disabled(first)) {
-              first.click();
-              report("Nova pesquisa manteve paginação; retornando à primeira página.");
-              return false;
-            }
-          }
-          return range().start === 1;
+          // Counter errors (repaint, unknown empty state) propagate as the real
+          // reason; the return button is only looked up when a page > 1 is shown.
+          if (range().start === 1) return true;
+          if (resetting) return false;
+          const first = [...document.querySelectorAll('button,[role="button"]')].filter(
+            (el) => visible(el) && name(el).toLocaleLowerCase("pt-BR") === "primeira página",
+          );
+          if (first.length !== 1 || disabled(first[0]))
+            throw Error("Nova pesquisa manteve paginação e Primeira página não está disponível; aguardando primeira página.");
+          resetting = true;
+          first[0].click();
+          report("Nova pesquisa manteve paginação; retornando à primeira página.");
+          return false;
         };
         await wait(
           () => search.click(),
