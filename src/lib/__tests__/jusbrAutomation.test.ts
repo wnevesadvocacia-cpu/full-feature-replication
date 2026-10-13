@@ -17,6 +17,25 @@ function core() {
   vm.runInContext(fs.readFileSync("extension/jusbr/core.js", "utf8"), context);
   return context.JusbrCore;
 }
+function workerFixture() {
+  const state: any = { owner, settings: [{ oab_uf: 'SP', oab_number: '290702' }], queue: [{ id: 'kept', owner, retryAt: Infinity }], checkpoints: { SP290702: { batchId: 'kept', page: 1 } }, lastCompleteEnd: null, portalTabId: null };
+  const tabs: any[] = [7, 8].map(id => ({ id, active: true, url: 'https://portaldeservicos.pdpj.jus.br/central-comunicacoes' }));
+  const sendMessage = vi.fn(async (_id: number, _payload: any) => ({ ok: true }));
+  let listener: any;
+  const context = vm.createContext({
+    Date, Promise, URL, setTimeout, clearTimeout, importScripts: () => {}, JusbrCore: core(),
+    chrome: {
+      storage: { local: { get: async () => ({ ...state }), set: async (v: any) => Object.assign(state, v) } },
+      tabs: { query: async () => tabs, get: async () => ({}), sendMessage },
+      action: { setBadgeText: vi.fn() },
+      alarms: { create: vi.fn(), clear: vi.fn(), onAlarm: { addListener: vi.fn() } },
+      runtime: { getManifest: () => ({ version: '0.3.12' }), onMessage: { addListener: (fn: any) => { listener = fn; } }, onStartup: { addListener: vi.fn() } },
+    },
+  });
+  vm.runInContext(fs.readFileSync('extension/jusbr/background.js', 'utf8'), context);
+  const message = (payload: any, tabId = 8, url = tabs[0].url) => new Promise<any>(resolve => listener(payload, { tab: { id: tabId }, url }, resolve));
+  return { state, tabs, sendMessage, context, message };
+}
 describe("Jus.br automação segura", () => {
   it("identifica a versão também nos avisos do worker e preserva a versão recebida do portal", async () => {
     const storage = { get: vi.fn(async () => ({})), set: vi.fn() };
@@ -25,13 +44,13 @@ describe("Jus.br automação segura", () => {
       chrome: {
         storage: { local: storage },
         action: { setBadgeText: vi.fn() },
-        runtime: { getManifest: () => ({ version: "0.3.11" }), onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
+        runtime: { getManifest: () => ({ version: "0.3.12" }), onMessage: { addListener: vi.fn() }, onStartup: { addListener: vi.fn() } },
         alarms: { onAlarm: { addListener: vi.fn() } },
       },
     });
     vm.runInContext(fs.readFileSync("extension/jusbr/background.js", "utf8"), context);
     await context.status("Recarregue a Central Jus.br.");
-    expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.11] Recarregue a Central Jus.br." }));
+    expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.12] Recarregue a Central Jus.br." }));
     await context.status("[v0.3.9] Conferência interrompida.");
     expect(storage.set).toHaveBeenLastCalledWith(expect.objectContaining({ message: "[v0.3.9] Conferência interrompida." }));
   });
@@ -40,6 +59,59 @@ describe("Jus.br automação segura", () => {
     vi.setSystemTime(new Date("2026-10-08T16:00:00Z"));
   });
   afterEach(() => vi.useRealTimers());
+  it('usa a aba exata que declarou READY mesmo com duas janelas ativas', async () => {
+    const f = workerFixture();
+    await f.context.scan();
+    expect(f.sendMessage).not.toHaveBeenCalled();
+    await f.message({ type: 'PORTAL_READY' }, 8);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(f.state.portalTabId).toBe(8);
+    expect(f.sendMessage).toHaveBeenCalledWith(8, expect.objectContaining({ type: 'SCAN' }));
+    expect(f.sendMessage.mock.calls.some(call => call[0] === 7)).toBe(false);
+  });
+  it('rejeita READY fora da Central e aguarda nova evidência se a aba conhecida fechou', async () => {
+    const f = workerFixture();
+    expect((await f.message({ type: 'PORTAL_READY' }, 8, 'https://portaldeservicos.pdpj.jus.br/home')).ok).toBe(false);
+    expect(f.state.portalTabId).toBeNull();
+    f.state.portalTabId = 99;
+    await f.context.scan();
+    expect(f.sendMessage).not.toHaveBeenCalled();
+    expect(f.state.message).toContain('informar que está pronto');
+  });
+  it('encerra receptor congelado em 150s e bloqueia resposta tardia, preservando fila/IDs/checkpoints', async () => {
+    const f = workerFixture(); f.state.portalTabId = 8;
+    f.state.collectorLease = { tabId: 8, until: Date.now() + 150000 };
+    let lateReply: any;
+    f.sendMessage.mockImplementationOnce(() => new Promise(resolve => { lateReply = resolve; }));
+    const pending = f.context.scan();
+    await vi.advanceTimersByTimeAsync(1);
+    await f.message({ type: 'PORTAL_READY' }, 7);
+    await vi.advanceTimersByTimeAsync(150001); await pending;
+    expect(f.state.message).toContain('Portal sem progresso em 150s');
+    expect(f.state.collectorLease).toBeNull();
+    const stoppedMessage = f.state.message;
+    expect((await f.message({ type: 'CHECKPOINT_SAVE', owner, key: 'SP290702', checkpoint: { batchId: 'replaced' } })).ok).toBe(false);
+    lateReply({ ok: true }); await Promise.resolve();
+    expect(f.state.message).toBe(stoppedMessage);
+    expect(f.state.queue[0].id).toBe('kept');
+    expect(f.state.checkpoints.SP290702.batchId).toBe('kept');
+    expect(f.state.lastCompleteEnd).toBeNull();
+    expect(f.sendMessage).toHaveBeenLastCalledWith(7, expect.objectContaining({ type: 'SCAN' }));
+  });
+  it('permite coleta longa com progresso da aba correta e descarta status de outro coletor', async () => {
+    const f = workerFixture(); f.state.portalTabId = 8;
+    let finish: any; f.sendMessage.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const done = vi.fn(); const pending = f.context.scan().then(done);
+    await vi.advanceTimersByTimeAsync(100000);
+    expect((await f.message({ type: 'PORTAL_STATUS', owner, message: 'Aguardando busca' }, 8)).ok).toBe(true);
+    await vi.advanceTimersByTimeAsync(100000);
+    expect(done).not.toHaveBeenCalled();
+    const progress = f.state.message;
+    expect((await f.message({ type: 'PORTAL_STATUS', owner, message: 'Outro coletor' }, 7)).ok).toBe(false);
+    expect(f.state.message).toBe(progress);
+    finish({ ok: true }); await pending;
+    expect(done).toHaveBeenCalledOnce();
+  });
   it("aceita o dia inteiro no limite inicial de 90 dias, mas rejeita o dia anterior", () => {
     expect(validateObservations([{ ...row, date: "2026-07-10" }])).toHaveLength(1);
     expect(() => validateObservations([{ ...row, date: "2026-07-09" }])).toThrow("90 dias");
@@ -398,7 +470,7 @@ describe("Jus.br automação segura", () => {
   });
   it("compartilha uma busca em curso sem disparar outro coletor", async () => {
     let finishScan: any;
-    const state = { owner, settings: [], queue: [] };
+    const state = { owner, settings: [], queue: [], portalTabId: 7 };
     const query = vi.fn(async () => [{ id: 7, url: "https://portaldeservicos.pdpj.jus.br/central-comunicacoes" }]);
     const sendMessage = vi.fn(
       () =>
@@ -411,6 +483,7 @@ describe("Jus.br automação segura", () => {
       Promise,
       URL,
       setTimeout,
+      clearTimeout,
       importScripts: () => {},
       JusbrCore: core(),
       chrome: {
@@ -438,7 +511,7 @@ describe("Jus.br automação segura", () => {
   });
 
   it("prioriza a Central sobre a aba inicial e abre a Central quando só há home", async () => {
-    const state: any = { owner, settings: [], queue: [], tabId: 1, origin: "https://wnevesbox.com" };
+    const state: any = { owner, settings: [], queue: [], tabId: 1, origin: "https://wnevesbox.com", portalTabId: 8 };
     const tabs: any[] = [
       { id: 7, url: "https://portaldeservicos.pdpj.jus.br/home" },
       { id: 8, url: "https://portaldeservicos.pdpj.jus.br/central-comunicacoes" },
@@ -450,6 +523,7 @@ describe("Jus.br automação segura", () => {
       Promise,
       URL,
       setTimeout,
+      clearTimeout,
       importScripts: () => {},
       JusbrCore: core(),
       chrome: {
