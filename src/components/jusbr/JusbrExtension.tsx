@@ -204,7 +204,7 @@ export function JusbrExtension({
       const url = URL.createObjectURL(new Blob([packageBytes], { type: "application/zip" }));
       const a = document.createElement("a");
       a.href = url;
-      a.download = "wnevesbox-jusbr-0.3.7.zip";
+      a.download = "wnevesbox-jusbr-0.3.8.zip";
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch {
@@ -223,7 +223,7 @@ export function JusbrExtension({
       .select("oab_number,oab_uf")
       .eq("user_id", user.id)
       .eq("active", true);
-    setNotice("Aguardando vínculo. Instale v0.3.7 e recarregue esta página e a Central Jus.br.");
+    setNotice("Aguardando vínculo. Instale v0.3.8 e recarregue esta página e a Central Jus.br.");
     window.postMessage({ type: "WNEVES_JUSBR_PAIR", owner: user.id, settings: settings || [] }, window.location.origin);
   };
   const checkNow = async () => {

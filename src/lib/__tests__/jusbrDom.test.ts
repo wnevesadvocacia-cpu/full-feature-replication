@@ -117,6 +117,22 @@ describe("adaptador Diário com controles relatados", () => {
     expect(dom.read(period)).toMatchObject({ start: 1, endIndex: 3, total: 3, end: true });
     expect(forbidden).not.toHaveBeenCalled();
   });
+  it("portal sem Primeira página e contador inválido informa o contador, não o botão", async () => {
+    const { dom, search, begin } = fixture();
+    document.querySelector('[aria-label="Primeira página"]')!.remove();
+    search.onclick = () => {
+      const bar = begin();
+      setTimeout(() => {
+        document.querySelector('[role="status"]')!.textContent = "0 - 0 / 0";
+        bar.remove();
+      }, 100);
+    };
+    const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow(/contador inválido/);
+    await vi.advanceTimersByTimeAsync(1000);
+    vi.setSystemTime(Date.now() + 120000);
+    await vi.advanceTimersByTimeAsync(200);
+    await assertion;
+  });
   it("aguarda reconstrução do paginador após loading antes de retornar à primeira página", async () => {
     const { dom, next, search, begin, render, forbidden } = fixture();
     next.click();
