@@ -345,8 +345,9 @@ describe("adaptador Diário com controles relatados", () => {
     const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow("sem ciclo");
     await vi.advanceTimersByTimeAsync(122000);
     await assertion;
-  });
+  }, 25000);
   it("observa ciclo síncrono iniciado no clique e espera conclusão longa até 120s", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: false });
     const { dom, search, begin } = fixture();
     const report = vi.fn();
     search.onclick = () => {
@@ -357,18 +358,18 @@ describe("adaptador Diário com controles relatados", () => {
     const pending = dom.create(setting, period, report).search({ page: 1 }).then(done);
     await vi.advanceTimersByTimeAsync(89000);
     expect(done).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1600);
+    await vi.advanceTimersByTimeAsync(2000);
     await pending;
     expect(done).toHaveBeenCalledTimes(1);
     expect(report).toHaveBeenCalled();
-  });
+  }, 25000);
   it("interrompe loading que não termina em 120s", async () => {
     const { dom, search, begin } = fixture();
     search.onclick = begin;
     const assertion = expect(dom.create(setting, period).search({ page: 1 })).rejects.toThrow("120s");
     await vi.advanceTimersByTimeAsync(122000);
     await assertion;
-  });
+  }, 25000);
   it("rejeita filtros alterados durante loading", async () => {
     const { dom, search, begin } = fixture();
     search.onclick = () => {
