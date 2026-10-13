@@ -26,7 +26,9 @@ function runtimeRequest(payload) {
       );
   });
 }
-const report = (message) => {
+const report = (raw) => {
+  // Version prefix lets the app show which installed build produced the status.
+  const message = `[v${chrome.runtime.getManifest().version}] ${raw}`;
   lastProgress = message;
   return runtimeRequest({ type: "PORTAL_STATUS", owner: activeOwner, message }).catch(() => {});
 };
