@@ -1,4 +1,4 @@
-- [ ] Corrigir pacote embutido do botão Baixar extensão: entregava 0.3.7 com nome 0.3.8; validar bytes contra ZIP público e fontes.
+- [x] Corrigir pacote embutido do botão Baixar extensão: entregava 0.3.7 com nome 0.3.8; 53 testes passaram, compilação OK e download autenticado em Intimações confirmou bytes/versão/nome 0.3.8 contra ZIP público e fontes. Sem publicação; extensão instalada e portal real não verificados pelo agente.
 - [x] Preparar extensão local para conferência após login no Jus.br, sem ciência automática; pacote e download validados, 22 testes passaram, leitura do Diário e exclusão do Domicílio verificadas em página de teste. Não declarar cobertura autenticada.
 - [x] Atualizar os envios por e-mail anteriormente enfileirados; provedores externos preservados, dois testes e verificações das funções passaram, compilação OK; não publicado. Entrega real permanece sem teste de envio.
 - [ ] Validar compatibilidade e permissão de leitura no portal real — bloqueado: requer extensão instalada no navegador do titular, login autorizado com token e verificação das regras do portal; sessão e token não são acessados pelo WnevesBox.
