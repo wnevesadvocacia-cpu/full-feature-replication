@@ -1,5 +1,5 @@
 Identify the drafting actor through a server-stamped task field on status transitions, not the assignee, so attribution is independent and cannot be spoofed by the client.
-The task overview resolves system evidence with a process-specific paginated publication query and a conservative dated resolver, never tribunal defaults; historical evidence is not a live tribunal verification.
+The task overview identifies the tribunal through the shared CNJ resolver and resolves system evidence with a process-specific paginated publication query and a conservative dated resolver, never tribunal defaults; historical evidence is not a live tribunal verification.
 The overdue notice on Prazos reuses the existing task query and taskVisibility predicate with the São Paulo calendar date, independently of list filters, to keep overdue warnings visible without new data access.
 Queue-backed email features use the managed template helper with observational send auditing; external email providers remain unchanged to preserve provider choice.
 Run manual DJEN sync asynchronously with request-scoped configuration and owner-validated persisted completion; never interpret acceptance or partial results as a completed empty search.

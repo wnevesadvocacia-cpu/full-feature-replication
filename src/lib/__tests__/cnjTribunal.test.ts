@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { instanciaFromContext, sistemaFromContent, tribunalFromCNJ } from '@/lib/cnjTribunal';
 
+describe('tribunal do processo na janela do prazo', () => {
+  it('identifica TJMG pelo CNJ do processo de Contagem, independentemente do sistema', () => {
+    expect(tribunalFromCNJ('5004488-27.2023.8.13.0079')).toMatchObject({
+      sigla: 'TJMG', nome: 'Tribunal de Justiça de MG', cnjValido: true,
+    });
+  });
+});
+
 describe('identificação do sistema processual', () => {
   it('identifica publicação originada do eproc mesmo sem menção textual ao nome do sistema', () => {
     const content = `
