@@ -35,6 +35,7 @@ import { DateInputBR } from '@/components/DateInputBR';
 import { CopyNumber } from '@/components/CopyNumber';
 import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
 import { isOverdueTask } from '@/lib/taskVisibility';
+import { CurrentProcessSystem } from '@/components/CurrentProcessSystem';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas' | 'canceladas';
@@ -1391,19 +1392,21 @@ export default function Tarefas() {
             const memberById = new Map(teamMembers.map(m => [m.user_id, m.email]));
             const creatorLabel = memberById.get(t.created_by) || memberById.get(t.user_id) || '—';
             const completerLabel = t.completed_by ? (memberById.get(t.completed_by) || '—') : null;
+            const processNumber = publicationNumber(t);
             return (
               <div className="space-y-3 text-sm">
-                {publicationNumber(t) && (
-                  <div className="flex items-center gap-2">
+                {processNumber && (
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-muted-foreground">Processo:</span>
                     <span className="inline-flex items-center gap-1.5 font-mono text-base font-semibold px-3 py-1 rounded-md bg-primary/10 text-primary border border-primary/30">
                       <FileText className="h-4 w-4" />
-                      {publicationNumber(t)}
+                      {processNumber}
                     </span>
-                    <CopyNumber number={publicationNumber(t)!} className="p-1.5 rounded-md hover:bg-primary/10" />
+                    <CopyNumber number={processNumber} className="p-1.5 rounded-md hover:bg-primary/10" />
                   </div>
 
                 )}
+                {processNumber && <CurrentProcessSystem numero={processNumber} />}
                 {t.description && (() => {
                   const r = renderSafeContent(t.description);
                   return r.html
