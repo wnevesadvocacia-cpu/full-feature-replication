@@ -96,8 +96,8 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApp
 
         <div className="flex items-center gap-1.5 text-sm">
           <Gavel className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Tarefa:</span>
-          <span className="font-medium">{suggestionApproved ? deadline.label : 'Retida para conferência'}</span>
+          <span className="text-muted-foreground">{suggestionApproved ? 'Tarefa:' : 'Prazo:'}</span>
+          {suggestionApproved && <span className="font-medium">{deadline.label}</span>}
           <span className="text-muted-foreground">·</span>
           <span className="font-mono text-xs">{deadline.days}{deadline.doubled ? ' (2x)' : ''} {deadline.unit === 'dias_uteis' ? 'd.u.' : 'd.c.'}</span>
         </div>

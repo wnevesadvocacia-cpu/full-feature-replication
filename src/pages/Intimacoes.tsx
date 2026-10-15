@@ -1118,9 +1118,8 @@ export default function Intimacoes() {
                                   : `Faltam ${detectedDeadline.businessDaysLeft} dias úteis para o vencimento`}
                           </div>
                           <div className="opacity-90">
-                            Vencimento em {formatBR(detectedDeadline.dueDate)} · {suggestionReview.approved
-                              ? `tarefa sugerida: ${detectedDeadline.pecaSugerida.peca}`
-                              : "tarefa sugerida retida para conferência"}
+                            Vencimento em {formatBR(detectedDeadline.dueDate)} · {detectedDeadline.days} {detectedDeadline.unit === 'dias_uteis' ? 'dias úteis' : 'dias corridos'} · {detectedDeadline.source}
+                            {suggestionReview.approved && ` · tarefa sugerida: ${detectedDeadline.pecaSugerida.peca}`} 
                           </div>
                         </div>
                       </div>

@@ -3,6 +3,7 @@ import { deadlineRecipient } from './deadlineRecipient';
 interface Suggestion {
   days: number;
   unit: string;
+  source?: string;
   dueDate: string | null;
   startDate: string | null;
   isFallback: boolean;
@@ -43,11 +44,13 @@ export function reviewTaskSuggestion(content: string, suggestion: Suggestion | n
   const pieceAction = piece.replace(/\s*\(\d+ dias\)$/, '').trim();
   const commandOk = explicitActions.length === 1 && pieceAction === explicitActions[0][0];
 
-  // A literal interval is required; inferred statutory/fallback periods are held.
+  // A literal quantity is required; omitted units follow an identified code.
   const intervals = [...evidence.matchAll(/\b(?:prazo\s+de\s+|em\s+)(\d{1,3})\s+(?:\([a-z ]+\)\s+)?dias?(?:\s+(uteis|corridos))?\b/g)];
   const interval = intervals[0];
+  const codeUnit = suggestion.source === 'CPP' ? 'dias_corridos'
+    : ['CPC', 'CLT', 'TST', 'JEC', 'JEF'].includes(suggestion.source ?? '') ? 'dias_uteis' : null;
   const intervalOk = intervals.length === 1 && !!interval && Number(interval[1]) === suggestion.days
-    && (interval[2] === 'uteis' ? suggestion.unit === 'dias_uteis' : interval[2] === 'corridos' ? suggestion.unit === 'dias_corridos' : false);
+    && (interval[2] === 'uteis' ? suggestion.unit === 'dias_uteis' : interval[2] === 'corridos' ? suggestion.unit === 'dias_corridos' : codeUnit !== null && suggestion.unit === codeUnit);
   const partyOk = recipient.status === 'express' && recipient.party !== 'Ambas as partes';
   const deadlineOk = partyOk && intervalOk && !!suggestion.dueDate && !!suggestion.startDate
     && suggestion.days === suggestion.pecaSugerida.prazo_dias;
@@ -68,12 +71,12 @@ export function reviewTaskSuggestion(content: string, suggestion: Suggestion | n
     : explicitActions.length === 0 ? `O comando do ato não pede expressamente “${peca}”.`
     : explicitActions.length > 1 ? 'O ato traz mais de uma providência.'
     : `O ato pede ${explicitActions[0][0]}, não “${peca}”.`;
-  const deadlineReason = deadlineOk ? 'Destinatário e intervalo expresso compatíveis.'
+  const deadlineReason = deadlineOk ? `Destinatário e prazo compatíveis${!interval?.[2] ? `; contagem conforme ${suggestion.source}` : ''}.`
     : !partyOk ? 'O ato não nomeia uma única parte para cumprir.'
-    : !interval ? `O ato não fixa o prazo em dias úteis ou corridos; sugerido ${suggestion.days} dias pela regra legal.`
+    : !interval ? `O ato não informa a quantidade de dias; o cálculo usa ${suggestion.days} dias pela regra legal.`
     : intervals.length > 1 ? 'O comando traz mais de um prazo.'
     : Number(interval[1]) !== suggestion.days ? `O ato fixa ${interval[1]} dias; a sugestão usa ${suggestion.days}.`
-    : !interval[2] ? `O ato fixa ${interval[1]} dias sem dizer se úteis ou corridos.`
+    : !interval[2] && !codeUnit ? 'Código de rito não identificado para definir a unidade da contagem.'
     : 'Unidade ou datas do prazo divergentes da sugestão.';
   const conflictReason = conflictOk ? 'Nenhum conflito identificado pelas regras de revisão.'
     : allIntervals.length > 1 ? `O ato menciona ${allIntervals.length} prazos distintos.`
