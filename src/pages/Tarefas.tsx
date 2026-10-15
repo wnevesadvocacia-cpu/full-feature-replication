@@ -36,6 +36,7 @@ import { CopyNumber } from '@/components/CopyNumber';
 import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
 import { isOverdueTask } from '@/lib/taskVisibility';
 import { CurrentProcessSystem } from '@/components/CurrentProcessSystem';
+import { DeadlineRecipient } from '@/components/DeadlineRecipient';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas' | 'canceladas';
@@ -1407,6 +1408,7 @@ export default function Tarefas() {
 
                 )}
                 {processNumber && <CurrentProcessSystem numero={processNumber} />}
+                <DeadlineRecipient content={t.description} />
                 {t.description && (() => {
                   const r = renderSafeContent(t.description);
                   return r.html
