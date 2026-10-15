@@ -63,10 +63,33 @@ export function reviewTaskSuggestion(content: string, suggestion: Suggestion | n
     && !['auto_baixa', 'ambigua_urgente'].includes(suggestion.classificacaoStatus)
     && !/\b(?:agravo|apelacao|recurso|embargos)\b/.test(piece)
     && recipient.status === 'express';
+  const peca = suggestion.pecaSugerida.peca;
+  const commandReason = commandOk ? 'Providência expressa compatível com a tarefa.'
+    : explicitActions.length === 0 ? `O comando do ato não pede expressamente “${peca}”.`
+    : explicitActions.length > 1 ? 'O ato traz mais de uma providência.'
+    : `O ato pede ${explicitActions[0][0]}, não “${peca}”.`;
+  const deadlineReason = deadlineOk ? 'Destinatário e intervalo expresso compatíveis.'
+    : !partyOk ? 'O ato não nomeia uma única parte para cumprir.'
+    : !interval ? `O ato não fixa o prazo em dias úteis ou corridos; sugerido ${suggestion.days} dias pela regra legal.`
+    : intervals.length > 1 ? 'O comando traz mais de um prazo.'
+    : Number(interval[1]) !== suggestion.days ? `O ato fixa ${interval[1]} dias; a sugestão usa ${suggestion.days}.`
+    : !interval[2] ? `O ato fixa ${interval[1]} dias sem dizer se úteis ou corridos.`
+    : 'Unidade ou datas do prazo divergentes da sugestão.';
+  const conflictReason = conflictOk ? 'Nenhum conflito identificado pelas regras de revisão.'
+    : allIntervals.length > 1 ? `O ato menciona ${allIntervals.length} prazos distintos.`
+    : responseConflict ? `O ato pede resposta diversa de “${peca}”.`
+    : uncertain ? 'O texto tem alternativa, condição, negação ou citação.'
+    : conflictingActions.length > 1 ? 'O ato traz mais de uma providência.'
+    : suggestion.pecaSugerida.peca_alternativa ? 'A sugestão tem peça alternativa.'
+    : suggestion.isFallback ? 'Prazo presumido por regra geral, sem comando específico.'
+    : ['auto_baixa', 'ambigua_urgente'].includes(suggestion.classificacaoStatus) ? 'Classificação automática marcada como incerta.'
+    : /\b(?:agravo|apelacao|recurso|embargos)\b/.test(piece) ? 'Peça recursal exige conferência de cabimento.'
+    : recipient.status !== 'express' ? 'O ato não nomeia uma única parte para cumprir.'
+    : 'O ato não fixa prazo em dias.';
   const checks: SuggestionReview['checks'] = [
-    { stage: 'command', passed: commandOk, reason: commandOk ? 'Providência expressa compatível com a tarefa.' : 'Tarefa sem correspondência inequívoca com o comando atual.' },
-    { stage: 'recipient_deadline', passed: deadlineOk, reason: deadlineOk ? 'Destinatário e intervalo expresso compatíveis.' : 'Destinatário individual, quantidade ou unidade do prazo não comprovados.' },
-    { stage: 'conflict', passed: conflictOk, reason: conflictOk ? 'Nenhum conflito identificado pelas regras de revisão.' : 'Ambiguidade, alternativa ou incompatibilidade exige conferência jurídica.' },
+    { stage: 'command', passed: commandOk, reason: commandReason },
+    { stage: 'recipient_deadline', passed: deadlineOk, reason: deadlineReason },
+    { stage: 'conflict', passed: conflictOk, reason: conflictReason },
   ];
   return { version: 1, approved: checks.every(check => check.passed), checks };
 }

@@ -24,15 +24,37 @@ const subject = new RegExp(`^${article}(${rolePattern})\\s+(?:devera|deverao)\\s
 const anyCommand = /\b(?:intime[m]?[ -]se|cite[m]?[ -]se|manifeste[m]?[ -]se|vista|vistas|apresente(?:m)?|ofereca(?:m)?|recolha(?:m)?|comprove(?:m)?|pague(?:m)?|emende(?:m)?|regularize(?:m)?|especifique(?:m)?|informe(?:m)?|cumpra(?:m)?|conteste(?:m)?|impugne(?:m)?|devera|deverao|prazo)\b/;
 const normalize = (text: string) => text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\(s\)/g, 's').replace(/\s+/g, ' ');
 
+const toPlain = (content: string) => content.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+  .replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/gi, ' ')
+  .replace(/&quot;|&#34;/gi, '"').replace(/&amp;/gi, '&');
+
+/** Why the recipient stayed unconfirmed plus the literal command excerpts, so
+ * the reader sees who was ordered to do what without opening the full text. */
+export function recipientDiagnosis(content: string | null | undefined): { reason: string; excerpts: string[] } {
+  if (!content) return { reason: 'publicação sem texto', excerpts: [] };
+  const plain = toPlain(content);
+  const normalized = normalize(plain);
+  const sentences = plain.split(/[.;\n\r]+/).map(s => s.trim()).filter(Boolean);
+  const excerpts = sentences.filter(s => anyCommand.test(normalize(s))).slice(0, 3)
+    .map(s => s.length > 220 ? `${s.slice(0, 217)}…` : s);
+  const cnjs = extractCnjs(plain).length;
+  let reason = 'o ato não nomeia a parte que deve cumprir';
+  if (cnjs > 1) reason = `o ato menciona ${cnjs} processos`;
+  else if (/parte\(s\)/i.test(plain)) reason = 'o ato diz “parte(s)” sem indicar qual';
+  else if (/["“”«»]|\b(?:anterior(?:mente)?|transcrev\w*|citando|conforme|vide|retro|nos termos|ementa|jurisprudencia|historico)\b/.test(normalized)) reason = 'o comando está citado ou remete a ato anterior';
+  else if (/\b(?:revog\w*|torn[oa] sem efeito|nao|caso|se houver|ja intimad\w*|foi intimad\w*|foram intimad\w*)\b/.test(normalized)) reason = 'o comando é condicional, negativo ou já cumprido';
+  else if (deadlineRecipient(content).status === 'ambiguous') reason = 'há mais de um destinatário ou providência';
+  else if (!excerpts.length) reason = 'o ato não contém comando com prazo';
+  return { reason, excerpts };
+}
+
 /** Textual indication only, never office representation. Unsupported, quoted,
  * historical or multiple directions deliberately remain unconfirmed. */
 export function deadlineRecipient(content: string | null | undefined): DeadlineRecipientResult {
   const unknown: DeadlineRecipientResult = { status: 'unknown', party: null, evidence: null };
   const ambiguous: DeadlineRecipientResult = { status: 'ambiguous', party: null, evidence: null };
   if (!content) return unknown;
-  const plain = content.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
-    .replace(/<[^>]+>/g, ' ').replace(/&nbsp;|&#160;/gi, ' ')
-    .replace(/&quot;|&#34;/gi, '"').replace(/&amp;/gi, '&');
+  const plain = toPlain(content);
   const normalized = normalize(plain);
   if (extractCnjs(plain).length > 1) return ambiguous;
   // Do not decide whether quoted, conditional or prior directions still operate.
