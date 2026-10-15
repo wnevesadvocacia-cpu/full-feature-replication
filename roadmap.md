@@ -1,4 +1,4 @@
-- [ ] Identificar a parte destinatária do prazo por comando expresso, com trecho de evidência e indicação não confirmada em ambiguidades; validar regras e apresentação, sem publicar.
+- [x] Identificar destinatário por comando expresso e evidência, abstendo em ambiguidades; 44 testes de destinatário + 21 de cálculo passaram, compilação OK, indicadores conferidos em 23 intimações reais e detalhe de prazo. Dados observados exigiram não confirmação; sem publicar.
 - [ ] Revisar três vezes a tarefa sugerida, com verificações redundantes e conflitantes e retenção de sugestões duvidosas; definir e implementar escopo sem prometer erro zero.
 - [x] Corrigir contraminuta classificada como apelação no ato de 15/10/2026 e simplificar cabeçalho/memorial; 59 testes passaram, registro corrigido, funções implantadas e publicação real exibiu Contraminuta sem Apelação sugerida; memorial abre/fecha. Sem publicar frontend; modalidade do agravo/destinatário exigem conferência.
 - [x] v0.3.9: versão instalada exibida no status da conferência; 53 testes OK. Pendente: validação no portal real.
