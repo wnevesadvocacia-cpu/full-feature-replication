@@ -710,6 +710,19 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   const text = normalize(content);
   if (!text) return null;
 
+  // Código junto ao comando atual prevalece sobre marcadores gerais do expediente.
+  const commandStart = findLastDispositivoIndex(text);
+  const currentCommand = commandStart >= 0 ? text.slice(commandStart) : text;
+  const explicitCode = currentCommand.match(/\b(cpp|clt|cpc|codigo de processo penal|codigo de processo civil|lei\s+9\.?099)\b/)?.[1];
+  const rite: DeadlineSource = explicitCode === 'cpp' || explicitCode === 'codigo de processo penal' ? 'CPP'
+    : explicitCode === 'clt' ? 'CLT'
+    : explicitCode === 'cpc' || explicitCode === 'codigo de processo civil' ? 'CPC'
+    : explicitCode?.startsWith('lei') ? 'JEC'
+    : CRIMINAL_CONTEXT_RX.test(text) ? 'CPP'
+    : LABOR_CONTEXT_RX.test(text) ? 'CLT'
+    : JEC_CONTEXT_RX.test(text) ? 'JEC' : 'CPC';
+  const defaultUnit: DeadlineUnit = rite === 'CPP' ? 'dias_corridos' : 'dias_uteis';
+
   let chosen: { rule: Rule; matched: string } | null = null;
   let isFallback = false;
   let confianca = 0.5;
@@ -761,7 +774,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Ex.: "A 3ª TURMA RECURSAL CÍVEL DECIDIU, POR UNANIMIDADE, NEGAR PROVIMENTO AO AGRAVO
   // INTERNO". Não cabe repetir o mesmo recurso: cabe EDcl (5 d.u. — CPC art. 1.023 /
   // Lei 9.099 art. 48) ou recurso excepcional (15 d.u.). Adota-se o prazo mais curto.
-  if ((ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) && (RECURSO_IMPROVIDO_RX.test(text) || RECURSO_JULGADO_RX.test(text)) && !extractLiteralDeadline(text) && !interlocutoria1Grau) {
+  if ((ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) && (RECURSO_IMPROVIDO_RX.test(text) || RECURSO_JULGADO_RX.test(text)) && !extractLiteralDeadline(text) && !interlocutoria1Grau && (rite === 'CPC' || rite === 'JEC')) {
     const calCtx = context?.tribunal ? { tribunal: context.tribunal } : undefined;
     const publicacao = nextBusinessDay(receivedAtISO, calCtx);
     const dueDate = addBusinessDays(publicacao, 5, context);
@@ -828,7 +841,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // Decisão interlocutória de 1º grau (defere/indefere pedidos) que cita jurisprudência
   // colegiada: cabem Embargos de Declaração (5 d.u.) ou Agravo de Instrumento (15 d.u.).
   if (
-    interlocutoria1Grau &&
+    (rite === 'CPC' || rite === 'JEC') && interlocutoria1Grau &&
     (ACORDAO_COLEGIADO_RX.test(text) || DECISAO_MONOCRATICA_RX.test(text)) &&
     (RECURSO_IMPROVIDO_RX.test(text) || RECURSO_JULGADO_RX.test(text)) &&
     /\b(defiro|indefiro|decido)\b/.test(text)
@@ -866,7 +879,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
 
 
-  if (NEGA_SEGUIMENTO_RE_VINCULANTE_RX.test(text) && FUNDAMENTO_VINCULANTE_RX.test(text)) {
+  if (rite === 'CPC' && NEGA_SEGUIMENTO_RE_VINCULANTE_RX.test(text) && FUNDAMENTO_VINCULANTE_RX.test(text)) {
     return {
       days: 15,
       unit: 'dias_uteis',
@@ -1004,18 +1017,6 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
 
   // ====== P0 #3: PARSER LITERAL DE PRAZO (TRAVA OVERRIDE de RULES e contexto) ======
   const literal = extractLiteralDeadline(text);
-  // Código junto ao comando atual prevalece sobre marcadores gerais do expediente.
-  const commandStart = findLastDispositivoIndex(text);
-  const currentCommand = commandStart >= 0 ? text.slice(commandStart) : text;
-  const explicitCode = currentCommand.match(/\b(cpp|clt|cpc|codigo de processo penal|codigo de processo civil|lei\s+9\.?099)\b/)?.[1];
-  const rite: DeadlineSource = explicitCode === 'cpp' || explicitCode === 'codigo de processo penal' ? 'CPP'
-    : explicitCode === 'clt' ? 'CLT'
-    : explicitCode === 'cpc' || explicitCode === 'codigo de processo civil' ? 'CPC'
-    : explicitCode?.startsWith('lei') ? 'JEC'
-    : CRIMINAL_CONTEXT_RX.test(text) ? 'CPP'
-    : LABOR_CONTEXT_RX.test(text) ? 'CLT'
-    : JEC_CONTEXT_RX.test(text) ? 'JEC' : 'CPC';
-  const defaultUnit: DeadlineUnit = rite === 'CPP' ? 'dias_corridos' : 'dias_uteis';
   if (literal && !/dias?\s+(?:uteis|corridos)\b/.test(literal.matched)) literal.unit = defaultUnit;
   // Prazo literal que apenas repete o prazo legal do ato (ex.: "contestação no prazo de
   // 15 dias") continua sujeito ao dobro do ente público (CPC 183/180/186). Prazo fixado
@@ -1110,7 +1111,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // (B) ACOLHE embargos de declaração → também reabre prazo (CPC 1.026 §1º)
   if (!chosen) {
     const mAcolhe = text.match(ACOLHE_EMBARGOS);
-    if (mAcolhe) {
+    if (mAcolhe && rite === 'CPC') {
       chosen = {
         rule: { pattern: ACOLHE_EMBARGOS, days: 15, unit: 'dias_uteis', label: 'Recurso (após acolhimento de EDcl)', source: 'CPC', article: 'art. 1.026 §1º', peca: PECA_APELACAO },
         matched: mAcolhe[0],
@@ -1132,7 +1133,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // (C) Sentença homologatória → apelação 15 d.u.
   if (!chosen) {
     const mHomolog = text.match(SENTENCA_HOMOLOGATORIA);
-    if (mHomolog) {
+    if (mHomolog && rite === 'CPC') {
       chosen = {
         rule: { pattern: SENTENCA_HOMOLOGATORIA, days: 15, unit: 'dias_uteis', label: 'Apelação (sentença homologatória)', source: 'CPC', article: 'art. 1.009 c/c 1.003 §5º', peca: PECA_APELACAO },
         matched: mHomolog[0],
@@ -1237,6 +1238,9 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
       triggerSource: 'pauta',
     };
   }
+
+  // Não importar regra supletiva civil para rito penal/trabalhista sem prazo identificável.
+  if (!chosen && rite !== 'CPC' && rite !== 'JEC') return null;
 
   // ====== FALLBACK CPC 218 §3º (5 dias úteis) ======
   if (!chosen) {
