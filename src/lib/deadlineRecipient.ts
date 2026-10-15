@@ -69,7 +69,7 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
   const candidates: { party: string; evidence: string }[] = [];
   let unmatched = false;
   for (const sentence of splitSentences(plain)) {
-    const text = normalize(sentence);
+    const text = normalize(sentence).replace(/^(?:(?:ante|diante|pelo|por todo) o exposto|isto posto|isso posto|posto isso|assim|dessa forma|desse modo|portanto|logo|outrossim|no mais|vistos|em seguida)\s*,?\s*/, '');
     if (!anyCommand.test(text) || formula.test(text)) continue;
     // Do not decide whether quoted, conditional or prior directions still operate.
     if (historical.test(text)) return unknown;
