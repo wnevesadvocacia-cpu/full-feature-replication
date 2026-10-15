@@ -10,6 +10,12 @@ const base = {
   pecaSugerida: { peca: 'Contestação', prazo_dias: 15 },
 };
 describe('três revisões distintas da tarefa', () => {
+  it('retém intervalo adicional fora do comando principal', () => {
+    expect(reviewTaskSuggestion(`${text} Fica intimado o autor em 5 dias úteis.`, base).approved).toBe(false);
+  });
+  it('retém comando facultativo', () => {
+    expect(reviewTaskSuggestion('Intime-se o réu para apresentar contestação em 15 dias úteis, facultado o exercício.', base).approved).toBe(false);
+  });
   it('retém ausência de classificação sem interromper a tela', () => {
     const result = reviewTaskSuggestion('Ciência da juntada.', null);
     expect(result.approved).toBe(false);

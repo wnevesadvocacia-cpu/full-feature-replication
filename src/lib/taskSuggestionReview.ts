@@ -55,9 +55,10 @@ export function reviewTaskSuggestion(content: string, suggestion: Suggestion | n
   const conflictingActions = actions.filter(([, pattern]) => pattern.test(text));
   const responseConflict = /\bcontraminutas?\b/.test(text) && !piece.includes('contraminuta')
     || /\bcontrarrazoes\b/.test(text) && !piece.includes('contrarrazoes');
-  const uncertain = /\b(?:alternativamente|subsidiariamente|sucessivamente|respectivamente|ou|anterior|revog\w*|nao|conforme|ementa|caso|se houver)\b/.test(text)
+  const uncertain = /\b(?:alternativamente|subsidiariamente|sucessivamente|respectivamente|podendo|facultad\w*|facultativamente|a seu criterio|ou|anterior|revog\w*|nao|conforme|ementa|caso|se houver)\b/.test(text)
     || /["“”«»]/.test(text);
-  const conflictOk = !responseConflict && !uncertain && conflictingActions.length === 1
+  const allIntervals = [...text.matchAll(/\b\d{1,3}\s+dias?\b/g)];
+  const conflictOk = allIntervals.length === 1 && !responseConflict && !uncertain && conflictingActions.length === 1
     && !suggestion.pecaSugerida.peca_alternativa && !suggestion.isFallback
     && !['auto_baixa', 'ambigua_urgente'].includes(suggestion.classificacaoStatus)
     && !/\b(?:agravo|apelacao|recurso|embargos)\b/.test(piece)
