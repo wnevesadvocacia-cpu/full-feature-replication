@@ -36,4 +36,4 @@ Jus.br v0.3.11: suportar a variante pública verificada de 1–10 resultados sem
 
 - [x] Validar entrega v0.3.11 e sincronizar ZIP/base64: 73 testes focados passaram e compilação automática OK; oito fontes correspondentes. Sem publicação; novo lote real, vazio e integração ponta a ponta pendentes.
 - [x] Aplicar v0.3.12: aba READY exata, watchdog 150s sem progresso validado, rejeição de coletor abandonado e pacote sincronizado; 77 testes passaram e compilação automática OK. Cinco fontes preservadas byte a byte; sem publicar ou acessar o portal. Novo lote real permanece bloqueado pela validação no navegador do titular.
-- [ ] Identificar o sistema atual na janela do prazo por evidência do próprio processo, com data e diagnóstico quando não confirmado; validar regras e janela.
+- [x] Identificar sistema na janela do prazo por evidência individual datada, sem padrão do tribunal; 16 testes passaram e janela real do processo 5004488-27.2023.8.13.0079 exibiu eproc (05/10/2026). Situação atual no tribunal não verificada; sem publicação.

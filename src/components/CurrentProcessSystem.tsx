@@ -42,7 +42,7 @@ export function CurrentProcessSystem({ numero }: { numero: string }) {
       <Monitor className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 space-y-1">
         <p className="text-sm"><span className="text-muted-foreground">Sistema: </span>
-          <span className="font-semibold text-foreground">{loading ? 'Consultando…' : data?.sistema || 'Não confirmado'}</span>
+          <span className="font-semibold text-foreground">{loading ? 'Consultando…' : isError ? 'Não confirmado' : data?.sistema || 'Não confirmado'}</span>
           {loading && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
         </p>
         {!loading && <p className="text-xs text-muted-foreground">{data?.sistema && !isError
