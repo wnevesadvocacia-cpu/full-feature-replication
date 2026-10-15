@@ -50,7 +50,7 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
     const tail = text.slice(match[0].length);
     if (new RegExp(`\\b(?:${rolePattern})\\b`).test(tail) || /\b(?:para que|perito|uniao|ministerio publico|defensoria|intime[m]?[ -]se|cite[m]?[ -]se|manifeste[m]?[ -]se|se manifeste|devera|deverao|sucessiv\w*|respectiv\w*|subsidiari\w*)\b/.test(tail)) return ambiguous;
     // Notification alone is not a procedural deadline for the notified party.
-    if (!subject.test(text) && !/^manifeste[m]?[ -]se\b/.test(text) && !new RegExp(`\\bpara\\s+${action}\\b|\\bem\\s+\\d+\\s+dias?\\b`).test(tail)) return unknown;
+    if (!subject.test(text) && !/^manifeste[m]?[ -]se\b/.test(text) && !new RegExp(`\\bpara\\s+(?:${action}|manifestacao)\\b|\\bem\\s+\\d+\\s+dias?\\b`).test(tail)) return unknown;
     candidates.push({ party: label, evidence: sentence });
   }
   if (candidates.length > 1) return ambiguous;

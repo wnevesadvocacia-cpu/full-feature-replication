@@ -41,6 +41,9 @@ describe('destinatário expresso do comando atual', () => {
     'O réu foi intimado para contestar em 15 dias.',
     'Intime-se Maria para apresentar documentos em 5 dias.',
     'Intime-se o autor para apresentar documentos. Apresente contraminuta em 15 dias.',
+    'Intime-se o autor da expedição de mandado.',
+    'Intime-se o autor (vide despacho retro).',
+    'VISTA à(s) parte(s) para apresentar(em) contraminuta(s).',
   ])('não presume destinatário: %s', text => {
     expect(deadlineRecipient(text).status).not.toBe('express');
     expect(deadlineRecipient(text).party).toBeNull();
@@ -50,6 +53,8 @@ describe('destinatário expresso do comando atual', () => {
     'Intime-se o autor para apresentar documentos. Intime-se o autor para recolher custas.',
     'Intime-se o autor e o réu para apresentar documentos.',
     'Intime-se o autor para que o réu apresente documentos.',
+    'Intime-se o autor para que o perito apresente o laudo.',
+    'Intime-se o autor para que a União se manifeste.',
     'Intime-se o autor para apresentar documentos e intime-se o réu para pagar.',
     'Processo 5004488-27.2023.8.13.0079. Processo 1021189-58.2022.8.26.0224. Intime-se o autor em 5 dias.',
   ])('não seleciona arbitrariamente entre comandos/processos: %s', text => {
