@@ -34,6 +34,7 @@ import { attachDocumentToProcess } from '@/lib/attachDocument';
 import { DateInputBR } from '@/components/DateInputBR';
 import { CopyNumber } from '@/components/CopyNumber';
 import { isBusinessDay, todayISO, formatBR } from '@/lib/cnjCalendar';
+import { isOverdueTask } from '@/lib/taskVisibility';
 
 type TaskPriority = 'alta' | 'media' | 'baixa';
 type ViewFilter = 'pendentes' | 'todas' | 'concluidas' | 'canceladas';
@@ -227,6 +228,8 @@ export default function Tarefas() {
   const pendentes = (tasks as any[]).filter(t => !t.completed && t.status !== 'cancelada').length;
   const concluidas = (tasks as any[]).filter(t => t.completed && t.status !== 'cancelada').length;
   const canceladas = (tasks as any[]).filter(t => t.status === 'cancelada').length;
+  const overdueTasks = tasks.filter(t => isOverdueTask(t, todayISO()))
+    .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
 
 
   // ===== Espelho da agenda: carga de prazos pendentes por colaborador/dia =====
@@ -762,6 +765,33 @@ export default function Tarefas() {
             <Plus className="h-4 w-4 mr-1.5" /> Novo Prazo
           </Button>
         </header>
+
+        {!isLoading && overdueTasks.length > 0 && (
+          <section aria-labelledby="overdue-title" className="border-l-2 border-destructive bg-destructive/10 p-4 sm:p-5 text-foreground">
+            <h2 id="overdue-title" className="flex items-center gap-2 text-sm font-bold text-destructive">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              Prazos vencidos <Badge variant="destructive">{overdueTasks.length}</Badge>
+            </h2>
+            <div className="mt-3 max-h-64 overflow-auto">
+              <table className="w-full min-w-[440px] text-left text-sm">
+                <thead className="text-xs text-muted-foreground">
+                  <tr><th scope="col" className="py-2 pr-4">Prazo</th><th scope="col" className="py-2 pr-4">Vencimento</th><th scope="col" className="py-2">Colaborador responsável</th></tr>
+                </thead>
+                <tbody>
+                  {overdueTasks.map(task => (
+                    <tr key={task.id} className="border-t border-destructive/20 align-top">
+                      <td className="py-3 pr-4 break-words">
+                        <Button variant="link" onClick={() => setOverviewTarget(task)} className="h-auto max-w-full whitespace-normal p-0 text-left text-foreground justify-start">{task.title}</Button>
+                      </td>
+                      <td className="py-3 pr-4 whitespace-nowrap font-semibold text-destructive">{fmtDate(task.due_date || undefined)}</td>
+                      <td className="py-3 break-words font-semibold">{teamMembers.find(m => m.email === task.assignee)?.full_name || task.assignee || 'Não atribuído'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {/* Banner de alerta piscante para prazos próximos */}
         {(() => {
