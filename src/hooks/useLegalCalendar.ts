@@ -57,7 +57,6 @@ export function useLegalCalendar() {
       bySuspensionTribunal.set(key, dates);
     });
     bySuspensionTribunal.forEach((dates, tribunal) => setSuspensionWindow(dates, tribunal));
-    qc.invalidateQueries({ queryKey: ['intimations'] });
 
     const byTribunal = new Map<string, string[]>();
     tHolidays.forEach((h) => {

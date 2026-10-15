@@ -1063,14 +1063,17 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
       supabase.from("judicial_suspensions").select("tribunal_codigo,start_date,end_date"),
       supabase.from("tribunal_holidays").select("tribunal_codigo,holiday_date"),
     ]);
-    const suspended: string[] = [];
+    const bySuspensionTribunal = new Map<string, string[]>();
     for (const s of suspensions || []) {
+      const key = s.tribunal_codigo?.toUpperCase() || '';
+      const suspended = bySuspensionTribunal.get(key) || [];
       const start = new Date(`${s.start_date}T12:00:00Z`);
       const end = new Date(`${s.end_date}T12:00:00Z`);
       for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1))
         suspended.push(d.toISOString().slice(0, 10));
+      bySuspensionTribunal.set(key, suspended);
     }
-    setSuspensionWindow(suspended);
+    bySuspensionTribunal.forEach((dates, tribunal) => setSuspensionWindow(dates, tribunal));
     const holidaysByTribunal = new Map<string, string[]>();
     for (const h of tribunalHolidays || []) {
       const dates = holidaysByTribunal.get(h.tribunal_codigo) || [];
