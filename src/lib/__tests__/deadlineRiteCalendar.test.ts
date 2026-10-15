@@ -65,4 +65,11 @@ describe.each([['browser', detectDeadline, browser], ['edge', edgeDetect, edge]]
     expect(result?.doubled).toBe(false);
     expect(result?.days).toBe(5);
   });
+  it('não presume prazo supletivo CPC em despacho CPP sem prazo', () => {
+    expect(detect('CPP. Intime-se a defesa para informar o endereço.', '2025-05-20', '2025-05-20')).toBeNull();
+  });
+  it('homologação trabalhista não abre apelação civil', () => {
+    const result = detect('Vara do Trabalho. Homologo o acordo.', '2025-05-20', '2025-05-20');
+    expect(result?.source === 'CPC' && result?.label.includes('Apelação')).toBe(false);
+  });
 });
