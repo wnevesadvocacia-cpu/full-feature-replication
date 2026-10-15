@@ -21,6 +21,7 @@ import { captureException } from "../_shared/sentry.ts";
 import { sendLoggedEmail } from "../_shared/transactional-email-templates/send-logged-email.ts";
 // PR2 — edge unificada: detectDeadline canônico (mesma engine do frontend).
 import { detectDeadline } from "../_shared/legalDeadlines.ts";
+import { reviewTaskSuggestion } from "../_shared/taskSuggestionReview.ts";
 import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from "../_shared/cnjCalendar.ts";
 import { assertTribunalHtml, readDjenPage, recordCoverageIssue } from "../_shared/djenCoverage.ts";
 import { pendingDjenEntries, djenIdentityAliases, djenRequiresCooldown } from "../_shared/djenImport.ts";
@@ -1275,6 +1276,7 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
         //   * auto_alta (≥0.9): grava deadline canônico.
         //   * demais (auto_media/baixa/ambigua_urgente): deadline=null + dump em deadline_sugerido_inseguro.
         const detected = classifyIntimation(cleanText, receivedAt, tribunal);
+        const suggestionReview = detected ? reviewTaskSuggestion(cleanText, detected) : null;
         const trigKey = detected?.triggerSource ?? "none";
         triggerCounts[trigKey] = (triggerCounts[trigKey] || 0) + 1;
         const isSafe = !!detected && detected.classificacaoStatus === "auto_alta" && !!detected.dueDate;
@@ -1329,11 +1331,11 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
             received_at: receivedAt,
             deadline,
             deadline_sugerido_inseguro: deadlineSugeridoInseguro,
-            peca_sugerida: detected?.pecaSugerida ?? null,
+            peca_sugerida: suggestionReview?.approved ? detected?.pecaSugerida ?? null : null,
             base_legal: detected?.baseLegal ?? null,
             confianca_classificacao: detected?.confianca ?? null,
             classificacao_status: detected?.classificacaoStatus ?? null,
-            classification_meta: classificationMeta,
+            classification_meta: { ...classificationMeta, task_suggestion_review: suggestionReview },
             process_id: processId,
             status: "pendente",
           })

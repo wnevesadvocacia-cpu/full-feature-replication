@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 
 interface Props {
   deadline: DetectedDeadline;
+  suggestionApproved?: boolean;
   receivedAtISO: string;   // data de disponibilização (YYYY-MM-DD)
   tribunal?: string | null; // sigla p/ feriados estaduais (opcional)
 }
@@ -50,7 +51,7 @@ const SEV = {
   normal:   { chip: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/40', dot: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-300', label: 'NO PRAZO' },
 } as const;
 
-export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
+export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApproved = false }: Props) {
   // extrai a parte "extra" do baseLegal (o motivo por trás do fundamento primário)
   const baseLegalExtra = (d: DetectedDeadline) => {
     const primary = `${d.source} ${d.article}`;
@@ -98,8 +99,8 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
 
         <div className="flex items-center gap-1.5 text-sm">
           <Gavel className="h-4 w-4 text-muted-foreground" />
-          <span className="text-muted-foreground">Peça:</span>
-          <span className="font-medium">{deadline.label}</span>
+          <span className="text-muted-foreground">Tarefa:</span>
+          <span className="font-medium">{suggestionApproved ? deadline.label : 'Retida para conferência'}</span>
           <span className="text-muted-foreground">·</span>
           <span className="font-mono text-xs">{deadline.days}{deadline.doubled ? ' (2x)' : ''} {deadline.unit === 'dias_uteis' ? 'd.u.' : 'd.c.'}</span>
         </div>
