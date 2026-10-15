@@ -52,9 +52,11 @@ describe('três revisões distintas da tarefa', () => {
     reviewTaskSuggestion('Intime-se.', base);
     expect(base).toEqual(before);
   });
-  it('aceita saída real do motor apenas se compatível com as três revisões', () => {
+  it('retém manifestação genérica do motor quando o comando exige contestação', () => {
     const detected = detectDeadline(text, '2026-10-15', '2026-10-15', { tribunal: 'TJSP' });
-    expect(reviewTaskSuggestion(text, detected).approved).toBe(true);
+    expect(detected.pecaSugerida.peca).toBe('Manifestação (15 dias)');
+    expect(reviewTaskSuggestion(text, detected).checks[0].passed).toBe(false);
+    expect(reviewTaskSuggestion(text, detected).approved).toBe(false);
   });
   it('navegador e funções usam as mesmas revisões e destinatários', () => {
     const read = (path: string) => readFileSync(path, 'utf8');
