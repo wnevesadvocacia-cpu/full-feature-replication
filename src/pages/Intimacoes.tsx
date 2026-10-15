@@ -1027,12 +1027,12 @@ export default function Intimacoes() {
                       </div>
                     );
                   })()}
+                  {it.court && <p className="mb-2 text-xs leading-relaxed text-muted-foreground" title={it.court}>{it.court}</p>}
                   <div className="flex items-center gap-2 flex-wrap">
-                    {it.court && <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">{it.court}</span>}
                     {tribInfo?.sistema && (
                       <Badge
                         variant="outline"
-                        className="text-xs border-sky-400 text-sky-800 bg-sky-50 dark:bg-sky-950/40 dark:text-sky-200"
+                        className="text-xs text-muted-foreground"
                         title={
                           tribInfo.sistemasAlternativos?.length
                             ? `${tribInfo.sigla} — também em uso: ${tribInfo.sistemasAlternativos.join(", ")}`
@@ -1061,7 +1061,7 @@ export default function Intimacoes() {
                         )}
                       </Badge>
                     )}
-                    {!isUnsafe && detectedDeadline && !detectedDeadline.isFallback && (
+                    {!isUnsafe && detectedDeadline && !detectedDeadline.isFallback && !detectedDeadline.dueDate && (
                       <DeadlineBadge deadline={detectedDeadline} receivedAtISO={it.received_at.slice(0, 10)} />
                     )}
                     {!isUnsafe && it.deadline && !detectedDeadline?.dueDate && (

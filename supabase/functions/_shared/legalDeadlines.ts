@@ -210,6 +210,8 @@ const RULES: Rule[] = [
 
   // ===== Recursos cíveis (CPC) =====
 
+  { pattern: /\b(?:apresentar(?:\(em\)|em)?|apresente(?:m)?|oferecer(?:em)?|ofereca(?:m)?|para)\b[\s\S]{0,100}\bcontraminuta(?:s)?\b/, days: 15, unit: 'dias_uteis', label: 'Contraminuta', source: 'CPC', article: 'art. 1.019 II / 1.021 §2º / 1.042 §3º', peca: { peca: 'Contraminuta', fundamento_legal: 'CPC art. 1.019 II / 1.021 §2º / 1.042 §3º', prazo_dias: 15, observacoes: 'Vista para responder ao recurso já interposto, não para interpor apelação. Confirmar a modalidade do agravo e o destinatário da intimação no inteiro teor; os dispositivos alternativos não identificam o recurso específico.' }, confianca: 0.85 },
+
   { pattern: /\bembargos? de declaracao\b/, days: 5, unit: 'dias_uteis', label: 'Embargos de Declaração', source: 'CPC', article: 'art. 1.023', peca: PECA_EMBARGOS_DECL, confianca: 0.9 },
   { pattern: /\bagravo (interno|regimental)\b/, days: 15, unit: 'dias_uteis', label: 'Agravo Interno', source: 'CPC', article: 'art. 1.021 §2º', peca: { peca: 'Agravo Interno', fundamento_legal: 'CPC art. 1.021', prazo_dias: 15, observacoes: 'Recurso interno em órgão colegiado.' }, confianca: 0.9 },
   { pattern: /\bagravo de instrumento\b/, days: 15, unit: 'dias_uteis', label: 'Agravo de Instrumento', source: 'CPC', article: 'art. 1.003 §5º', peca: PECA_AGRAVO_INSTR, confianca: 0.9 },
@@ -1166,7 +1168,9 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
           ? [...RULES.filter((r) => r.source === 'JEC' || r.source === 'JEF'), ...JEC_SUPPL_RULES, ...RULES]
           : RULES;
     for (const rule of contextualRules) {
-      const m = text.match(rule.pattern);
+      // A classe no expediente não é o dispositivo nem abre novo recurso.
+      const ruleText = text.replace(/-\s*apelacao civel\s*-/g, ' - ');
+      const m = ruleText.match(rule.pattern);
       if (m) { chosen = { rule, matched: m[0] }; confianca = rule.confianca ?? 0.8; triggerSource = 'rules'; break; }
     }
   }

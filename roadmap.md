@@ -1,3 +1,4 @@
+- [ ] Corrigir contraminuta classificada como apelação no ato de 15/10/2026 e simplificar cabeçalho/memorial; validar publicação real.
 - [x] v0.3.9: versão instalada exibida no status da conferência; 53 testes OK. Pendente: validação no portal real.
 - [x] Corrigir pacote embutido do botão Baixar extensão: entregava 0.3.7 com nome 0.3.8; 53 testes passaram, compilação OK e download autenticado em Intimações confirmou bytes/versão/nome 0.3.8 contra ZIP público e fontes. Sem publicação; extensão instalada e portal real não verificados pelo agente.
 - [x] Preparar extensão local para conferência após login no Jus.br, sem ciência automática; pacote e download validados, 22 testes passaram, leitura do Diário e exclusão do Domicílio verificadas em página de teste. Não declarar cobertura autenticada.

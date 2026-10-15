@@ -10,6 +10,18 @@ import { clearLegalCalendarCache, setTribunalHolidaySet } from '../cnjCalendar';
 // Cenários reais para validar contra calendário CNJ:
 
 describe('legalDeadlines — datas de início e vencimento', () => {
+  it('vista de 15/10/2026 para apresentar(em) contraminuta não é nova apelação', () => {
+    const det = detectDeadline('Órgão: Recursos Tribunais Superiores Direito Privado 2. VISTA Nº 1021189-58.2022.8.26.0224 - Processo Digital - Apelação Cível - Guarulhos - Apelante: Magda - Apelado: Folini - Vista à(s) parte(s) para apresentar(em) contraminuta.', '2026-10-15', '2026-10-15', { tribunal: 'TJSP' });
+    expect(det?.pecaSugerida.peca).toBe('Contraminuta');
+    expect(det?.days).toBe(15);
+    expect(det?.classificacaoStatus).toBe('auto_media');
+  });
+
+  it('classe Apelação Cível em despacho de mera ciência não abre recurso', () => {
+    const det = detectDeadline('DESPACHO - Apelação Cível - Apelante: A - Apelado: B - Dê-se ciência às partes.', '2026-10-15', '2026-10-15');
+    expect(det?.days).toBe(0);
+    expect(det?.dueDate).toBeNull();
+  });
   it('Contestação (15 d.u.) disponibilizada quinta 22/05/2025 → publicação sex 23/05, início seg 26/05, vencimento 13/06', () => {
     const det = detectDeadline('Apresente contestação no prazo legal', '2025-05-22', '2025-05-22');
     expect(det).not.toBeNull();
