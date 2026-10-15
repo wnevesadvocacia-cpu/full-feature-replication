@@ -11,6 +11,7 @@ import { useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Gavel, ScrollText, CalendarClock, AlertOctagon, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { formatBR, isBusinessDay, nextBusinessDay, getCnjHolidays } from '@/lib/cnjCalendar';
 import type { DetectedDeadline } from '@/lib/legalDeadlines';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   deadline: DetectedDeadline;
@@ -78,7 +79,7 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
   if (deadline.triggerSource === 'pauta' || deadline.days === 0) return null;
 
   return (
-    <div className="mt-3 rounded-lg border bg-card/50 overflow-hidden">
+    <div className="mt-3 border-y border-border overflow-hidden">
       {/* Cabeçalho de decisão rápida */}
       <div className="p-3 flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="flex items-center gap-2">
@@ -103,19 +104,21 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
           <span className="font-mono text-xs">{deadline.days}{deadline.doubled ? ' (2x)' : ''} {deadline.unit === 'dias_uteis' ? 'd.u.' : 'd.c.'}</span>
         </div>
 
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           type="button"
           onClick={() => setOpen(v => !v)}
-          className="ml-auto inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          className="ml-auto h-7 gap-1 text-xs text-muted-foreground"
           aria-expanded={open}
         >
           {open ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
           Memorial de cálculo
-        </button>
+        </Button>
       </div>
 
       {/* Chips legais */}
-      <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+      {open && <div className="px-3 pb-3 flex flex-wrap gap-1.5">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-muted/60 text-[11px] font-mono">
           <ScrollText className="h-3 w-3" /> {deadline.source} {deadline.article}
         </span>
@@ -147,7 +150,9 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal }: Props) {
             <ShieldCheck className="h-3 w-3" /> Calendário oficial CNJ aplicado
           </span>
         )}
-      </div>
+      </div>}
+      {hasLocalHoliday && !open && <p className="px-3 pb-2 text-xs text-warning">Contagem pendente de validação de feriado local.</p>}
+      {!open && deadline.classificacaoStatus !== 'auto_alta' && deadline.classificacaoStatus !== 'revisada_advogado' && <p className="px-3 pb-2 text-xs text-warning">Confirme a modalidade do ato e o destinatário no inteiro teor.</p>}
 
       {/* Memorial expansível */}
       {open && (
