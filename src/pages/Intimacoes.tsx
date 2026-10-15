@@ -33,6 +33,7 @@ import { renderSafeContent } from "@/lib/sanitizeHtml";
 import { useDeadlineReconciliation } from "@/hooks/useDeadlineReconciliation";
 import { DeadlineBadge } from "@/components/DeadlineBadge";
 import { DeadlinePanel } from "@/components/DeadlinePanel";
+import { DeadlineRecipient } from "@/components/DeadlineRecipient";
 import { tribunalFromCNJ } from "@/lib/cnjTribunal";
 import { useSistemaByCnj } from "@/hooks/useSistemaByCnj";
 import { DeleteGuard } from "@/components/DeleteGuard";
@@ -1028,6 +1029,7 @@ export default function Intimacoes() {
                     );
                   })()}
                   {it.court && <p className="mb-2 text-xs leading-relaxed text-muted-foreground" title={it.court}>{it.court}</p>}
+                  <DeadlineRecipient content={it.content} />
                   <div className="flex items-center gap-2 flex-wrap">
                     {tribInfo?.sistema && (
                       <Badge
