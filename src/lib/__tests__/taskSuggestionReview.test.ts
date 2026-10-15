@@ -5,7 +5,7 @@ import { detectDeadline } from '@/lib/legalDeadlines';
 
 const text = 'Intime-se o réu para apresentar contestação em 15 dias úteis.';
 const base = {
-  days: 15, unit: 'dias_uteis', dueDate: '2026-11-09', startDate: '2026-10-19',
+  days: 15, unit: 'dias_uteis', source: 'CPC', dueDate: '2026-11-09', startDate: '2026-10-19',
   isFallback: false, triggerSource: 'literal_dispositivo', classificacaoStatus: 'auto_alta',
   pecaSugerida: { peca: 'Contestação', prazo_dias: 15 },
 };
@@ -44,9 +44,23 @@ describe('três revisões distintas da tarefa', () => {
   it.each([
     ['15 dias úteis', 5, 'dias_uteis'],
     ['15 dias corridos', 15, 'dias_uteis'],
-    ['15 dias', 15, 'dias_uteis'],
   ])('segunda revisão rejeita quantidade/unidade incompatível: %s', (literal, days, unit) => {
     expect(reviewTaskSuggestion(`Intime-se o réu para apresentar contestação em ${literal}.`, { ...base, days, unit }).checks[1].passed).toBe(false);
+  });
+  it.each([
+    ['CPC', 'dias_uteis'], ['CLT', 'dias_uteis'], ['JEC', 'dias_uteis'],
+    ['JEF', 'dias_uteis'], ['CPP', 'dias_corridos'],
+  ])('15 dias sem unidade seguem o código %s', (source, unit) => {
+    const act = 'Intime-se o réu para apresentar contestação em 15 dias.';
+    expect(reviewTaskSuggestion(act, { ...base, source, unit }).checks[1].passed).toBe(true);
+    const wrongUnit = unit === 'dias_uteis' ? 'dias_corridos' : 'dias_uteis';
+    expect(reviewTaskSuggestion(act, { ...base, source, unit: wrongUnit }).checks[1].passed).toBe(false);
+  });
+  it('não presume código para unidade omitida', () => {
+    expect(reviewTaskSuggestion('Intime-se o réu para apresentar contestação em 15 dias.', { ...base, source: undefined }).checks[1].passed).toBe(false);
+  });
+  it('preserva unidade expressa em vez da unidade padrão do rito', () => {
+    expect(reviewTaskSuggestion(text, { ...base, source: 'CPP' }).checks[1].passed).toBe(true);
   });
   it('terceira revisão rejeita alternativas mesmo com prazo e comando compatíveis', () => {
     const result = reviewTaskSuggestion(text, { ...base, pecaSugerida: { ...base.pecaSugerida, peca_alternativa: { peca: 'Apelação' } } });
