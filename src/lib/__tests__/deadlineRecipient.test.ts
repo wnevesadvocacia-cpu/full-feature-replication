@@ -64,3 +64,12 @@ describe('destinatário expresso do comando atual', () => {
     expect(deadlineRecipient(null)).toEqual({ status: 'unknown', party: null, evidence: null });
   });
 });
+import { recipientDiagnosis } from '../deadlineRecipient';
+describe('recipientDiagnosis', () => {
+  it('names the generic party and shows the command excerpt', () => {
+    expect(recipientDiagnosis('VISTA à(s) parte(s) para apresentar(em) contraminuta(s).')).toEqual({
+      reason: 'o ato diz “parte(s)” sem indicar qual',
+      excerpts: ['VISTA à(s) parte(s) para apresentar(em) contraminuta(s)'],
+    });
+  });
+});
