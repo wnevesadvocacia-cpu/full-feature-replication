@@ -80,3 +80,10 @@ describe('ato real de cumprimento de sentença', () => {
     expect(deadlineRecipient(ato)).toMatchObject({ status: 'express', party: 'Executado(a)' });
   });
 });
+
+import { recipientPartyName } from '../deadlineRecipient';
+describe('recipientPartyName', () => {
+  it('lê o nome do executado no cabeçalho', () => {
+    expect(recipientPartyName('EXEQUENTE: MAYARA VALERIO FERREIRA ADVOGADO(A): WILLIAM (OAB SP290702)EXECUTADO: FLEX ANALISE DE CREDITO E COBRANCA LTDA.ADVOGADO(A): MARCIO', 'Executado(a)')).toBe('FLEX ANALISE DE CREDITO E COBRANCA LTDA');
+  });
+});

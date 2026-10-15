@@ -22,7 +22,7 @@ const actions = [
   ['contestacao', /\bpara\s+(?:contestar|apresentar\s+contestacao)\b/],
   ['manifestacao', /\b(?:manifeste[m]?[ -]se|para\s+(?:manifestacao|manifestar(?:[ -]se)?))\b/],
   ['emenda', /\bpara\s+emendar\b/],
-  ['pagamento', /\bpara\s+pagar\b/],
+  ['pagamento', /\b(?:para\s+pagar|efetue[m]?\s+o\s+pagamento)\b/],
 ] as const;
 
 /** Three distinct deterministic checks, not three independent legal opinions.
@@ -44,7 +44,7 @@ export function reviewTaskSuggestion(content: string, suggestion: Suggestion | n
   const commandOk = explicitActions.length === 1 && pieceAction === explicitActions[0][0];
 
   // A literal interval is required; inferred statutory/fallback periods are held.
-  const intervals = [...evidence.matchAll(/\b(?:prazo\s+de\s+|em\s+)(\d{1,3})\s+dias?(?:\s+(uteis|corridos))?\b/g)];
+  const intervals = [...evidence.matchAll(/\b(?:prazo\s+de\s+|em\s+)(\d{1,3})\s+(?:\([a-z ]+\)\s+)?dias?(?:\s+(uteis|corridos))?\b/g)];
   const interval = intervals[0];
   const intervalOk = intervals.length === 1 && !!interval && Number(interval[1]) === suggestion.days
     && (interval[2] === 'uteis' ? suggestion.unit === 'dias_uteis' : interval[2] === 'corridos' ? suggestion.unit === 'dias_corridos' : false);
@@ -57,7 +57,7 @@ export function reviewTaskSuggestion(content: string, suggestion: Suggestion | n
     || /\bcontrarrazoes\b/.test(text) && !piece.includes('contrarrazoes');
   const uncertain = /\b(?:alternativamente|subsidiariamente|sucessivamente|respectivamente|podendo|facultad\w*|facultativamente|a seu criterio|ou|anterior|revog\w*|nao|conforme|ementa|caso|se houver)\b/.test(text)
     || /["“”«»]/.test(text);
-  const allIntervals = [...text.matchAll(/\b\d{1,3}\s+dias?\b/g)];
+  const allIntervals = [...text.matchAll(/\b\d{1,3}\s+(?:\([a-z ]+\)\s+)?dias?\b/g)];
   const conflictOk = allIntervals.length === 1 && !responseConflict && !uncertain && conflictingActions.length === 1
     && !suggestion.pecaSugerida.peca_alternativa && !suggestion.isFallback
     && !['auto_baixa', 'ambigua_urgente'].includes(suggestion.classificacaoStatus)

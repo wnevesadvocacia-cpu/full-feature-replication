@@ -88,3 +88,19 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
   if (unmatched || !candidate) return unknown;
   return { status: 'express', party: candidate.party, evidence: candidate.evidence };
 }
+
+const headerKeys: Record<string, string> = {
+  'Parte autora': 'autora?|requerente', 'Parte ré': 're|reu|requerid[oa]', Exequente: 'exequente', 'Executado(a)': 'executad[oa]',
+  Recorrente: 'recorrente', 'Recorrido(a)': 'recorrid[oa]', Agravante: 'agravante', 'Agravado(a)': 'agravad[oa]',
+  Apelante: 'apelante', 'Apelado(a)': 'apelad[oa]', Embargante: 'embargante', 'Embargado(a)': 'embargad[oa]',
+};
+/** Name of the party listed under the matching role in the publication header,
+ * only when that role lists exactly one distinct name. */
+export function recipientPartyName(content: string | null | undefined, party: string | null): string | null {
+  const key = party && headerKeys[party];
+  if (!content || !key) return null;
+  const plain = toPlain(content);
+  const names = new Set([...plain.matchAll(new RegExp(`\\b(?:${key})(?:\\(a\\))?\\s*:\\s*(.+?)(?=\\s*(?:advogad|exequente|executad|autora?\\b|requerente|requerid|r[eé]u?\\b|recorr|agrav|apel|embarg|despacho|decis|senten|$))`, 'giu'))]
+    .map(m => m[1].replace(/[.;,\s]+$/, '').trim()).filter(name => name.length > 2));
+  return names.size === 1 ? [...names][0] : null;
+}
