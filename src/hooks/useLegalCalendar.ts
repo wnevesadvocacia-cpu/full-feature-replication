@@ -13,6 +13,9 @@ import {
 interface Suspension { id: string; tribunal_codigo: string | null; start_date: string; end_date: string; reason: string }
 interface TribunalHoliday { tribunal_codigo: string; holiday_date: string; description: string }
 
+const EMPTY_SUSPENSIONS: Suspension[] = [];
+const EMPTY_HOLIDAYS: TribunalHoliday[] = [];
+
 function expandRange(start: string, end: string): string[] {
   const out: string[] = [];
   const s = new Date(start + 'T12:00:00Z');
@@ -26,7 +29,7 @@ function expandRange(start: string, end: string): string[] {
 export function useLegalCalendar() {
   const qc = useQueryClient();
 
-  const { data: suspensions = [] } = useQuery<Suspension[]>({
+  const { data: suspensions = EMPTY_SUSPENSIONS } = useQuery<Suspension[]>({
     queryKey: ['judicial_suspensions'],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from('judicial_suspensions').select('*');
@@ -36,7 +39,7 @@ export function useLegalCalendar() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: tHolidays = [] } = useQuery<TribunalHoliday[]>({
+  const { data: tHolidays = EMPTY_HOLIDAYS } = useQuery<TribunalHoliday[]>({
     queryKey: ['tribunal_holidays'],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from('tribunal_holidays').select('*');
@@ -65,6 +68,7 @@ export function useLegalCalendar() {
       byTribunal.set(h.tribunal_codigo, arr);
     });
     byTribunal.forEach((dates, tribunal) => setTribunalHolidaySet(tribunal, dates));
+    qc.invalidateQueries({ queryKey: ['intimations'] });
   }, [suspensions, tHolidays, qc]);
 
   // Realtime: portaria nova invalida cache imediatamente
