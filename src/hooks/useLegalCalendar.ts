@@ -49,9 +49,15 @@ export function useLegalCalendar() {
   // Aplica nos sets globais usados por isBusinessDay
   useEffect(() => {
     clearLegalCalendarCache();
-    const allSuspended: string[] = [];
-    suspensions.forEach((s) => allSuspended.push(...expandRange(s.start_date, s.end_date)));
-    setSuspensionWindow(allSuspended);
+    const bySuspensionTribunal = new Map<string, string[]>();
+    suspensions.forEach((s) => {
+      const key = s.tribunal_codigo?.toUpperCase() || '';
+      const dates = bySuspensionTribunal.get(key) ?? [];
+      dates.push(...expandRange(s.start_date, s.end_date));
+      bySuspensionTribunal.set(key, dates);
+    });
+    bySuspensionTribunal.forEach((dates, tribunal) => setSuspensionWindow(dates, tribunal));
+    qc.invalidateQueries({ queryKey: ['intimations'] });
 
     const byTribunal = new Map<string, string[]>();
     tHolidays.forEach((h) => {
@@ -60,7 +66,7 @@ export function useLegalCalendar() {
       byTribunal.set(h.tribunal_codigo, arr);
     });
     byTribunal.forEach((dates, tribunal) => setTribunalHolidaySet(tribunal, dates));
-  }, [suspensions, tHolidays]);
+  }, [suspensions, tHolidays, qc]);
 
   // Realtime: portaria nova invalida cache imediatamente
   useEffect(() => {
