@@ -64,3 +64,26 @@ describe('destinatário expresso do comando atual', () => {
     expect(deadlineRecipient(null)).toEqual({ status: 'unknown', party: null, evidence: null });
   });
 });
+import { recipientDiagnosis } from '../deadlineRecipient';
+describe('recipientDiagnosis', () => {
+  it('names the generic party and shows the command excerpt', () => {
+    expect(recipientDiagnosis('VISTA à(s) parte(s) para apresentar(em) contraminuta(s).')).toEqual({
+      reason: 'o ato diz “parte(s)” sem indicar qual',
+      excerpts: ['VISTA à(s) parte(s) para apresentar(em) contraminuta(s)'],
+    });
+  });
+});
+
+describe('ato real de cumprimento de sentença', () => {
+  const ato = 'Intimação Processo: 0001954-23.2023.8.26.0084 Parte(s): FLEX ANALISE DE CREDITO E COBRANCA LTDA.; MAYARA VALERIO FERREIRA CUMPRIMENTO DE SENTENÇA Nº 0001954-23.2023.8.26.0084/SP EXEQUENTE: MAYARA VALERIO FERREIRA ADVOGADO(A): WILLIAM ROBSON DAS NEVES (OAB SP290702)EXECUTADO: FLEX ANALISE DE CREDITO E COBRANCA LTDA.ADVOGADO(A): MARCIO SANTANA BATISTA (OAB SP257034) DESPACHO/DECISÃO Vistos. Consultados os autos da apelação nº 1003687-56.2023.8.26.0100, verifica-se que o recurso foi extinto, como já decidido no evento 33. Ante o exposto, intime-se a parte executada, na pessoa de seu advogado constitu&iacute;do nos autos, para que, no prazo de 15 (quinze) dias, efetue o pagamento do montante executado (R$ 23.254,42, atualizado até 09/12/2025), sob pena de multa de 10% (dez por cento), nos termos do art. 523, § 1º, do Código de Processo Civil. Intimem-se. Campinas, 13 de outubro de 2026.';
+  it('identifica a parte executada apesar de apelação citada e valores', () => {
+    expect(deadlineRecipient(ato)).toMatchObject({ status: 'express', party: 'Executado(a)' });
+  });
+});
+
+import { recipientPartyName } from '../deadlineRecipient';
+describe('recipientPartyName', () => {
+  it('lê o nome do executado no cabeçalho', () => {
+    expect(recipientPartyName('EXEQUENTE: MAYARA VALERIO FERREIRA ADVOGADO(A): WILLIAM (OAB SP290702)EXECUTADO: FLEX ANALISE DE CREDITO E COBRANCA LTDA.ADVOGADO(A): MARCIO', 'Executado(a)')).toBe('FLEX ANALISE DE CREDITO E COBRANCA LTDA');
+  });
+});
