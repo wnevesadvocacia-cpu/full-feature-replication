@@ -10,6 +10,14 @@ const base = {
   pecaSugerida: { peca: 'Contestação', prazo_dias: 15 },
 };
 describe('três revisões distintas da tarefa', () => {
+  it('retém ausência de classificação sem interromper a tela', () => {
+    const result = reviewTaskSuggestion('Ciência da juntada.', null);
+    expect(result.approved).toBe(false);
+    expect(result.checks.map(check => check.passed)).toEqual([false, false, false]);
+  });
+  it.each(['Dispensa de contestação', 'Manifestação sobre contestação', 'Contestação e reconvenção'])('rejeita tarefa composta ou negativa: %s', peca => {
+    expect(reviewTaskSuggestion(text, { ...base, pecaSugerida: { peca, prazo_dias: 15 } }).approved).toBe(false);
+  });
   it('aprova só quando as três verificações concordam com comando e intervalo expresso', () => {
     const result = reviewTaskSuggestion(text, base);
     expect(result.approved).toBe(true);

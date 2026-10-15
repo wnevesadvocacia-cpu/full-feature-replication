@@ -27,13 +27,21 @@ const actions = [
 
 /** Three distinct deterministic checks, not three independent legal opinions.
  * Agreement authorizes an option, never filing or a zero-risk guarantee. */
-export function reviewTaskSuggestion(content: string, suggestion: Suggestion): SuggestionReview {
+export function reviewTaskSuggestion(content: string, suggestion: Suggestion | null): SuggestionReview {
+  if (!suggestion) return {
+    version: 1, approved: false,
+    checks: ['command', 'recipient_deadline', 'conflict'].map(stage => ({
+      stage: stage as SuggestionReview['checks'][number]['stage'], passed: false,
+      reason: 'Prazo e tarefa não identificados; conferir inteiro teor.',
+    })),
+  };
   const text = normalize(content.replace(/<[^>]+>/g, ' '));
   const recipient = deadlineRecipient(content);
   const evidence = normalize(recipient.evidence ?? '');
   const piece = normalize(suggestion.pecaSugerida.peca);
   const explicitActions = actions.filter(([, pattern]) => pattern.test(evidence));
-  const commandOk = explicitActions.length === 1 && piece.includes(explicitActions[0][0]);
+  const pieceAction = piece.replace(/\s*\(\d+ dias\)$/, '').trim();
+  const commandOk = explicitActions.length === 1 && pieceAction === explicitActions[0][0];
 
   // A literal interval is required; inferred statutory/fallback periods are held.
   const intervals = [...evidence.matchAll(/\b(?:prazo\s+de\s+|em\s+)(\d{1,3})\s+dias?(?:\s+(uteis|corridos))?\b/g)];
