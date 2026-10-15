@@ -160,7 +160,7 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApp
                 <li><strong>Primeiro dia contado:</strong> {formatBR(deadline.startDate)} <span className="text-muted-foreground">(1º dia útil seguinte à publicação · Lei 11.419/2006 art. 4º §4º)</span></li>
               )}
               <li><strong>Prazo legal:</strong> {deadline.days} {unitLabel}{deadline.doubled ? ' (em dobro)' : ''} <span className="text-muted-foreground">— artigo do prazo: {deadline.source} {deadline.article}</span></li>
-              <li><strong>Forma de contagem:</strong> {countingBasis}. {deadline.unit === 'dias_corridos' ? 'Fins de semana e feriados intermediários são contados; vencimento sem expediente prorroga para o próximo dia útil.' : 'Fins de semana, feriados e suspensões aplicáveis não são contados.'}</li>
+              <li><strong>Forma de contagem:</strong> {countingBasis}. {deadline.unit === 'dias_corridos' ? 'Fins de semana e feriados intermediários são contados; vencimento sem expediente prorroga para o próximo dia útil.' : 'Fins de semana, feriados e suspensões aplicáveis não são contados.'} {deadline.source === 'CPP' && (deadline.ignoreRecess ? 'Exceção expressa à suspensão de 20/12 a 20/01 identificada no ato (art. 798-A).' : 'Suspensão de 20/12 a 20/01 aplicada (art. 798-A); exceções legais exigem conferência do ato.')}</li>
               {deadline.doubled && deadline.doubleReasons && (
                 <li><strong>Prazo em dobro:</strong> {deadline.doubleReasons.join(' + ')}</li>
               )}

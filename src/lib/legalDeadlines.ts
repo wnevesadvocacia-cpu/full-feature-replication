@@ -80,16 +80,19 @@ export interface DetectedDeadline {
   doubleReasons?: string[];
   /** Motivo pelo qual o dobro foi detectado mas AFASTADO (ex.: art. 229 §2º autos eletrônicos). */
   doubleWaivedReason?: string;
+  /** Exceção expressa à suspensão penal de 20/12 a 20/01 (CPP art. 798-A). */
+  ignoreRecess?: boolean;
 }
 
 /** Contexto jurisdicional usado em toda a cadeia de cálculo. */
 export interface DeadlineContext {
   tribunal?: string | null;
   ignoreRecess?: boolean;
+  suspendRecess?: boolean;
 }
 
 export function deadlineCountingBasis(source: DeadlineSource, unit: DeadlineUnit): string {
-  if (source === 'CPP') return unit === 'dias_corridos' ? 'CPP art. 798 · dias corridos' : 'Dias úteis expressamente fixados no ato';
+  if (source === 'CPP') return unit === 'dias_corridos' ? 'CPP arts. 798 e 798-A · dias corridos, com suspensão legal quando aplicável' : 'Dias úteis expressamente fixados no ato';
   if (source === 'CLT' || source === 'TST') return unit === 'dias_uteis' ? 'CLT art. 775 · dias úteis' : 'Dias corridos expressamente fixados no ato';
   if (source === 'JEC' || source === 'JEF') return unit === 'dias_uteis' ? 'Lei 9.099/1995 art. 12-A · dias úteis' : 'Dias corridos expressamente fixados no ato';
   return unit === 'dias_uteis' ? 'CPC art. 219 · dias úteis' : 'Dias corridos previstos na lei ou expressamente fixados no ato';
@@ -653,7 +656,14 @@ export function addBusinessDays(startISO: string, days: number, context?: Deadli
 /** Adiciona N dias corridos com prorrogação se cair em dia não-útil. */
 export function addCalendarDays(startISO: string, days: number, context?: DeadlineContext): string {
   const d = new Date(startISO + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + days);
+  let count = 0;
+  while (count < days) {
+    d.setUTCDate(d.getUTCDate() + 1);
+    const month = d.getUTCMonth() + 1;
+    const day = d.getUTCDate();
+    if (context?.suspendRecess && !context.ignoreRecess && ((month === 12 && day >= 20) || (month === 1 && day <= 20))) continue;
+    count++;
+  }
   let iso = d.toISOString().slice(0, 10);
   while (!isBusinessDay(iso, calendarContext(context))) iso = nextBusinessDay(iso, calendarContext(context));
   return iso;
@@ -1293,12 +1303,13 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   const doubled = doubleReasons.length > 0;
 
   const effectiveDays = doubled ? chosen.rule.days * 2 : chosen.rule.days;
+  const ignoreRecess = chosen.rule.source === 'CPP' && /\b(reu preso|acusado preso|lei maria da penha|lei\s+11\.?340|medida urgente|medidas urgentes)\b/.test(text);
 
   // CPC art. 224 §3º
   let dueDate: string | null = null;
   let startDate: string | null = null;
   if (effectiveDays > 0) {
-    const countContext = { ...context, ignoreRecess: chosen.rule.source === 'CPP' };
+    const countContext = { ...context, ignoreRecess, suspendRecess: chosen.rule.source === 'CPP' };
     const cal = calendarContext(countContext);
     const publicacao = nextBusinessDay(receivedAtISO, cal);
     // DJe: primeiro dia útil após publicação; corrente conta a partir desse dia.
@@ -1311,7 +1322,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   let businessDaysLeft = 0;
   let severity: DetectedDeadline['severity'] = 'normal';
   if (dueDate) {
-    businessDaysLeft = businessDaysBetween(todayISO, dueDate, { ...context, ignoreRecess: chosen.rule.source === 'CPP' });
+    businessDaysLeft = businessDaysBetween(todayISO, dueDate, { ...context, ignoreRecess });
     if (businessDaysLeft < 0) severity = 'expired';
     else if (businessDaysLeft <= 2) severity = 'critical';
     else if (businessDaysLeft <= 5) severity = 'warning';
@@ -1367,5 +1378,6 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     triggerSource,
     doubleReasons: doubleReasons.length ? doubleReasons : undefined,
     doubleWaivedReason,
+    ignoreRecess,
   };
 }
