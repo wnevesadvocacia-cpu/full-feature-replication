@@ -70,45 +70,46 @@ import { getCityHolidays } from './cityHolidays';
 // o resto do código.
 let suspendedDates = new Set<string>();
 let tribunalHolidaySets = new Map<string, Set<string>>(); // tribunal -> set ISO
+let tribunalSuspensions = new Map<string, Set<string>>();
+function tribunalKey(value: string): string {
+  return value.toUpperCase().replace(/[\s-]/g, '').replace(/^(TRT|TRF)0+(\d)/, '$1$2');
+}
 
-export function setSuspensionWindow(dates: Iterable<string>) {
-  suspendedDates = new Set(dates);
+export function setSuspensionWindow(dates: Iterable<string>, tribunal?: string | null) {
+  if (tribunal) tribunalSuspensions.set(tribunalKey(tribunal), new Set(dates));
+  else suspendedDates = new Set(dates);
 }
 export function setTribunalHolidaySet(tribunal: string, dates: Iterable<string>) {
-  tribunalHolidaySets.set(tribunal.toUpperCase(), new Set(dates));
+  tribunalHolidaySets.set(tribunalKey(tribunal), new Set(dates));
 }
 export function clearLegalCalendarCache() {
   suspendedDates.clear();
   tribunalHolidaySets.clear();
+  tribunalSuspensions.clear();
 }
 
 export interface BusinessDayContext {
   location?: CityKey;
   tribunal?: string; // ex.: 'TJSP', 'TJRJ', 'TRF3'
+  ignoreRecess?: boolean;
+}
+
+export function getCalendarExclusion(iso: string, ctx?: BusinessDayContext): 'sabado' | 'domingo' | 'recesso' | 'feriado_cnj' | 'feriado_local' | 'suspensao' | null {
+  const d = new Date(iso + 'T12:00:00Z');
+  if (d.getUTCDay() === 6) return 'sabado';
+  if (d.getUTCDay() === 0) return 'domingo';
+  if (!ctx?.ignoreRecess && inRecesso(iso)) return 'recesso';
+  if (getCnjHolidays(d.getUTCFullYear()).has(iso)) return 'feriado_cnj';
+  const tribunal = ctx?.tribunal ? tribunalKey(ctx.tribunal) : undefined;
+  if (suspendedDates.has(iso) || (tribunal && tribunalSuspensions.get(tribunal)?.has(iso))) return 'suspensao';
+  if (tribunal && tribunalHolidaySets.get(tribunal)?.has(iso)) return 'feriado_local';
+  if (ctx?.location && getCityHolidays(d.getUTCFullYear(), ctx.location).has(iso)) return 'feriado_local';
+  return null;
 }
 
 export function isBusinessDay(iso: string, ctx?: CityKey | BusinessDayContext): boolean {
-  const d = new Date(iso + 'T12:00:00Z');
-  const dow = d.getUTCDay();
-  if (dow === 0 || dow === 6) return false;
-  if (inRecesso(iso)) return false;
-  const year = d.getUTCFullYear();
-  if (getCnjHolidays(year).has(iso)) return false;
-
-  // GAP 2: suspensão geral (CNJ ou específica do tribunal)
-  if (suspendedDates.has(iso)) return false;
-
-  // Backwards-compat: ctx pode ser CityKey antigo
-  const c: BusinessDayContext = ctx && 'uf' in (ctx as any) ? { location: ctx as CityKey } : ((ctx as BusinessDayContext) ?? {});
-
-  if (c.location && getCityHolidays(year, c.location).has(iso)) return false;
-
-  // GAP 3: feriados estaduais por tribunal
-  if (c.tribunal) {
-    const tset = tribunalHolidaySets.get(c.tribunal.toUpperCase());
-    if (tset?.has(iso)) return false;
-  }
-  return true;
+  const c: BusinessDayContext = ctx && 'uf' in ctx ? { location: ctx as CityKey } : ((ctx as BusinessDayContext) ?? {});
+  return getCalendarExclusion(iso, c) === null;
 }
 
 export function nextBusinessDay(iso: string, ctx?: CityKey | BusinessDayContext): string {

@@ -13,6 +13,9 @@ import {
 interface Suspension { id: string; tribunal_codigo: string | null; start_date: string; end_date: string; reason: string }
 interface TribunalHoliday { tribunal_codigo: string; holiday_date: string; description: string }
 
+const EMPTY_SUSPENSIONS: Suspension[] = [];
+const EMPTY_HOLIDAYS: TribunalHoliday[] = [];
+
 function expandRange(start: string, end: string): string[] {
   const out: string[] = [];
   const s = new Date(start + 'T12:00:00Z');
@@ -26,7 +29,7 @@ function expandRange(start: string, end: string): string[] {
 export function useLegalCalendar() {
   const qc = useQueryClient();
 
-  const { data: suspensions = [] } = useQuery<Suspension[]>({
+  const { data: suspensions = EMPTY_SUSPENSIONS } = useQuery<Suspension[]>({
     queryKey: ['judicial_suspensions'],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from('judicial_suspensions').select('*');
@@ -36,7 +39,7 @@ export function useLegalCalendar() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: tHolidays = [] } = useQuery<TribunalHoliday[]>({
+  const { data: tHolidays = EMPTY_HOLIDAYS } = useQuery<TribunalHoliday[]>({
     queryKey: ['tribunal_holidays'],
     queryFn: async () => {
       const { data, error } = await (supabase as any).from('tribunal_holidays').select('*');
@@ -49,9 +52,14 @@ export function useLegalCalendar() {
   // Aplica nos sets globais usados por isBusinessDay
   useEffect(() => {
     clearLegalCalendarCache();
-    const allSuspended: string[] = [];
-    suspensions.forEach((s) => allSuspended.push(...expandRange(s.start_date, s.end_date)));
-    setSuspensionWindow(allSuspended);
+    const bySuspensionTribunal = new Map<string, string[]>();
+    suspensions.forEach((s) => {
+      const key = s.tribunal_codigo?.toUpperCase() || '';
+      const dates = bySuspensionTribunal.get(key) ?? [];
+      dates.push(...expandRange(s.start_date, s.end_date));
+      bySuspensionTribunal.set(key, dates);
+    });
+    bySuspensionTribunal.forEach((dates, tribunal) => setSuspensionWindow(dates, tribunal));
 
     const byTribunal = new Map<string, string[]>();
     tHolidays.forEach((h) => {
@@ -60,7 +68,8 @@ export function useLegalCalendar() {
       byTribunal.set(h.tribunal_codigo, arr);
     });
     byTribunal.forEach((dates, tribunal) => setTribunalHolidaySet(tribunal, dates));
-  }, [suspensions, tHolidays]);
+    qc.invalidateQueries({ queryKey: ['intimations'] });
+  }, [suspensions, tHolidays, qc]);
 
   // Realtime: portaria nova invalida cache imediatamente
   useEffect(() => {

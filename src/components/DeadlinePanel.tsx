@@ -8,9 +8,9 @@
 // Reusa o motor já existente (detectDeadline + cnjCalendar). Puramente apresentacional.
 
 import { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, Gavel, ScrollText, CalendarClock, AlertOctagon, ShieldAlert, ShieldCheck } from 'lucide-react';
-import { formatBR, isBusinessDay, nextBusinessDay, getCnjHolidays } from '@/lib/cnjCalendar';
-import type { DetectedDeadline } from '@/lib/legalDeadlines';
+import { ChevronDown, ChevronRight, Gavel, ScrollText, CalendarClock, AlertOctagon, ShieldAlert } from 'lucide-react';
+import { formatBR, getCalendarExclusion, nextBusinessDay } from '@/lib/cnjCalendar';
+import { deadlineCountingBasis, type DetectedDeadline } from '@/lib/legalDeadlines';
 import { Button } from '@/components/ui/button';
 
 interface Props {
@@ -23,16 +23,11 @@ interface Props {
 type SkipReason = 'sabado' | 'domingo' | 'feriado_cnj' | 'recesso' | 'feriado_local' | 'suspensao';
 interface SkippedDay { iso: string; reason: SkipReason; label: string; }
 
-function classifySkip(iso: string): { reason: SkipReason; label: string } {
-  const d = new Date(iso + 'T12:00:00Z');
-  const dow = d.getUTCDay();
-  if (dow === 6) return { reason: 'sabado', label: 'Sábado' };
-  if (dow === 0) return { reason: 'domingo', label: 'Domingo' };
-  const [, mm, dd] = iso.split('-').map(Number);
-  if ((mm === 12 && dd >= 20) || (mm === 1 && dd <= 20)) return { reason: 'recesso', label: 'Recesso forense (CPC art. 220)' };
-  if (getCnjHolidays(d.getUTCFullYear()).has(iso)) return { reason: 'feriado_cnj', label: 'Feriado nacional (calendário CNJ)' };
-  return { reason: 'feriado_local', label: 'Feriado local / suspensão' };
-}
+const SKIP_LABELS: Record<SkipReason, string> = {
+  sabado: 'Sábado', domingo: 'Domingo', recesso: 'Suspensão legal de 20/12 a 20/01',
+  feriado_cnj: 'Feriado do calendário-base CNJ', feriado_local: 'Feriado cadastrado do tribunal',
+  suspensao: 'Suspensão cadastrada aplicável ao tribunal',
+};
 
 function eachDayISO(start: string, end: string): string[] {
   const out: string[] = [];
@@ -61,14 +56,16 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApp
   const [open, setOpen] = useState(false);
   const sev = SEV[deadline.severity];
   const unitLabel = deadline.unit === 'dias_uteis' ? 'dias úteis' : 'dias corridos';
-  const publicacao = useMemo(() => nextBusinessDay(receivedAtISO), [receivedAtISO]);
+  const publicacao = useMemo(() => nextBusinessDay(receivedAtISO, { tribunal: tribunal ?? undefined, ignoreRecess: deadline.ignoreRecess }), [receivedAtISO, tribunal, deadline.ignoreRecess]);
+  const countingBasis = deadlineCountingBasis(deadline.source, deadline.unit);
 
   const skipped: SkippedDay[] = useMemo(() => {
-    if (!deadline.startDate || !deadline.dueDate) return [];
-    return eachDayISO(deadline.startDate, deadline.dueDate)
-      .filter(iso => !isBusinessDay(iso, tribunal ? { tribunal } : undefined))
-      .map(iso => ({ iso, ...classifySkip(iso) }));
-  }, [deadline.startDate, deadline.dueDate, tribunal]);
+    if (!deadline.startDate || !deadline.dueDate || deadline.unit !== 'dias_uteis') return [];
+    return eachDayISO(receivedAtISO, deadline.dueDate).flatMap(iso => {
+      const reason = getCalendarExclusion(iso, { tribunal: tribunal ?? undefined, ignoreRecess: deadline.ignoreRecess });
+      return reason ? [{ iso, reason, label: SKIP_LABELS[reason] }] : [];
+    });
+  }, [receivedAtISO, deadline.startDate, deadline.dueDate, deadline.unit, deadline.ignoreRecess, tribunal]);
 
   const hasLocalHoliday = skipped.some(s => s.reason === 'feriado_local' || s.reason === 'suspensao');
   const remaining = deadline.severity === 'expired'
@@ -123,9 +120,9 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApp
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-muted/60 text-[11px] font-mono">
           <ScrollText className="h-3 w-3" /> {deadline.source} {deadline.article}
         </span>
-        {deadline.unit === 'dias_uteis' && (
+        {(
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-muted/60 text-[11px] font-mono">
-            CPC art. 219 · dias úteis
+            {countingBasis}
           </span>
         )}
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border bg-muted/60 text-[11px] font-mono">
@@ -143,16 +140,12 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApp
         )}
         {hasLocalHoliday && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-warning/60 bg-warning/15 text-warning text-[11px] font-semibold">
-            <AlertOctagon className="h-3 w-3" /> Contagem pendente de validação (feriado local sem fonte oficial vinculada)
-          </span>
-        )}
-        {!hasLocalHoliday && deadline.severity !== 'expired' && (
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[11px] font-semibold">
-            <ShieldCheck className="h-3 w-3" /> Calendário oficial CNJ aplicado
+            <AlertOctagon className="h-3 w-3" /> Feriados/suspensões cadastrados aplicados
           </span>
         )}
       </div>}
-      {hasLocalHoliday && !open && <p className="px-3 pb-2 text-xs text-warning">Contagem pendente de validação de feriado local.</p>}
+      <p className="px-3 pb-2 text-xs text-muted-foreground">{countingBasis} · Calendário-base CNJ{tribunal ? ` + datas cadastradas do ${tribunal}` : ' · tribunal não identificado'}.</p>
+      <p className="px-3 pb-2 text-xs text-warning">Ressalva: feriado da comarca ou suspensão ainda não cadastrados podem alterar o vencimento; confirme no calendário do {tribunal || 'tribunal competente'}.</p>
       {!open && deadline.classificacaoStatus !== 'auto_alta' && deadline.classificacaoStatus !== 'revisada_advogado' && <p className="px-3 pb-2 text-xs text-warning">Confirme a modalidade do ato e o destinatário no inteiro teor.</p>}
 
       {/* Memorial expansível */}
@@ -164,10 +157,10 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApp
               <li><strong>Disponibilização (DJe):</strong> {formatBR(receivedAtISO)}</li>
               <li><strong>Publicação:</strong> {formatBR(publicacao)} <span className="text-muted-foreground">(1º dia útil seguinte · Lei 11.419/2006 art. 4º §3º)</span></li>
               {deadline.startDate && (
-                <li><strong>Início da contagem (dies a quo):</strong> {formatBR(deadline.startDate)} <span className="text-muted-foreground">(1º dia útil seguinte à publicação · CPC art. 224 §3º)</span></li>
+                <li><strong>Primeiro dia contado:</strong> {formatBR(deadline.startDate)} <span className="text-muted-foreground">(1º dia útil seguinte à publicação · Lei 11.419/2006 art. 4º §4º)</span></li>
               )}
               <li><strong>Prazo legal:</strong> {deadline.days} {unitLabel}{deadline.doubled ? ' (em dobro)' : ''} <span className="text-muted-foreground">— artigo do prazo: {deadline.source} {deadline.article}</span></li>
-              <li><strong>Forma de contagem:</strong> {deadline.unit === 'dias_uteis' ? 'dias úteis (CPC art. 219)' : 'dias corridos (CPC art. 219, parágrafo único)'} — exclui o dia do começo, inclui o do vencimento (art. 224); vencimento em dia não útil prorroga p/ próximo útil (art. 224 §1º).</li>
+              <li><strong>Forma de contagem:</strong> {countingBasis}. {deadline.unit === 'dias_corridos' ? 'Fins de semana e feriados intermediários são contados; vencimento sem expediente prorroga para o próximo dia útil.' : 'Fins de semana, feriados e suspensões aplicáveis não são contados.'} {deadline.source === 'CPP' && (deadline.ignoreRecess ? 'Exceção expressa à suspensão de 20/12 a 20/01 identificada no ato (art. 798-A).' : 'Suspensão de 20/12 a 20/01 aplicada (art. 798-A); exceções legais exigem conferência do ato.')}</li>
               {deadline.doubled && deadline.doubleReasons && (
                 <li><strong>Prazo em dobro:</strong> {deadline.doubleReasons.join(' + ')}</li>
               )}

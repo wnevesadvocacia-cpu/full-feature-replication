@@ -56,21 +56,24 @@ Deno.serve(async (req) => {
 
     clearLegalCalendarCache();
     const [{ data: suspensions, error: suspensionsError }, { data: tribunalHolidays, error: holidaysError }] = await Promise.all([
-      admin.from('judicial_suspensions').select('start_date,end_date'),
+      admin.from('judicial_suspensions').select('tribunal_codigo,start_date,end_date'),
       admin.from('tribunal_holidays').select('tribunal_codigo,holiday_date'),
     ]);
     if (suspensionsError || holidaysError) {
       return json({ error: suspensionsError?.message || holidaysError?.message }, 500);
     }
-    const suspendedDates: string[] = [];
+    const bySuspensionTribunal = new Map<string, string[]>();
     for (const suspension of suspensions || []) {
+      const key = suspension.tribunal_codigo?.toUpperCase() || '';
+      const suspendedDates = bySuspensionTribunal.get(key) || [];
       const start = new Date(`${suspension.start_date}T12:00:00Z`);
       const end = new Date(`${suspension.end_date}T12:00:00Z`);
       for (let date = new Date(start); date <= end; date.setUTCDate(date.getUTCDate() + 1)) {
         suspendedDates.push(date.toISOString().slice(0, 10));
       }
+      bySuspensionTribunal.set(key, suspendedDates);
     }
-    setSuspensionWindow(suspendedDates);
+    bySuspensionTribunal.forEach((dates, tribunal) => setSuspensionWindow(dates, tribunal));
     const holidaysByTribunal = new Map<string, string[]>();
     for (const holiday of tribunalHolidays || []) {
       const dates = holidaysByTribunal.get(holiday.tribunal_codigo) || [];
