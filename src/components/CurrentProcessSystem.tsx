@@ -4,11 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { maskCnj } from '@/lib/cnjRegex';
 import { currentProcessSystem } from '@/lib/currentProcessSystem';
+import { tribunalFromCNJ } from '@/lib/cnjTribunal';
 import { todayISO, formatBR } from '@/lib/cnjCalendar';
 
 export function CurrentProcessSystem({ numero }: { numero: string }) {
   const { user } = useAuth();
   const masked = maskCnj(numero);
+  const tribunal = tribunalFromCNJ(numero);
   const today = todayISO();
   const { data, isPending, isError } = useQuery({
     queryKey: ['current-process-system', user?.id, masked, today],
@@ -41,6 +43,9 @@ export function CurrentProcessSystem({ numero }: { numero: string }) {
     <div className="flex items-start gap-2 border-b border-border pb-3" aria-live="polite">
       <Monitor className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 space-y-1">
+        <p className="text-sm"><span className="text-muted-foreground">Tribunal: </span>
+          <span className="font-semibold text-foreground">{tribunal?.cnjValido && tribunal.sigla !== '—' ? `${tribunal.sigla} — ${tribunal.nome}` : 'Não identificado'}</span>
+        </p>
         <p className="text-sm"><span className="text-muted-foreground">Sistema: </span>
           <span className="font-semibold text-foreground">{loading ? 'Consultando…' : isError ? 'Não confirmado' : data?.sistema || 'Não confirmado'}</span>
           {loading && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
