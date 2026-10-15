@@ -34,6 +34,8 @@ import { useDeadlineReconciliation } from "@/hooks/useDeadlineReconciliation";
 import { DeadlineBadge } from "@/components/DeadlineBadge";
 import { DeadlinePanel } from "@/components/DeadlinePanel";
 import { DeadlineRecipient } from "@/components/DeadlineRecipient";
+import { TaskSuggestionReview } from "@/components/TaskSuggestionReview";
+import { reviewTaskSuggestion } from "@/lib/taskSuggestionReview";
 import { tribunalFromCNJ } from "@/lib/cnjTribunal";
 import { useSistemaByCnj } from "@/hooks/useSistemaByCnj";
 import { DeleteGuard } from "@/components/DeleteGuard";
@@ -745,6 +747,7 @@ export default function Intimacoes() {
     const plain = decodeEntities(stripped).replace(/\s+/g, " ").trim();
     const tribunal = tribunalFromCNJ(extractCnjs(it.content)[0])?.sigla ?? null;
     const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO(), { tribunal });
+    const suggestionReview = reviewTaskSuggestion(it.content, detectedDeadline);
     const alternative = detectedDeadline?.pecaSugerida.peca_alternativa;
     const alternativeDueDate =
       detectedDeadline?.startDate && alternative
@@ -752,7 +755,7 @@ export default function Intimacoes() {
           ? detectedDeadline.startDate
           : addBusinessDays(detectedDeadline.startDate, alternative.prazo_dias - 1)
         : null;
-    const choices: DeadlineChoice[] = detectedDeadline?.dueDate
+    const choices: DeadlineChoice[] = suggestionReview.approved && detectedDeadline?.dueDate
       ? [
           {
             label: detectedDeadline.pecaSugerida.peca,
@@ -772,7 +775,7 @@ export default function Intimacoes() {
       priority: "alta",
       // Havendo recursos alternativos, exige escolha expressa para não vincular
       // silenciosamente a data da apelação ao prazo de embargos.
-      due_date: (choices.length > 1 ? "" : detectedDeadline?.dueDate || it.deadline || "").slice(0, 10),
+      due_date: (suggestionReview.approved ? detectedDeadline?.dueDate || it.deadline || "" : it.deadline || "").slice(0, 10),
       start_date: "",
       start_time: "",
       location: it.court || "",
@@ -1006,6 +1009,7 @@ export default function Intimacoes() {
                 : base;
             const tribunal = tribInfo?.sigla ?? null;
             const detectedDeadline = detectDeadline(it.content, it.received_at.slice(0, 10), todayISO(), { tribunal });
+    const suggestionReview = reviewTaskSuggestion(it.content, detectedDeadline);
             const isUnsafe = !!it.classificacao_status && UNSAFE_STATUSES.has(it.classificacao_status);
 
             return (
@@ -1030,6 +1034,7 @@ export default function Intimacoes() {
                   })()}
                   {it.court && <p className="mb-2 text-xs leading-relaxed text-muted-foreground" title={it.court}>{it.court}</p>}
                   <DeadlineRecipient content={it.content} />
+                  <TaskSuggestionReview review={suggestionReview} />
                   <div className="flex items-center gap-2 flex-wrap">
                     {tribInfo?.sistema && (
                       <Badge
@@ -1113,8 +1118,9 @@ export default function Intimacoes() {
                                   : `Faltam ${detectedDeadline.businessDaysLeft} dias úteis para o vencimento`}
                           </div>
                           <div className="opacity-90">
-                            {detectedDeadline.label} · vencimento em {formatBR(detectedDeadline.dueDate)} · peça
-                            sugerida: {detectedDeadline.pecaSugerida.peca}
+                            Vencimento em {formatBR(detectedDeadline.dueDate)} · {suggestionReview.approved
+                              ? `tarefa sugerida: ${detectedDeadline.pecaSugerida.peca}`
+                              : "tarefa sugerida retida para conferência"}
                           </div>
                         </div>
                       </div>
@@ -1149,6 +1155,7 @@ export default function Intimacoes() {
                   {!isUnsafe && detectedDeadline?.startDate && detectedDeadline?.dueDate && (
                     <DeadlinePanel
                       deadline={detectedDeadline}
+                      suggestionApproved={suggestionReview.approved}
                       receivedAtISO={it.received_at.slice(0, 10)}
                       tribunal={tribunal}
                     />
@@ -1584,6 +1591,7 @@ export default function Intimacoes() {
           {loadTableEl && <div className="shrink-0 px-6 pb-3">{loadTableEl}</div>}
 
           <div className="flex-1 overflow-y-auto px-6 pb-2 space-y-3 min-h-0">
+            {taskIntim && <TaskSuggestionReview review={reviewTaskSuggestion(taskIntim.content, detectDeadline(taskIntim.content, taskIntim.received_at.slice(0, 10), todayISO(), { tribunal: tribunalFromCNJ(extractCnjs(taskIntim.content)[0])?.sigla }))} />}
             <div
               role="alert"
               className="rounded-md border-l-4 border-amber-500 bg-amber-50 p-3 text-[12px] leading-relaxed text-amber-900"

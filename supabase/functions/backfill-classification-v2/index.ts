@@ -4,6 +4,7 @@
 // Acesso restrito a admin via has_role().
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { detectDeadline } from '../_shared/legalDeadlines.ts';
+import { reviewTaskSuggestion } from '../_shared/taskSuggestionReview.ts';
 import {
   clearLegalCalendarCache,
   setSuspensionWindow,
@@ -91,6 +92,7 @@ Deno.serve(async (req) => {
         try {
           const tribunal = String(r.court || '').toUpperCase().match(/\b(?:STF|STJ|TST|TSE|STM|TRF[1-6]|TRT\d{1,2}|TRE-[A-Z]{2}|TJ[A-Z]{2})\b/)?.[0];
           const detected = detectDeadline(r.content || '', r.received_at, today, { tribunal });
+          const suggestionReview = detected ? reviewTaskSuggestion(r.content || '', detected) : null;
           const isSafe = !!detected && detected.classificacaoStatus === 'auto_alta' && !!detected.dueDate;
           const deadlineV2 = isSafe ? detected!.dueDate : null;
           const meta = detected ? {
@@ -100,7 +102,8 @@ Deno.serve(async (req) => {
             unit: detected.unit ?? null,
             label: detected.label ?? null,
             confianca: detected.confianca ?? null,
-            peca: detected.pecaSugerida ?? null,
+            peca: suggestionReview?.approved ? detected.pecaSugerida ?? null : null,
+            task_suggestion_review: suggestionReview,
             base_legal: detected.baseLegal ?? null,
             due_date: detected.dueDate ?? null,
             start_date: detected.startDate ?? null,

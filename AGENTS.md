@@ -1,4 +1,4 @@
-Keep browser/shared deadline rules identical; response commands override case-class labels to avoid suggesting a new appeal.
+Keep browser/shared deadline/review rules identical; commands override case labels. Three checks gate suggestions, not dates; persist review metadata to expose uncertainty.
 Identify the drafting actor through a server-stamped task field on status transitions, not the assignee, so attribution is independent and cannot be spoofed by the client.
 Task overview uses CNJ tribunal resolution and paginated dated system evidence, never defaults or live-verification claims. Reuse deadlineRecipient in Intimações/task details: explicit commands only, never OAB/assignee or representation; abstain on ambiguity.
 The overdue notice on Prazos reuses the existing task query and taskVisibility predicate with the São Paulo calendar date, independently of list filters, to keep overdue warnings visible without new data access.
