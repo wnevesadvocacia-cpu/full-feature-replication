@@ -24,7 +24,7 @@ const subject = new RegExp(`^${article}(?:parte\\s+)?(${rolePattern})\\s+(?:deve
 const anyCommand = /\b(?:intime[m]?[ -]se|cite[m]?[ -]se|manifeste[m]?[ -]se|vista|vistas|apresente(?:m)?|ofereca(?:m)?|recolha(?:m)?|comprove(?:m)?|pague(?:m)?|emende(?:m)?|regularize(?:m)?|especifique(?:m)?|informe(?:m)?|cumpra(?:m)?|conteste(?:m)?|impugne(?:m)?|devera|deverao|prazo)\b/;
 const accents: Record<string, string> = { acute: '\u0301', grave: '\u0300', circ: '\u0302', tilde: '\u0303', cedil: '\u0327', uml: '\u0308' };
 // Sentence ends only at punctuation followed by space/end, so CNJ numbers and amounts stay intact.
-const splitSentences = (plain: string) => plain.split(/[.;:](?=\s|$)|[\n\r]+/).map(s => s.trim()).filter(Boolean);
+const splitSentences = (plain: string) => plain.split(/[.;](?=\s|$)|[\n\r]+/).map(s => s.trim()).filter(Boolean);
 // Closing formulas such as "Intimem-se." carry no addressee or deadline.
 const formula = /^(?:(?:intime[m]?[ -]se|cumpra[ -]se|publique[ -]se|registre[ -]se|int)[ ,e]*)+$/;
 const historical = /["“”«»]|\b(?:anterior(?:mente)?|transcrev\w*|citando|conforme|vide|retro|nos termos(?! d[oa]s? (?:art|lei|cpc|codigo))|ementa|jurisprudencia|historico|nao|caso|se houver|ja intimad\w*|foi intimad\w*|foram intimad\w*)\b/;
