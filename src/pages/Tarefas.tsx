@@ -767,24 +767,31 @@ export default function Tarefas() {
         </header>
 
         {!isLoading && overdueTasks.length > 0 && (
-          <section aria-labelledby="overdue-title" className="border-l-2 border-destructive bg-destructive/10 p-4 sm:p-5 text-foreground">
-            <h2 id="overdue-title" className="flex items-center gap-2 text-sm font-bold text-destructive">
-              <AlertTriangle className="h-5 w-5 shrink-0" />
-              Prazos vencidos <Badge variant="destructive">{overdueTasks.length}</Badge>
-            </h2>
-            <div className="mt-3 max-h-64 overflow-auto">
-              <table className="w-full min-w-[440px] text-left text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr><th scope="col" className="py-2 pr-4">Prazo</th><th scope="col" className="py-2 pr-4">Vencimento</th><th scope="col" className="py-2">Colaborador responsável</th></tr>
+          <section aria-labelledby="overdue-title" className="border-t-2 border-destructive/60 bg-card text-card-foreground">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+              <h2 id="overdue-title" className="flex items-center gap-3 text-sm font-semibold">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                </span>
+                Prazos vencidos
+              </h2>
+              <Badge variant="outline" className="border-destructive/20 bg-destructive/5 px-2.5 py-1 font-semibold tabular-nums text-destructive">{overdueTasks.length}</Badge>
+            </div>
+            <div className="max-h-72 overflow-auto">
+              <table className="w-full min-w-[540px] text-left text-sm">
+                <thead className="sticky top-0 z-10 bg-muted text-[11px] font-medium uppercase text-muted-foreground">
+                  <tr><th scope="col" className="px-4 py-3 sm:px-5">Prazo</th><th scope="col" className="px-4 py-3">Vencimento</th><th scope="col" className="px-4 py-3 sm:pr-5">Colaborador responsável</th></tr>
                 </thead>
                 <tbody>
                   {overdueTasks.map(task => (
-                    <tr key={task.id} className="border-t border-destructive/20 align-top">
-                      <td className="py-3 pr-4 break-words">
-                        <Button variant="link" onClick={() => setOverviewTarget(task)} className="h-auto max-w-full whitespace-normal p-0 text-left text-foreground justify-start">{task.title}</Button>
+                    <tr key={task.id} className="border-t border-border/60 align-top transition-colors hover:bg-muted/40">
+                      <td className="px-4 py-3.5 sm:px-5 break-words">
+                        <Button variant="link" onClick={() => setOverviewTarget(task)} className="h-auto max-w-full whitespace-normal p-0 text-left font-medium leading-relaxed text-card-foreground justify-start">{task.title}</Button>
                       </td>
-                      <td className="py-3 pr-4 whitespace-nowrap font-semibold text-destructive">{fmtDate(task.due_date || undefined)}</td>
-                      <td className="py-3 break-words font-semibold">{teamMembers.find(m => m.email === task.assignee)?.full_name || task.assignee || 'Não atribuído'}</td>
+                      <td className="px-4 py-3.5 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1.5 rounded-md bg-destructive/5 px-2 py-1 text-xs font-semibold tabular-nums text-destructive"><Calendar className="h-3.5 w-3.5" />{fmtDate(task.due_date || undefined)}</span>
+                      </td>
+                      <td className="px-4 py-3.5 sm:pr-5 break-words text-muted-foreground leading-relaxed">{teamMembers.find(m => m.email === task.assignee)?.full_name || task.assignee || 'Não atribuído'}</td>
                     </tr>
                   ))}
                 </tbody>
