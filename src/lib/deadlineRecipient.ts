@@ -36,7 +36,7 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
   const normalized = normalize(plain);
   if (extractCnjs(plain).length > 1) return ambiguous;
   // Do not decide whether quoted, conditional or prior directions still operate.
-  if (/["“”«»]|\b(?:anterior(?:mente)?|transcrev\w*|citando|conforme|ementa|jurisprudencia|historico|revog\w*|torn[oa] sem efeito|nao|caso|se houver|ja intimad\w*|foi intimad\w*|foram intimad\w*)\b/.test(normalized)) return unknown;
+  if (/["“”«»]|\b(?:anterior(?:mente)?|transcrev\w*|citando|conforme|vide|retro|nos termos|ementa|jurisprudencia|historico|revog\w*|torn[oa] sem efeito|nao|caso|se houver|ja intimad\w*|foi intimad\w*|foram intimad\w*)\b/.test(normalized) || /parte\(s\)/i.test(plain)) return unknown;
   const sentences = plain.split(/[.;\n\r]+/).map(s => s.trim()).filter(Boolean);
   const candidates: { party: string; evidence: string }[] = [];
   let unmatched = false;
@@ -48,7 +48,9 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
     const label = roles.find(([pattern]) => new RegExp(`^(?:${pattern})$`).test(match[1]))?.[1];
     if (!label) return unknown;
     const tail = text.slice(match[0].length);
-    if (new RegExp(`\\b(?:${rolePattern})\\b`).test(tail) || /\b(?:intime[m]?[ -]se|cite[m]?[ -]se|manifeste[m]?[ -]se|devera|deverao|sucessiv\w*|respectiv\w*|subsidiari\w*)\b/.test(tail)) return ambiguous;
+    if (new RegExp(`\\b(?:${rolePattern})\\b`).test(tail) || /\b(?:para que|perito|uniao|ministerio publico|defensoria|intime[m]?[ -]se|cite[m]?[ -]se|manifeste[m]?[ -]se|se manifeste|devera|deverao|sucessiv\w*|respectiv\w*|subsidiari\w*)\b/.test(tail)) return ambiguous;
+    // Notification alone is not a procedural deadline for the notified party.
+    if (!subject.test(text) && !/^manifeste[m]?[ -]se\b/.test(text) && !new RegExp(`\\bpara\\s+${action}\\b|\\bem\\s+\\d+\\s+dias?\\b`).test(tail)) return unknown;
     candidates.push({ party: label, evidence: sentence });
   }
   if (candidates.length > 1) return ambiguous;
