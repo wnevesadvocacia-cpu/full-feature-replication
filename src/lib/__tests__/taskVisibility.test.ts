@@ -1,5 +1,25 @@
 import { describe, it, expect } from 'vitest';
-import { isUserTask, SYSTEM_ASSIGNEES } from '../taskVisibility';
+import { isUserTask, isOverdueTask, SYSTEM_ASSIGNEES } from '../taskVisibility';
+
+describe('quadro de prazos vencidos', () => {
+  const today = '2026-10-15';
+  it('inclui prazo pendente vencido em 14/10/2026', () => {
+    expect(isOverdueTask({ due_date: '2026-10-14', completed: false, status: 'em_elaboracao' }, today)).toBe(true);
+  });
+  it('não considera vencido um prazo que vence hoje ou depois', () => {
+    expect(isOverdueTask({ due_date: today }, today)).toBe(false);
+    expect(isOverdueTask({ due_date: '2026-10-16' }, today)).toBe(false);
+  });
+  it('exclui prazos concluídos', () => {
+    expect(isOverdueTask({ due_date: '2026-10-14', completed: true }, today)).toBe(false);
+  });
+  it('exclui prazos cancelados', () => {
+    expect(isOverdueTask({ due_date: '2026-10-14', status: 'cancelada', completed: false }, today)).toBe(false);
+  });
+  it('exclui prazos sem data', () => {
+    expect(isOverdueTask({ due_date: null }, today)).toBe(false);
+  });
+});
 
 // Regra crítica: Agenda e aba Tarefas DEVEM mostrar exatamente o mesmo
 // conjunto de tarefas de usuário. Divergência = risco de perda de prazo.
