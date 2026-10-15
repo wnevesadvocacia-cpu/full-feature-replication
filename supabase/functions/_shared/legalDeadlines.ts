@@ -1050,7 +1050,7 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
   // GUARDA: literal vence — só aplica se nenhum literal foi detectado.
   if (!chosen) {
   const mRejeita = EDCL_MENCIONADOS.test(text) ? text.match(REJEITA_EMBARGOS) : null;
-  if (mRejeita) {
+  if (mRejeita && rite === 'CPC') {
     const isSentenca = TERMO_SENTENCA.test(text);
     const isInterloc = TERMO_INTERLOCUTORIA.test(text);
     const isAcordao = ACORDAO_RX.test(text);
@@ -1196,14 +1196,15 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     // as regras cíveis genéricas não podem vencer apenas por aparecerem antes na lista.
     // Cada rito tem regras supletivas próprias para o caso de o texto citar o recurso
     // sem repetir o marcador do rito na mesma frase (ex.: "TRT ... recurso ordinário").
-    const contextualRules = LABOR_CONTEXT_RX.test(text)
+    const contextualRules = rite === 'CLT'
       ? [...RULES.filter((r) => r.source === 'CLT' || r.source === 'TST'), ...LABOR_SUPPL_RULES]
-      : CRIMINAL_CONTEXT_RX.test(text)
+      : rite === 'CPP'
         ? [...RULES.filter((r) => r.source === 'CPP'), ...CRIMINAL_SUPPL_RULES]
-        : JEC_CONTEXT_RX.test(text)
+        : rite === 'JEC'
           ? [...RULES.filter((r) => r.source === 'JEC' || r.source === 'JEF'), ...JEC_SUPPL_RULES, ...RULES]
           : RULES;
     for (const rule of contextualRules) {
+      if (rule.label === 'Manifestação (Penal)') continue; // CPP 798 regula contagem, não fixa prazo supletivo.
       // A classe no expediente não é o dispositivo nem abre novo recurso.
       const ruleText = text.replace(/-\s*apelacao civel\s*-/g, ' - ');
       const m = ruleText.match(rule.pattern);
