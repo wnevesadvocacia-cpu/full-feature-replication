@@ -48,7 +48,7 @@ export function recipientDiagnosis(content: string | null | undefined): { reason
   const cnjs = processLabels(plain);
   let reason = 'o ato não nomeia a parte que deve cumprir';
   if (cnjs > 1) reason = `a publicação reúne ${cnjs} processos`;
-  else if (/parte\(s\)/i.test(plain)) reason = 'o ato diz “parte(s)” sem indicar qual';
+  else if (/parte\(s\)(?!\s*:)/i.test(plain)) reason = 'o ato diz “parte(s)” sem indicar qual';
   else if (/\b(?:revog\w*|torn[oa] sem efeito)\b/.test(normalized)) reason = 'o ato revoga ou torna sem efeito ordem anterior';
   else if (excerpts.some(e => historical.test(normalize(e)))) reason = 'o comando é citado, condicional, negativo ou já cumprido';
   else if (deadlineRecipient(content).status === 'ambiguous') reason = 'há mais de um destinatário ou providência';
@@ -65,7 +65,7 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
   const plain = toPlain(content);
   const normalized = normalize(plain);
   if (processLabels(plain) > 1 || extractCnjs(plain).length > 1 && !/\bprocesso\b/.test(normalized)) return ambiguous;
-  if (/\b(?:revog\w*|torn[oa] sem efeito)\b/.test(normalized) || /parte\(s\)/i.test(plain)) return unknown;
+  if (/\b(?:revog\w*|torn[oa] sem efeito)\b/.test(normalized) || /parte\(s\)(?!\s*:)/i.test(plain)) return unknown;
   const candidates: { party: string; evidence: string }[] = [];
   let unmatched = false;
   for (const sentence of splitSentences(plain)) {
