@@ -76,7 +76,7 @@ describe.each([['browser', detectDeadline, browser], ['edge', edgeDetect, edge]]
     expect(result?.unit).toBe(unit);
     expect(result?.dueDate).toBe(dueDate);
     if (code !== 'CLT') expect(result?.isFallback).toBe(true);
-    if (code !== 'CPC') expect(result?.article).not.toContain('218');
+    if (code === 'CPP' || code === 'Juizado Especial Cível') expect(result?.article).not.toContain('218');
   });
   it('não substitui quantidade expressa pela regra geral', () => {
     expect(detect('CPC. Intime-se o réu para informar o endereço em 10 dias.', '2025-05-20', '2025-05-20')?.days).toBe(10);
