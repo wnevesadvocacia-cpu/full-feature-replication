@@ -118,13 +118,13 @@ export function recipientDirectives(content: string | null | undefined): Recipie
     name, key: normalize(name).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter(t => t.length >= 3).slice(0, 2).join(' '),
   })).filter(n => n.key);
   const out: RecipientDirective[] = [];
-  for (const sentence of splitSentences(plain)) {
+  for (const sentence of plain.split(/(?<!\b[A-Za-z])[.;](?=\s|$)|[\n\r]+/).map(x => x.trim()).filter(Boolean)) {
     const text = normalize(sentence).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
     const raw = normalize(sentence);
     const named = names.find(n => new RegExp(`^(?:(?:o|a|os|as)\\s+)?${n.key}\\b`).test(text));
     if (named && /\bdeverao?\b/.test(raw)) {
       const task = sentence.replace(/^[\s\S]*?\bdever[aá]o?\s+/i, '').replace(/,?\s*(?:no prazo de|em)\s+\d+\s+dias,?\s*/i, ' ').trim();
-      out.push({ party: named.name, task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
+      out.push({ party: named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
       continue;
     }
     const patrono = raw.match(/\bpatrono d[oa] (requerente|autora?|requerid[oa]|reu|re)\b[^,]*?,?\s*autorizad[oa] a ([^,]+)/);
