@@ -17,6 +17,7 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   CalendarDays,
   AlertTriangle,
   Highlighter,
@@ -1159,20 +1160,28 @@ export default function Intimacoes() {
                       tribunal={tribunal}
                     />
                   )}
-                  {(() => {
-                    const r = renderSafeContent(it.content);
-                    return r.html ? (
-                      <div
-                        className="text-sm mt-2 break-words intim-content prose prose-sm max-w-none"
-                        dangerouslySetInnerHTML={{ __html: r.html }}
-                      />
-                    ) : (
-                      <p className="text-sm mt-2 whitespace-pre-wrap break-words">{r.text}</p>
-                    );
-                  })()}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Disponibilizada em {formatBR(it.received_at.slice(0, 10))}
-                  </p>
+                  <details className="group mt-3 rounded-md border bg-muted/30">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
+                      <span>Texto integral da publicação</span>
+                      <span className="flex items-center gap-2">
+                        <span>Disponibilizada em {formatBR(it.received_at.slice(0, 10))}</span>
+                        <ChevronDown className="h-3.5 w-3.5 transition-transform group-open:rotate-180" />
+                      </span>
+                    </summary>
+                    <div className="border-t px-3 py-2">
+                      {(() => {
+                        const r = renderSafeContent(it.content);
+                        return r.html ? (
+                          <div
+                            className="text-sm break-words intim-content prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ __html: r.html }}
+                          />
+                        ) : (
+                          <p className="text-sm whitespace-pre-wrap break-words">{r.text}</p>
+                        );
+                      })()}
+                    </div>
+                  </details>
                 </div>
                 <div className="flex flex-col gap-1 shrink-0">
                   {(() => {
