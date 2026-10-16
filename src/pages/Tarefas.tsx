@@ -1112,6 +1112,9 @@ export default function Tarefas() {
                   <div className="flex">
                     <div className={`w-1.5 shrink-0 ${stripeClass}`} aria-hidden />
                     <div className="flex-1 min-w-0 p-5 sm:p-6">
+                      <div className="mb-4 flex flex-wrap items-center justify-end gap-1.5" aria-label="Ações do prazo">
+                        {renderTaskActions(task)}
+                      </div>
                       {/* Linha superior: identificação + situação */}
                       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <div className="flex items-center gap-3 flex-wrap min-w-0">
@@ -1223,7 +1226,7 @@ export default function Tarefas() {
                         </p>
                       </div>
 
-                      {/* Rodapé: dados-chave + ações */}
+                      {/* Rodapé: dados-chave */}
                       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 pt-5 border-t border-stone-100 dark:border-border">
                         {task.due_date && (
                           <div className="lg:col-span-3 flex items-center gap-3">
@@ -1250,11 +1253,6 @@ export default function Tarefas() {
                             </div>
                           </div>
                         )}
-                        <div className="lg:col-span-4 lg:ml-auto flex items-center justify-end gap-1.5">
-                          {renderTaskActions(task)}
-
-
-                        </div>
                       </div>
                     </div>
                   </div>
@@ -1403,6 +1401,9 @@ export default function Tarefas() {
             const processNumber = publicationNumber(t);
             return (
               <div className="space-y-3 text-sm">
+                <div className="flex flex-wrap items-center justify-end gap-1.5 border-b pb-3" aria-label="Ações do prazo">
+                  {renderTaskActions(t)}
+                </div>
                 {processNumber && (
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-muted-foreground">Processo:</span>
@@ -1450,9 +1451,6 @@ export default function Tarefas() {
                       {isToday && <span className="text-[11px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full">Vence hoje</span>}
                     </div>
                   )}
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-1.5 border-t pt-3">
-                  {renderTaskActions(t)}
                 </div>
                 <div className="border-t pt-3">
                   <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
