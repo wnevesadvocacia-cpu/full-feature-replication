@@ -145,7 +145,7 @@ export function DeadlinePanel({ deadline, receivedAtISO, tribunal, suggestionApp
         )}
       </div>}
       <p className="px-3 pb-2 text-xs text-muted-foreground">{countingBasis} · Calendário-base CNJ{tribunal ? ` + datas cadastradas do ${tribunal}` : ' · tribunal não identificado'}.</p>
-      <p className="px-3 pb-2 text-xs text-warning">Ressalva: feriado da comarca ou suspensão ainda não cadastrados podem alterar o vencimento; confirme no calendário do {tribunal || 'tribunal competente'}.</p>
+      <p className="px-3 pb-2 text-xs text-foreground"><span className="font-medium text-destructive">Ressalva:</span> feriado da comarca ou suspensão ainda não cadastrados podem alterar o vencimento; confirme no calendário do {tribunal || 'tribunal competente'}.</p>
       {!open && deadline.classificacaoStatus !== 'auto_alta' && deadline.classificacaoStatus !== 'revisada_advogado' && <p className="px-3 pb-2 text-xs text-warning">Confirme a modalidade do ato e o destinatário no inteiro teor.</p>}
 
       {/* Memorial expansível */}
