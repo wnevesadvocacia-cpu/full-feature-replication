@@ -151,7 +151,7 @@ export function recipientDirectives(content: string | null | undefined): Recipie
       out.push({ party: role ? `${role} — ${named.name.toUpperCase()}` : named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
       continue;
     }
-    const oficio = raw.match(/\bservirá\b[\s\S]*?\bofício\b[\s\S]*?\bpel[oa]\s+(?:parte\s+)?(exequente|executad[oa]|autora?|requerente|réu?|requerid[oa])\b/);
+    const oficio = raw.match(/\bservira\b[\s\S]*?\boficio\b[\s\S]*?\bpel[oa]\s+(?:parte\s+)?(exequente|executad[oa]|autora?|requerente|reu?|requerid[oa])\b/);
     if (oficio) {
       const role = oficio[1];
       const party = role.startsWith('exequente') ? 'Exequente'
