@@ -26,7 +26,7 @@ const accents: Record<string, string> = { acute: '\u0301', grave: '\u0300', circ
 // Sentence ends only at punctuation followed by space/end, so CNJ numbers and amounts stay intact.
 const splitSentences = (plain: string) => plain.split(/[.;](?=\s|$)|[\n\r]+/).map(s => s.trim()).filter(Boolean);
 // Closing formulas such as "Intimem-se." carry no addressee or deadline.
-const formula = /^(?:(?:intime[m]?[ -]se|cumpra[ -]se|publique[ -]se|registre[ -]se|int)[ ,e]*)+$/;
+const formula = /^(?:(?:intime[m]?[ -]se|cumpra[ -]se|publique[ -]se|registre[ -]se|int|vista)[ ,e]*)+$/;
 const historical = /["“”«»]|\b(?:anterior(?:mente)?|transcrev\w*|citando|conforme|vide|retro|nos termos(?! d[oa]s? (?:art|lei|cpc|codigo))|ementa|jurisprudencia|historico|nao|caso|se houver|ja intimad\w*|foi intimad\w*|foram intimad\w*)\b/;
 const otherActor = /\b(?:perito|uniao|ministerio publico|defensoria|serventia|cartorio|secretaria|oficial|contador|contadoria|administrador judicial|leiloeiro|terceir\w*|intime[m]?[ -]se|cite[m]?[ -]se|manifeste[m]?[ -]se|se manifeste|devera|deverao|sucessiv\w*|respectiv\w*|subsidiari\w*)\b/;
 const processLabels = (plain: string) => new Set([...normalize(plain).matchAll(/\bprocesso\s*(?:n[o.º°]*\s*)?:?\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g)].map(m => m[1])).size;
