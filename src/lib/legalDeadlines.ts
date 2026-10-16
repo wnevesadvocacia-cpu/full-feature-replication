@@ -1240,23 +1240,20 @@ export function detectDeadline(content: string, receivedAtISO: string, todayISO:
     };
   }
 
-  // Não importar regra supletiva civil para rito penal/trabalhista sem prazo identificável.
-  if (!chosen && rite !== 'CPC' && rite !== 'JEC') return null;
-
-  // ====== FALLBACK CPC 218 §3º (5 dias úteis) ======
+  // Five-day operational fallback; do not attribute CPC 218 to other codes.
   if (!chosen) {
     isFallback = true;
     chosen = {
       rule: {
         days: 5,
-        unit: 'dias_uteis',
+        unit: defaultUnit,
         label: 'Manifestação (regra geral)',
-        source: 'CPC',
-        article: 'art. 218 §3º (regra supletiva 5 dias)',
+        source: rite,
+        article: rite === 'CPC' ? 'art. 218 §3º (regra supletiva 5 dias)' : 'regra operacional de 5 dias (prazo específico não identificado)',
         pattern: /.*/,
         peca: PECA_GENERICA('Manifestação (regra geral)', 5),
       },
-      matched: '(prazo não explícito — aplicada regra geral de 5 dias úteis)',
+      matched: `(prazo não identificado — aplicada regra geral de 5 ${defaultUnit === 'dias_uteis' ? 'dias úteis' : 'dias corridos'})`,
     };
     confianca = 0.5;
     classificacaoStatus = 'auto_baixa';
