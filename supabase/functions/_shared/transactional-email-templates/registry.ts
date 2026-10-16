@@ -1,6 +1,7 @@
 import type { ComponentType } from 'npm:react@18.3.1'
 import { template as lockoutNotice } from './lockout-notice.tsx'
 import { template as prazoCritico } from './prazo-critico-djen.tsx'
+import { template as taskUpdate } from './task-update.tsx'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -20,6 +21,7 @@ export interface TemplateEntry {
  *   // then add to TEMPLATES: 'welcome': welcomeTemplate
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
+  'task-update': taskUpdate,
   'lockout_notice': lockoutNotice,
   'prazo-critico-djen': prazoCritico,
 }
