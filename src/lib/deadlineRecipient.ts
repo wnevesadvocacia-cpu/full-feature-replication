@@ -77,6 +77,15 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
     if (!anyCommand.test(text) || formula.test(text)) continue;
     // Do not decide whether quoted, conditional or prior directions still operate.
     if (historical.test(text)) return unknown;
+    // "Servirá a presente decisão como ofício a ser enviado/entregue pelo(a) <papel>":
+    // the decision itself is the ofício and names who must deliver it.
+    const oficio = text.match(new RegExp(`\\bservira\\b.*?\\boficio\\b.*?\\bpel[oa]\\s+(?:parte\\s+)?(${rolePattern})\\b`));
+    if (oficio) {
+      const label = roles.find(([pattern]) => new RegExp(`^(?:${pattern})$`).test(oficio[1]))?.[1];
+      if (!label) return unknown;
+      candidates.push({ party: label, evidence: sentence });
+      continue;
+    }
     const match = text.match(imperative) ?? text.match(subject);
     if (!match) { unmatched = true; continue; }
     const label = roles.find(([pattern]) => new RegExp(`^(?:${pattern})$`).test(match[1]))?.[1];
@@ -137,6 +146,15 @@ export function recipientDirectives(content: string | null | undefined): Recipie
       const task = sentence.replace(/,?\s*(?:no prazo de|em)\s+\d+\s+dias,?\s*|,?\s*no mesmo prazo,?\s*/gi, ' ').replace(/^[\s\S]*?\bdever[aá]o?\s+/i, '').trim();
       const role = roleOf(named.key);
       out.push({ party: role ? `${role} — ${named.name.toUpperCase()}` : named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
+      continue;
+    }
+    const oficio = raw.match(/\bservirá\b[\s\S]*?\bofício\b[\s\S]*?\bpel[oa]\s+(?:parte\s+)?(exequente|executad[oa]|autora?|requerente|réu?|requerid[oa])\b/);
+    if (oficio) {
+      const role = oficio[1];
+      const party = role.startsWith('exequente') ? 'Exequente'
+        : role.startsWith('executad') ? 'Executado(a)'
+        : /^(?:autor|requerente)/.test(role) ? 'Parte autora' : 'Parte ré';
+      out.push({ party, task: 'enviar o ofício (a própria decisão) ao destinatário indicado no ato', term: termOf(raw), evidence: sentence });
       continue;
     }
     const patrono = raw.match(/\bpatrono d[oa] (requerente|autora?|requerid[oa]|reu|re)\b[^,]*?,?\s*autorizad[oa] a ([^,]+)/);
