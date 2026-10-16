@@ -74,6 +74,18 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
       .replace(/^(?:fls?\.?\s*)?[\d/]+\s*(?:\([^)]*\))?\s*:\s*/, '');
     // "Fica(m) intimada(s) a(s) parte(s) recorrida(s)" names the role expressly.
     text = text.replace(/\(m\)/g, '').replace(/^.*?\bficam?\s+intimad[oa]s?\s+(?:[ao]s?\s+)?(?:partes?\s+)?(recorrid[oa]|recorrente|agravad[oa]|agravante|apelad[oa]|apelante|embargad[oa]|embargante|exequente|executad[oa])s?\b/, 'intime-se a parte $1');
+    // "Servirá a presente decisão como ofício a ser enviado/entregue pelo(a) <papel>":
+    // the decision itself is the ofício and names who must deliver it.
+    const oficio = text.match(new RegExp(`\\bservira\\b.*?\\boficio\\b.*?\\bpel[oa]\\s+(?:parte\\s+)?(${rolePattern})\\b`));
+    if (oficio) {
+      if (historical.test(text)) return unknown;
+      const label = roles.find(([pattern]) => new RegExp(`^(?:${pattern})$`).test(oficio[1]))?.[1];
+      if (!label) return unknown;
+      candidates.push({ party: label, evidence: sentence });
+      continue;
+    }
+    // "Oficie-se ao DETRAN/SPC/…" orders the office to notify a third party, not a process party.
+    if (/^oficie[ -]se\b/.test(text)) continue;
     if (!anyCommand.test(text) || formula.test(text)) continue;
     // Do not decide whether quoted, conditional or prior directions still operate.
     if (historical.test(text)) return unknown;
@@ -137,6 +149,15 @@ export function recipientDirectives(content: string | null | undefined): Recipie
       const task = sentence.replace(/,?\s*(?:no prazo de|em)\s+\d+\s+dias,?\s*|,?\s*no mesmo prazo,?\s*/gi, ' ').replace(/^[\s\S]*?\bdever[aá]o?\s+/i, '').trim();
       const role = roleOf(named.key);
       out.push({ party: role ? `${role} — ${named.name.toUpperCase()}` : named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
+      continue;
+    }
+    const oficio = raw.match(/\bservira\b[\s\S]*?\boficio\b[\s\S]*?\bpel[oa]\s+(?:parte\s+)?(exequente|executad[oa]|autora?|requerente|reu?|requerid[oa])\b/);
+    if (oficio) {
+      const role = oficio[1];
+      const party = role.startsWith('exequente') ? 'Exequente'
+        : role.startsWith('executad') ? 'Executado(a)'
+        : /^(?:autor|requerente)/.test(role) ? 'Parte autora' : 'Parte ré';
+      out.push({ party, task: 'enviar o ofício (a própria decisão) ao destinatário indicado no ato', term: termOf(raw), evidence: sentence });
       continue;
     }
     const patrono = raw.match(/\bpatrono d[oa] (requerente|autora?|requerid[oa]|reu|re)\b[^,]*?,?\s*autorizad[oa] a ([^,]+)/);

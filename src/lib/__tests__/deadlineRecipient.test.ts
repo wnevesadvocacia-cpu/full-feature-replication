@@ -110,3 +110,16 @@ describe('comando precedido de referência a folhas', () => {
     expect(deadlineRecipient(ato)).toMatchObject({ status: 'express', party: 'Exequente' });
   });
 });
+
+describe('decisão que serve como ofício a ser enviado pelo exequente', () => {
+  const ato = 'Intimação Processo: 0001867-20.2023.8.26.0229 Órgão: UPJ da 1ª a 3ª Varas Cíveis e Vara da Família e das Sucessões da Comarca de Hortolândia Data de disponibilização: 14/10/2026 Meio: D Parte(s): ADRIANO FERREIRA DOS SANTOS; WILLIAM ROBSON DAS NEVES Advogado(s): ANTONIO MARCOS DANTAS OAB SP-147397, WILLIAM ROBSON DAS NEVES OAB SP-290702 CUMPRIMENTO DE SENTENÇA Nº 0001867-20.2023.8.26.0229/SP EXEQUENTE: WILLIAM ROBSON DAS NEVES ADVOGADO(A): WILLIAM ROBSON DAS NEVES (OAB SP290702) EXECUTADO: ADRIANO FERREIRA DOS SANTOS ADVOGADO(A): ANTONIO MARCOS DANTAS (OAB SP147397) DESPACHO/DECISÃO Vistos. Oficie-se ao DETRAN para que informe qual a instituição financeira figura como credora fiduciária do veículo Fiat/Doblo ADV 1.8 Flex, placa DWH-6A11, em nome de ADRIANO FERREIRA DOS SANTOS, RG nº 35.738.114-2, CPF nº 403.881.538-22. Servirá a presente decisão como ofício a ser enviado pelo exequente. Int.';
+  it('identifica o exequente como destinatário do prazo', () => {
+    expect(deadlineRecipient(ato)).toMatchObject({ status: 'express', party: 'Exequente' });
+  });
+  it('lista a providência de enviar o ofício para o exequente', () => {
+    const dirs = recipientDirectives(ato);
+    expect(dirs).toHaveLength(1);
+    expect(dirs[0].party).toBe('Exequente');
+    expect(dirs[0].task).toContain('ofício');
+  });
+});
