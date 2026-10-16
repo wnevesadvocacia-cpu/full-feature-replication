@@ -103,3 +103,10 @@ describe('parte recorrida intimada', () => {
     expect(deadlineRecipient(ato)).toMatchObject({ status: 'express', party: 'Recorrido(a)' });
   });
 });
+
+describe('comando precedido de referência a folhas', () => {
+  it('identifica a exequente em "Fls. 57/61 (...): Manifeste-se a exequente, em 15 dias"', () => {
+    const ato = 'Intimação Processo: 0007842-62.2025.8.26.0161 Órgão: Foro de Diadema - 2ª Vara Cível Parte(s): DENER PEREIRA DE LIMA; MARIA DE FÁTIMA DA SILVA Processo 0007842-62.2025.8.26.0161 (processo principal 1007386-66.2023.8.26.0161) - Cumprimento de sentença - Práticas Abusivas - Maria de Fátima da Silva - Dener Pereira de Lima - Fls. 57/61 (depósito e pedido de extinção): Manifeste-se a exequente, em 15 dias. Int. - ADV: JESSICA CRISTINA RIBEIRO TODA RANGEL (OAB 493450/SP)';
+    expect(deadlineRecipient(ato)).toMatchObject({ status: 'express', party: 'Exequente' });
+  });
+});
