@@ -2,7 +2,7 @@ Keep browser/shared deadline/review parity; commands override case labels. Check
 Identify the drafting actor through a server-stamped task field on status transitions, not the assignee, so attribution is independent and cannot be spoofed by the client.
 Task overview uses CNJ tribunal resolution and paginated dated system evidence, never defaults or live-verification claims. Reuse deadlineRecipient in Intimações/task details: explicit commands only, never OAB/assignee or representation; abstain on ambiguity.
 Overdue notices reuse the task query, visibility and São Paulo date outside list filters. Cards and task details share execution controls/audit handlers so overdue tasks remain actionable.
-Queue-backed email features use the managed template helper with observational send auditing; external email providers remain unchanged to preserve provider choice.
+Task triggers notify in-app; authorized task-notification sends managed email after saving, never rolling back deadlines on delivery failure. Preserve external providers.
 Run manual DJEN sync asynchronously with request-scoped configuration and owner-validated persisted completion; never interpret acceptance or partial results as a completed empty search.
 Treat failed supplemental tribunal queries, malformed source responses, failed process reads and page limits as incomplete coverage; preserve imported publications and alert the owner rather than claiming an empty completed search.
 Skip deadline and parent-process classification only for external IDs already persisted for the same owner, preserving the redundant search window and failing closed on lookup errors to reduce sync CPU usage.
