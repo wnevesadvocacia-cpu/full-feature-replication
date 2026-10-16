@@ -119,6 +119,13 @@ export function recipientDirectives(content: string | null | undefined): Recipie
   const names = header.split(';').map(name => name.trim()).filter(Boolean).map(name => ({
     name, key: normalize(name).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter(t => t.length >= 3).slice(0, 2).join(' '),
   })).filter(n => n.key);
+  // ESAJ caption "Processo N - Classe - Assunto - Autor - Réu - - Réu2": first named party is the active pole.
+  const caption = normalize(plain.match(/processo\s+\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}\s+-\s+([^\n]+)/i)?.[1] ?? '').replace(/[^a-z0-9 -]/g, ' ');
+  const positions = names.map(n => caption.search(new RegExp(`\\b${n.key}\\b`))).filter(i => i >= 0);
+  const roleOf = (key: string) => {
+    const i = caption.search(new RegExp(`\\b${key}\\b`));
+    return i < 0 || positions.length < 2 ? null : i === Math.min(...positions) ? 'Parte autora' : 'Parte ré';
+  };
   const out: RecipientDirective[] = [];
   for (const sentence of plain.split(/(?<!\b[A-Za-z])[.;](?=\s|$)|[\n\r]+/).map(x => x.trim()).filter(Boolean)) {
     const text = normalize(sentence).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -126,7 +133,8 @@ export function recipientDirectives(content: string | null | undefined): Recipie
     const named = names.find(n => new RegExp(`^(?:(?:o|a|os|as)\\s+)?${n.key}\\b`).test(text));
     if (named && /\bdeverao?\b/.test(raw)) {
       const task = sentence.replace(/,?\s*(?:no prazo de|em)\s+\d+\s+dias,?\s*|,?\s*no mesmo prazo,?\s*/gi, ' ').replace(/^[\s\S]*?\bdever[aá]o?\s+/i, '').trim();
-      out.push({ party: named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
+      const role = roleOf(named.key);
+      out.push({ party: role ? `${role} — ${named.name.toUpperCase()}` : named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
       continue;
     }
     const patrono = raw.match(/\bpatrono d[oa] (requerente|autora?|requerid[oa]|reu|re)\b[^,]*?,?\s*autorizad[oa] a ([^,]+)/);
