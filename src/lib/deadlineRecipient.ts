@@ -84,6 +84,8 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
       candidates.push({ party: label, evidence: sentence });
       continue;
     }
+    // "Oficie-se ao DETRAN/SPC/…" orders the office to notify a third party, not a process party.
+    if (/^oficie[ -]se\b/.test(text)) continue;
     if (!anyCommand.test(text) || formula.test(text)) continue;
     // Do not decide whether quoted, conditional or prior directions still operate.
     if (historical.test(text)) return unknown;
