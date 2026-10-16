@@ -26,7 +26,7 @@ const accents: Record<string, string> = { acute: '\u0301', grave: '\u0300', circ
 // Sentence ends only at punctuation followed by space/end, so CNJ numbers and amounts stay intact.
 const splitSentences = (plain: string) => plain.split(/[.;](?=\s|$)|[\n\r]+/).map(s => s.trim()).filter(Boolean);
 // Closing formulas such as "Intimem-se." carry no addressee or deadline.
-const formula = /^(?:(?:intime[m]?[ -]se|cumpra[ -]se|publique[ -]se|registre[ -]se|int)[ ,e]*)+$/;
+const formula = /^(?:(?:intime[m]?[ -]se|cumpra[ -]se|publique[ -]se|registre[ -]se|int|vista)[ ,e]*)+$/;
 const historical = /["“”«»]|\b(?:anterior(?:mente)?|transcrev\w*|citando|conforme|vide|retro|nos termos(?! d[oa]s? (?:art|lei|cpc|codigo))|ementa|jurisprudencia|historico|nao|caso|se houver|ja intimad\w*|foi intimad\w*|foram intimad\w*)\b/;
 const otherActor = /\b(?:perito|uniao|ministerio publico|defensoria|serventia|cartorio|secretaria|oficial|contador|contadoria|administrador judicial|leiloeiro|terceir\w*|intime[m]?[ -]se|cite[m]?[ -]se|manifeste[m]?[ -]se|se manifeste|devera|deverao|sucessiv\w*|respectiv\w*|subsidiari\w*)\b/;
 const processLabels = (plain: string) => new Set([...normalize(plain).matchAll(/\bprocesso\s*(?:n[o.º°]*\s*)?:?\s*(\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4})/g)].map(m => m[1])).size;
@@ -48,7 +48,7 @@ export function recipientDiagnosis(content: string | null | undefined): { reason
   const cnjs = processLabels(plain);
   let reason = 'o ato não nomeia a parte que deve cumprir';
   if (cnjs > 1) reason = `a publicação reúne ${cnjs} processos`;
-  else if (/parte\(s\)(?!\s*:)/i.test(plain)) reason = 'o ato diz “parte(s)” sem indicar qual';
+  else if (/parte\(s\)(?!\s*:)(?!\s*(?:recorrid|recorrente|agravad|agravante|apelad|apelante|embargad|embargante|exequente|executad|autor|r[eé]u?\b))/i.test(plain)) reason = 'o ato diz “parte(s)” sem indicar qual';
   else if (/\b(?:revog\w*|torn[oa] sem efeito)\b/.test(normalized)) reason = 'o ato revoga ou torna sem efeito ordem anterior';
   else if (excerpts.some(e => historical.test(normalize(e)))) reason = 'o comando é citado, condicional, negativo ou já cumprido';
   else if (deadlineRecipient(content).status === 'ambiguous') reason = 'há mais de um destinatário ou providência';
@@ -65,11 +65,13 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
   const plain = toPlain(content);
   const normalized = normalize(plain);
   if (processLabels(plain) > 1 || extractCnjs(plain).length > 1 && !/\bprocesso\b/.test(normalized)) return ambiguous;
-  if (/\b(?:revog\w*|torn[oa] sem efeito)\b/.test(normalized) || /parte\(s\)(?!\s*:)/i.test(plain)) return unknown;
+  if (/\b(?:revog\w*|torn[oa] sem efeito)\b/.test(normalized) || /parte\(s\)(?!\s*:)(?!\s*(?:recorrid|recorrente|agravad|agravante|apelad|apelante|embargad|embargante|exequente|executad|autor|r[eé]u?\b))/i.test(plain)) return unknown;
   const candidates: { party: string; evidence: string }[] = [];
   let unmatched = false;
   for (const sentence of splitSentences(plain)) {
-    const text = normalize(sentence).replace(/^(?:(?:ante|diante|pelo|por todo) o exposto|isto posto|isso posto|posto isso|assim|dessa forma|desse modo|portanto|logo|outrossim|no mais|vistos|em seguida)\s*,?\s*/, '');
+    let text = normalize(sentence).replace(/^(?:(?:ante|diante|pelo|por todo) o exposto|isto posto|isso posto|posto isso|assim|dessa forma|desse modo|portanto|logo|outrossim|no mais|vistos|em seguida)\s*,?\s*/, '');
+    // "Fica(m) intimada(s) a(s) parte(s) recorrida(s)" names the role expressly.
+    text = text.replace(/\(m\)/g, '').replace(/^.*?\bficam?\s+intimad[oa]s?\s+(?:[ao]s?\s+)?(?:partes?\s+)?(recorrid[oa]|recorrente|agravad[oa]|agravante|apelad[oa]|apelante|embargad[oa]|embargante|exequente|executad[oa])s?\b/, 'intime-se a parte $1');
     if (!anyCommand.test(text) || formula.test(text)) continue;
     // Do not decide whether quoted, conditional or prior directions still operate.
     if (historical.test(text)) return unknown;
@@ -80,7 +82,7 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
     const tail = text.slice(match[0].length);
     if (new RegExp(`\\b(?:o|a|os|as|ao|aos|do|da|dos|das|e|ou)\\s+(?:parte\\s+)?(?:${rolePattern})\\b`).test(tail) || otherActor.test(tail)) return ambiguous;
     // Notification alone is not a procedural deadline for the notified party.
-    if (!subject.test(text) && !/^manifeste[m]?[ -]se\b/.test(text) && !new RegExp(`\\bpara\\s+(?:que\\s+)?(?:${action}|manifestacao|efetue|pague)|\\b(?:em|prazo de)\\s+\\d+\\b`).test(tail)) return unknown;
+    if (!subject.test(text) && !/^manifeste[m]?[ -]se\b/.test(text) && !new RegExp(`\\bpara\\s+(?:que\\s+)?(?:${action}|manifestacao|efetue|pague)|\\bpara\\s+que\\s+(?:apresente|ofereca|recolha|comprove|pague|cumpra|manifeste)m?\\b|\\b(?:em|prazo de)\\s+\\d+\\b`).test(tail)) return unknown;
     candidates.push({ party: label, evidence: sentence });
   }
   if (candidates.length > 1) return ambiguous;
