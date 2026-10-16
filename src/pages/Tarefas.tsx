@@ -358,6 +358,105 @@ export default function Tarefas() {
     }
   };
 
+  // Same controls and audited mutations for cards and task details, regardless of due date.
+  const renderTaskActions = (task: any) => (
+    <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 text-stone-400 hover:text-primary hover:bg-stone-50 dark:hover:bg-muted/40 rounded-lg transition-colors disabled:opacity-40"
+                            onClick={() => openAttach(task)}
+                            disabled={uploading || !task.process_id}
+                            title={task.process_id ? 'Anexar documento ao processo/cliente' : 'Vincule um processo para anexar'}
+                          >
+                            <Paperclip className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 text-stone-400 hover:text-stone-900 dark:hover:text-foreground hover:bg-stone-50 dark:hover:bg-muted/40 rounded-lg transition-colors"
+                            onClick={() => { setOverviewTarget(null); openEdit(task); }}
+                            title="Editar prazo"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <DeleteGuard>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-10 w-10 text-stone-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                              onClick={() => { setOverviewTarget(null); setDeleteTarget(task); }}
+                              title="Excluir prazo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </DeleteGuard>
+                          {!task.completed && task.status !== 'cancelada' && (
+                            <div className="flex items-stretch ml-1">
+                              <Button
+                                size="sm"
+                                className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest bg-stone-900 hover:bg-stone-800 text-white dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 rounded-lg rounded-r-none transition-all"
+                                onClick={() => toggleTask(task)}
+                                disabled={updateTask.isPending}
+                                title="Concluir prazo (mantida no histórico para auditoria)"
+                              >
+                                <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    className="px-3 py-2.5 h-auto bg-stone-900 hover:bg-stone-800 text-white dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 border-l border-white/15 dark:border-background/20 rounded-lg rounded-l-none transition-all"
+                                    disabled={updateTask.isPending}
+                                    title="Mais opções de status"
+                                  >
+                                    <ChevronDown className="h-3.5 w-3.5" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => toggleTask(task)}>
+                                    <Check className="h-3.5 w-3.5 mr-2" /> Concluir
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => setTaskStatus(task, task.status === 'em_elaboracao' ? 'pendente' : 'em_elaboracao')}
+                                    className={task.status === 'em_elaboracao' ? 'bg-amber-50 text-amber-700 dark:bg-warning/10 dark:text-warning' : ''}
+                                  >
+                                    {task.status === 'em_elaboracao' ? (
+                                      <>
+                                        <RotateCcw className="h-3.5 w-3.5 mr-2" /> Remover "em elaboração"
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Hourglass className="h-3.5 w-3.5 mr-2" /> Em elaboração
+                                      </>
+                                    )}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() => cancelTask(task)}
+                                    className="text-destructive focus:text-destructive"
+                                  >
+                                    <XCircle className="h-3.5 w-3.5 mr-2" /> Cancelar prazo (erro de atribuição)
+                                  </DropdownMenuItem>
+
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                          )}
+                          {(task.completed || task.status === 'cancelada') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-10 px-4 ml-1 rounded-lg text-[11px] font-bold uppercase tracking-widest border-stone-300 text-stone-700 hover:bg-stone-50 dark:border-border dark:text-foreground dark:hover:bg-muted/40"
+                              onClick={() => toggleTask(task)}
+                              disabled={updateTask.isPending}
+                              title={task.status === 'cancelada' ? 'Reativar prazo cancelado' : 'Reabrir prazo (desfazer conclusão)'}
+                            >
+                              <RotateCcw className="h-4 w-4 mr-1.5" /> {task.status === 'cancelada' ? 'Reativar' : 'Reabrir'}
+                            </Button>
+                          )}
+    </>
+  );
+
   const handleCreate = async () => {
     if (!form.title.trim()) return;
     if (!form.process_id) { toast({ title: 'Selecione o processo vinculado', description: 'Escolha o processo na lista de sugestões para permitir a checagem de duplicidade.', variant: 'destructive' }); return; }
@@ -1152,99 +1251,7 @@ export default function Tarefas() {
                           </div>
                         )}
                         <div className="lg:col-span-4 lg:ml-auto flex items-center justify-end gap-1.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10 text-stone-400 hover:text-primary hover:bg-stone-50 dark:hover:bg-muted/40 rounded-lg transition-colors disabled:opacity-40"
-                            onClick={() => openAttach(task)}
-                            disabled={uploading || !task.process_id}
-                            title={task.process_id ? 'Anexar documento ao processo/cliente' : 'Vincule um processo para anexar'}
-                          >
-                            <Paperclip className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10 text-stone-400 hover:text-stone-900 dark:hover:text-foreground hover:bg-stone-50 dark:hover:bg-muted/40 rounded-lg transition-colors"
-                            onClick={() => openEdit(task)}
-                            title="Editar prazo"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <DeleteGuard>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-10 w-10 text-stone-400 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
-                              onClick={() => setDeleteTarget(task)}
-                              title="Excluir prazo"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </DeleteGuard>
-                          {!task.completed && task.status !== 'cancelada' && (
-                            <div className="flex items-stretch ml-1">
-                              <Button
-                                size="sm"
-                                className="px-5 py-2.5 h-auto text-[11px] font-bold uppercase tracking-widest bg-stone-900 hover:bg-stone-800 text-white dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 rounded-lg rounded-r-none transition-all"
-                                onClick={() => toggleTask(task)}
-                                disabled={updateTask.isPending}
-                                title="Concluir prazo (mantida no histórico para auditoria)"
-                              >
-                                <Check className="h-3.5 w-3.5 mr-1.5" /> Concluir
-                              </Button>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    className="px-3 py-2.5 h-auto bg-stone-900 hover:bg-stone-800 text-white dark:bg-foreground dark:text-background dark:hover:bg-foreground/90 border-l border-white/15 dark:border-background/20 rounded-lg rounded-l-none transition-all"
-                                    disabled={updateTask.isPending}
-                                    title="Mais opções de status"
-                                  >
-                                    <ChevronDown className="h-3.5 w-3.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => toggleTask(task)}>
-                                    <Check className="h-3.5 w-3.5 mr-2" /> Concluir
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => setTaskStatus(task, task.status === 'em_elaboracao' ? 'pendente' : 'em_elaboracao')}
-                                    className={task.status === 'em_elaboracao' ? 'bg-amber-50 text-amber-700 dark:bg-warning/10 dark:text-warning' : ''}
-                                  >
-                                    {task.status === 'em_elaboracao' ? (
-                                      <>
-                                        <RotateCcw className="h-3.5 w-3.5 mr-2" /> Remover "em elaboração"
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Hourglass className="h-3.5 w-3.5 mr-2" /> Em elaboração
-                                      </>
-                                    )}
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() => cancelTask(task)}
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <XCircle className="h-3.5 w-3.5 mr-2" /> Cancelar prazo (erro de atribuição)
-                                  </DropdownMenuItem>
-
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          )}
-                          {(task.completed || task.status === 'cancelada') && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-10 px-4 ml-1 rounded-lg text-[11px] font-bold uppercase tracking-widest border-stone-300 text-stone-700 hover:bg-stone-50 dark:border-border dark:text-foreground dark:hover:bg-muted/40"
-                              onClick={() => toggleTask(task)}
-                              disabled={updateTask.isPending}
-                              title={task.status === 'cancelada' ? 'Reativar prazo cancelado' : 'Reabrir prazo (desfazer conclusão)'}
-                            >
-                              <RotateCcw className="h-4 w-4 mr-1.5" /> {task.status === 'cancelada' ? 'Reativar' : 'Reabrir'}
-                            </Button>
-                          )}
+                          {renderTaskActions(task)}
 
 
                         </div>
@@ -1371,7 +1378,7 @@ export default function Tarefas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* Overview Dialog (read-only) */}
+      {/* Task overview with shared execution controls and history */}
       <Dialog open={!!overviewTarget} onOpenChange={(o) => { if (!o) setOverviewTarget(null); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
@@ -1381,7 +1388,7 @@ export default function Tarefas() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto pr-1">
           {overviewTarget && (() => {
-            const t = overviewTarget;
+            const t = tasks.find(task => task.id === overviewTarget.id) || overviewTarget;
             const dueDate = t.due_date ? new Date(t.due_date.slice(0,10) + 'T12:00:00') : null;
             const today = new Date();
             today.setHours(0,0,0,0);
@@ -1443,6 +1450,15 @@ export default function Tarefas() {
                       {isToday && <span className="text-[11px] bg-destructive/10 text-destructive px-1.5 py-0.5 rounded-full">Vence hoje</span>}
                     </div>
                   )}
+                </div>
+                <div className="flex flex-wrap items-center justify-end gap-1.5 border-t pt-3">
+                  {renderTaskActions(t)}
+                </div>
+                <div className="border-t pt-3">
+                  <h3 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <MessageSquare className="h-3.5 w-3.5" /> Histórico de conversas
+                  </h3>
+                  <HistoricoConversas taskId={t.id} processId={t.process_id ?? undefined} scrollWholePanel />
                 </div>
                 <div className="text-xs text-muted-foreground border-t pt-2 mt-2">
                   <p>Criada por <span className="font-medium">{creatorLabel}</span> em {fmtDate(t.created_at)}</p>
