@@ -1,4 +1,4 @@
-import { deadlineRecipient } from './deadlineRecipient.ts';
+import { deadlineRecipient, recipientDirectives } from './deadlineRecipient.ts';
 
 interface Suggestion {
   days: number;
@@ -38,6 +38,11 @@ export function reviewTaskSuggestion(content: string, suggestion: Suggestion | n
   };
   const text = normalize(content.replace(/<[^>]+>/g, ' '));
   const recipient = deadlineRecipient(content);
+  const directives = recipient.status === 'express' ? [] : recipientDirectives(content);
+  if (directives.length > 1) {
+    const reason = `O ato dá ordens distintas a cada parte: ${directives.map(d => `${d.party}${d.term ? ` (${d.term})` : ''} — ${d.task}`).join('; ')}. Criar a tarefa conforme a ordem dirigida ao cliente; a sugestão “${suggestion.pecaSugerida.peca}” não corresponde a essas ordens.`;
+    return { version: 1, approved: false, checks: (['command', 'recipient_deadline', 'conflict'] as const).map(stage => ({ stage, passed: false, reason })) };
+  }
   const evidence = normalize(recipient.evidence ?? '');
   const piece = normalize(suggestion.pecaSugerida.peca);
   const explicitActions = actions.filter(([, pattern]) => pattern.test(evidence));

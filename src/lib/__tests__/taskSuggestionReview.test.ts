@@ -92,3 +92,12 @@ describe('três revisões distintas da tarefa', () => {
     expect(read('supabase/functions/_shared/deadlineRecipient.ts').split('\n').slice(1).join('\n')).toBe(read('src/lib/deadlineRecipient.ts').split('\n').slice(1).join('\n'));
   });
 });
+describe('ordens distintas por parte', () => {
+  it('descreve cada ordem em vez de motivos genéricos', () => {
+    const ato = 'Parte(s): ATACADãO S.A.; BANCO CSF S/A; MARCIA MARIA PEREIRA UZAM\nAdvogado(s): X\nVistos. O Banco CSF S.A. deverá, no prazo de 15 dias, apresentar: a. o contrato. O Atacadão S.A., no mesmo prazo, deverá esclarecer se participou da oferta. Servirá esta DECISÃO COMO OFÍCIO, ficando o patrono do requerente autorizado a imprimir e entregar à destinatária, mediante protocolo que deverá ser comprovado nos autos em cinco dias. Intime(m)-se.';
+    const r = reviewTaskSuggestion(ato, { days: 5, unit: 'dias_uteis', source: 'CPC', dueDate: '2026-10-21', startDate: '2026-10-15', isFallback: true, triggerSource: 'x', classificacaoStatus: 'ok', pecaSugerida: { peca: 'Manifestação (5 dias)', prazo_dias: 5 } });
+    expect(r.approved).toBe(false);
+    expect(r.checks[0].reason).toContain('BANCO CSF S/A (15 dias)');
+    expect(r.checks[0].reason).toContain('Parte autora (cinco dias)');
+  });
+});
