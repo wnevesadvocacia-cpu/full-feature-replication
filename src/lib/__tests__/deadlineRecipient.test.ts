@@ -96,3 +96,10 @@ describe('recipientDirectives', () => {
     expect(recipientDirectives(ato)[0].task).toBe('apresentar: a. o contrato');
   });
 });
+
+describe('parte recorrida intimada', () => {
+  it('identifica a parte recorrida para contrarrazões', () => {
+    const ato = 'Parte(s): A BRASILEIRA LOJA LTDA; DENIS THIAGO\nVISTA\nNº 1029951-64.2024.8.26.0007 - Processo Digital. Petições devem ser apresentadas por meio eletrônico, nos termos do artigo 7º da Res. 551/2011 - Apelação Cível - São Paulo - Apelante: Denis (Justiça Gratuita) - Apelado: A Brasileira Loja Ltda - Fica(m) intimada(s) a(s) parte(s) recorrida(s) para que apresente(m) contrarrazões ao(s) recurso(s).  - Advs: William';
+    expect(deadlineRecipient(ato)).toMatchObject({ status: 'express', party: 'Recorrido(a)' });
+  });
+});
