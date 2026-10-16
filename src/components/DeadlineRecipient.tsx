@@ -13,7 +13,7 @@ export function DeadlineRecipient({ content }: { content?: string | null }) {
     <div className="my-2 text-xs leading-relaxed" data-deadline-recipient={result.status}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-        <span className="text-muted-foreground">Destinatário do prazo:</span>
+        <span className="font-semibold text-foreground">Destinatário do prazo:</span>
         {result.status === 'express' ? <>
           <strong className="font-semibold text-foreground">{result.party}{name ? ` — ${name}` : ''}</strong>
           <span className="text-muted-foreground">· indicado no ato</span>
@@ -21,7 +21,7 @@ export function DeadlineRecipient({ content }: { content?: string | null }) {
             {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             Trecho do ato
           </Button>
-        </> : directives.length ? <span className="font-medium text-foreground">ordens dirigidas a cada parte, conforme o ato:</span> : <span className="font-medium text-warning">não definido — {diagnosis?.reason}</span>}
+        </> : directives.length ? <span className="font-medium text-foreground">ordens dirigidas a cada parte, conforme o ato:</span> : <span className="text-foreground">não definido — {diagnosis?.reason}</span>}
       </div>
       {open && result.evidence && <blockquote className="mt-2 border-l-2 border-border pl-3 text-muted-foreground break-words whitespace-pre-wrap">{result.evidence}</blockquote>}
       {directives.length > 0 && <ul className="mt-1.5 space-y-1 border-l-2 border-border pl-3">
