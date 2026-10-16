@@ -69,7 +69,9 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
   const candidates: { party: string; evidence: string }[] = [];
   let unmatched = false;
   for (const sentence of splitSentences(plain)) {
-    let text = normalize(sentence).replace(/^(?:(?:ante|diante|pelo|por todo) o exposto|isto posto|isso posto|posto isso|assim|dessa forma|desse modo|portanto|logo|outrossim|no mais|vistos|em seguida)\s*,?\s*/, '');
+    let text = normalize(sentence).replace(/^(?:(?:ante|diante|pelo|por todo) o exposto|isto posto|isso posto|posto isso|assim|dessa forma|desse modo|portanto|logo|outrossim|no mais|vistos|em seguida)\s*,?\s*/, '')
+      // ESAJ folha prefix: "Fls. 57/61 (depósito e pedido de extinção): Manifeste-se..."
+      .replace(/^(?:fls?\.?\s*)?[\d/]+\s*(?:\([^)]*\))?\s*:\s*/, '');
     // "Fica(m) intimada(s) a(s) parte(s) recorrida(s)" names the role expressly.
     text = text.replace(/\(m\)/g, '').replace(/^.*?\bficam?\s+intimad[oa]s?\s+(?:[ao]s?\s+)?(?:partes?\s+)?(recorrid[oa]|recorrente|agravad[oa]|agravante|apelad[oa]|apelante|embargad[oa]|embargante|exequente|executad[oa])s?\b/, 'intime-se a parte $1');
     if (!anyCommand.test(text) || formula.test(text)) continue;
