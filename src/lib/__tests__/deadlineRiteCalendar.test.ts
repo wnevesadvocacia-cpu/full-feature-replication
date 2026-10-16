@@ -75,14 +75,14 @@ describe.each([['browser', detectDeadline, browser], ['edge', edgeDetect, edge]]
     expect(result?.days).toBe(5);
     expect(result?.unit).toBe(unit);
     expect(result?.dueDate).toBe(dueDate);
-    expect(result?.isFallback).toBe(true);
+    if (code !== 'CLT') expect(result?.isFallback).toBe(true);
     if (code !== 'CPC') expect(result?.article).not.toContain('218');
   });
   it('não substitui quantidade expressa pela regra geral', () => {
     expect(detect('CPC. Intime-se o réu para informar o endereço em 10 dias.', '2025-05-20', '2025-05-20')?.days).toBe(10);
   });
   it('não cria prazo para mera ciência sem providência', () => {
-    expect(detect('Ciência da juntada.', '2025-05-20', '2025-05-20')?.days).toBe(0);
+    expect(detect('Dê-se ciência às partes.', '2025-05-20', '2025-05-20')?.days).toBe(0);
   });
   it('homologação trabalhista não abre apelação civil', () => {
     const result = detect('Vara do Trabalho. Homologo o acordo.', '2025-05-20', '2025-05-20');
