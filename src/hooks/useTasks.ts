@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { taskCreateSchema, taskUpdateSchema, stripServerOnly } from '@/lib/validationSchemas';
 import { isUserTask } from '@/lib/taskVisibility';
+import { notifyTask } from '@/lib/notifyTask';
 
 export function useTasks() {
   const { user } = useAuth();
@@ -32,12 +33,14 @@ export function useCreateTask() {
     mutationFn: async (task: { title: string; description?: string; process_id?: string; assignee?: string; priority?: string; due_date?: string; start_date?: string }) => {
       // S28: valida + bloqueia campos server-only
       const parsed = taskCreateSchema.parse(stripServerOnly(task as any));
+      if (!user) throw new Error('Sessão expirada. Entre novamente.');
       const { data, error } = await supabase
         .from('tasks')
-        .insert({ ...parsed, user_id: user!.id } as any)
+        .insert({ ...parsed, user_id: user.id } as any)
         .select()
         .single();
       if (error) throw error;
+      await notifyTask(data.id);
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tasks'] }),

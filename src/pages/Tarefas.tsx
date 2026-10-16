@@ -481,7 +481,7 @@ export default function Tarefas() {
     }
     setSaving(true);
     try {
-      await createTask.mutateAsync({
+      const created = await createTask.mutateAsync({
         title: form.title,
         description: form.description || undefined,
         assignee: form.assignee.trim(),
@@ -490,17 +490,12 @@ export default function Tarefas() {
         start_date: form.start_date || undefined,
         process_id: form.process_id || undefined,
       });
-      await (supabase as any).rpc('notify_task_cc', {
-        _cc_user_id: form.cc_user_id,
-        _title: form.title,
-        _assignee: form.assignee.trim(),
-        _due_date: form.due_date || null,
-        _process_number: null,
-      });
+      const { notifyTask } = await import('@/lib/notifyTask');
+      const emailSent = await notifyTask(created.id, form.cc_user_id);
 
       setCreateOpen(false);
       setForm(EMPTY_FORM);
-      toast({ title: 'Prazo criado!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Prazo criado!', description: emailSent ? 'Cópia enviada ao gestor selecionado.' : 'Prazo salvo. Envio do e-mail ao gestor não confirmado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
@@ -527,16 +522,12 @@ export default function Tarefas() {
       if (saved?.id !== editTarget.id || saved.due_date !== expectedDueDate) {
         throw new Error('A alteração não foi gravada. Atualize a tela e tente novamente.');
       }
-      await (supabase as any).rpc('notify_task_cc', {
-        _cc_user_id: form.cc_user_id,
-        _title: form.title,
-        _assignee: form.assignee.trim(),
-        _due_date: form.due_date || null,
-        _process_number: editTarget.processes?.number ?? null,
-      });
+      const { notifyTask } = await import('@/lib/notifyTask');
+      if (form.assignee.trim() !== editTarget.assignee) await notifyTask(saved.id);
+      const emailSent = await notifyTask(saved.id, form.cc_user_id);
       qc.invalidateQueries({ queryKey: ['tasks'] });
       setEditTarget(null);
-      toast({ title: 'Prazo atualizado!', description: 'Cópia enviada ao gestor selecionado.' });
+      toast({ title: 'Prazo atualizado!', description: emailSent ? 'Cópia enviada ao gestor selecionado.' : 'Alteração salva. Envio do e-mail ao gestor não confirmado.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
     } finally { setSaving(false); }
