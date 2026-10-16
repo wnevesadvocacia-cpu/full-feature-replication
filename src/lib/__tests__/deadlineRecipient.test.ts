@@ -87,3 +87,12 @@ describe('recipientPartyName', () => {
     expect(recipientPartyName('EXEQUENTE: MAYARA VALERIO FERREIRA ADVOGADO(A): WILLIAM (OAB SP290702)EXECUTADO: FLEX ANALISE DE CREDITO E COBRANCA LTDA.ADVOGADO(A): MARCIO', 'Executado(a)')).toBe('FLEX ANALISE DE CREDITO E COBRANCA LTDA');
   });
 });
+
+import { recipientDirectives } from '../deadlineRecipient';
+describe('recipientDirectives', () => {
+  it('lista cada parte nomeada com sua providência e prazo', () => {
+    const ato = 'Parte(s): ATACADãO S.A.; BANCO CSF S/A; MARCIA MARIA PEREIRA UZAM\nAdvogado(s): X\nVistos. O Banco CSF S.A. deverá, no prazo de 15 dias, apresentar: a. o contrato. O Atacadão S.A., no mesmo prazo, deverá esclarecer se participou da oferta. Servirá esta DECISÃO COMO OFÍCIO, ficando o patrono do requerente autorizado a imprimir e entregar à destinatária, mediante protocolo que deverá ser comprovado nos autos em cinco dias. Intime(m)-se.';
+    expect(recipientDirectives(ato).map(d => [d.party, d.term])).toEqual([['BANCO CSF S/A', '15 dias'], ['ATACADÃO S.A.', 'mesmo prazo'], ['Parte autora', 'cinco dias']]);
+    expect(recipientDirectives(ato)[0].task).toBe('apresentar: a. o contrato');
+  });
+});

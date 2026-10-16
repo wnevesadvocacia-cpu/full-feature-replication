@@ -104,3 +104,35 @@ export function recipientPartyName(content: string | null | undefined, party: st
     .map(m => m[1].replace(/[.;,\s]+$/, '').trim()).filter(name => name.length > 2));
   return names.size === 1 ? [...names][0] : null;
 }
+
+export interface RecipientDirective { party: string; task: string; term: string | null; evidence: string }
+const termOf = (text: string) => text.match(/\b(?:no prazo de|em|prazo de)\s+(\d{1,3}|cinco|dez|quinze|trinta)\s+(?:\([a-z ]+\)\s+)?dias(?:\s+(?:uteis|corridos))?/)?.[0]
+  .replace(/^(?:no prazo de|prazo de|em)\s+/, '') ?? (/\bno mesmo prazo\b/.test(text) ? 'mesmo prazo' : null);
+/** Orders addressed to a party named in the "Parte(s):" header or to the
+ * patrono of a role, each with its own literal excerpt; never inferred. */
+export function recipientDirectives(content: string | null | undefined): RecipientDirective[] {
+  if (!content) return [];
+  const plain = toPlain(content);
+  const header = plain.match(/parte\(s\)\s*:\s*([^\n]+?)(?=\s*advogad|\n|$)/i)?.[1] ?? '';
+  const names = header.split(';').map(name => name.trim()).filter(Boolean).map(name => ({
+    name, key: normalize(name).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter(t => t.length >= 3).slice(0, 2).join(' '),
+  })).filter(n => n.key);
+  const out: RecipientDirective[] = [];
+  for (const sentence of plain.split(/(?<!\b[A-Za-z])[.;](?=\s|$)|[\n\r]+/).map(x => x.trim()).filter(Boolean)) {
+    const text = normalize(sentence).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const raw = normalize(sentence);
+    const named = names.find(n => new RegExp(`^(?:(?:o|a|os|as)\\s+)?${n.key}\\b`).test(text));
+    if (named && /\bdeverao?\b/.test(raw)) {
+      const task = sentence.replace(/,?\s*(?:no prazo de|em)\s+\d+\s+dias,?\s*|,?\s*no mesmo prazo,?\s*/gi, ' ').replace(/^[\s\S]*?\bdever[aá]o?\s+/i, '').trim();
+      out.push({ party: named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
+      continue;
+    }
+    const patrono = raw.match(/\bpatrono d[oa] (requerente|autora?|requerid[oa]|reu|re)\b[^,]*?,?\s*autorizad[oa] a ([^,]+)/);
+    if (patrono) {
+      const party = /^(?:requerente|autor)/.test(patrono[1]) ? 'Parte autora' : 'Parte ré';
+      out.push({ party, task: `${sentence.match(/autorizad[oa] a ([^,]+)/i)?.[1] ?? patrono[2]}${/comprovad[oa] nos autos/.test(raw) ? ' e comprovar o protocolo nos autos' : ''}`, term: termOf(raw), evidence: sentence });
+      continue;
+    }
+  }
+  return out;
+}
