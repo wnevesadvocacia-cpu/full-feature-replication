@@ -74,18 +74,19 @@ export function deadlineRecipient(content: string | null | undefined): DeadlineR
       .replace(/^(?:fls?\.?\s*)?[\d/]+\s*(?:\([^)]*\))?\s*:\s*/, '');
     // "Fica(m) intimada(s) a(s) parte(s) recorrida(s)" names the role expressly.
     text = text.replace(/\(m\)/g, '').replace(/^.*?\bficam?\s+intimad[oa]s?\s+(?:[ao]s?\s+)?(?:partes?\s+)?(recorrid[oa]|recorrente|agravad[oa]|agravante|apelad[oa]|apelante|embargad[oa]|embargante|exequente|executad[oa])s?\b/, 'intime-se a parte $1');
-    if (!anyCommand.test(text) || formula.test(text)) continue;
-    // Do not decide whether quoted, conditional or prior directions still operate.
-    if (historical.test(text)) return unknown;
     // "Servirá a presente decisão como ofício a ser enviado/entregue pelo(a) <papel>":
     // the decision itself is the ofício and names who must deliver it.
     const oficio = text.match(new RegExp(`\\bservira\\b.*?\\boficio\\b.*?\\bpel[oa]\\s+(?:parte\\s+)?(${rolePattern})\\b`));
     if (oficio) {
+      if (historical.test(text)) return unknown;
       const label = roles.find(([pattern]) => new RegExp(`^(?:${pattern})$`).test(oficio[1]))?.[1];
       if (!label) return unknown;
       candidates.push({ party: label, evidence: sentence });
       continue;
     }
+    if (!anyCommand.test(text) || formula.test(text)) continue;
+    // Do not decide whether quoted, conditional or prior directions still operate.
+    if (historical.test(text)) return unknown;
     const match = text.match(imperative) ?? text.match(subject);
     if (!match) { unmatched = true; continue; }
     const label = roles.find(([pattern]) => new RegExp(`^(?:${pattern})$`).test(match[1]))?.[1];
