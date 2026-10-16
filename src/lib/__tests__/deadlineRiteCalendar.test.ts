@@ -65,8 +65,24 @@ describe.each([['browser', detectDeadline, browser], ['edge', edgeDetect, edge]]
     expect(result?.doubled).toBe(false);
     expect(result?.days).toBe(5);
   });
-  it('não presume prazo supletivo CPC em despacho CPP sem prazo', () => {
-    expect(detect('CPP. Intime-se a defesa para informar o endereço.', '2025-05-20', '2025-05-20')).toBeNull();
+  it.each([
+    ['CPC', 'dias_uteis', '2025-05-28'],
+    ['CPP', 'dias_corridos', '2025-05-26'],
+    ['CLT', 'dias_uteis', '2025-05-28'],
+    ['Juizado Especial Cível', 'dias_uteis', '2025-05-28'],
+  ])('sem prazo identificado aplica cinco dias conforme %s', (code, unit, dueDate) => {
+    const result = detect(`${code}. Intime-se o réu para informar o endereço.`, '2025-05-20', '2025-05-20');
+    expect(result?.days).toBe(5);
+    expect(result?.unit).toBe(unit);
+    expect(result?.dueDate).toBe(dueDate);
+    if (code !== 'CLT') expect(result?.isFallback).toBe(true);
+    if (code === 'CPP' || code === 'Juizado Especial Cível') expect(result?.article).not.toContain('218');
+  });
+  it('não substitui quantidade expressa pela regra geral', () => {
+    expect(detect('CPC. Intime-se o réu para informar o endereço em 10 dias.', '2025-05-20', '2025-05-20')?.days).toBe(10);
+  });
+  it('não cria prazo para mera ciência sem providência', () => {
+    expect(detect('Dê-se ciência às partes.', '2025-05-20', '2025-05-20')?.days).toBe(0);
   });
   it('homologação trabalhista não abre apelação civil', () => {
     const result = detect('Vara do Trabalho. Homologo o acordo.', '2025-05-20', '2025-05-20');
