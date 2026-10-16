@@ -123,7 +123,7 @@ export function recipientDirectives(content: string | null | undefined): Recipie
     const raw = normalize(sentence);
     const named = names.find(n => new RegExp(`^(?:(?:o|a|os|as)\\s+)?${n.key}\\b`).test(text));
     if (named && /\bdeverao?\b/.test(raw)) {
-      const task = sentence.replace(/^[\s\S]*?\bdever[aá]o?\s+/i, '').replace(/,?\s*(?:no prazo de|em)\s+\d+\s+dias,?\s*/i, ' ').trim();
+      const task = sentence.replace(/,?\s*(?:no prazo de|em)\s+\d+\s+dias,?\s*|,?\s*no mesmo prazo,?\s*/gi, ' ').replace(/^[\s\S]*?\bdever[aá]o?\s+/i, '').trim();
       out.push({ party: named.name.toUpperCase(), task: task.length > 160 ? `${task.slice(0, 157)}…` : task, term: termOf(raw), evidence: sentence });
       continue;
     }
