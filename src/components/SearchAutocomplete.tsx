@@ -72,7 +72,8 @@ export function SearchAutocomplete({
         if (myReq !== reqIdRef.current) return; // requisição obsoleta
         setItems(results);
         setHighlight(0);
-        setOpen(true);
+        // Só abre o dropdown durante a digitação; ao chegar de ?q=... a lista já aparece.
+        if (containerRef.current?.contains(document.activeElement)) setOpen(true);
       } finally {
         if (myReq === reqIdRef.current) setLoading(false);
       }
