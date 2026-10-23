@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -106,7 +107,12 @@ export default function Documentos() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [search, setSearch] = useState('');
+  const [params] = useSearchParams();
+  const qParam = params.get('q') ?? '';
+  const [search, setSearch] = useState(qParam);
+
+  // Vem da busca global (⌘K): abre a lista já filtrada pelo documento escolhido.
+  useEffect(() => { setSearch(qParam); }, [qParam]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [editTarget, setEditTarget] = useState<DocumentoItem | null>(null);
