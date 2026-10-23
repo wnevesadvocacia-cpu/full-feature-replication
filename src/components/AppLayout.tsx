@@ -36,7 +36,6 @@ export default function AppLayout() {
               >
                 <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-colors duration-200 group-hover:text-foreground" strokeWidth={1.75} />
                 <span className="truncate tracking-[-0.01em]">Pesquisar processos, clientes ou documentos...</span>
-                <kbd className="ml-auto rounded-[5px] border border-border/60 bg-card px-1.5 py-0.5 font-display text-[10px] font-semibold text-muted-foreground/70 transition-colors duration-200 group-hover:text-muted-foreground">⌘K</kbd>
               </button>
             </div>
 
