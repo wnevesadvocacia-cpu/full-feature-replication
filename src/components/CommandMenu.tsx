@@ -41,7 +41,7 @@ const commands = [
 ];
 
 const norm = (s: string) =>
-  (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /** Busca global (⌘K): procura processos, clientes e documentos de verdade e abre a tela do resultado. */
 export function CommandMenu() {
