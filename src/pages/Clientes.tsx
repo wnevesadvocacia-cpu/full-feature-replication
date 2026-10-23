@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +62,12 @@ function clientToForm(c: any): ClientForm {
 }
 
 export default function Clientes() {
-  const [search, setSearch] = useState('');
+  const [params] = useSearchParams();
+  const qParam = params.get('q') ?? '';
+  const [search, setSearch] = useState(qParam);
+
+  // Vem da busca global (⌘K): abre a lista já filtrada pelo cliente escolhido.
+  useEffect(() => { setSearch(qParam); }, [qParam]);
   const [typeFilter, setTypeFilter] = useState<'' | 'PF' | 'PJ'>('');
   const [createOpen, setCreateOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<any | null>(null);

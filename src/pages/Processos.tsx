@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -709,7 +710,9 @@ function ProcessForm({ initialData, onClose, onSaved }: ProcessFormProps) {
 export default function Processos() {
   const qc = useQueryClient();
   const { user } = useAuth();
-  const [search, setSearch] = useState('');
+  const [params] = useSearchParams();
+  const qParam = params.get('q') ?? '';
+  const [search, setSearch] = useState(qParam);
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [page, setPage] = useState(0);
@@ -749,6 +752,9 @@ export default function Processos() {
   });
   const duplicateCount = duplicateGroups.reduce((s, g: any) => s + (g.items.length - 1), 0);
 
+
+  // Vem da busca global (⌘K): abre a lista já filtrada pelo item escolhido.
+  useEffect(() => { setSearch(qParam); setPage(0); }, [qParam]);
 
   const { data, isLoading } = useProcesses(search, statusFilter, typeFilter, page);
   const { data: processTypes = [] } = useProcessTypes();
