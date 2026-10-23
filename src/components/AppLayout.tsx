@@ -31,12 +31,12 @@ export default function AppLayout() {
               <button
                 type="button"
                 onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }))}
-                className="hidden sm:flex h-9 w-72 lg:w-96 items-center gap-2 rounded-md border bg-muted/70 px-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted"
+                className="group hidden sm:flex h-9 w-72 lg:w-96 items-center gap-2.5 rounded-lg border border-hairline border-border bg-muted/40 px-3.5 text-[13px] text-muted-foreground transition-all duration-200 hover:border-primary/30 hover:bg-muted/70 hover:shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
                 aria-label="Abrir busca global"
               >
-                <Search className="h-4 w-4" />
-                <span className="truncate">Pesquisar processos, clientes ou documentos...</span>
-                <kbd className="ml-auto rounded border bg-card px-1.5 py-0.5 text-[10px] font-semibold">⌘K</kbd>
+                <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70 transition-colors duration-200 group-hover:text-foreground" strokeWidth={1.75} />
+                <span className="truncate tracking-[-0.01em]">Pesquisar processos, clientes ou documentos...</span>
+                <kbd className="ml-auto rounded-[5px] border border-border/60 bg-card px-1.5 py-0.5 font-display text-[10px] font-semibold text-muted-foreground/70 transition-colors duration-200 group-hover:text-muted-foreground">⌘K</kbd>
               </button>
             </div>
 
