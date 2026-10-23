@@ -1,18 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Search, User, FileText, Loader2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { searchSuggestions, type Suggestion, type SuggestionKind } from '@/lib/searchSuggestions';
 
-export type SuggestionKind = 'client' | 'process';
-
-export interface Suggestion {
-  kind: SuggestionKind;
-  id: string;
-  primary: string;        // texto principal (nome do cliente ou número do processo)
-  secondary?: string;     // texto auxiliar (CPF, título, etc.)
-  /** valor que será aplicado como termo de busca quando selecionado */
-  searchValue: string;
-}
+export type { Suggestion, SuggestionKind } from '@/lib/searchSuggestions';
 
 interface Props {
   value: string;
@@ -28,14 +19,12 @@ interface Props {
   autoFocus?: boolean;
 }
 
-const onlyDigits = (s: string) => s.replace(/\D/g, '');
-const normalizeTerm = (s: string) => s.trim().replace(/[oO]/g, '0').replace(/[iIlL]/g, '1').replace(/[,;%]/g, ' ');
-
 /**
  * Busca incremental (autocomplete) de clientes e/ou processos.
  * - Cobre toda a base (server-side via Supabase, sem depender do limite de 1000).
  * - Aceita pesquisa por nome, e-mail, CPF/CNPJ, número do processo, título.
  * - Mostra dropdown com sugestões enquanto o usuário digita.
+ * - A consulta em si mora em src/lib/searchSuggestions.ts, compartilhada com a busca global (⌘K).
  */
 export function SearchAutocomplete({
   value,
@@ -76,104 +65,10 @@ export function SearchAutocomplete({
       return;
     }
     setLoading(true);
+    const myReq = ++reqIdRef.current;
     debounceRef.current = window.setTimeout(async () => {
-      const myReq = ++reqIdRef.current;
       try {
-        const digits = onlyDigits(term);
-        const promises: Promise<Suggestion[]>[] = [];
-
-        if (sources.includes('client')) {
-          promises.push(
-            (async () => {
-              const orParts = [`name.ilike.%${term}%`, `email.ilike.%${term}%`];
-              if (digits.length >= 3) orParts.push(`document.ilike.%${digits}%`);
-              const { data } = await supabase
-                .from('clients')
-                .select('id, name, document, email, type')
-                .or(orParts.join(','))
-                .order('name')
-                .limit(8);
-              return (data ?? []).map<Suggestion>((c: any) => ({
-                kind: 'client',
-                id: c.id,
-                primary: c.name,
-                secondary: c.document || c.email || c.type || undefined,
-                searchValue: c.name,
-              }));
-            })()
-          );
-        }
-
-        if (sources.includes('process')) {
-          promises.push(
-            (async () => {
-              const { data: rpcData, error: rpcError } = await supabase.rpc('search_process_options', {
-                _term: normalizeTerm(term),
-                _limit: 8,
-              });
-              if (!rpcError && rpcData) {
-                return rpcData.map((p): Suggestion => ({
-                  kind: 'process',
-                  id: p.id,
-                  primary: p.number || p.title || '(sem número)',
-                  secondary: [p.title, p.client_name].filter(Boolean).join(' • '),
-                  searchValue: p.number || p.title || '',
-                }));
-              }
-
-              // 1) Match direto em number/title/client_name/opponent
-              const orParts = [
-                `number.ilike.%${term}%`,
-                `title.ilike.%${term}%`,
-                `client_name.ilike.%${term}%`,
-                `opponent.ilike.%${term}%`,
-              ];
-              const { data: direct } = await supabase
-                .from('processes')
-                .select('id, number, title, client_name')
-                .or(orParts.join(','))
-                .order('updated_at', { ascending: false })
-                .limit(8);
-
-              // 2) Match indireto via clients (nome/CPF) → processos vinculados
-              let viaClients: any[] = [];
-              const cliOr = [`name.ilike.%${term}%`];
-              if (digits.length >= 3) cliOr.push(`document.ilike.%${digits}%`);
-              const { data: cli } = await supabase
-                .from('clients')
-                .select('id')
-                .or(cliOr.join(','))
-                .limit(50);
-              const clientIds = (cli ?? []).map((c: any) => c.id);
-              if (clientIds.length) {
-                const { data } = await supabase
-                  .from('processes')
-                  .select('id, number, title, client_name')
-                  .in('client_id', clientIds)
-                  .order('updated_at', { ascending: false })
-                  .limit(8);
-                viaClients = data ?? [];
-              }
-
-              const seen = new Set<string>();
-              const merged = [...(direct ?? []), ...viaClients].filter((p: any) => {
-                if (seen.has(p.id)) return false;
-                seen.add(p.id);
-                return true;
-              }).slice(0, 8);
-
-              return merged.map<Suggestion>((p: any) => ({
-                kind: 'process',
-                id: p.id,
-                primary: p.number || p.title || '(sem número)',
-                secondary: [p.title, p.client_name].filter(Boolean).join(' • '),
-                searchValue: p.number || p.title || '',
-              }));
-            })()
-          );
-        }
-
-        const results = (await Promise.all(promises)).flat();
+        const results = await searchSuggestions(term, sources);
         if (myReq !== reqIdRef.current) return; // requisição obsoleta
         setItems(results);
         setHighlight(0);
@@ -258,7 +153,7 @@ export function SearchAutocomplete({
                     )}
                   </div>
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground shrink-0 mt-1">
-                    {s.kind === 'client' ? 'Cliente' : 'Processo'}
+                    {s.kind === 'client' ? 'Cliente' : s.kind === 'document' ? 'Documento' : 'Processo'}
                   </span>
                 </li>
               ))}
