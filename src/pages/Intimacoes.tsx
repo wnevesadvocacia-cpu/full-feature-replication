@@ -1539,7 +1539,7 @@ export default function Intimacoes() {
                 onChange={(e) => setTreatReason(e.target.value)}
               >
                 <option value="">Selecione um motivo…</option>
-                <option value="Prazo já cadastrado no processo">Prazo já cadastrado no processo</option>
+                <option value="Prazo já cadastrado no sistema">Prazo já cadastrado no sistema</option>
                 <option value="Prazo da parte contrária (sem providência nossa)">
                   Prazo da parte contrária (sem providência nossa)
                 </option>
