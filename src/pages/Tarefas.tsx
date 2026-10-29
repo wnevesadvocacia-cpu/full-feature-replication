@@ -859,31 +859,29 @@ export default function Tarefas() {
         </header>
 
         {!isLoading && overdueTasks.length > 0 && (
-          <section aria-labelledby="overdue-title" className="border-t-2 border-destructive/60 bg-card text-card-foreground">
-            <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
-              <h2 id="overdue-title" className="flex items-center gap-3 text-sm font-semibold">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                </span>
+          <section aria-labelledby="overdue-title" className="overflow-hidden rounded-lg border border-border/70 bg-card text-card-foreground shadow-sm">
+            <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-destructive/[0.04] px-4 py-2.5">
+              <h2 id="overdue-title" className="flex items-center gap-2 text-[13px] font-semibold tracking-tight">
+                <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
                 Prazos vencidos
               </h2>
-              <Badge variant="outline" className="border-destructive/20 bg-destructive/5 px-2.5 py-1 font-semibold tabular-nums text-destructive">{overdueTasks.length}</Badge>
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive/10 px-1.5 text-[11px] font-semibold tabular-nums text-destructive">{overdueTasks.length}</span>
             </div>
-            <div className="max-h-72 overflow-auto">
-              <table className="w-full min-w-[540px] text-left text-sm">
-                <thead className="sticky top-0 z-10 bg-muted text-[11px] font-medium uppercase text-muted-foreground">
-                  <tr><th scope="col" className="px-4 py-3 sm:px-5">Prazo</th><th scope="col" className="px-4 py-3">Vencimento</th><th scope="col" className="px-4 py-3 sm:pr-5">Colaborador responsável</th></tr>
+            <div className="max-h-56 overflow-auto">
+              <table className="w-full min-w-[540px] text-left text-[13px]">
+                <thead className="sticky top-0 z-10 bg-muted/70 text-[10px] font-medium uppercase tracking-wider text-muted-foreground backdrop-blur">
+                  <tr><th scope="col" className="px-4 py-2">Prazo</th><th scope="col" className="px-4 py-2">Vencimento</th><th scope="col" className="px-4 py-2">Colaborador responsável</th></tr>
                 </thead>
                 <tbody>
                   {overdueTasks.map(task => (
-                    <tr key={task.id} className="border-t border-border/60 align-top transition-colors hover:bg-muted/40">
-                      <td className="px-4 py-3.5 sm:px-5 break-words">
-                        <Button variant="link" onClick={() => setOverviewTarget(task)} className="h-auto max-w-full whitespace-normal p-0 text-left font-medium leading-relaxed text-card-foreground justify-start">{task.title}</Button>
+                    <tr key={task.id} className="border-t border-border/50 transition-colors hover:bg-muted/40">
+                      <td className="px-4 py-2 break-words">
+                        <Button variant="link" onClick={() => setOverviewTarget(task)} className="h-auto max-w-full whitespace-normal p-0 text-left text-[13px] font-medium leading-snug text-card-foreground justify-start">{task.title}</Button>
                       </td>
-                      <td className="px-4 py-3.5 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1.5 rounded-md bg-destructive/5 px-2 py-1 text-xs font-semibold tabular-nums text-destructive"><Calendar className="h-3.5 w-3.5" />{fmtDate(task.due_date || undefined)}</span>
+                      <td className="px-4 py-2 whitespace-nowrap">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold tabular-nums text-destructive"><Calendar className="h-3 w-3 opacity-70" />{fmtDate(task.due_date || undefined)}</span>
                       </td>
-                      <td className="px-4 py-3.5 sm:pr-5 break-words text-muted-foreground leading-relaxed">{teamMembers.find(m => m.email === task.assignee)?.full_name || task.assignee || 'Não atribuído'}</td>
+                      <td className="px-4 py-2 break-words text-xs text-muted-foreground leading-snug">{teamMembers.find(m => m.email === task.assignee)?.full_name || task.assignee || 'Não atribuído'}</td>
                     </tr>
                   ))}
                 </tbody>
