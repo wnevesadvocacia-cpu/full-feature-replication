@@ -291,8 +291,8 @@ export function JusbrExtension({
         className="flex items-start gap-2 border-t border-border/60 bg-muted/30 px-4 py-2.5 text-xs leading-relaxed"
       >
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-600" />
-        <div className="space-y-1">
-          <p>{notice}</p>
+        <div className="space-y-0.5">
+          <p className="font-medium text-foreground">{notice.replace(/^\s*\[v[\d.]+\]\s*/, "")}</p>
           {reconciliationState?.pending && (
             <p
               className={
