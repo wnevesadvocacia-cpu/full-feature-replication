@@ -225,11 +225,15 @@ Deno.serve(async (req) => {
     if (!batch) throw Error("Lote indisponível.");
     const done = ["reconciled", "incomplete"].includes(batch.status);
     const found = batch.rows.length;
-    const message = batch.error
-      ? `Página ${batch.coverage.page} do Jus.br: não foi possível conferir. ${batch.error}`
-      : batch.inserted > 0
-        ? `Página ${batch.coverage.page} do Jus.br conferida: ${batch.inserted} publicação(ões) nova(s) trazida(s) para Intimações.`
-        : `Página ${batch.coverage.page} do Jus.br conferida: ${found} publicação(ões) vista(s), nenhuma faltando no WnevesBox.`;
+    const page = `Página ${batch.coverage.page} do Jus.br`;
+    const message =
+      batch.status === "reconciled"
+        ? batch.inserted > 0
+          ? `${page}: ${batch.inserted} publicação(ões) nova(s) trazida(s) para Intimações.`
+          : `${page}: nenhuma publicação nova — ${found} já coberta(s) pelo DJEN/CNJ.`
+        : batch.status === "incomplete"
+          ? `${page}: não foi possível conferir ${found} publicação(ões). ${batch.error || ""}`.trim()
+          : `${page}: ${found} publicação(ões) vista(s), aguardando conferência no DJEN.`;
     if (done && !batch.notified) {
       // Deterministic notification ID makes replay safe across request interruptions.
       const { error } = await db

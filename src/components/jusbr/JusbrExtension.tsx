@@ -358,7 +358,7 @@ export function JusbrExtension({
                   <tr className="border-b text-muted-foreground">
                     <th className="py-2 pr-4 text-left font-medium">Últimas conferências</th>
                     <th className="p-2 text-right font-medium">Importações</th>
-                    <th className="p-2 text-right font-medium">Pendentes</th>
+                    <th className="p-2 text-right font-medium">Vistas</th>
                     <th className="p-2 text-left font-medium">Situação</th>
                   </tr>
                 </thead>
@@ -372,8 +372,12 @@ export function JusbrExtension({
                       <td className="p-2 text-right tabular-nums">{batch.pending}</td>
                       <td className="p-2" title={batch.error || "Aguardando conclusão persistida"}>
                         {["running", "starting", "queued"].includes(batch.status)
-                          ? "Em processamento"
-                          : "Cobertura parcial"}
+                          ? "Aguardando DJEN"
+                          : batch.status === "reconciled"
+                            ? batch.inserted > 0
+                              ? `${batch.inserted} nova(s)`
+                              : "Nenhuma nova · já no DJEN"
+                            : "Não conferido"}
                       </td>
                     </tr>
                   ))}
