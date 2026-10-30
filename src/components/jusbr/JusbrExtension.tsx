@@ -352,11 +352,11 @@ export function JusbrExtension({
             {batchesError && <p className="mt-2 text-destructive">Histórico indisponível. Conclusão não confirmada.</p>}
           </div>
           {!!batches.length && (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-border/60">
               <table className="w-full text-xs">
-                <thead>
+                <thead className="bg-muted/50 text-[10px] uppercase tracking-wider">
                   <tr className="border-b text-muted-foreground">
-                    <th className="py-2 pr-4 text-left font-medium">Últimas conferências</th>
+                    <th className="py-2 pl-3 pr-4 text-left font-medium">Últimas conferências</th>
                     <th className="p-2 text-right font-medium">Importações</th>
                     <th className="p-2 text-right font-medium">Vistas</th>
                     <th className="p-2 text-left font-medium">Situação</th>
@@ -364,20 +364,28 @@ export function JusbrExtension({
                 </thead>
                 <tbody>
                   {batches.map((batch) => (
-                    <tr key={batch.id} className="border-b last:border-0">
-                      <td className="whitespace-nowrap py-2 pr-4">
+                    <tr key={batch.id} className="border-b border-border/50 transition-colors last:border-0 hover:bg-muted/30">
+                      <td className="whitespace-nowrap py-2 pl-3 pr-4 tabular-nums text-muted-foreground">
                         {new Date(batch.created_at).toLocaleString("pt-BR")}
                       </td>
                       <td className="p-2 text-right tabular-nums">{batch.inserted}</td>
                       <td className="p-2 text-right tabular-nums">{batch.pending}</td>
                       <td className="p-2" title={batch.error || "Aguardando conclusão persistida"}>
-                        {["running", "starting", "queued"].includes(batch.status)
-                          ? "Aguardando DJEN"
-                          : batch.status === "reconciled"
-                            ? batch.inserted > 0
-                              ? `${batch.inserted} nova(s)`
-                              : "Nenhuma nova · já no DJEN"
-                            : "Não conferido"}
+                        {(() => {
+                          const [label, tone] = ["running", "starting", "queued"].includes(batch.status)
+                            ? ["Aguardando DJEN", "bg-muted text-muted-foreground"]
+                            : batch.status === "reconciled"
+                              ? batch.inserted > 0
+                                ? [`${batch.inserted} nova(s)`, "bg-primary/10 text-primary"]
+                                : ["Nenhuma nova · já no DJEN", "bg-success/10 text-success"]
+                              : ["Não conferido", "bg-destructive/10 text-destructive"];
+                          return (
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}>
+                              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))}
