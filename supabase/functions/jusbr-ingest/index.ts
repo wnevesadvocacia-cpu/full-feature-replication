@@ -224,7 +224,12 @@ Deno.serve(async (req) => {
     batch = await read();
     if (!batch) throw Error("Lote indisponível.");
     const done = ["reconciled", "incomplete"].includes(batch.status);
-    const message = `Jus.br: página ${batch.coverage.page}; ${batch.rows.length} observações; ${batch.inserted} importações DJEN; ${batch.pending} identidades pendentes. ${batch.error || "Reconferência em andamento."} ${batch.coverage.reason}`;
+    const found = batch.rows.length;
+    const message = batch.error
+      ? `Página ${batch.coverage.page} do Jus.br: não foi possível conferir. ${batch.error}`
+      : batch.inserted > 0
+        ? `Página ${batch.coverage.page} do Jus.br conferida: ${batch.inserted} publicação(ões) nova(s) trazida(s) para Intimações.`
+        : `Página ${batch.coverage.page} do Jus.br conferida: ${found} publicação(ões) vista(s), nenhuma faltando no WnevesBox.`;
     if (done && !batch.notified) {
       // Deterministic notification ID makes replay safe across request interruptions.
       const { error } = await db
@@ -233,7 +238,7 @@ Deno.serve(async (req) => {
           {
             id: batch.id,
             user_id: owner,
-            title: "Conferência Jus.br — cobertura incompleta",
+            title: batch.inserted > 0 ? "Jus.br: publicação nova encontrada" : "Jus.br: conferência feita",
             message,
             type: "warning",
             link: "/intimacoes",

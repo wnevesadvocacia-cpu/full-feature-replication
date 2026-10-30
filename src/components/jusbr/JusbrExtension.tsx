@@ -174,7 +174,7 @@ export function JusbrExtension({
         await qc.invalidateQueries({ queryKey: ["jusbr-batches", user.id] });
         if (data.done) {
           await qc.invalidateQueries({ queryKey: ["intimations"] });
-          toast({ title: "Conferência Jus.br — cobertura incompleta", description: data.message });
+          toast({ title: "Jus.br: conferência feita", description: data.message });
         }
       } catch (error) {
         const message = `Conferência incompleta: ${error instanceof Error ? error.message : "Falha de envio"}. Retentativa automática; importações preservadas.`;
