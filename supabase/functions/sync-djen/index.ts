@@ -23,7 +23,13 @@ import { sendLoggedEmail } from "../_shared/transactional-email-templates/send-l
 import { detectDeadline } from "../_shared/legalDeadlines.ts";
 import { reviewTaskSuggestion } from "../_shared/taskSuggestionReview.ts";
 import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } from "../_shared/cnjCalendar.ts";
-import { assertTribunalHtml, readDjenPage, recordCoverageIssue } from "../_shared/djenCoverage.ts";
+import {
+  assertTribunalHtml,
+  createTransportBreaker,
+  isTransportBlock,
+  readDjenPage,
+  recordCoverageIssue,
+} from "../_shared/djenCoverage.ts";
 import { pendingDjenEntries, djenIdentityAliases, djenRequiresCooldown } from "../_shared/djenImport.ts";
 
 // SprintClosure #9 — Zod schema strict para resposta DJEN.
@@ -426,6 +432,38 @@ function toBrDate(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+const TJSP_RETRY_BACKOFF_MS = 3_000;
+async function postTjspDje(body: URLSearchParams): Promise<string> {
+  for (let attempt = 1; ; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const res = await fetch("https://esaj.tjsp.jus.br/cdje/consultaAvancada.do", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "pt-BR,pt;q=0.9",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        },
+        body: body.toString(),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`TJSP HTTP ${res.status}`);
+      const html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
+      assertTribunalHtml(html, "TJSP");
+      return html;
+    } catch (e) {
+      const msg = (e as Error).message;
+      if (attempt >= 2 || !isTransportBlock(msg)) throw e;
+      await new Promise((r) => setTimeout(r, TJSP_RETRY_BACKOFF_MS + Math.floor(Math.random() * 1000)));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+}
+
 async function fetchTjspDjeFallback(
   processNumbers: string[],
   refNames: string[],
@@ -444,6 +482,9 @@ async function fetchTjspDjeFallback(
   const dtInicio = toBrDate(dataInicio);
   const dtFim = toBrDate(dataFim);
 
+  const breaker = createTransportBreaker(3);
+  let failed = 0;
+  let skipped = 0;
   for (const numero of tjspNumbers) {
     const body = new URLSearchParams();
     body.set("dadosConsulta.pesquisaLivre", numero);
@@ -453,29 +494,20 @@ async function fetchTjspDjeFallback(
     body.set("dadosConsulta.dtFim", dtFim);
     body.set("dadosConsulta.cdCaderno", "-1");
 
+    if (breaker.open) {
+      skipped++;
+      continue;
+    }
     let html = "";
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      const res = await fetch("https://esaj.tjsp.jus.br/cdje/consultaAvancada.do", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "text/html,application/xhtml+xml",
-          "Accept-Language": "pt-BR,pt;q=0.9",
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        },
-        body: body.toString(),
-        signal: controller.signal,
-      });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(`TJSP HTTP ${res.status}`);
-      html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
-      assertTribunalHtml(html, "TJSP");
+      html = await postTjspDje(body);
+      breaker.ok();
     } catch (e) {
-      recordCoverageIssue(coverageIssues, `TJSP ${numero}: ${(e as Error).message}`);
-      console.warn("[tjsp-dje] fallback falhou para", numero, (e as Error).message);
+      const msg = (e as Error).message;
+      breaker.fail(msg);
+      failed++;
+      if (!isTransportBlock(msg)) recordCoverageIssue(coverageIssues, `TJSP ${numero}: ${msg}`);
+      console.warn("[tjsp-dje] fallback falhou para", numero, msg);
       continue;
     }
 
@@ -523,6 +555,16 @@ async function fetchTjspDjeFallback(
     await new Promise((r) => setTimeout(r, TJSP_DJE_DELAY_MS));
   }
 
+  if (failed || skipped) {
+    const transport = breaker.open || breaker.lastError;
+    recordCoverageIssue(
+      coverageIssues,
+      transport
+        ? `TJSP eSAJ recusou a conexão do servidor (${breaker.lastError.replace(/^.*client error \(Connect\): /, "")}); ${failed + skipped} de ${tjspNumbers.length} processos TJSP não conferidos no DJE complementar${skipped ? ` (${skipped} adiados após ${failed} recusas seguidas)` : ""}.`
+        : `TJSP: ${failed} de ${tjspNumbers.length} processos não conferidos no DJE complementar.`,
+    );
+  }
+
   return items;
 }
 
@@ -556,24 +598,7 @@ async function fetchTjspDjeByOabFallback(
 
   let html = "";
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-    const res = await fetch("https://esaj.tjsp.jus.br/cdje/consultaAvancada.do", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "pt-BR,pt;q=0.9",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      },
-      body: body.toString(),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    if (!res.ok) throw new Error(`TJSP HTTP ${res.status}`);
-    html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
-    assertTribunalHtml(html, "TJSP");
+    html = await postTjspDje(body);
   } catch (e) {
     recordCoverageIssue(coverageIssues, `TJSP OAB ${oabNumber}/${oabUf}: ${(e as Error).message}`);
     console.warn("[tjsp-dje-oab] falhou:", (e as Error).message);
