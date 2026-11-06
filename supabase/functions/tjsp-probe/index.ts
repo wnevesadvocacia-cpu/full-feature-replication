@@ -24,5 +24,5 @@ Deno.serve(async (req) => {
   }
   res.push(String(out.status ?? out.error).slice(0, 40)); await new Promise((r) => setTimeout(r, 200));
   }
-  return new Response(JSON.stringify({ region: out.region, res }), { headers: { "Content-Type": "application/json" } });
+  return new Response(JSON.stringify({ region: Deno.env.get("SB_REGION"), res }), { headers: { "Content-Type": "application/json" } });
 });
