@@ -27,3 +27,19 @@ describe('Publication coverage', () => {
     expect(() => assertTribunalHtml('<html>Login</html>', 'TJSP')).toThrow();
   });
 });
+import { createTransportBreaker, isTransportBlock } from '../../../supabase/functions/_shared/djenCoverage';
+describe('TJSP transport breaker', () => {
+  const reset = 'error sending request: client error (Connect): Connection reset by peer (os error 104)';
+  it('classifies TLS EOF and resets as transport blocks, not HTTP/parse errors', () => {
+    expect(isTransportBlock('client error (Connect): tls handshake eof')).toBe(true);
+    expect(isTransportBlock(reset)).toBe(true);
+    expect(isTransportBlock('TJSP: resposta não reconhecida; conferência não concluída.')).toBe(false);
+  });
+  it('opens after 3 consecutive refusals and resets on success', () => {
+    const b = createTransportBreaker(3);
+    b.fail(reset); b.fail(reset); b.ok(); b.fail(reset); b.fail(reset);
+    expect(b.open).toBe(false);
+    b.fail(reset);
+    expect(b.open).toBe(true);
+  });
+});
