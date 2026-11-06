@@ -26,7 +26,11 @@ import { clearLegalCalendarCache, setSuspensionWindow, setTribunalHolidaySet } f
 import {
   assertTribunalHtml,
   createTransportBreaker,
+  decideTjspGate,
   isTransportBlock,
+  nextTjspState,
+  type TjspGate,
+  type TjspGateState,
   readDjenPage,
   recordCoverageIssue,
 } from "../_shared/djenCoverage.ts";
@@ -322,6 +326,7 @@ async function fetchTjmgDjeFallback(
   dataInicio: string,
   dataFim: string,
   coverageIssues: string[],
+  outcome: SyncContext["tjspOutcome"] = { attempted: false, blocked: false, failed: false },
 ): Promise<DjenItem[]> {
   const normalizedNumbers = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
   const tjmgNumbers = normalizedNumbers.filter((n) => n.includes(".8.13."));
@@ -470,6 +475,7 @@ async function fetchTjspDjeFallback(
   dataInicio: string,
   dataFim: string,
   coverageIssues: string[],
+  outcome: SyncContext["tjspOutcome"] = { attempted: false, blocked: false, failed: false },
 ): Promise<DjenItem[]> {
   const normalized = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
   const tjspNumbers = normalized.filter((n) => n.includes(".8.26."));
@@ -580,6 +586,7 @@ async function fetchTjspDjeByOabFallback(
   dataInicio: string,
   dataFim: string,
   coverageIssues: string[],
+  outcome: SyncContext["tjspOutcome"] = { attempted: false, blocked: false, failed: false },
 ): Promise<DjenItem[]> {
   if (!oabNumber || (oabUf || "").toUpperCase() !== "SP") return [];
   const items: DjenItem[] = [];
@@ -782,6 +789,9 @@ interface SyncContext {
   bypassNameFilter: boolean;
   processNumbers: string[];
   targetedOnly: boolean;
+  tjspState: TjspGateState | null;
+  tjspGate: TjspGate | null;
+  tjspOutcome: { attempted: boolean; blocked: boolean; failed: boolean };
   rejected: Array<{ id: string; processo: string; data: string; tribunal: string; motivo: string }>;
 }
 
@@ -1553,6 +1563,9 @@ Deno.serve(async (req) => {
     bypassNameFilter: false,
     processNumbers: [],
     targetedOnly: requestBody?.targeted_only === true,
+    tjspState: null,
+    tjspGate: null,
+    tjspOutcome: { attempted: false, blocked: false, failed: false },
     rejected: [],
   };
   if (requestBody?.process_numbers !== undefined) {
