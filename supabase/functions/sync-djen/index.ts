@@ -460,12 +460,38 @@ async function postTjspDje(body: URLSearchParams): Promise<string> {
       return html;
     } catch (e) {
       const msg = (e as Error).message;
-      if (attempt >= 2 || !isTransportBlock(msg)) throw e;
+      if (!isTransportBlock(msg)) throw e;
+      // Contorno: o eSAJ recusa o IP de saída desta execução; reenvia por outra região.
+      for (const region of TJSP_RELAY_REGIONS) {
+        try {
+          return await postTjspDjeViaRelay(body, region);
+        } catch (re) {
+          console.warn(`[tjsp-relay] ${region} falhou:`, (re as Error).message);
+        }
+      }
+      if (attempt >= 2) throw e;
       await new Promise((r) => setTimeout(r, TJSP_RETRY_BACKOFF_MS + Math.floor(Math.random() * 1000)));
     } finally {
       clearTimeout(timer);
     }
   }
+}
+
+const TJSP_RELAY_REGIONS = ["sa-east-1", "us-east-1"];
+async function postTjspDjeViaRelay(body: URLSearchParams, region: string): Promise<string> {
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/tjsp-relay`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, apikey: key, "x-region": region, "Content-Type": "text/plain" },
+    body: body.toString(),
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`relay HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  const upstream = Number(res.headers.get("x-upstream-status") ?? 0);
+  if (upstream !== 200) throw new Error(`TJSP HTTP ${upstream}`);
+  const html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
+  assertTribunalHtml(html, "TJSP");
+  return html;
 }
 
 async function fetchTjspDjeFallback(
