@@ -1,4 +1,7 @@
-Deno.serve(async () => {
+Deno.serve(async (req) => {
+  const n = Number(new URL(req.url).searchParams.get("n") ?? 1);
+  const res: string[] = [];
+  for (let i = 0; i < n; i++) {
   const t0 = Date.now();
   let out: Record<string, unknown> = { region: Deno.env.get("SB_REGION") ?? null };
   const body = new URLSearchParams({
@@ -19,5 +22,7 @@ Deno.serve(async () => {
   } catch (e) {
     out = { ...out, error: (e as Error).message, ms: Date.now() - t0 };
   }
-  return new Response(JSON.stringify(out), { headers: { "Content-Type": "application/json" } });
+  res.push(String(out.status ?? out.error).slice(0, 40)); await new Promise((r) => setTimeout(r, 200));
+  }
+  return new Response(JSON.stringify({ region: out.region, res }), { headers: { "Content-Type": "application/json" } });
 });
