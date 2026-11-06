@@ -24,3 +24,25 @@ export function assertTribunalHtml(html: string, source: 'TJSP' | 'TJMG') {
 export function recordCoverageIssue(issues: string[], message: string) {
   if (issues.length < 20 && !issues.includes(message)) issues.push(message);
 }
+
+// Connection-level refusals (reset/TLS EOF/refused/timeout) mean the source
+// rejected our network origin, not that the search returned nothing.
+export function isTransportBlock(message: string): boolean {
+  return /connection reset|tls handshake|handshake eof|connection refused|broken pipe|os error 10[34]|aborted|timed? ?out/i.test(message);
+}
+
+// Stops hammering a source that is refusing connections: after `limit`
+// consecutive transport failures, remaining queries are skipped and reported
+// as one aggregated incomplete-coverage issue (never as an empty search).
+export function createTransportBreaker(limit = 3) {
+  let consecutive = 0;
+  let lastError = '';
+  return {
+    get open() { return consecutive >= limit; },
+    get lastError() { return lastError; },
+    fail(message: string) {
+      if (isTransportBlock(message)) { consecutive++; lastError = message; } else consecutive = 0;
+    },
+    ok() { consecutive = 0; },
+  };
+}
