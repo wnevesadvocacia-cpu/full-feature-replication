@@ -326,7 +326,7 @@ async function fetchTjmgDjeFallback(
   dataInicio: string,
   dataFim: string,
   coverageIssues: string[],
-  outcome: SyncContext["tjspOutcome"] = { attempted: false, blocked: false, failed: false },
+
 ): Promise<DjenItem[]> {
   const normalizedNumbers = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
   const tjmgNumbers = normalizedNumbers.filter((n) => n.includes(".8.13."));
@@ -563,6 +563,8 @@ async function fetchTjspDjeFallback(
 
   if (failed || skipped) {
     const transport = breaker.open || breaker.lastError;
+    outcome.failed = true;
+    if (transport) outcome.blocked = true;
     recordCoverageIssue(
       coverageIssues,
       transport
@@ -607,6 +609,8 @@ async function fetchTjspDjeByOabFallback(
   try {
     html = await postTjspDje(body);
   } catch (e) {
+    outcome.failed = true;
+    if (isTransportBlock((e as Error).message)) outcome.blocked = true;
     recordCoverageIssue(coverageIssues, `TJSP OAB ${oabNumber}/${oabUf}: ${(e as Error).message}`);
     console.warn("[tjsp-dje-oab] falhou:", (e as Error).message);
     return [];
@@ -1141,6 +1145,17 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
     if (officeProcsError)
       recordCoverageIssue(coverageIssues, `Leitura dos processos do escritório falhou: ${officeProcsError.message}`);
     const officeProcessNumbers = (officeProcs || []).map((p: any) => p.number).filter(Boolean);
+    const gate = ctx.tjspGate ?? { run: true as const };
+    const runTjsp = !ctx.targetedOnly && gate.run;
+    if (!ctx.targetedOnly && !gate.run && gate.reason === "cooldown") {
+      const fmt = (iso: string | null) =>
+        iso ? new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo", dateStyle: "short", timeStyle: "short" }) : "nunca";
+      recordCoverageIssue(
+        coverageIssues,
+        `TJSP eSAJ recusou a conexão do servidor nas últimas tentativas; conferência complementar TJSP pausada até ${fmt(gate.until)} (nova tentativa automática). Última conferência TJSP completa: ${fmt(gate.lastOk)}.`,
+      );
+    }
+    if (runTjsp) ctx.tjspOutcome.attempted = true;
     const [tjmgFallbackItems, tjspFallbackItems, tjspOabFallbackItems] = ctx.targetedOnly
       ? [[], [], []]
       : await Promise.all([
@@ -1154,23 +1169,33 @@ async function syncForOab(supabase: any, row: any, triggeredBy: string, requestC
             recordCoverageIssue(coverageIssues, `tjmg-dje: ${(e as Error).message}`);
             return [] as DjenItem[];
           }),
-          fetchTjspDjeFallback(
-            officeProcessNumbers,
-            refNames,
-            stateFallbackStartDate,
-            syncEndDate,
-            coverageIssues,
+          (runTjsp
+            ? fetchTjspDjeFallback(
+                officeProcessNumbers,
+                refNames,
+                stateFallbackStartDate,
+                syncEndDate,
+                coverageIssues,
+                ctx.tjspOutcome,
+              )
+            : Promise.resolve([] as DjenItem[])
           ).catch((e) => {
+            ctx.tjspOutcome.failed = true;
             recordCoverageIssue(coverageIssues, `tjsp-dje: ${(e as Error).message}`);
             return [] as DjenItem[];
           }),
-          fetchTjspDjeByOabFallback(
-            row.oab_number,
-            row.oab_uf,
-            stateFallbackStartDate,
-            syncEndDate,
-            coverageIssues,
+          (runTjsp
+            ? fetchTjspDjeByOabFallback(
+                row.oab_number,
+                row.oab_uf,
+                stateFallbackStartDate,
+                syncEndDate,
+                coverageIssues,
+                ctx.tjspOutcome,
+              )
+            : Promise.resolve([] as DjenItem[])
           ).catch((e) => {
+            ctx.tjspOutcome.failed = true;
             recordCoverageIssue(coverageIssues, `tjsp-dje-oab: ${(e as Error).message}`);
             return [] as DjenItem[];
           }),
@@ -1625,6 +1650,21 @@ Deno.serve(async (req) => {
     ctx.proxyUrl = null;
   }
 
+  // Shared TJSP eSAJ cadence; a read failure keeps the legacy behaviour (attempt).
+  if (!ctx.targetedOnly) {
+    try {
+      const { data: h } = await supabase
+        .from("djen_source_health")
+        .select("tjsp_last_ok_at,tjsp_next_attempt_at,tjsp_block_streak")
+        .eq("id", 1)
+        .maybeSingle();
+      ctx.tjspState = (h as TjspGateState | null) ?? null;
+      ctx.tjspGate = decideTjspGate(ctx.tjspState, Date.now(), !!(ctx.startDate || ctx.endDate));
+    } catch (e) {
+      console.warn("[sync-djen] estado TJSP indisponível:", (e as Error).message);
+    }
+  }
+
   // Validate identity before accepting background work or exposing its result.
   const authHeader = req.headers.get("Authorization") || "";
   let manualUserId: string | null = null;
@@ -1763,6 +1803,15 @@ Deno.serve(async (req) => {
           break;
         }
       }
+
+      if (ctx.tjspOutcome.attempted)
+        try {
+          const o = ctx.tjspOutcome;
+          const patch = nextTjspState(ctx.tjspState, Date.now(), o.blocked ? "blocked" : o.failed ? "failed" : "ok");
+          if (Object.keys(patch).length) await supabase.from("djen_source_health").update(patch).eq("id", 1);
+        } catch (e) {
+          console.warn("[sync-djen] estado TJSP não salvo:", (e as Error).message);
+        }
 
       if (!ctx.targetedOnly)
         try {
