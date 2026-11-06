@@ -326,7 +326,6 @@ async function fetchTjmgDjeFallback(
   dataInicio: string,
   dataFim: string,
   coverageIssues: string[],
-
 ): Promise<DjenItem[]> {
   const normalizedNumbers = [...new Set(processNumbers.map(normalizeProcessNumber).filter(Boolean) as string[])];
   const tjmgNumbers = normalizedNumbers.filter((n) => n.includes(".8.13."));
