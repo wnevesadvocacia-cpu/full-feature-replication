@@ -46,3 +46,41 @@ export function createTransportBreaker(limit = 3) {
     ok() { consecutive = 0; },
   };
 }
+
+// Persisted TJSP eSAJ cadence. The eSAJ resets server connections when queried
+// every cron cycle; a recent complete check on the same São Paulo day covers the
+// redundant default window, and transport refusals back off exponentially. A
+// skipped attempt during backoff is always reported as incomplete coverage.
+export interface TjspGateState {
+  tjsp_last_ok_at: string | null;
+  tjsp_next_attempt_at: string | null;
+  tjsp_block_streak: number | null;
+}
+export type TjspGate =
+  | { run: true }
+  | { run: false; reason: 'fresh'; lastOk: string }
+  | { run: false; reason: 'cooldown'; until: string; lastOk: string | null };
+
+export const TJSP_FRESH_MS = 3 * 3600_000;
+const TJSP_BACKOFF_BASE_MS = 15 * 60_000;
+const TJSP_BACKOFF_MAX_MS = 3 * 3600_000;
+const spDay = (ms: number) => new Date(ms - 3 * 3600_000).toISOString().slice(0, 10);
+
+export function decideTjspGate(state: TjspGateState | null, nowMs: number, explicitWindow: boolean): TjspGate {
+  const lastOk = state?.tjsp_last_ok_at ?? null;
+  const next = state?.tjsp_next_attempt_at ? Date.parse(state.tjsp_next_attempt_at) : NaN;
+  if (Number.isFinite(next) && nowMs < next) return { run: false, reason: 'cooldown', until: state!.tjsp_next_attempt_at!, lastOk };
+  const okMs = lastOk ? Date.parse(lastOk) : NaN;
+  if (!explicitWindow && Number.isFinite(okMs) && nowMs - okMs < TJSP_FRESH_MS && spDay(okMs) === spDay(nowMs)) {
+    return { run: false, reason: 'fresh', lastOk: lastOk! };
+  }
+  return { run: true };
+}
+
+export function nextTjspState(state: TjspGateState | null, nowMs: number, outcome: 'ok' | 'blocked' | 'failed'): Partial<TjspGateState> {
+  if (outcome === 'ok') return { tjsp_last_ok_at: new Date(nowMs).toISOString(), tjsp_next_attempt_at: null, tjsp_block_streak: 0 };
+  if (outcome === 'failed') return {};
+  const streak = (state?.tjsp_block_streak ?? 0) + 1;
+  const delay = Math.min(TJSP_BACKOFF_BASE_MS * 2 ** (streak - 1), TJSP_BACKOFF_MAX_MS);
+  return { tjsp_block_streak: streak, tjsp_next_attempt_at: new Date(nowMs + delay).toISOString() };
+}

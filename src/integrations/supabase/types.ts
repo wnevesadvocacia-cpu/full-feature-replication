@@ -303,6 +303,9 @@ export type Database = {
           last_error: string | null
           last_fail_at: string | null
           last_ok_at: string | null
+          tjsp_block_streak: number
+          tjsp_last_ok_at: string | null
+          tjsp_next_attempt_at: string | null
           updated_at: string
         }
         Insert: {
@@ -312,6 +315,9 @@ export type Database = {
           last_error?: string | null
           last_fail_at?: string | null
           last_ok_at?: string | null
+          tjsp_block_streak?: number
+          tjsp_last_ok_at?: string | null
+          tjsp_next_attempt_at?: string | null
           updated_at?: string
         }
         Update: {
@@ -321,6 +327,9 @@ export type Database = {
           last_error?: string | null
           last_fail_at?: string | null
           last_ok_at?: string | null
+          tjsp_block_streak?: number
+          tjsp_last_ok_at?: string | null
+          tjsp_next_attempt_at?: string | null
           updated_at?: string
         }
         Relationships: []
