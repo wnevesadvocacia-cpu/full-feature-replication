@@ -40,14 +40,18 @@ export function DjenHealthBadge() {
 
   if (!data) return null;
 
-  const degraded = data.current_source !== 'djen' || data.consecutive_failures >= 2;
-  const warn = data.consecutive_failures === 1;
+  // Main DJEN source healthy but a supplemental tribunal query failed: still incomplete, never "OK".
+  const complementaryOnly = djenFailureSource(data.last_error) === 'Conferência complementar';
+  const degraded = !complementaryOnly && (data.current_source !== 'djen' || data.consecutive_failures >= 2);
+  const warn = data.consecutive_failures >= 1 && !degraded;
   const ok = !degraded && !warn;
 
   const Icon = ok ? CheckCircle2 : degraded ? XCircle : AlertTriangle;
   const label = ok
     ? `DJEN/CNJ operante · última sync ${timeAgo(data.last_ok_at)}`
-    : degraded
+    : complementaryOnly
+      ? `DJEN/CNJ operante · conferência complementar TJSP incompleta (${data.consecutive_failures}x) · última cobertura completa ${timeAgo(data.last_ok_at)}`
+      : degraded
       ? `${djenFailureSource(data.last_error)} incompleta (${data.consecutive_failures} falhas) · última OK ${timeAgo(data.last_ok_at)}`
       : `${djenFailureSource(data.last_error)} falhou · última tentativa ${timeAgo(data.last_fail_at)}`;
 
