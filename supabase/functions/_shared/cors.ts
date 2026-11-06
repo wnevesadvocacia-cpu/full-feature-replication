@@ -22,7 +22,7 @@ const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 const BASE_HEADERS: Record<string, string> = {
   'Access-Control-Allow-Headers':
-    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-lovable-signature, x-lovable-timestamp',
+    'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-lovable-signature, x-lovable-timestamp, x-region',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
   'Access-Control-Max-Age': '86400',
   'Vary': 'Origin',

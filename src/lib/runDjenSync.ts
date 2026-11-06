@@ -1,8 +1,10 @@
+import { FunctionRegion } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { summarizeDjenSync } from './djenSyncResult';
 
 export async function runDjenSync(body: Record<string, unknown> = {}) {
-  const { data: start, error } = await supabase.functions.invoke('sync-djen', { body: { ...body, manual: true }, method: 'POST' });
+  // Região São Paulo: o eSAJ/TJSP recusa conexões vindas da região padrão do servidor.
+  const { data: start, error } = await supabase.functions.invoke('sync-djen', { body: { ...body, manual: true }, method: 'POST', region: FunctionRegion.SaEast1 });
   if (error) throw error;
   if (!start?.background) return summarizeDjenSync(start || {});
   if (!start.run_id) throw new Error('Busca não iniciada.');
