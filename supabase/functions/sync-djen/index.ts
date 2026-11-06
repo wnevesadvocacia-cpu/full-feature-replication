@@ -437,16 +437,7 @@ function toBrDate(iso: string): string {
 }
 
 const TJSP_RETRY_BACKOFF_MS = 3_000;
-// Após a primeira recusa do IP direto, a rodada segue só pelo relay (evita repetir recusas).
-let tjspUseRelay = false;
 async function postTjspDje(body: URLSearchParams): Promise<string> {
-  if (tjspUseRelay) {
-    try {
-      return await postTjspDjeViaRelays(body);
-    } catch {
-      tjspUseRelay = false; // relay indisponível: volta a tentar direto
-    }
-  }
   for (let attempt = 1; ; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -469,54 +460,12 @@ async function postTjspDje(body: URLSearchParams): Promise<string> {
       return html;
     } catch (e) {
       const msg = (e as Error).message;
-      if (!isTransportBlock(msg)) throw e;
-      // Contorno: o eSAJ recusa o IP de saída desta execução; reenvia por outra região.
-      try {
-        const html = await postTjspDjeViaRelays(body);
-        tjspUseRelay = true;
-        return html;
-      } catch { /* mantém a recusa original para o circuit breaker */ }
-      if (attempt >= 2) throw e;
+      if (attempt >= 2 || !isTransportBlock(msg)) throw e;
       await new Promise((r) => setTimeout(r, TJSP_RETRY_BACKOFF_MS + Math.floor(Math.random() * 1000)));
     } finally {
       clearTimeout(timer);
     }
   }
-}
-
-const TJSP_RELAY_REGIONS = ["sa-east-1", "us-east-1"];
-async function postTjspDjeViaRelays(body: URLSearchParams): Promise<string> {
-  let last: unknown;
-  for (const region of TJSP_RELAY_REGIONS) {
-    try {
-      return await postTjspDjeViaRelay(body, region);
-    } catch (re) {
-      last = re;
-      console.warn(`[tjsp-relay] ${region} falhou:`, (re as Error).message);
-    }
-  }
-  throw last;
-}
-const randHex = (n: number) =>
-  Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, "0")).join("");
-async function postTjspDjeViaRelay(body: URLSearchParams, region: string): Promise<string> {
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/tjsp-relay`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, apikey: key, "x-region": region,
-      "Content-Type": "text/plain",
-      // trace próprio: chamadas encadeadas no mesmo trace são limitadas pelo runtime
-      traceparent: `00-${randHex(16)}-${randHex(8)}-01`,
-    },
-    body: body.toString(),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`relay HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  const upstream = Number(res.headers.get("x-upstream-status") ?? 0);
-  if (upstream !== 200) throw new Error(`TJSP HTTP ${upstream}`);
-  const html = new TextDecoder("iso-8859-1").decode(await res.arrayBuffer());
-  assertTribunalHtml(html, "TJSP");
-  return html;
 }
 
 async function fetchTjspDjeFallback(
